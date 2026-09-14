@@ -19,14 +19,14 @@ _TAG_MAX_HOLD_SECONDS = 3.5
 _ZOOM_MAX = 1.12
 _ZOOM_FPS = 30
 
-# A landscape photo (a building, a wide press-conference shot) fit within a
-# 9:16 Short without cropping leaves most of the frame as black bars - it
-# reads as small and static. A photo this wide is very unlikely to be a
-# face/logo close-up (those come back portrait or square), so it's safe to
-# scale-and-crop it to fill the frame instead of padding it. Anything under
-# this ratio (portraits, most logos) keeps the padded, never-cropped
-# treatment so a face or a two-part logo is never cut off.
-_CROP_ASPECT_THRESHOLD = 1.6
+# Filling the empty space around a photo with a blurred, darkened copy of
+# itself instead of black bars. Cropping to fill was tried and is not safe
+# at any threshold: normal photos (roughly square, e.g. a building shot)
+# still left huge bars, while a wide wordmark logo that did cross the
+# threshold got cropped down to two unreadable letters. Blur-fill never
+# crops, so a face, a logo or a building always stays whole.
+_BLUR_DOWNSCALE = 6
+_BLUR_SIGMA = 6
 
 
 def _run(cmd: list[str]) -> None:
@@ -39,27 +39,22 @@ def _run(cmd: list[str]) -> None:
         raise RuntimeError(f"ffmpeg fallo (codigo {result.returncode}): {stderr_tail}")
 
 
-def _photo_scale_pad_filter(width: int, height: int) -> str:
-    # Fit the whole image (no crop, so faces/logos never get cut off) and pad
-    # with black bars instead of stretching/cropping.
-    return f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black"
-
-
-def _photo_fill_filter(width: int, height: int) -> str:
-    # Scale to cover the whole frame and crop the overflow - no black bars,
-    # but crops into the image, so only used for photos wide enough (see
-    # _CROP_ASPECT_THRESHOLD) that this won't cut into a face or a logo.
-    return f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
-
-
-def _photo_background_filter(image_path: Path, width: int, height: int) -> str:
-    try:
-        aspect = branding.image_aspect_ratio(image_path)
-    except Exception:
-        aspect = 1.0
-    if aspect >= _CROP_ASPECT_THRESHOLD:
-        return _photo_fill_filter(width, height)
-    return _photo_scale_pad_filter(width, height)
+def _photo_background_filter(width: int, height: int) -> str:
+    """Fits the whole photo inside the frame (never cropped) over a blurred,
+    darkened copy of itself scaled to cover the rest, so a photo whose shape
+    doesn't match the frame fills the screen instead of floating between
+    black bars. The blur is done on a downscaled copy and then scaled back
+    up - far cheaper than blurring at full resolution, and the upscale
+    smooths it further."""
+    small_w, small_h = max(2, width // _BLUR_DOWNSCALE), max(2, height // _BLUR_DOWNSCALE)
+    return (
+        "split=2[blurbase][fitbase];"
+        f"[blurbase]scale={small_w}:{small_h}:force_original_aspect_ratio=increase,"
+        f"crop={small_w}:{small_h},gblur=sigma={_BLUR_SIGMA},scale={width}:{height},"
+        "eq=brightness=-0.12[blurred];"
+        f"[fitbase]scale={width}:{height}:force_original_aspect_ratio=decrease[fitted];"
+        "[blurred][fitted]overlay=(W-w)/2:(H-h)/2"
+    )
 
 
 def _ken_burns_filter(width: int, height: int, duration: float, zoom_out: bool = False) -> str:
@@ -79,7 +74,7 @@ def _build_photo_segment(
     image_path: Path, duration: float, width: int, height: int, tag: dict | None, out_path: Path, tmp_dir: Path, key: str
 ) -> None:
     zoom_out = int(key.split("_")[0]) % 2 == 1
-    vf_bg = f"{_photo_background_filter(image_path, width, height)},{_ken_burns_filter(width, height, duration, zoom_out)}"
+    vf_bg = f"{_photo_background_filter(width, height)},{_ken_burns_filter(width, height, duration, zoom_out)}"
 
     if not tag or duration < 1.5:
         _run(
