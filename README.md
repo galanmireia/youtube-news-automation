@@ -3,12 +3,16 @@
 Canal de YouTube de noticias completamente automatizado. El sistema:
 
 1. Busca noticias nuevas en feeds RSS.
-2. Genera un guion (titulo, descripcion, tags y escenas) con Claude.
-3. Sintetiza la narracion en voz con Google Cloud Text-to-Speech.
-4. Descarga video de stock (Pexels) para cada escena y monta el video final con FFmpeg.
-5. Genera subtitulos automaticos (faster-whisper) y una miniatura.
-6. Te envia el video por Telegram con botones **Aprobar** / **Rechazar**.
-7. Si apruebas, lo sube automaticamente a YouTube con la Data API v3.
+2. Por cada noticia genera **dos videos**: un Short vertical (9:16, 45-60s) y un video largo
+   horizontal (16:9, 3-5 min) — cada uno con su propio guion, pensado para los dos caminos de
+   monetizacion de YouTube (horas de visualizacion vs. vistas de Shorts).
+3. Genera el guion (titulo, descripcion, tags y escenas) con Claude para cada variante.
+4. Sintetiza la narracion en voz con Google Cloud Text-to-Speech.
+5. Descarga video de stock (Pexels) para cada escena y monta el video final con FFmpeg.
+6. Genera subtitulos automaticos (faster-whisper) y una miniatura.
+7. Te envia cada video por Telegram (etiquetado como SHORT o VIDEO LARGO) con botones
+   **Aprobar** / **Rechazar**.
+8. Si apruebas, lo sube automaticamente a YouTube con la Data API v3.
 
 Todo corre como un unico proceso (bot de Telegram + tarea periodica) pensado para desplegarse en Railway.
 

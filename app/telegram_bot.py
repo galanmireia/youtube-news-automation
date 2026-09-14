@@ -12,6 +12,9 @@ from .youtube_uploader import upload_video
 logger = logging.getLogger(__name__)
 
 
+_VARIANT_LABELS = {"short": "🔹 SHORT (vertical)", "long": "🔸 VIDEO LARGO (horizontal)"}
+
+
 async def send_for_approval(bot, video_id: int) -> None:
     record = storage.get_video(video_id)
     keyboard = InlineKeyboardMarkup(
@@ -22,7 +25,8 @@ async def send_for_approval(bot, video_id: int) -> None:
             ]
         ]
     )
-    caption = f"*{record['title']}*\n\n{record['description']}"
+    label = _VARIANT_LABELS.get(record["variant"], record["variant"])
+    caption = f"{label}\n*{record['title']}*\n\n{record['description']}"
     with open(record["thumbnail_path"], "rb") as thumbnail_file:
         message = await bot.send_photo(
             chat_id=TELEGRAM_CHAT_ID,
@@ -45,12 +49,14 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await query.edit_message_caption(caption="Este video ya fue procesado anteriormente.")
         return
 
+    label = _VARIANT_LABELS.get(record["variant"], record["variant"])
+
     if action == "reject":
         storage.set_status(video_id, "rejected")
-        await query.edit_message_caption(caption=f"Rechazado: {record['title']}")
+        await query.edit_message_caption(caption=f"{label}\nRechazado: {record['title']}")
         return
 
-    await query.edit_message_caption(caption=f"Subiendo a YouTube: {record['title']}")
+    await query.edit_message_caption(caption=f"{label}\nSubiendo a YouTube: {record['title']}")
     try:
         youtube_id = upload_video(
             Path(record["video_path"]),
@@ -60,17 +66,19 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             record["tags"].split(","),
         )
         storage.set_status(video_id, "uploaded", youtube_id)
-        await query.edit_message_caption(caption=f"Publicado: {record['title']}\nhttps://youtu.be/{youtube_id}")
+        await query.edit_message_caption(
+            caption=f"{label}\nPublicado: {record['title']}\nhttps://youtu.be/{youtube_id}"
+        )
     except Exception:
         logger.exception("Error subiendo el video %s a YouTube", video_id)
         storage.set_status(video_id, "upload_failed")
-        await query.edit_message_caption(caption=f"Error al subir: {record['title']}. Revisa los logs.")
+        await query.edit_message_caption(caption=f"{label}\nError al subir: {record['title']}. Revisa los logs.")
 
 
 async def pipeline_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
-        video_id = run_once()
-        if video_id is not None:
+        video_ids = run_once()
+        for video_id in video_ids:
             await send_for_approval(context.bot, video_id)
     except Exception:
         logger.exception("Error ejecutando el pipeline de generacion de video")

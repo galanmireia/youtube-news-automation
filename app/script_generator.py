@@ -30,7 +30,9 @@ frase):
 Titular: {title}
 Resumen: {summary}
 
-Estructura obligatoria del guion (60-90 segundos, en este orden):
+Formato de este video: {format_hint}
+
+Estructura obligatoria del guion ({duration_hint}, en este orden):
 1. Gancho: una frase que enganche (intrigante si la noticia lo permite, sobria si es sensible), con una pregunta o dato relacionado (no el titular tal cual).
 2. Contexto: que ha pasado antes, quien esta implicado, por que existe esta noticia ahora.
 3. El hecho: los datos concretos de la noticia, explicados con tus propias palabras.
@@ -58,6 +60,7 @@ sugeridos):
   4-6 especificas (nombres, lugares, entidades concretas de la noticia), y 3-5 relacionadas con el
   tipo de contenido (ej. "noticias de actualidad", "analisis noticias españa"). Sin duplicados,
   sin almohadillas aqui (van solo en la descripcion).
+{shorts_seo_hint}
 
 Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni markdown:
 {{
@@ -69,11 +72,38 @@ Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni ma
   ]
 }}
 
-Genera entre 6 y 9 escenas siguiendo la estructura de arriba (gancho, contexto, hecho, analisis,
-cierre - el hecho y el analisis pueden ocupar varias escenas). Cada narracion debe ser una o dos
-frases cortas, faciles de narrar en voz alta. No inventes datos que no esten en la noticia
-original: puedes analizar y contextualizar, pero los hechos deben ser reales.
+Genera {scene_count_hint} siguiendo la estructura de arriba (gancho, contexto, hecho, analisis,
+cierre - el hecho y el analisis pueden ocupar varias escenas). {scene_length_hint} No inventes
+datos que no esten en la noticia original: puedes analizar y contextualizar, pero los hechos deben
+ser reales.
 """
+
+_VARIANT_CONFIG = {
+    "short": {
+        "format_hint": (
+            "YouTube Short vertical (9:16). Debe ser autoconclusivo, directo al grano, pensado "
+            "para verse en el feed de Shorts sin contexto previo."
+        ),
+        "duration_hint": "45-60 segundos",
+        "scene_count_hint": "entre 5 y 7 escenas",
+        "scene_length_hint": "Cada narracion debe ser una frase corta y directa, ritmo rapido.",
+        "shorts_seo_hint": (
+            '- Incluye "#Shorts" como uno de los hashtags al final de la descripcion (obligatorio '
+            "para que YouTube lo clasifique bien como Short)."
+        ),
+    },
+    "long": {
+        "format_hint": "Video horizontal (16:9) extendido para YouTube, no es un Short.",
+        "duration_hint": "3 a 5 minutos",
+        "scene_count_hint": "entre 16 y 24 escenas",
+        "scene_length_hint": (
+            "Cada narracion puede tener hasta 2-3 frases; profundiza mas que en un Short: añade "
+            "ejemplos concretos, cifras adicionales, comparaciones, cronologia mas detallada y "
+            "matices en el analisis."
+        ),
+        "shorts_seo_hint": "",
+    },
+}
 
 
 def _strip_markdown_fence(text: str) -> str:
@@ -85,10 +115,14 @@ def _strip_markdown_fence(text: str) -> str:
     return text.strip()
 
 
-def generate_script(news_item: dict) -> dict:
+def generate_script(news_item: dict, variant: str = "long") -> dict:
+    if variant not in _VARIANT_CONFIG:
+        raise ValueError(f"variant desconocida: {variant!r}")
+    variant_config = _VARIANT_CONFIG[variant]
+
     message = _client.messages.create(
         model=CLAUDE_MODEL,
-        max_tokens=2000,
+        max_tokens=2000 if variant == "short" else 4000,
         messages=[
             {
                 "role": "user",
@@ -98,6 +132,7 @@ def generate_script(news_item: dict) -> dict:
                     language=NEWS_LANGUAGE_HINT,
                     title=news_item["title"],
                     summary=news_item["summary"],
+                    **variant_config,
                 ),
             }
         ],

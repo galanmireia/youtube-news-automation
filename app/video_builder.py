@@ -1,15 +1,13 @@
 import subprocess
 from pathlib import Path
 
-from .config import VIDEO_HEIGHT, VIDEO_WIDTH
-
 
 def _run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True, capture_output=True)
 
 
-def _normalize_clip(clip_path: Path, duration: float, out_path: Path) -> None:
-    vf = f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}"
+def _normalize_clip(clip_path: Path, duration: float, out_path: Path, width: int, height: int) -> None:
+    vf = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
     _run(
         [
             "ffmpeg",
@@ -36,6 +34,8 @@ def build_video(
     narration_path: Path,
     work_dir: Path,
     out_path: Path,
+    width: int,
+    height: int,
 ) -> Path:
     """Trims/loops each stock clip to match its scene's narration length,
     concatenates them in order, and muxes the narration audio on top."""
@@ -45,7 +45,7 @@ def build_video(
     segment_paths = []
     for i, (clip_path, duration) in enumerate(zip(clip_paths, scene_durations)):
         seg_path = normalized_dir / f"seg_{i:02d}.mp4"
-        _normalize_clip(clip_path, duration + 0.3, seg_path)
+        _normalize_clip(clip_path, duration + 0.3, seg_path, width, height)
         segment_paths.append(seg_path)
 
     concat_list_path = work_dir / "concat_list.txt"

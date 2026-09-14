@@ -68,8 +68,10 @@ CHANNEL_TONE_HINT = os.environ.get(
     "abiertas. El tono es intrigante y directo, pero SIEMPRE basado en hechos verificables de la "
     "propia noticia, nunca en especulacion sin fundamento ni teorias de conspiracion.",
 )
-VIDEO_WIDTH = int(os.environ.get("VIDEO_WIDTH", 1920))
-VIDEO_HEIGHT = int(os.environ.get("VIDEO_HEIGHT", 1080))
+LONG_VIDEO_WIDTH = int(os.environ.get("LONG_VIDEO_WIDTH", os.environ.get("VIDEO_WIDTH", 1920)))
+LONG_VIDEO_HEIGHT = int(os.environ.get("LONG_VIDEO_HEIGHT", os.environ.get("VIDEO_HEIGHT", 1080)))
+SHORT_VIDEO_WIDTH = int(os.environ.get("SHORT_VIDEO_WIDTH", 1080))
+SHORT_VIDEO_HEIGHT = int(os.environ.get("SHORT_VIDEO_HEIGHT", 1920))
 
 # Google Cloud TTS reads its credentials from this env var directly.
 os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", GOOGLE_APPLICATION_CREDENTIALS)
