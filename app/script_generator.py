@@ -2,15 +2,17 @@ import json
 
 import anthropic
 
-from .config import ANTHROPIC_API_KEY, CLAUDE_MODEL, NEWS_LANGUAGE_HINT
+from .config import ANTHROPIC_API_KEY, CHANNEL_NAME, CHANNEL_TONE_HINT, CLAUDE_MODEL, NEWS_LANGUAGE_HINT
 
 _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-PROMPT_TEMPLATE = """Eres el guionista y analista de un canal de YouTube de noticias en {language}.
+PROMPT_TEMPLATE = """Eres el guionista y analista del canal de YouTube "{channel_name}" en {language}.
 Tu trabajo NO es resumir el titular. YouTube penaliza (y puede desmonetizar) los canales que
 solo leen una noticia con otras palabras sin aportar nada propio ("reused/repetitious content").
 Cada guion debe leerse como una pieza de analisis periodistico con voz editorial propia, no como
 una lectura plana de la fuente.
+
+Identidad del canal: {tone_hint}
 
 Noticia de partida (usala solo como disparador de hechos, NO la copies ni parafrasees frase a
 frase):
@@ -18,13 +20,16 @@ Titular: {title}
 Resumen: {summary}
 
 Estructura obligatoria del guion (60-90 segundos, en este orden):
-1. Gancho: una frase que enganche, con una pregunta o dato llamativo relacionado (no el titular tal cual).
+1. Gancho: una frase intrigante que enganche, con una pregunta o dato llamativo relacionado (no el titular tal cual).
 2. Contexto: que ha pasado antes, quien esta implicado, por que existe esta noticia ahora.
 3. El hecho: los datos concretos de la noticia, explicados con tus propias palabras.
-4. Analisis: por que importa esto, que consecuencias tiene, como conecta con otras tendencias o
-   noticias del sector. Esta es la parte que aporta valor real y diferencia el canal de un simple
-   agregador.
+4. El lado oculto: la parte de la historia que no suele contarse a simple vista, las
+   consecuencias reales, los intereses en juego o las preguntas que deja abiertas. Esta es la
+   parte que aporta valor real y diferencia el canal de un simple agregador de titulares.
 5. Cierre: una reflexion o pregunta abierta al espectador, y llamada a suscribirse.
+
+Recuerda: intrigante y directo, pero SIEMPRE anclado en los hechos de la noticia original. Nunca
+inventes conspiraciones ni afirmes cosas que no esten respaldadas por la fuente.
 
 Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni markdown:
 {{
@@ -60,6 +65,8 @@ def generate_script(news_item: dict) -> dict:
             {
                 "role": "user",
                 "content": PROMPT_TEMPLATE.format(
+                    channel_name=CHANNEL_NAME,
+                    tone_hint=CHANNEL_TONE_HINT,
                     language=NEWS_LANGUAGE_HINT,
                     title=news_item["title"],
                     summary=news_item["summary"],

@@ -41,6 +41,14 @@ RSS_FEEDS = [
 
 PIPELINE_INTERVAL_SECONDS = int(os.environ.get("PIPELINE_INTERVAL_SECONDS", 60 * 60 * 12))
 NEWS_LANGUAGE_HINT = os.environ.get("NEWS_LANGUAGE_HINT", "castellano, España")
+CHANNEL_NAME = os.environ.get("CHANNEL_NAME", "ActualiDark")
+CHANNEL_TONE_HINT = os.environ.get(
+    "CHANNEL_TONE_HINT",
+    "revela el lado oculto, inquietante o menos contado de cada noticia: que se esconde detras "
+    "del titular, que consecuencias no se ven a simple vista, que preguntas incomodas deja "
+    "abiertas. El tono es intrigante y directo, pero SIEMPRE basado en hechos verificables de la "
+    "propia noticia, nunca en especulacion sin fundamento ni teorias de conspiracion.",
+)
 VIDEO_WIDTH = int(os.environ.get("VIDEO_WIDTH", 1920))
 VIDEO_HEIGHT = int(os.environ.get("VIDEO_HEIGHT", 1080))
 
