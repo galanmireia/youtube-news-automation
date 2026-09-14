@@ -10,18 +10,29 @@ from .config import PEXELS_API_KEY
 PEXELS_SEARCH_URL = "https://api.pexels.com/videos/search"
 
 _ENTITY_CONNECTORS = {"de", "del", "la", "las", "los", "y", "en"}
-_MAX_EXTRACTED_ENTITIES = 2
+_MAX_EXTRACTED_ENTITIES = 3
+
+# Short one-word acronyms/names the 2+-capitalized-word heuristic below
+# would otherwise miss entirely (a single capitalized word is too weak a
+# signal on its own - most sentences start with one - so real party names
+# that are just one word, like "Vox", need to be matched explicitly).
+_KNOWN_SHORT_ENTITIES = [
+    "PSOE", "PP", "Vox", "Sumar", "Podemos", "Ciudadanos", "ERC", "Junts",
+    "PNV", "Bildu", "CUP", "BNG", "UPN",
+]
 
 
 def _extract_named_entities(text: str) -> list[str]:
     """Deterministic safety net: the model doesn't always reliably tag
-    every named place/institution in photo_subject even when the prompt
-    says to, so this also pulls capitalized multi-word phrases straight
-    out of the narration (Spanish proper-noun patterns like "Universidad
-    de Granada" or "Partido Popular") to try as real-photo candidates too,
-    independent of whatever the model actually filled in."""
+    every named place/institution/party in photo_subject even when the
+    prompt says to, so this also pulls likely proper nouns straight out of
+    the narration to try as real-photo candidates too, independent of
+    whatever the model actually filled in: known short party acronyms
+    matched literally, plus capitalized multi-word phrases (Spanish
+    proper-noun patterns like "Universidad de Granada")."""
+    entities: list[str] = [name for name in _KNOWN_SHORT_ENTITIES if re.search(rf"\b{name}\b", text)]
+
     words = re.sub(r"[.,;:()\"'“”¡!¿?]", " ", text).split()
-    entities: list[str] = []
     current: list[str] = []
     capitalized_count = 0
     for word in words:
