@@ -6,7 +6,7 @@ from pathlib import Path
 import requests
 
 from . import ai_images, branding, real_photos
-from .config import PEXELS_API_KEY
+from .config import CHANNEL_NAME, PEXELS_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +134,11 @@ def fetch_clips_for_scenes(
         candidates = ([photo_subject] if photo_subject else []) + [
             name for name in dict.fromkeys(extra_candidates) if name != photo_subject
         ]
+        # The closing scene asks viewers to subscribe, so the channel's own
+        # name gets picked up as an entity. Looking it up is pointless, and a
+        # loose match would put some unrelated image on screen captioned with
+        # the channel name.
+        candidates = [name for name in candidates if name.strip().lower() != CHANNEL_NAME.strip().lower()]
 
         max_photos = _MAX_PHOTOS_PER_SCENE if duration >= _MIN_SCENE_SECONDS_FOR_MULTI_PHOTO else 1
         found: list[tuple[str, Path, str]] = []
