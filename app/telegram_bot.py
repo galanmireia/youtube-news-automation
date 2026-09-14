@@ -94,16 +94,26 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def _run_pipeline_and_notify(bot) -> None:
+    loop = asyncio.get_running_loop()
+
+    def on_variant_done(video_id: int) -> None:
+        # run_once() executes in a worker thread (see run_in_executor below),
+        # so sending straight away here would call async Telegram code off
+        # the event loop. Hop back onto the loop instead, and block this
+        # worker thread until it's actually sent so variants stay in order.
+        future = asyncio.run_coroutine_threadsafe(send_for_approval(bot, video_id), loop)
+        try:
+            future.result()
+        except Exception:
+            logger.exception("Error enviando el video %s a Telegram", video_id)
+
     async with _pipeline_lock:
         try:
-            video_ids = await asyncio.get_running_loop().run_in_executor(None, run_once)
+            video_ids = await loop.run_in_executor(None, run_once, on_variant_done)
             if not video_ids:
                 await bot.send_message(
                     chat_id=TELEGRAM_CHAT_ID, text="No hay noticias nuevas que procesar ahora mismo."
                 )
-                return
-            for video_id in video_ids:
-                await send_for_approval(bot, video_id)
         except Exception:
             logger.exception("Error ejecutando el pipeline de generacion de video")
             await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="Error generando el video, revisa los logs.")

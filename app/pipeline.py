@@ -2,6 +2,7 @@ import logging
 import shutil
 import time
 from pathlib import Path
+from typing import Callable
 
 from . import storage
 from .config import DATA_DIR, LONG_VIDEO_HEIGHT, LONG_VIDEO_WIDTH, SHORT_VIDEO_HEIGHT, SHORT_VIDEO_WIDTH
@@ -56,10 +57,13 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     return video_id
 
 
-def run_once() -> list[int]:
+def run_once(on_variant_done: Callable[[int], None] | None = None) -> list[int]:
     """Picks the next unprocessed news item and generates both a vertical
     Short and a longer horizontal video for it, storing each as 'pending'.
-    Returns the new videos' ids (empty if there was no fresh news)."""
+    Calls on_variant_done(video_id) right after each variant finishes, so
+    callers can notify/send it immediately instead of waiting for both
+    variants to be done. Returns the new videos' ids (empty if there was no
+    fresh news)."""
     candidates = fetch_candidate_news(limit=5)
     if not candidates:
         logger.info("No hay noticias nuevas que procesar.")
@@ -74,7 +78,10 @@ def run_once() -> list[int]:
     video_ids = []
     for variant in ("short", "long"):
         try:
-            video_ids.append(_generate_variant(news_item, variant, work_dir))
+            video_id = _generate_variant(news_item, variant, work_dir)
+            video_ids.append(video_id)
+            if on_variant_done is not None:
+                on_variant_done(video_id)
         except Exception:
             # Don't let one variant's failure wipe out the other's already-finished
             # video: only the failed variant's own directory is cleaned up.
