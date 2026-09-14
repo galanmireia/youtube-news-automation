@@ -1,60 +1,126 @@
 import subprocess
 from pathlib import Path
 
+from . import branding
+
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
+
+# How long the name tag takes to slide in/out. Kept short and the hold time
+# capped (see _build_photo_segment) so the tag reads as a temporary caption
+# instead of a fixture stuck on screen for the whole shot.
+_TAG_SLIDE_SECONDS = 0.4
+_TAG_MAX_HOLD_SECONDS = 3.5
 
 
 def _run(cmd: list[str]) -> None:
-    subprocess.run(cmd, check=True, capture_output=True)
+    result = subprocess.run(cmd, capture_output=True)
+    if result.returncode != 0:
+        # subprocess.run(check=True) alone would only report the exit code -
+        # ffmpeg's actual error (bad filter syntax, missing font, etc.) is on
+        # stderr, and without it a failure here is undebuggable from logs.
+        stderr_tail = result.stderr.decode(errors="replace")[-2000:]
+        raise RuntimeError(f"ffmpeg fallo (codigo {result.returncode}): {stderr_tail}")
 
 
-def _normalize_clip(clip_path: Path, duration: float, out_path: Path, width: int, height: int) -> None:
-    if clip_path.suffix.lower() in IMAGE_SUFFIXES:
-        # A real person's photo: fit the whole image (no crop, so faces never
-        # get cut off) and pad with black bars instead of stretching/cropping.
-        vf = f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black"
+def _photo_scale_pad_filter(width: int, height: int) -> str:
+    # Fit the whole image (no crop, so faces/logos never get cut off) and pad
+    # with black bars instead of stretching/cropping.
+    return f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black"
+
+
+def _build_photo_segment(
+    image_path: Path, duration: float, width: int, height: int, tag: dict | None, out_path: Path, tmp_dir: Path, key: str
+) -> None:
+    vf_bg = _photo_scale_pad_filter(width, height)
+
+    if not tag or duration < 1.5:
         _run(
             [
-                "ffmpeg",
-                "-y",
-                "-loop",
-                "1",
-                "-i",
-                str(clip_path),
-                "-t",
-                str(duration),
-                "-vf",
-                vf,
-                "-r",
-                "30",
+                "ffmpeg", "-y",
+                "-loop", "1", "-i", str(image_path),
+                "-t", str(duration),
+                "-vf", vf_bg,
+                "-r", "30",
                 str(out_path),
             ]
         )
         return
 
-    vf = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
+    bar_height = branding.name_tag_bar_height(height)
+    tag_png = tmp_dir / f"tag_{key}.png"
+    branding.render_name_tag_bar(tag["name"], tag.get("role", ""), width, bar_height).save(tag_png)
+
+    # Slide up from fully off-screen (y=height) to its resting position near
+    # the bottom, hold briefly, then slide back down and stay hidden for the
+    # rest of the shot - instead of sitting fixed on screen the whole time.
+    slide = _TAG_SLIDE_SECONDS
+    hold = min(_TAG_MAX_HOLD_SECONDS, max(1.0, duration - 2 * slide))
+    hold_end = slide + hold
+    slide_out_end = min(duration, hold_end + slide)
+    hidden_y, shown_y = height, height - bar_height
+    y_expr = (
+        f"if(lt(t,{slide}),{hidden_y}-({hidden_y}-{shown_y})*(t/{slide}),"
+        f"if(lt(t,{hold_end}),{shown_y},"
+        f"if(lt(t,{slide_out_end}),{shown_y}+({hidden_y}-{shown_y})*((t-{hold_end})/({slide_out_end}-{hold_end})),{hidden_y})))"
+    )
+    filter_complex = f"[0:v]{vf_bg}[bg];[1:v]format=rgba[fg];[bg][fg]overlay=x=0:y='{y_expr}':shortest=1[outv]"
     _run(
         [
-            "ffmpeg",
-            "-y",
-            "-stream_loop",
-            "-1",
-            "-i",
-            str(clip_path),
-            "-t",
-            str(duration),
-            "-vf",
-            vf,
-            "-an",
-            "-r",
-            "30",
+            "ffmpeg", "-y",
+            "-loop", "1", "-i", str(image_path),
+            "-loop", "1", "-i", str(tag_png),
+            "-t", str(duration),
+            "-filter_complex", filter_complex,
+            "-map", "[outv]",
+            "-r", "30",
             str(out_path),
         ]
     )
 
 
+def _build_video_clip_segment(clip_path: Path, duration: float, width: int, height: int, out_path: Path) -> None:
+    vf = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
+    _run(
+        [
+            "ffmpeg", "-y",
+            "-stream_loop", "-1", "-i", str(clip_path),
+            "-t", str(duration),
+            "-vf", vf,
+            "-an",
+            "-r", "30",
+            str(out_path),
+        ]
+    )
+
+
+def _build_scene_segment(
+    entries: list[tuple[Path, dict | None]], duration: float, width: int, height: int, out_path: Path, tmp_dir: Path, index: int
+) -> None:
+    if len(entries) == 1:
+        path, tag = entries[0]
+        if path.suffix.lower() in IMAGE_SUFFIXES:
+            _build_photo_segment(path, duration, width, height, tag, out_path, tmp_dir, str(index))
+        else:
+            _build_video_clip_segment(path, duration, width, height, out_path)
+        return
+
+    # Multiple real photos found for this one scene (e.g. two political
+    # parties named in the same sentence): show them as a quick slideshow
+    # instead of only ever picking the first match, for a more dynamic video.
+    per = duration / len(entries)
+    sub_paths = []
+    for j, (path, tag) in enumerate(entries):
+        sub_out = tmp_dir / f"seg_{index:02d}_{j}.mp4"
+        _build_photo_segment(path, per, width, height, tag, sub_out, tmp_dir, f"{index}_{j}")
+        sub_paths.append(sub_out)
+
+    concat_list = tmp_dir / f"subconcat_{index:02d}.txt"
+    concat_list.write_text("\n".join(f"file '{p.resolve()}'" for p in sub_paths))
+    _run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list), "-c", "copy", str(out_path)])
+
+
 def build_video(
-    clip_paths: list[Path],
+    clip_entries: list[list[tuple[Path, dict | None]]],
     scene_durations: list[float],
     narration_path: Path,
     work_dir: Path,
@@ -62,15 +128,18 @@ def build_video(
     width: int,
     height: int,
 ) -> Path:
-    """Trims/loops each stock clip to match its scene's narration length,
-    concatenates them in order, and muxes the narration audio on top."""
+    """Renders each scene's clip(s) - a stock video, a single real photo/AI
+    image, or (for scenes with more than one named entity) a short slideshow
+    of several real photos - trimmed/looped to match the scene's narration
+    length, concatenates them in order, and muxes the narration audio on
+    top."""
     normalized_dir = work_dir / "normalized"
     normalized_dir.mkdir(parents=True, exist_ok=True)
 
     segment_paths = []
-    for i, (clip_path, duration) in enumerate(zip(clip_paths, scene_durations)):
+    for i, (entries, duration) in enumerate(zip(clip_entries, scene_durations)):
         seg_path = normalized_dir / f"seg_{i:02d}.mp4"
-        _normalize_clip(clip_path, duration + 0.3, seg_path, width, height)
+        _build_scene_segment(entries, duration + 0.3, width, height, seg_path, normalized_dir, i)
         segment_paths.append(seg_path)
 
     concat_list_path = work_dir / "concat_list.txt"
@@ -79,32 +148,20 @@ def build_video(
     silent_video_path = work_dir / "silent_video.mp4"
     _run(
         [
-            "ffmpeg",
-            "-y",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            str(concat_list_path),
-            "-c",
-            "copy",
+            "ffmpeg", "-y",
+            "-f", "concat", "-safe", "0", "-i", str(concat_list_path),
+            "-c", "copy",
             str(silent_video_path),
         ]
     )
 
     _run(
         [
-            "ffmpeg",
-            "-y",
-            "-i",
-            str(silent_video_path),
-            "-i",
-            str(narration_path),
-            "-c:v",
-            "copy",
-            "-c:a",
-            "aac",
+            "ffmpeg", "-y",
+            "-i", str(silent_video_path),
+            "-i", str(narration_path),
+            "-c:v", "copy",
+            "-c:a", "aac",
             "-shortest",
             str(out_path),
         ]

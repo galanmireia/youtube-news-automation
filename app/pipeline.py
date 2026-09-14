@@ -61,12 +61,16 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
             scene["detected_entities"] = entities_by_scene.get(i, [])
 
     narration_path, scene_durations = synthesize_scenes(script["scenes"], variant_dir / "audio")
-    clip_paths = fetch_clips_for_scenes(
-        script["scenes"], variant_dir / "clips", _VARIANT_ASPECT_RATIO[variant], is_sensitive=is_sensitive
+    clip_entries = fetch_clips_for_scenes(
+        script["scenes"],
+        variant_dir / "clips",
+        _VARIANT_ASPECT_RATIO[variant],
+        scene_durations,
+        is_sensitive=is_sensitive,
     )
 
     final_video_path = build_video(
-        clip_paths, scene_durations, narration_path, variant_dir, variant_dir / "final_video.mp4", width, height
+        clip_entries, scene_durations, narration_path, variant_dir, variant_dir / "final_video.mp4", width, height
     )
 
     # Subtitles are uploaded as a native, toggleable YouTube caption track

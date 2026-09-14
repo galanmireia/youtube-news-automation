@@ -108,32 +108,37 @@ def generate_intro_card(out_path: Path, width: int, height: int) -> Path:
     return out_path
 
 
-def add_name_tag(image_path: Path, name: str, role: str) -> Path:
-    """Draws a TV-news-style lower third (name + role over a solid bar near
-    the bottom) directly onto a real public figure's photo, in place. Makes
-    clear who's on screen instead of a plain unlabeled photo."""
-    image = Image.open(image_path).convert("RGB")
-    width, height = image.size
+def name_tag_bar_height(frame_height: int) -> int:
+    """Bar height as a fraction of the frame - noticeably smaller than the
+    old baked-in version (which was ~1/9th of the frame and stayed on
+    screen for the whole shot) since it now only needs to read clearly
+    during its brief slide-in/hold/slide-out instead of being a permanent
+    fixture."""
+    return max(50, frame_height // 13)
 
-    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
 
-    bar_height = max(70, height // 9)
-    bar_top = height - bar_height
-    accent_thickness = max(4, bar_height // 12)
-    draw.rectangle([0, bar_top, width, bar_top + accent_thickness], fill=_ACCENT_COLOR + (255,))
-    draw.rectangle([0, bar_top + accent_thickness, width, height], fill=(0, 0, 0, 190))
+def render_name_tag_bar(name: str, role: str, width: int, bar_height: int) -> Image.Image:
+    """Renders just the TV-news-style lower third (name + role over a solid
+    bar) as its own transparent image, sized to the bar's own height rather
+    than the full frame. video_builder composites this onto the photo with
+    an animated vertical position (sliding up from off-screen, holding
+    briefly, sliding back down) instead of baking it permanently into the
+    photo, so it reads as a temporary caption rather than a fixed label."""
+    bar = Image.new("RGBA", (width, bar_height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(bar)
 
-    name_font = _load_font("DejaVuSans-Bold.ttf", max(22, bar_height // 3))
-    name_y = bar_top + accent_thickness + bar_height // 10
+    accent_thickness = max(3, bar_height // 12)
+    draw.rectangle([0, 0, width, accent_thickness], fill=_ACCENT_COLOR + (255,))
+    draw.rectangle([0, accent_thickness, width, bar_height], fill=(0, 0, 0, 190))
+
+    name_font = _load_font("DejaVuSans-Bold.ttf", max(18, bar_height // 3))
+    name_y = accent_thickness + bar_height // 10
     draw.text((width * 0.04, name_y), name.upper(), font=name_font, fill=TEXT_COLOR + (255,))
 
     if role:
-        role_font = _load_font("DejaVuSans-Bold.ttf", max(16, bar_height // 4))
+        role_font = _load_font("DejaVuSans-Bold.ttf", max(13, bar_height // 5))
         name_box = draw.textbbox((0, 0), name.upper(), font=name_font)
-        role_y = name_y + (name_box[3] - name_box[1]) + bar_height // 12
+        role_y = name_y + (name_box[3] - name_box[1]) + bar_height // 14
         draw.text((width * 0.04, role_y), role, font=role_font, fill=(220, 220, 220, 255))
 
-    combined = Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
-    combined.save(image_path, quality=92)
-    return image_path
+    return bar

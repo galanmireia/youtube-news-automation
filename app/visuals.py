@@ -16,6 +16,12 @@ _TARGET_DIMENSIONS = {"9:16": (1080, 1920), "16:9": (1920, 1080)}
 # Always has plenty of Pexels matches, used only if every other query (the
 # scene's own keywords, then a broadened version of them) comes up empty.
 _LAST_RESORT_QUERY = "news broadcast studio"
+# Showing more than 2 real photos in one shot would make already-short
+# scenes feel like a rapid-fire slideshow instead of an actual news video.
+_MAX_PHOTOS_PER_SCENE = 2
+# Splitting a scene's screen time only makes sense if each resulting photo
+# still gets a readable amount of time on screen.
+_MIN_SCENE_SECONDS_FOR_MULTI_PHOTO = 6.0
 
 
 def _search_pexels(query: str, orientation: str) -> list[dict]:
@@ -77,15 +83,24 @@ def fetch_clip_for_scene(keywords: str, out_path: Path, aspect_ratio: str, used_
     return out_path
 
 
-def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path, aspect_ratio: str, is_sensitive: bool = False) -> list[Path]:
+def fetch_clips_for_scenes(
+    scenes: list[dict], out_dir: Path, aspect_ratio: str, scene_durations: list[float], is_sensitive: bool = False
+) -> list[list[tuple[Path, dict | None]]]:
+    """Returns, per scene, a list of (clip_path, name_tag) entries - normally
+    just one, but up to _MAX_PHOTOS_PER_SCENE when a scene names several
+    entities and is long enough to show more than one of them, so a single
+    sentence mentioning two parties/institutions doesn't only ever display
+    the first one."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    clip_paths = []
+    clip_entries: list[list[tuple[Path, dict | None]]] = []
     used_video_ids: set[int] = set()
     for i, scene in enumerate(scenes):
+        duration = scene_durations[i] if i < len(scene_durations) else 0.0
+
         if scene.get("is_intro"):
             width, height = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
             card_path = branding.generate_intro_card(out_dir / f"clip_{i:02d}.jpg", width, height)
-            clip_paths.append(card_path)
+            clip_entries.append([(card_path, None)])
             continue
 
         photo_subject = (scene.get("photo_subject") or "").strip()
@@ -101,37 +116,39 @@ def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path, aspect_ratio: str,
         candidates = ([photo_subject] if photo_subject else []) + [
             name for name in dict.fromkeys(extra_candidates) if name != photo_subject
         ]
-        matched_subject, photo_path = None, None
+
+        max_photos = _MAX_PHOTOS_PER_SCENE if duration >= _MIN_SCENE_SECONDS_FOR_MULTI_PHOTO else 1
+        found: list[tuple[str, Path, str]] = []
         for candidate in candidates:
-            photo_path = real_photos.fetch_portrait(candidate, out_dir / f"clip_{i:02d}.jpg")
-            if photo_path is not None:
-                matched_subject = candidate
+            if len(found) >= max_photos:
                 break
+            candidate_path = out_dir / f"clip_{i:02d}_{len(found)}.jpg"
+            photo_path = real_photos.fetch_portrait(candidate, candidate_path)
+            if photo_path is not None:
+                role = (
+                    (scene.get("photo_subject_role") or "").strip()
+                    if candidate == photo_subject
+                    else next((e.get("descriptor", "") for e in detected_entities if e.get("name") == candidate), "")
+                )
+                found.append((candidate, photo_path, role))
 
         if candidates:
             logger.info(
                 "Escena %s: candidatos a foto real %s -> %s",
                 i,
                 candidates,
-                f"encontrada para {matched_subject!r}" if photo_path is not None else "ninguna foto encontrada",
+                f"encontradas: {[name for name, _, _ in found]}" if found else "ninguna foto encontrada",
             )
 
-        if photo_path is not None:
-            if matched_subject == photo_subject:
-                role = (scene.get("photo_subject_role") or "").strip()
-            else:
-                role = next(
-                    (e.get("descriptor", "") for e in detected_entities if e.get("name") == matched_subject), ""
-                )
-            branding.add_name_tag(photo_path, matched_subject, role)
-            clip_paths.append(photo_path)
+        if found:
+            clip_entries.append([(path, {"name": name, "role": role}) for name, path, role in found])
             continue
 
         ai_image_prompt = (scene.get("ai_image_prompt") or "").strip()
         if ai_image_prompt:
             image_path = ai_images.generate_image(ai_image_prompt, out_dir / f"clip_{i:02d}.jpg", aspect_ratio)
             if image_path is not None:
-                clip_paths.append(image_path)
+                clip_entries.append([(image_path, None)])
                 continue
 
         out_path = out_dir / f"clip_{i:02d}.mp4"
@@ -140,5 +157,5 @@ def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path, aspect_ratio: str,
         # something Pexels can still search for instead of an empty query.
         query = (scene.get("visual_keywords") or "").strip() or ai_image_prompt or photo_subject or "news studio background"
         fetch_clip_for_scene(query, out_path, aspect_ratio, used_video_ids)
-        clip_paths.append(out_path)
-    return clip_paths
+        clip_entries.append([(out_path, None)])
+    return clip_entries

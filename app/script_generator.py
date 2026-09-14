@@ -104,6 +104,16 @@ MUY IMPORTANTE - variedad: dos escenas del mismo guion NUNCA deben llevar las mi
 o describir la misma imagen generica, aunque el tema de fondo sea el mismo (ej. no repitas "press
 conference" en varias escenas de una noticia politica) - cada escena debe aportar una imagen
 distinta, o el video se siente repetitivo y aburrido.
+MUY IMPORTANTE - pais correcto: cuando la escena sea de gobierno, politica, justicia, policia,
+banca central, parlamento o cualquier otra imagen institucional generica, especifica SIEMPRE el
+pais/region real de la noticia dentro de las palabras clave (ej. para una noticia de España:
+"spanish parliament exterior", "madrid courthouse", "spain police officer", "european union flag
+brussels" - NUNCA dejes terminos ambiguos sin pais como "government building", "senate", "capitol",
+"courtroom" o "police car", porque los bancos de stock genericos devuelven mayoritariamente
+imagenes de Estados Unidos (banderas americanas, el Capitolio, coches de policia americanos) para
+esos terminos, y eso queda visualmente incorrecto y confunde al espectador en una noticia de otro
+pais. Si la noticia es de España usa "spain"/"spanish"/"madrid"/etc.; si es de otro pais, usa ese
+pais en su lugar.
 
 Requisitos de SEO para YouTube (importante, esto determina si el video se encuentra en buscador y
 sugeridos):
