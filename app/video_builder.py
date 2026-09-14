@@ -336,9 +336,13 @@ def mix_background_music(video_path: Path, music_path: Path, out_path: Path, vol
             "-stream_loop", "-1", "-i", str(music_path),
             # normalize=0 matters: amix otherwise divides every input by the
             # number of inputs, so simply adding music would quietly drop the
-            # narration itself by 6 dB.
+            # narration itself by 6 dB. The limiter then holds peaks about a
+            # dB below full scale - the narration alone already peaks near
+            # 0 dBFS, and adding music on top left no headroom at all, which
+            # risks audible clipping once YouTube re-encodes the audio.
             "-filter_complex",
-            f"{music_chain};[0:a][music]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]",
+            f"{music_chain};[0:a][music]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,"
+            "alimiter=limit=0.89:level=disabled[aout]",
             "-map", "0:v", "-map", "[aout]",
             "-c:v", "copy", "-c:a", "aac",
             "-t", str(duration),
