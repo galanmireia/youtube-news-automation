@@ -145,7 +145,7 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
 
     message = _client.messages.create(
         model=CLAUDE_MODEL,
-        max_tokens=2000 if variant == "short" else 4000,
+        max_tokens=2000 if variant == "short" else 8000,
         messages=[
             {
                 "role": "user",

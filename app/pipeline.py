@@ -70,10 +70,19 @@ def run_once() -> list[int]:
     work_dir = Path(DATA_DIR) / f"job_{int(time.time())}"
     work_dir.mkdir(parents=True, exist_ok=True)
 
-    try:
-        video_ids = [_generate_variant(news_item, variant, work_dir) for variant in ("short", "long")]
+    video_ids = []
+    for variant in ("short", "long"):
+        try:
+            video_ids.append(_generate_variant(news_item, variant, work_dir))
+        except Exception:
+            # Don't let one variant's failure wipe out the other's already-finished
+            # video: only the failed variant's own directory is cleaned up.
+            logger.exception("Error generando la variante '%s'", variant)
+            shutil.rmtree(work_dir / variant, ignore_errors=True)
+
+    if video_ids:
         storage.mark_source_processed(news_item["link"])
-        return video_ids
-    except Exception:
+    else:
         shutil.rmtree(work_dir, ignore_errors=True)
-        raise
+
+    return video_ids

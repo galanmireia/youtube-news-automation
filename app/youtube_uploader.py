@@ -10,10 +10,7 @@ from googleapiclient.http import MediaFileUpload
 
 from .config import YOUTUBE_CLIENT_SECRETS_FILE, YOUTUBE_PRIVACY_STATUS, YOUTUBE_TOKEN_FILE
 
-SCOPES = [
-    "https://www.googleapis.com/auth/youtube.upload",
-    "https://www.googleapis.com/auth/youtube.force-ssl",  # needed for captions.insert
-]
+SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 # YouTube caps the combined tags string (joined with commas) at 500 characters.
 MAX_TAGS_CHARS = 480
