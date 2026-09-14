@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 import anthropic
 
@@ -39,7 +40,19 @@ Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni ma
   "reason": "en una frase, por que esta y no las otras"
 }}
 donde "index" es el numero de la noticia elegida de la lista de arriba.
+
+MUY IMPORTANTE sobre el formato: dentro de "reason" NO uses comillas dobles (") ni saltos de
+linea. Muchos titulares llevan comillas dobles, y si las copias dentro del valor rompes el JSON.
+Si necesitas citar algo, usa comillas simples.
 """
+
+
+# Last-ditch way to recover the decision from a reply whose JSON is broken.
+# The prose in "reason" is what breaks it (an unescaped quote copied out of a
+# headline), and that prose is decoration - the index is the actual answer, so
+# losing the whole choice over a stray quote and falling back to "take the
+# first story" gives up the entire point of asking.
+_INDEX_RE = re.compile(r'"index"\s*:\s*(\d+)')
 
 
 def _strip_markdown_fence(text: str) -> str:
@@ -78,8 +91,18 @@ def pick_best_story(candidates: list[dict]) -> dict:
             logger.warning("pick_best_story: respuesta sin texto, se usa la primera noticia")
             return candidates[0]
 
-        parsed = json.loads(_strip_markdown_fence(text_blocks[0]))
-        index = int(parsed["index"])
+        raw = _strip_markdown_fence(text_blocks[0])
+        try:
+            parsed = json.loads(raw)
+            reason = parsed.get("reason", "")
+            index = int(parsed["index"])
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            match = _INDEX_RE.search(raw)
+            if match is None:
+                raise
+            index = int(match.group(1))
+            reason = "(JSON mal formado, se recupero solo el indice)"
+            logger.warning("pick_best_story: JSON invalido, indice %s recuperado del texto", index)
         if not 0 <= index < len(candidates):
             logger.warning("pick_best_story: indice %s fuera de rango, se usa la primera noticia", index)
             return candidates[0]
@@ -88,7 +111,7 @@ def pick_best_story(candidates: list[dict]) -> dict:
             "pick_best_story: elegida %r de %s candidatas. Motivo: %s",
             candidates[index]["title"],
             len(candidates),
-            parsed.get("reason", ""),
+            reason,
         )
         return candidates[index]
     except Exception:
