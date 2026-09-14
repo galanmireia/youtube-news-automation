@@ -98,9 +98,20 @@ def generate_intro_card(out_path: Path, width: int, height: int) -> Path:
 
     logo = _get_logo()
     if logo is not None:
-        logo_size = int(min(width, height) * 0.6)
-        logo_resized = logo.resize((logo_size, logo_size))
-        image.paste(logo_resized, ((width - logo_size) // 2, (height - logo_size) // 2))
+        logo_size = int(min(width, height) * 0.55)
+        logo_resized = logo.resize((logo_size, logo_size), Image.LANCZOS)
+
+        # The logo file is a square with a white background. Pasting it as-is
+        # put a white box on the dark card - it read as a sticker stuck on
+        # top rather than part of the design. Masking to the inscribed circle
+        # keeps only the logo's own round badge.
+        # Inset slightly: the badge doesn't quite touch the edge of the file,
+        # so masking at the exact inscribed circle leaves a thin white rim.
+        inset = max(1, round(logo_size * 0.015))
+        mask = Image.new("L", (logo_size, logo_size), 0)
+        ImageDraw.Draw(mask).ellipse([inset, inset, logo_size - 1 - inset, logo_size - 1 - inset], fill=255)
+
+        image.paste(logo_resized, ((width - logo_size) // 2, (height - logo_size) // 2), mask)
     else:
         _draw_text_intro_card(image, width, height)
 
