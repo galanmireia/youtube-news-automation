@@ -50,25 +50,35 @@ Estructura obligatoria del guion ({duration_hint}, en este orden):
 Recuerda: SIEMPRE anclado en los hechos de la noticia original. Nunca inventes conspiraciones ni
 afirmes cosas que no esten respaldadas por la fuente.
 
-Fotos reales de personas publicas: para cada escena, si esa narracion concreta habla directamente
-de una persona publica real identificable por su cargo o su nombre (un ministro, un politico, un
-CEO, un famoso), rellena "photo_subject" con su nombre completo tal cual aparece en Wikipedia, para
-mostrar su foto real en vez de video generico. Cuando rellenes "photo_subject", rellena tambien
-"photo_subject_role" con su cargo o titulo actual en 2-4 palabras (ej. "Ministro de Transportes",
-"CEO de Repsol", "Presidenta de la Comision Europea") - se muestra como rotulo tipo telediario
-debajo de su foto. Deja ambos campos vacios ("") en el resto de escenas, y SIEMPRE vacios si la
-persona es una victima de un crimen/tragedia o un particular sin relevancia publica (evita mostrar
-la foto real de victimas o personas privadas).
+Fotos reales de personas y lugares/instituciones concretas: para cada escena, si esa narracion
+concreta nombra directamente (a) una persona publica real identificable por su cargo o su nombre
+(un ministro, un politico, un CEO, un famoso), O (b) un lugar, edificio o institucion especifico y
+con nombre propio que casi seguro tenga su propio articulo en Wikipedia con foto (una universidad
+concreta, un ministerio, un monumento, la sede de una empresa conocida, un estadio, un hospital
+concreto, etc.), rellena "photo_subject" con su nombre completo tal cual aparece en Wikipedia, para
+mostrar su foto REAL en vez de video generico o una ilustracion inventada. Nunca sustituyas un lugar
+con nombre propio conocido por una escena generica ni por una ilustracion de IA - si tiene nombre
+propio y es real, casi siempre existe una foto real de el, usa "photo_subject" primero.
+Cuando rellenes "photo_subject", rellena tambien "photo_subject_role" en 2-4 palabras: para una
+persona, su cargo o titulo actual (ej. "Ministro de Transportes"); para un lugar/institucion, un
+descriptor corto (ej. "Universidad publica en Granada") o dejalo vacio si el nombre ya se explica
+solo. Deja ambos campos vacios ("") en el resto de escenas, y SIEMPRE vacios si la persona
+nombrada es una victima de un crimen/tragedia o un particular sin relevancia publica (evita mostrar
+la foto real de victimas o personas privadas - esta excepcion es solo para personas, nunca aplica a
+lugares).
 
-Ilustracion por IA para lugares/conceptos muy especificos: si la escena trata sobre un lugar,
-evento o concepto tan especifico o local que un banco de video de stock generico NUNCA tendria
-metraje real de eso (ej. una ciudad pequeña o poco fotografiada, una frontera concreta, un edificio
-o instalacion muy especifica, un concepto muy abstracto de la noticia), rellena "ai_image_prompt"
-con una descripcion visual detallada en ingles para generar una ilustracion (no un intento de foto
-realista de personas reales - para eso esta "photo_subject"). Ejemplo: para una noticia sobre Ceuta,
-"ai_image_prompt": "editorial illustration of a border fence between a north african coastal city
-and mainland, dramatic lighting, news graphic style". Deja "ai_image_prompt" vacio ("") si el tema
-es generico y un banco de stock normal puede representarlo bien.
+Ilustracion por IA solo como ultimo recurso: rellena "ai_image_prompt" UNICAMENTE si la escena trata
+sobre un lugar/evento/concepto tan especifico, local o inventado que NO tiene nombre propio buscable
+en Wikipedia (por eso no aplica "photo_subject") Y que un banco de video de stock generico tampoco
+tendria (ej. "la zona fronteriza de una ciudad pequeña sin articulo propio", un concepto abstracto
+de la noticia sin lugar concreto). Si el lugar tiene nombre propio conocido, usa siempre
+"photo_subject" en su lugar, nunca "ai_image_prompt" - una ilustracion de IA de un sitio real
+identificable se nota que esta inventada y no debe usarse. Cuando SI aplique, rellena
+"ai_image_prompt" con una descripcion visual detallada en ingles para generar una ilustracion (no
+un intento de foto realista de personas reales - para eso esta "photo_subject"). Ejemplo: un
+concepto abstracto sin lugar concreto asociado, "ai_image_prompt": "editorial illustration of
+international trade tensions, cargo ships and shipping containers, dramatic lighting, news graphic
+style". Deja "ai_image_prompt" vacio ("") en el resto de casos.
 
 Palabras clave visuales ("visual_keywords", solo se usan cuando "photo_subject" Y "ai_image_prompt"
 estan vacios): tienen que representar visualmente LO QUE SE DICE EN ESA FRASE CONCRETA, no un tema
@@ -79,7 +89,8 @@ banco central subio los tipos de interes", mejor "central bank building exterior
 como "finance concept"; si dice "cientos de personas protestaron en la calle", mejor "crowd protest
 street march" que "social unrest". Evita conceptos abstractos que no se pueden filmar (mal:
 "government pressure", "economic uncertainty", "political tension"). No incluyas nombres propios de
-personas, empresas o lugares muy especificos (para eso esta "ai_image_prompt") - en su lugar
+personas, empresas o lugares con nombre propio (para eso estan "photo_subject" y "ai_image_prompt")
+- en su lugar
 describe el TIPO de escena/objeto/entorno, pero con la maxima especificidad posible dentro de eso
 (mejor "tech startup office workspace" que "office"; mejor "riot police street clash" que "police").
 MUY IMPORTANTE - variedad: dos escenas del mismo guion NUNCA deben llevar las mismas palabras clave
@@ -112,8 +123,8 @@ Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni ma
     {{
       "narration": "texto que se narrara en esta escena",
       "visual_keywords": "palabras clave en ingles para buscar video de stock",
-      "photo_subject": "nombre completo de una persona publica real si aplica, si no, cadena vacia",
-      "photo_subject_role": "cargo/titulo de esa persona si photo_subject no esta vacio, si no, cadena vacia",
+      "photo_subject": "nombre de una persona publica o de un lugar/institucion con nombre propio si aplica, si no, cadena vacia",
+      "photo_subject_role": "cargo de la persona o descriptor corto del lugar si photo_subject no esta vacio, si no, cadena vacia",
       "ai_image_prompt": "descripcion en ingles para ilustracion por IA si aplica, si no, cadena vacia"
     }}
   ]
