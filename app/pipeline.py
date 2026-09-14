@@ -212,7 +212,7 @@ def run_once(
             shutil.rmtree(work_dir / variant, ignore_errors=True)
 
     if video_ids:
-        storage.mark_source_processed(news_item["link"])
+        storage.mark_source_processed(news_item["link"], news_item.get("title", ""))
     else:
         shutil.rmtree(work_dir, ignore_errors=True)
 

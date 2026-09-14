@@ -7,7 +7,8 @@ from .config import DB_PATH
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS processed_sources (
     source_url TEXT PRIMARY KEY,
-    processed_at REAL NOT NULL
+    processed_at REAL NOT NULL,
+    title TEXT
 );
 
 CREATE TABLE IF NOT EXISTS videos (
@@ -47,12 +48,26 @@ def init_db() -> None:
         for migration in (
             "ALTER TABLE videos ADD COLUMN variant TEXT NOT NULL DEFAULT 'long'",
             "ALTER TABLE videos ADD COLUMN subtitle_path TEXT",
+            "ALTER TABLE processed_sources ADD COLUMN title TEXT",
         ):
             try:
                 conn.execute(migration)
             except sqlite3.OperationalError as exc:
                 if "duplicate column name" not in str(exc):
                     raise
+
+        # Backfill headlines for stories processed before the column existed,
+        # otherwise they stay invisible to the duplicate check and can be
+        # made a second time. The videos table keeps the rewritten SEO title
+        # rather than the original headline, but it describes the same story
+        # closely enough for a vocabulary comparison.
+        conn.execute(
+            "UPDATE processed_sources SET title = ("
+            "  SELECT v.title FROM videos v"
+            "  WHERE v.source_url = processed_sources.source_url AND v.title IS NOT NULL"
+            "  LIMIT 1"
+            ") WHERE title IS NULL OR title = ''"
+        )
 
 
 def is_source_processed(source_url: str) -> bool:
@@ -61,12 +76,27 @@ def is_source_processed(source_url: str) -> bool:
     return row is not None
 
 
-def mark_source_processed(source_url: str) -> None:
+def mark_source_processed(source_url: str, title: str = "") -> None:
     with get_conn() as conn:
         conn.execute(
-            "INSERT OR IGNORE INTO processed_sources (source_url, processed_at) VALUES (?, ?)",
-            (source_url, time.time()),
+            "INSERT OR IGNORE INTO processed_sources (source_url, processed_at, title) VALUES (?, ?, ?)",
+            (source_url, time.time(), title),
         )
+
+
+def recent_processed_titles(limit: int = 80) -> list[str]:
+    """Headlines of the stories already covered, most recent first.
+
+    Marking a story as done by URL alone isn't enough: the same story
+    reaches us through every feed with a different link, so it came back
+    around and got made twice."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT title FROM processed_sources WHERE title IS NOT NULL AND title != ''"
+            " ORDER BY processed_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    return [row["title"] for row in rows]
 
 
 def clear_processed_sources() -> int:
