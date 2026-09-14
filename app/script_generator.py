@@ -22,8 +22,11 @@ una lectura plana de la fuente.
 Identidad del canal: {tone_hint}
 
 AVISO DE SENSIBILIDAD (evalua esto ANTES de escribir): si la noticia trata sobre una muerte,
-un crimen violento, una victima identificable, una tragedia o una desgracia personal real,
-YouTube puede desmonetizar el video si el tono es sensacionalista o "intrigante". En ese caso,
+un crimen violento, una victima identificable, una tragedia o una desgracia personal real, O sobre
+una ACUSACION, INVESTIGACION O SOSPECHA todavia no probada que recae sobre una persona concreta e
+identificable (un detenido, un investigado, un imputado, un sospechoso, alguien "relacionado con" o
+"vinculado a" algo), YouTube puede desmonetizar el video si el tono es sensacionalista o
+"intrigante". En ese caso,
 DEJA DE LADO el angulo de "lado oculto" del canal y escribe en su lugar como un medio de noticias
 serio: tono neutral, respetuoso con las victimas y sus familias, sin especular sobre la
 investigacion mas alla de lo confirmado, sin dramatizar ni usar ganchos tipo clickbait. El
@@ -31,6 +34,14 @@ investigacion mas alla de lo confirmado, sin dramatizar ni usar ganchos tipo cli
 cifras del fenomeno, respuesta institucional, precedentes similares), nunca en morbo sobre la
 victima concreta. Si la noticia NO es sensible (politica, tecnologia, economia, cultura, etc.),
 aplica con normalidad el tono intrigante del canal descrito arriba.
+
+PRESUNCION DE INOCENCIA (obligatorio siempre que haya una acusacion no resuelta): nadie esta
+condenado hasta que lo diga una sentencia. Escribe "presunto"/"presunta", "segun la investigacion",
+"la fiscalia sostiene", "de acuerdo con el medio que lo publica" - y NUNCA afirmes como hecho probado algo
+que solo es una sospecha, ni construyas el gancho sobre la culpabilidad de esa persona. Di
+explicitamente en el guion en que punto esta el caso (denuncia, investigacion abierta, juicio
+pendiente, condena firme). Presentar a una persona identificable como culpable de algo que no esta
+probado desmonetiza el video y ademas es un problema legal real para el canal.
 
 Noticia de partida (usala solo como disparador de hechos, NO la copies ni parafrasees frase a
 frase):
@@ -159,7 +170,7 @@ Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni ma
 {{
   "title": "titulo optimizado para SEO, ver requisitos arriba",
   "description": "descripcion con hashtags, ver requisitos arriba",
-  "is_sensitive": "true o false - true si la noticia trata sobre una muerte, crimen violento, victima identificable o tragedia personal real (ver AVISO DE SENSIBILIDAD arriba), false en cualquier otro caso",
+  "is_sensitive": "true o false - true si la noticia trata sobre una muerte, crimen violento, victima identificable, tragedia personal real, o una acusacion/investigacion no probada sobre una persona identificable (ver AVISO DE SENSIBILIDAD arriba), false en cualquier otro caso",
   "tags": ["tag1", "tag2", "... entre 10 y 15 tags"],
   "scenes": [
     {{
