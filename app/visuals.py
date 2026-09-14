@@ -1,3 +1,4 @@
+import random
 from pathlib import Path
 
 import requests
@@ -9,38 +10,65 @@ PEXELS_SEARCH_URL = "https://api.pexels.com/videos/search"
 
 _PEXELS_ORIENTATION = {"9:16": "portrait", "16:9": "landscape"}
 _TARGET_DIMENSIONS = {"9:16": (1080, 1920), "16:9": (1920, 1080)}
+# Always has plenty of Pexels matches, used only if every other query (the
+# scene's own keywords, then a broadened version of them) comes up empty.
+_LAST_RESORT_QUERY = "news broadcast studio"
 
 
-def fetch_clip_for_scene(keywords: str, out_path: Path, aspect_ratio: str) -> Path:
+def _search_pexels(query: str, orientation: str) -> list[dict]:
     headers = {"Authorization": PEXELS_API_KEY}
-    orientation = _PEXELS_ORIENTATION.get(aspect_ratio, "landscape")
-    params = {"query": keywords, "per_page": 5, "orientation": orientation}
+    params = {"query": query, "per_page": 8, "orientation": orientation}
     response = requests.get(PEXELS_SEARCH_URL, headers=headers, params=params, timeout=30)
     response.raise_for_status()
-    videos = response.json().get("videos", [])
-    if not videos:
-        raise RuntimeError(f"No se encontraron videos de stock para: {keywords!r}")
+    return response.json().get("videos", [])
 
-    # Pick the video whose own orientation actually matches the target (Pexels'
-    # "orientation" filter narrows the search but can still return the odd
-    # mismatch), then the file closest to the target resolution. Fetching a
-    # clip already shot in the right orientation avoids ffmpeg having to crop
-    # a landscape clip down to a thin vertical sliver (or vice versa) later.
+
+def _pick_video_file(video: dict, target_width: int, target_height: int) -> dict:
+    return min(
+        video["video_files"],
+        key=lambda f: abs((f.get("width") or 0) - target_width) + abs((f.get("height") or 0) - target_height),
+    )
+
+
+def fetch_clip_for_scene(keywords: str, out_path: Path, aspect_ratio: str, used_video_ids: set[int]) -> Path:
+    orientation = _PEXELS_ORIENTATION.get(aspect_ratio, "landscape")
     target_width, target_height = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
     target_is_portrait = target_height > target_width
 
-    def _video_matches_orientation(video: dict) -> bool:
-        video_is_portrait = (video.get("height") or 0) > (video.get("width") or 0)
-        return video_is_portrait == target_is_portrait
+    def _matches_orientation(video: dict) -> bool:
+        return ((video.get("height") or 0) > (video.get("width") or 0)) == target_is_portrait
 
-    matching_videos = [v for v in videos if _video_matches_orientation(v)] or videos
-    video_files = sorted(
-        matching_videos[0]["video_files"],
-        key=lambda f: abs((f.get("width") or 0) - target_width) + abs((f.get("height") or 0) - target_height),
-    )
-    file_url = video_files[0]["link"]
+    # Try the scene's own (now fairly specific) keywords first; a query that
+    # happens to have zero Pexels matches falls back to a broader version of
+    # itself, then to a universal query, instead of crashing the whole video.
+    words = keywords.split()
+    queries = [keywords]
+    if len(words) > 1:
+        queries.append(words[-1])
+    queries.append(_LAST_RESORT_QUERY)
 
-    video_response = requests.get(file_url, timeout=60)
+    chosen_video = None
+    for query in queries:
+        videos = _search_pexels(query, orientation)
+        if not videos:
+            continue
+        candidates = [v for v in videos if _matches_orientation(v)] or videos
+        # Prefer a clip not already used elsewhere in this same video, and
+        # pick randomly among the top matches (instead of always the single
+        # top result) so the same query doesn't return the identical clip
+        # every single time it's searched, in this video or in others.
+        fresh = [v for v in candidates if v["id"] not in used_video_ids]
+        pool = fresh or candidates
+        chosen_video = random.choice(pool[:5])
+        break
+
+    if chosen_video is None:
+        raise RuntimeError(f"No se encontraron videos de stock ni con la busqueda de respaldo para: {keywords!r}")
+
+    used_video_ids.add(chosen_video["id"])
+    video_file = _pick_video_file(chosen_video, target_width, target_height)
+
+    video_response = requests.get(video_file["link"], timeout=60)
     video_response.raise_for_status()
     out_path.write_bytes(video_response.content)
     return out_path
@@ -49,6 +77,7 @@ def fetch_clip_for_scene(keywords: str, out_path: Path, aspect_ratio: str) -> Pa
 def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path, aspect_ratio: str) -> list[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     clip_paths = []
+    used_video_ids: set[int] = set()
     for i, scene in enumerate(scenes):
         photo_subject = (scene.get("photo_subject") or "").strip()
         if photo_subject:
@@ -69,6 +98,6 @@ def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path, aspect_ratio: str)
         # photo/AI image to be used instead; if that failed, fall back to
         # something Pexels can still search for instead of an empty query.
         query = (scene.get("visual_keywords") or "").strip() or ai_image_prompt or photo_subject or "news studio background"
-        fetch_clip_for_scene(query, out_path, aspect_ratio)
+        fetch_clip_for_scene(query, out_path, aspect_ratio, used_video_ids)
         clip_paths.append(out_path)
     return clip_paths
