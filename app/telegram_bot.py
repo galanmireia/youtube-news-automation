@@ -34,14 +34,34 @@ async def send_for_approval(bot, video_id: int) -> None:
     )
     label = _VARIANT_LABELS.get(record["variant"], record["variant"])
     caption = f"{label}\n*{record['title']}*\n\n{record['description']}"
-    with open(record["thumbnail_path"], "rb") as thumbnail_file:
-        message = await bot.send_photo(
-            chat_id=TELEGRAM_CHAT_ID,
-            photo=thumbnail_file,
-            caption=caption,
-            parse_mode="Markdown",
-            reply_markup=keyboard,
-        )
+
+    try:
+        # Send the actual video (not just its thumbnail) so it can be watched
+        # in full before deciding - Telegram bots can only upload up to 50MB,
+        # so a long video that exceeds that falls back to a thumbnail-only
+        # message below instead of failing the whole approval flow.
+        with open(record["video_path"], "rb") as video_file, open(record["thumbnail_path"], "rb") as thumb_file:
+            message = await bot.send_video(
+                chat_id=TELEGRAM_CHAT_ID,
+                video=video_file,
+                thumbnail=thumb_file,
+                caption=caption,
+                parse_mode="Markdown",
+                reply_markup=keyboard,
+                supports_streaming=True,
+                write_timeout=120,
+            )
+    except Exception:
+        logger.warning("No se pudo enviar el video %s a Telegram, se enviara solo la miniatura", video_id, exc_info=True)
+        with open(record["thumbnail_path"], "rb") as thumbnail_file:
+            message = await bot.send_photo(
+                chat_id=TELEGRAM_CHAT_ID,
+                photo=thumbnail_file,
+                caption=caption + "\n\n(Video demasiado grande para previsualizar aqui)",
+                parse_mode="Markdown",
+                reply_markup=keyboard,
+            )
+
     storage.set_telegram_message(video_id, str(TELEGRAM_CHAT_ID), str(message.message_id))
 
 
