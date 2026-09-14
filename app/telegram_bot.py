@@ -127,5 +127,7 @@ def build_application() -> Application:
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     application.add_handler(CallbackQueryHandler(handle_decision))
     application.add_handler(CommandHandler("generar", handle_generate_command))
-    application.job_queue.run_repeating(pipeline_job, interval=PIPELINE_INTERVAL_SECONDS, first=15)
+    # Don't auto-generate on every restart/deploy - only at the regular interval.
+    # Use /generar in the chat for an on-demand run (e.g. right after deploying).
+    application.job_queue.run_repeating(pipeline_job, interval=PIPELINE_INTERVAL_SECONDS, first=PIPELINE_INTERVAL_SECONDS)
     return application
