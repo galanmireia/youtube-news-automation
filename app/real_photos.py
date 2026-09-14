@@ -24,6 +24,36 @@ def _search_candidate_titles(name: str, limit: int = 3) -> list[str]:
         return []
 
 
+def _pageimages_thumbnail_url(title: str) -> str | None:
+    """Fallback for pages where the REST summary endpoint doesn't surface a
+    lead image (common for institutions/buildings/organizations) even though
+    the article does have one. action=query&prop=pageimages is a separate,
+    more permissive MediaWiki API that often finds it anyway."""
+    try:
+        response = requests.get(
+            WIKIPEDIA_API_URL,
+            params={
+                "action": "query",
+                "titles": title,
+                "prop": "pageimages",
+                "piprop": "original",
+                "redirects": 1,
+                "format": "json",
+            },
+            timeout=15,
+        )
+        if response.status_code != 200:
+            return None
+        pages = response.json().get("query", {}).get("pages", {})
+        for page in pages.values():
+            source = page.get("original", {}).get("source")
+            if source:
+                return source
+        return None
+    except (requests.RequestException, KeyError, ValueError):
+        return None
+
+
 def _fetch_summary_photo(title: str, out_path: Path) -> Path | None:
     try:
         response = requests.get(WIKIPEDIA_SUMMARY_URL.format(title=title.replace(" ", "_")), timeout=15)
@@ -34,7 +64,11 @@ def _fetch_summary_photo(title: str, out_path: Path) -> Path | None:
         if data.get("type") == "disambiguation":
             return None
 
-        thumbnail = data.get("thumbnail", {}).get("source") or data.get("originalimage", {}).get("source")
+        thumbnail = (
+            data.get("thumbnail", {}).get("source")
+            or data.get("originalimage", {}).get("source")
+            or _pageimages_thumbnail_url(title)
+        )
         if not thumbnail:
             return None
 

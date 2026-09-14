@@ -58,7 +58,11 @@ concreta, un ministerio, un monumento, la sede de una empresa conocida, un estad
 concreto, etc.), rellena "photo_subject" con su nombre completo tal cual aparece en Wikipedia, para
 mostrar su foto REAL en vez de video generico o una ilustracion inventada. Nunca sustituyas un lugar
 con nombre propio conocido por una escena generica ni por una ilustracion de IA - si tiene nombre
-propio y es real, casi siempre existe una foto real de el, usa "photo_subject" primero.
+propio y es real, casi siempre existe una foto real de el, usa "photo_subject" primero. Ejemplo
+concreto: si la narracion menciona "la Universidad de Las Palmas de Gran Canaria", el campo debe
+ser exactamente "photo_subject": "Universidad de Las Palmas de Gran Canaria" - NUNCA lo dejes vacio
+ni uses "visual_keywords" o "ai_image_prompt" para ese caso, por muy especifico que parezca el
+nombre.
 Cuando rellenes "photo_subject", rellena tambien "photo_subject_role" en 2-4 palabras: para una
 persona, su cargo o titulo actual (ej. "Ministro de Transportes"); para un lugar/institucion, un
 descriptor corto (ej. "Universidad publica en Granada") o dejalo vacio si el nombre ya se explica
