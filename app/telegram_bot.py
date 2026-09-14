@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from pathlib import Path
 
@@ -11,8 +12,14 @@ from .youtube_uploader import upload_captions, upload_video
 
 logger = logging.getLogger(__name__)
 
-
 _VARIANT_LABELS = {"short": "🔹 SHORT (vertical)", "long": "🔸 VIDEO LARGO (horizontal)"}
+
+# run_once()/upload_video() are blocking (ffmpeg subprocesses, network I/O).
+# Running them directly inside an async handler would freeze the whole bot -
+# no button presses or commands would be processed until they finished. They
+# run in this executor instead, and this lock keeps two pipeline runs from
+# overlapping (e.g. the scheduled job and a manual /generar at the same time).
+_pipeline_lock = asyncio.Lock()
 
 
 async def send_for_approval(bot, video_id: int) -> None:
@@ -57,8 +64,11 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
 
     await query.edit_message_caption(caption=f"{label}\nSubiendo a YouTube: {record['title']}")
+    loop = asyncio.get_running_loop()
     try:
-        youtube_id = upload_video(
+        youtube_id = await loop.run_in_executor(
+            None,
+            upload_video,
             Path(record["video_path"]),
             Path(record["thumbnail_path"]),
             record["title"],
@@ -69,7 +79,7 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         if record["subtitle_path"]:
             try:
-                upload_captions(youtube_id, Path(record["subtitle_path"]))
+                await loop.run_in_executor(None, upload_captions, youtube_id, Path(record["subtitle_path"]))
             except Exception:
                 # Not critical: the video is already live without a captions track.
                 logger.exception("Error subiendo subtitulos para el video %s", video_id)
@@ -84,16 +94,19 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def _run_pipeline_and_notify(bot) -> None:
-    try:
-        video_ids = run_once()
-        if not video_ids:
-            await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="No hay noticias nuevas que procesar ahora mismo.")
-            return
-        for video_id in video_ids:
-            await send_for_approval(bot, video_id)
-    except Exception:
-        logger.exception("Error ejecutando el pipeline de generacion de video")
-        await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="Error generando el video, revisa los logs.")
+    async with _pipeline_lock:
+        try:
+            video_ids = await asyncio.get_running_loop().run_in_executor(None, run_once)
+            if not video_ids:
+                await bot.send_message(
+                    chat_id=TELEGRAM_CHAT_ID, text="No hay noticias nuevas que procesar ahora mismo."
+                )
+                return
+            for video_id in video_ids:
+                await send_for_approval(bot, video_id)
+        except Exception:
+            logger.exception("Error ejecutando el pipeline de generacion de video")
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="Error generando el video, revisa los logs.")
 
 
 async def pipeline_job(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -102,6 +115,9 @@ async def pipeline_job(context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    if _pipeline_lock.locked():
+        await update.message.reply_text("Ya hay una generacion en curso, espera a que termine.")
         return
     await update.message.reply_text("Generando video nuevo, tardara unos minutos...")
     await _run_pipeline_and_notify(context.bot)
