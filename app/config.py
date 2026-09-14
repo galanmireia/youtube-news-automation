@@ -73,5 +73,11 @@ LONG_VIDEO_HEIGHT = int(os.environ.get("LONG_VIDEO_HEIGHT", os.environ.get("VIDE
 SHORT_VIDEO_WIDTH = int(os.environ.get("SHORT_VIDEO_WIDTH", 1080))
 SHORT_VIDEO_HEIGHT = int(os.environ.get("SHORT_VIDEO_HEIGHT", 1920))
 
+# Used for the Vertex AI Imagen fallback when neither stock footage nor a
+# real public figure's photo fits a scene (reuses the Google Cloud project
+# already set up for Text-to-Speech).
+GOOGLE_CLOUD_PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT_ID", "lucky-album-508608-t0")
+GOOGLE_CLOUD_LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
+
 # Google Cloud TTS reads its credentials from this env var directly.
 os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", GOOGLE_APPLICATION_CREDENTIALS)

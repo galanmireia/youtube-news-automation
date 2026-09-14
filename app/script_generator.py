@@ -7,8 +7,12 @@ from .config import ANTHROPIC_API_KEY, CHANNEL_NAME, CHANNEL_TONE_HINT, CLAUDE_M
 _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 PROMPT_TEMPLATE = """Eres el guionista y analista del canal de YouTube "{channel_name}" en {language}.
-Tu trabajo NO es resumir el titular. YouTube penaliza (y puede desmonetizar) los canales que
-solo leen una noticia con otras palabras sin aportar nada propio ("reused/repetitious content").
+
+REGLA PRINCIPAL, por encima de todo lo demas: el video SIEMPRE tiene que poder monetizarse en
+YouTube. Esto significa: nunca "reused/repetitious content" (resumir el titular con otras
+palabras sin aportar nada propio), nunca sensacionalismo en temas sensibles (ver aviso mas abajo),
+y nunca contenido que viole derechos de autor.
+
 Cada guion debe leerse como una pieza de analisis periodistico con voz editorial propia, no como
 una lectura plana de la fuente.
 
@@ -53,16 +57,26 @@ mostrar su foto real en vez de video generico. Deja "photo_subject" vacio ("") e
 escenas, y SIEMPRE vacio si la persona es una victima de un crimen/tragedia o un particular sin
 relevancia publica (evita mostrar la foto real de victimas o personas privadas).
 
-Palabras clave visuales ("visual_keywords", solo se usan cuando "photo_subject" esta vacio): deben
-describir una escena LITERAL y concreta que exista de verdad en un banco de video de stock (Pexels),
-en ingles, 2-4 palabras. Evita conceptos abstractos que no se pueden filmar (mal: "government
-pressure", "economic uncertainty", "political tension"; bien: "politician press conference",
-"stock market screen closeup", "parliament building exterior"). No incluyas nombres propios de
-personas, empresas o lugares muy especificos (un banco de stock no los tendra) - en su lugar,
-describe el TIPO de escena/objeto/entorno que ilustra la idea: si la narracion habla de una empresa
-tecnologica, usa algo como "tech office workspace" en vez del nombre de la empresa; si habla de una
-ciudad concreta, usa el tipo de entorno ("european city street") salvo que sea una capital muy
-reconocible visualmente (ej. "Madrid" o "Paris skyline" si aporta identificacion clara). Prioriza
+Ilustracion por IA para lugares/conceptos muy especificos: si la escena trata sobre un lugar,
+evento o concepto tan especifico o local que un banco de video de stock generico NUNCA tendria
+metraje real de eso (ej. una ciudad pequeña o poco fotografiada, una frontera concreta, un edificio
+o instalacion muy especifica, un concepto muy abstracto de la noticia), rellena "ai_image_prompt"
+con una descripcion visual detallada en ingles para generar una ilustracion (no un intento de foto
+realista de personas reales - para eso esta "photo_subject"). Ejemplo: para una noticia sobre Ceuta,
+"ai_image_prompt": "editorial illustration of a border fence between a north african coastal city
+and mainland, dramatic lighting, news graphic style". Deja "ai_image_prompt" vacio ("") si el tema
+es generico y un banco de stock normal puede representarlo bien.
+
+Palabras clave visuales ("visual_keywords", solo se usan cuando "photo_subject" Y "ai_image_prompt"
+estan vacios): deben describir una escena LITERAL y concreta que exista de verdad en un banco de
+video de stock (Pexels), en ingles, 2-4 palabras. Evita conceptos abstractos que no se pueden
+filmar (mal: "government pressure", "economic uncertainty", "political tension"; bien: "politician
+press conference", "stock market screen closeup", "parliament building exterior"). No incluyas
+nombres propios de personas, empresas o lugares muy especificos (para eso esta "ai_image_prompt")
+- en su lugar, describe el TIPO de escena/objeto/entorno que ilustra la idea: si la narracion habla
+de una empresa tecnologica, usa algo como "tech office workspace" en vez del nombre de la empresa;
+si habla de una ciudad concreta pero reconocible, usa el tipo de entorno ("european city street")
+salvo que sea una capital muy reconocible visualmente (ej. "Madrid" o "Paris skyline"). Prioriza
 sustantivos concretos y filmables: personas haciendo una accion, objetos, lugares, no ideas.
 
 Requisitos de SEO para YouTube (importante, esto determina si el video se encuentra en buscador y
@@ -90,7 +104,8 @@ Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni ma
     {{
       "narration": "texto que se narrara en esta escena",
       "visual_keywords": "palabras clave en ingles para buscar video de stock",
-      "photo_subject": "nombre completo de una persona publica real si aplica, si no, cadena vacia"
+      "photo_subject": "nombre completo de una persona publica real si aplica, si no, cadena vacia",
+      "ai_image_prompt": "descripcion en ingles para ilustracion por IA si aplica, si no, cadena vacia"
     }}
   ]
 }}

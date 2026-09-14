@@ -2,7 +2,7 @@ from pathlib import Path
 
 import requests
 
-from . import real_photos
+from . import ai_images, real_photos
 from .config import PEXELS_API_KEY
 
 PEXELS_SEARCH_URL = "https://api.pexels.com/videos/search"
@@ -26,7 +26,7 @@ def fetch_clip_for_scene(keywords: str, out_path: Path) -> Path:
     return out_path
 
 
-def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path) -> list[Path]:
+def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path, aspect_ratio: str) -> list[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     clip_paths = []
     for i, scene in enumerate(scenes):
@@ -35,6 +35,13 @@ def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path) -> list[Path]:
             photo_path = real_photos.fetch_portrait(photo_subject, out_dir / f"clip_{i:02d}.jpg")
             if photo_path is not None:
                 clip_paths.append(photo_path)
+                continue
+
+        ai_image_prompt = (scene.get("ai_image_prompt") or "").strip()
+        if ai_image_prompt:
+            image_path = ai_images.generate_image(ai_image_prompt, out_dir / f"clip_{i:02d}.jpg", aspect_ratio)
+            if image_path is not None:
+                clip_paths.append(image_path)
                 continue
 
         out_path = out_dir / f"clip_{i:02d}.mp4"

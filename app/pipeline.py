@@ -19,6 +19,7 @@ _VARIANT_DIMENSIONS = {
     "short": (SHORT_VIDEO_WIDTH, SHORT_VIDEO_HEIGHT),
     "long": (LONG_VIDEO_WIDTH, LONG_VIDEO_HEIGHT),
 }
+_VARIANT_ASPECT_RATIO = {"short": "9:16", "long": "16:9"}
 
 
 def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
@@ -28,7 +29,7 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
 
     script = generate_script(news_item, variant=variant)
     narration_path, scene_durations = synthesize_scenes(script["scenes"], variant_dir / "audio")
-    clip_paths = fetch_clips_for_scenes(script["scenes"], variant_dir / "clips")
+    clip_paths = fetch_clips_for_scenes(script["scenes"], variant_dir / "clips", _VARIANT_ASPECT_RATIO[variant])
 
     final_video_path = build_video(
         clip_paths, scene_durations, narration_path, variant_dir, variant_dir / "final_video.mp4", width, height
