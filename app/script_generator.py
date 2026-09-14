@@ -44,11 +44,26 @@ Estructura obligatoria del guion (60-90 segundos, en este orden):
 Recuerda: SIEMPRE anclado en los hechos de la noticia original. Nunca inventes conspiraciones ni
 afirmes cosas que no esten respaldadas por la fuente.
 
+Requisitos de SEO para YouTube (importante, esto determina si el video se encuentra en buscador y
+sugeridos):
+- "title": incluye la palabra clave principal (el tema/entidad de la noticia) cerca del inicio,
+  manera natural y sin relleno de palabras clave. Maximo 90 caracteres, no calcado del titular
+  original, con gancho pero sin exagerar (nada de MAYUSCULAS sostenidas ni "no vas a creer...").
+- "description": empieza con 1-2 frases que repitan de forma natural la palabra clave principal
+  del titulo (esto es lo que se muestra en resultados de busqueda), sigue con 2-3 frases de
+  contexto, y termina con 3 a 5 hashtags relevantes (formato #Palabra, sin espacios) mas una
+  llamada a suscribirse a {channel_name}.
+- "tags": genera entre 10 y 15 palabras clave/frases de busqueda reales que la gente usaria en
+  YouTube sobre este tema, mezclando: 2-3 amplias (el tema general, ej. "inteligencia artificial"),
+  4-6 especificas (nombres, lugares, entidades concretas de la noticia), y 3-5 relacionadas con el
+  tipo de contenido (ej. "noticias de actualidad", "analisis noticias españa"). Sin duplicados,
+  sin almohadillas aqui (van solo en la descripcion).
+
 Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni markdown:
 {{
-  "title": "titulo llamativo para YouTube, menos de 90 caracteres, no calcado del titular original",
-  "description": "descripcion de 2-3 frases para YouTube con contexto y llamada a suscribirse",
-  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
+  "title": "titulo optimizado para SEO, ver requisitos arriba",
+  "description": "descripcion con hashtags, ver requisitos arriba",
+  "tags": ["tag1", "tag2", "... entre 10 y 15 tags"],
   "scenes": [
     {{"narration": "texto que se narrara en esta escena", "visual_keywords": "palabras clave en ingles para buscar video de stock"}}
   ]

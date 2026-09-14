@@ -12,7 +12,25 @@ from .config import YOUTUBE_CLIENT_SECRETS_FILE, YOUTUBE_PRIVACY_STATUS, YOUTUBE
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
+# YouTube caps the combined tags string (joined with commas) at 500 characters.
+MAX_TAGS_CHARS = 480
+
 logger = logging.getLogger(__name__)
+
+
+def _fit_tags(tags: list[str]) -> list[str]:
+    fitted = []
+    used = 0
+    for tag in tags:
+        tag = tag.strip()
+        if not tag:
+            continue
+        added = len(tag) + (1 if fitted else 0)  # account for the joining comma
+        if used + added > MAX_TAGS_CHARS:
+            break
+        fitted.append(tag)
+        used += added
+    return fitted
 
 
 def get_credentials() -> Credentials:
@@ -43,8 +61,10 @@ def upload_video(video_path: Path, thumbnail_path: Path, title: str, description
         "snippet": {
             "title": title[:100],
             "description": description,
-            "tags": tags,
+            "tags": _fit_tags(tags),
             "categoryId": "25",  # News & Politics
+            "defaultLanguage": "es",
+            "defaultAudioLanguage": "es",
         },
         "status": {"privacyStatus": YOUTUBE_PRIVACY_STATUS, "selfDeclaredMadeForKids": False},
     }
