@@ -1,14 +1,18 @@
+import logging
 from pathlib import Path
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
 from .config import YOUTUBE_CLIENT_SECRETS_FILE, YOUTUBE_PRIVACY_STATUS, YOUTUBE_TOKEN_FILE
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+
+logger = logging.getLogger(__name__)
 
 
 def get_credentials() -> Credentials:
@@ -52,5 +56,11 @@ def upload_video(video_path: Path, thumbnail_path: Path, title: str, description
         _, response = request.next_chunk()
     video_id = response["id"]
 
-    youtube.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(str(thumbnail_path))).execute()
+    try:
+        youtube.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(str(thumbnail_path))).execute()
+    except HttpError as exc:
+        # Custom thumbnails require a phone-verified channel; the video itself
+        # already uploaded fine, so this shouldn't fail the whole operation.
+        logger.warning("No se pudo establecer la miniatura personalizada para %s: %s", video_id, exc)
+
     return video_id
