@@ -52,11 +52,20 @@ _materialize_credential_from_env("YOUTUBE_TOKEN_JSON", YOUTUBE_TOKEN_FILE)
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
-RSS_FEEDS = [
-    feed.strip()
-    for feed in os.environ.get("RSS_FEEDS", "https://news.google.com/rss?hl=es&gl=ES&ceid=ES:es").split(",")
-    if feed.strip()
-]
+# General headlines plus two targeted feeds. The channel's best-performing
+# video so far was a crime/society story, and the general feed is mostly
+# politics, so those topics rarely came up on their own. They are covered
+# under the same rules as anything else: the script generator's sensitivity
+# check still forces a neutral, non-speculative treatment for any story
+# involving a real victim.
+_DEFAULT_RSS_FEEDS = ",".join(
+    [
+        "https://news.google.com/rss?hl=es&gl=ES&ceid=ES:es",
+        "https://news.google.com/rss/search?q=sucesos&hl=es&gl=ES&ceid=ES:es",
+        "https://news.google.com/rss/search?q=tribunal+OR+juicio+OR+condena&hl=es&gl=ES&ceid=ES:es",
+    ]
+)
+RSS_FEEDS = [feed.strip() for feed in os.environ.get("RSS_FEEDS", _DEFAULT_RSS_FEEDS).split(",") if feed.strip()]
 
 PIPELINE_INTERVAL_SECONDS = int(os.environ.get("PIPELINE_INTERVAL_SECONDS", 60 * 60 * 12))
 NEWS_LANGUAGE_HINT = os.environ.get("NEWS_LANGUAGE_HINT", "castellano, España")

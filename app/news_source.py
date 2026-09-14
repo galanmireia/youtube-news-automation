@@ -20,26 +20,40 @@ def _split_source(title: str, entry: dict) -> tuple[str, str]:
     return title.strip(), source_name
 
 
+def _feed_items(feed_url: str) -> list[dict]:
+    items = []
+    for entry in feedparser.parse(feed_url).entries:
+        link = entry.get("link")
+        if not link or is_source_processed(link):
+            continue
+        title, source_name = _split_source(entry.get("title", "").strip(), entry)
+        items.append(
+            {
+                "title": title,
+                "summary": entry.get("summary", "").strip(),
+                "link": link,
+                "published": entry.get("published", ""),
+                "source_name": source_name,
+            }
+        )
+    return items
+
+
 def fetch_candidate_news(limit: int = 5) -> list[dict]:
-    """Returns up to `limit` news items from the configured RSS feeds that
-    have not been turned into a video yet."""
-    candidates = []
-    for feed_url in RSS_FEEDS:
-        parsed = feedparser.parse(feed_url)
-        for entry in parsed.entries:
-            link = entry.get("link")
-            if not link or is_source_processed(link):
-                continue
-            title, source_name = _split_source(entry.get("title", "").strip(), entry)
-            candidates.append(
-                {
-                    "title": title,
-                    "summary": entry.get("summary", "").strip(),
-                    "link": link,
-                    "published": entry.get("published", ""),
-                    "source_name": source_name,
-                }
-            )
-            if len(candidates) >= limit:
-                return candidates
+    """Returns up to `limit` unprocessed news items, taking them from the
+    configured feeds in turn rather than draining the first one.
+
+    Draining mattered: the old version walked the feeds in order and
+    returned as soon as it had enough, so the first feed supplied every
+    candidate and any feed after it was dead config - adding a second
+    source would have changed nothing at all."""
+    per_feed = [_feed_items(feed_url) for feed_url in RSS_FEEDS]
+
+    candidates: list[dict] = []
+    for index in range(max((len(items) for items in per_feed), default=0)):
+        for items in per_feed:
+            if index < len(items):
+                candidates.append(items[index])
+                if len(candidates) >= limit:
+                    return candidates
     return candidates
