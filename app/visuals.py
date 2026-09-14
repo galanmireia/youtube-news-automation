@@ -3,7 +3,7 @@ from pathlib import Path
 
 import requests
 
-from . import ai_images, real_photos
+from . import ai_images, branding, real_photos
 from .config import PEXELS_API_KEY
 
 PEXELS_SEARCH_URL = "https://api.pexels.com/videos/search"
@@ -79,10 +79,18 @@ def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path, aspect_ratio: str)
     clip_paths = []
     used_video_ids: set[int] = set()
     for i, scene in enumerate(scenes):
+        if scene.get("is_intro"):
+            width, height = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
+            card_path = branding.generate_intro_card(out_dir / f"clip_{i:02d}.jpg", width, height)
+            clip_paths.append(card_path)
+            continue
+
         photo_subject = (scene.get("photo_subject") or "").strip()
         if photo_subject:
             photo_path = real_photos.fetch_portrait(photo_subject, out_dir / f"clip_{i:02d}.jpg")
             if photo_path is not None:
+                role = (scene.get("photo_subject_role") or "").strip()
+                branding.add_name_tag(photo_path, photo_subject, role)
                 clip_paths.append(photo_path)
                 continue
 

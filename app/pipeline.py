@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Callable
 
 from . import storage
+from .branding import INTRO_NARRATION
 from .config import DATA_DIR, LONG_VIDEO_HEIGHT, LONG_VIDEO_WIDTH, SHORT_VIDEO_HEIGHT, SHORT_VIDEO_WIDTH
 from .news_source import fetch_candidate_news
 from .script_generator import generate_script
@@ -29,6 +30,18 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     variant_dir.mkdir(parents=True, exist_ok=True)
 
     script = generate_script(news_item, variant=variant)
+    # Every video opens with the same fixed bumper line over a branded title
+    # card, so the channel has a consistent, recognizable intro instead of
+    # leaving the opening line to the model's own (variable) wording.
+    intro_scene = {
+        "narration": INTRO_NARRATION,
+        "visual_keywords": "",
+        "photo_subject": "",
+        "photo_subject_role": "",
+        "ai_image_prompt": "",
+        "is_intro": True,
+    }
+    script["scenes"] = [intro_scene] + script["scenes"]
     narration_path, scene_durations = synthesize_scenes(script["scenes"], variant_dir / "audio")
     clip_paths = fetch_clips_for_scenes(script["scenes"], variant_dir / "clips", _VARIANT_ASPECT_RATIO[variant])
 

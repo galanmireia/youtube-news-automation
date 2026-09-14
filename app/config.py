@@ -61,6 +61,10 @@ RSS_FEEDS = [
 PIPELINE_INTERVAL_SECONDS = int(os.environ.get("PIPELINE_INTERVAL_SECONDS", 60 * 60 * 12))
 NEWS_LANGUAGE_HINT = os.environ.get("NEWS_LANGUAGE_HINT", "castellano, España")
 CHANNEL_NAME = os.environ.get("CHANNEL_NAME", "ActualiDark")
+CHANNEL_LOGO_URL = os.environ.get(
+    "CHANNEL_LOGO_URL",
+    "https://yt3.googleusercontent.com/7pwcunu0h_a_fxTodi6tBv1pRBHF5J7AG78RFPKAOODHFyWYd1-Zkj9NunqTeDR52aQ1ed54Lw=s160-c-k-c0x00ffffff-no-rj",
+)
 CHANNEL_TONE_HINT = os.environ.get(
     "CHANNEL_TONE_HINT",
     "revela el lado oculto, inquietante o menos contado de cada noticia: que se esconde detras "

@@ -53,9 +53,12 @@ afirmes cosas que no esten respaldadas por la fuente.
 Fotos reales de personas publicas: para cada escena, si esa narracion concreta habla directamente
 de una persona publica real identificable por su cargo o su nombre (un ministro, un politico, un
 CEO, un famoso), rellena "photo_subject" con su nombre completo tal cual aparece en Wikipedia, para
-mostrar su foto real en vez de video generico. Deja "photo_subject" vacio ("") en el resto de
-escenas, y SIEMPRE vacio si la persona es una victima de un crimen/tragedia o un particular sin
-relevancia publica (evita mostrar la foto real de victimas o personas privadas).
+mostrar su foto real en vez de video generico. Cuando rellenes "photo_subject", rellena tambien
+"photo_subject_role" con su cargo o titulo actual en 2-4 palabras (ej. "Ministro de Transportes",
+"CEO de Repsol", "Presidenta de la Comision Europea") - se muestra como rotulo tipo telediario
+debajo de su foto. Deja ambos campos vacios ("") en el resto de escenas, y SIEMPRE vacios si la
+persona es una victima de un crimen/tragedia o un particular sin relevancia publica (evita mostrar
+la foto real de victimas o personas privadas).
 
 Ilustracion por IA para lugares/conceptos muy especificos: si la escena trata sobre un lugar,
 evento o concepto tan especifico o local que un banco de video de stock generico NUNCA tendria
@@ -110,6 +113,7 @@ Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni ma
       "narration": "texto que se narrara en esta escena",
       "visual_keywords": "palabras clave en ingles para buscar video de stock",
       "photo_subject": "nombre completo de una persona publica real si aplica, si no, cadena vacia",
+      "photo_subject_role": "cargo/titulo de esa persona si photo_subject no esta vacio, si no, cadena vacia",
       "ai_image_prompt": "descripcion en ingles para ilustracion por IA si aplica, si no, cadena vacia"
     }}
   ]
