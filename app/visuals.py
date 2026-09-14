@@ -1,5 +1,4 @@
 import random
-import re
 from pathlib import Path
 
 import requests
@@ -8,55 +7,6 @@ from . import ai_images, branding, real_photos
 from .config import PEXELS_API_KEY
 
 PEXELS_SEARCH_URL = "https://api.pexels.com/videos/search"
-
-_ENTITY_CONNECTORS = {"de", "del", "la", "las", "los", "y", "en"}
-_MAX_EXTRACTED_ENTITIES = 3
-
-# Belt-and-suspenders for one-word names that also happen to often open a
-# sentence (where the position-based heuristic below can't tell them apart
-# from ordinary sentence-initial capitalization).
-_KNOWN_SHORT_ENTITIES = [
-    "PSOE", "PP", "Vox", "Sumar", "Podemos", "Ciudadanos", "ERC", "Junts",
-    "PNV", "Bildu", "CUP", "BNG", "UPN", "Moncloa", "Zarzuela", "Congreso", "Senado",
-]
-
-
-def _extract_named_entities(text: str) -> list[str]:
-    """Deterministic safety net: the model doesn't always reliably tag
-    every named place/institution/party in photo_subject even when the
-    prompt says to, so this also pulls likely proper nouns straight out of
-    the narration to try as real-photo candidates too, independent of
-    whatever the model actually filled in.
-
-    A capitalized word appearing mid-sentence (not right after a
-    period/start of text) is strong evidence of a proper noun in Spanish -
-    normal sentences only capitalize their first word otherwise - so even a
-    single such word (e.g. "Moncloa") is accepted on its own. A capitalized
-    word at the very start of a sentence is weaker evidence (could just be
-    ordinary sentence-initial capitalization), so alone it's ignored unless
-    it's on the known-entities list or is followed by more capitalized
-    words forming a longer phrase (e.g. "Universidad de Granada")."""
-    entities: list[str] = [name for name in _KNOWN_SHORT_ENTITIES if re.search(rf"\b{name}\b", text)]
-
-    for sentence in re.split(r"(?<=[.!?])\s+", text):
-        words = re.sub(r"[.,;:()\"'“”¡!¿?]", " ", sentence).split()
-        current: list[str] = []
-        confirmed = False  # a mid-sentence capitalized word already seen
-        for idx, word in enumerate(words):
-            if word[:1].isupper() and word.lower() not in _ENTITY_CONNECTORS:
-                current.append(word)
-                confirmed = confirmed or idx > 0
-            elif word.lower() in _ENTITY_CONNECTORS and current:
-                current.append(word.lower())
-            else:
-                if current and (len(current) >= 2 or confirmed):
-                    entities.append(" ".join(current))
-                current, confirmed = [], False
-        if current and (len(current) >= 2 or confirmed):
-            entities.append(" ".join(current))
-
-    deduped = list(dict.fromkeys(entities))
-    return deduped[:_MAX_EXTRACTED_ENTITIES]
 
 _PEXELS_ORIENTATION = {"9:16": "portrait", "16:9": "landscape"}
 _TARGET_DIMENSIONS = {"9:16": (1080, 1920), "16:9": (1920, 1080)}
@@ -136,14 +86,17 @@ def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path, aspect_ratio: str,
             continue
 
         photo_subject = (scene.get("photo_subject") or "").strip()
-        narration = scene.get("narration") or ""
-        # The narration-based entity extraction below can't tell an
-        # institution from a crime victim's name - only trust the model's
-        # own explicit photo_subject (which already has the victim/private-
-        # person exclusion baked into its prompt) for sensitive stories.
-        extra_candidates = [] if is_sensitive else _extract_named_entities(narration)
+        # detected_entities comes from a dedicated Claude pass over the
+        # final narration (see entity_extraction.py) - far more reliable
+        # than the model's own inline photo_subject tagging alone. It's
+        # never populated for sensitive stories (pipeline.py skips that
+        # call entirely there), since it has no guaranteed way to exclude
+        # a crime victim's name the way photo_subject's own prompt rule
+        # does - only the model's explicit photo_subject is trusted then.
+        detected_entities = [] if is_sensitive else (scene.get("detected_entities") or [])
+        extra_candidates = [e.get("name", "").strip() for e in detected_entities if e.get("name", "").strip()]
         candidates = ([photo_subject] if photo_subject else []) + [
-            entity for entity in extra_candidates if entity != photo_subject
+            name for name in dict.fromkeys(extra_candidates) if name != photo_subject
         ]
         matched_subject, photo_path = None, None
         for candidate in candidates:
@@ -153,7 +106,12 @@ def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path, aspect_ratio: str,
                 break
 
         if photo_path is not None:
-            role = (scene.get("photo_subject_role") or "").strip() if matched_subject == photo_subject else ""
+            if matched_subject == photo_subject:
+                role = (scene.get("photo_subject_role") or "").strip()
+            else:
+                role = next(
+                    (e.get("descriptor", "") for e in detected_entities if e.get("name") == matched_subject), ""
+                )
             branding.add_name_tag(photo_path, matched_subject, role)
             clip_paths.append(photo_path)
             continue

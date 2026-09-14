@@ -7,6 +7,7 @@ from typing import Callable
 from . import storage
 from .branding import INTRO_NARRATION
 from .config import DATA_DIR, LONG_VIDEO_HEIGHT, LONG_VIDEO_WIDTH, SHORT_VIDEO_HEIGHT, SHORT_VIDEO_WIDTH
+from .entity_extraction import extract_entities
 from .news_source import fetch_candidate_news
 from .script_generator import generate_script
 from .subtitles import generate_srt
@@ -47,6 +48,18 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     # real-photo lookup below, never anything the model explicitly asked for.
     raw_sensitive = script.get("is_sensitive", True)
     is_sensitive = raw_sensitive.strip().lower() != "false" if isinstance(raw_sensitive, str) else bool(raw_sensitive)
+
+    # A dedicated, isolated pass asking specifically "what named entities
+    # appear in this text" is far more reliable than the model tagging
+    # photo_subject correctly as one more field inside the much larger
+    # script-generation prompt. Skipped for sensitive stories: it has no
+    # way to guarantee it excludes a crime victim's name the way the
+    # script prompt's own photo_subject rule does.
+    if not is_sensitive:
+        entities_by_scene = extract_entities(script["scenes"])
+        for i, scene in enumerate(script["scenes"]):
+            scene["detected_entities"] = entities_by_scene.get(i, [])
+
     narration_path, scene_durations = synthesize_scenes(script["scenes"], variant_dir / "audio")
     clip_paths = fetch_clips_for_scenes(
         script["scenes"], variant_dir / "clips", _VARIANT_ASPECT_RATIO[variant], is_sensitive=is_sensitive
