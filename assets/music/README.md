@@ -6,6 +6,24 @@ bajo por debajo de la narración y se le hace fundido de entrada y de salida.
 
 Si esta carpeta está vacía, los vídeos se generan sin música, sin dar error.
 
+## Pistas actuales
+
+Las tres son de The Grey Room (álbum "Density & Time"), descargadas de la
+Biblioteca de audio de YouTube, género Ambiental (instrumentales, sin voz
+cantada - una pista con voz se pisaría con la narración). Recomprimidas a
+160 kbps porque suenan de fondo a volumen bajo y a 320 kbps solo abultaban
+el repositorio.
+
+| Fichero | Pista | Ánimo | Duración |
+| --- | --- | --- | --- |
+| `false_vacuum_decay.mp3` | False Vacuum Decay | Dramático | 3:45 |
+| `red_shift.mp3` | Red Shift | Triste | 4:00 |
+| `rapid_unscheduled_disassembly.mp3` | Rapid Unscheduled Disassembly | Dramático | 5:37 |
+
+Si alguna de ellas figurase en la Biblioteca de audio como "atribución
+requerida", hay que añadir el crédito correspondiente en la descripción de
+los vídeos que la usen.
+
 ## De dónde sacar pistas
 
 Lo más seguro para que el canal siga siendo monetizable es la **Biblioteca de
