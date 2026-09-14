@@ -46,6 +46,13 @@ Estructura obligatoria del guion ({duration_hint}, en este orden):
 Recuerda: SIEMPRE anclado en los hechos de la noticia original. Nunca inventes conspiraciones ni
 afirmes cosas que no esten respaldadas por la fuente.
 
+Fotos reales de personas publicas: para cada escena, si esa narracion concreta habla directamente
+de una persona publica real identificable por su cargo o su nombre (un ministro, un politico, un
+CEO, un famoso), rellena "photo_subject" con su nombre completo tal cual aparece en Wikipedia, para
+mostrar su foto real en vez de video generico. Deja "photo_subject" vacio ("") en el resto de
+escenas, y SIEMPRE vacio si la persona es una victima de un crimen/tragedia o un particular sin
+relevancia publica (evita mostrar la foto real de victimas o personas privadas).
+
 Requisitos de SEO para YouTube (importante, esto determina si el video se encuentra en buscador y
 sugeridos):
 - "title": incluye la palabra clave principal (el tema/entidad de la noticia) cerca del inicio,
@@ -68,7 +75,11 @@ Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni ma
   "description": "descripcion con hashtags, ver requisitos arriba",
   "tags": ["tag1", "tag2", "... entre 10 y 15 tags"],
   "scenes": [
-    {{"narration": "texto que se narrara en esta escena", "visual_keywords": "palabras clave en ingles para buscar video de stock"}}
+    {{
+      "narration": "texto que se narrara en esta escena",
+      "visual_keywords": "palabras clave en ingles para buscar video de stock",
+      "photo_subject": "nombre completo de una persona publica real si aplica, si no, cadena vacia"
+    }}
   ]
 }}
 

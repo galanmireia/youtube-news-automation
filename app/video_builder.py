@@ -1,12 +1,37 @@
 import subprocess
 from pathlib import Path
 
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
+
 
 def _run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True, capture_output=True)
 
 
 def _normalize_clip(clip_path: Path, duration: float, out_path: Path, width: int, height: int) -> None:
+    if clip_path.suffix.lower() in IMAGE_SUFFIXES:
+        # A real person's photo: fit the whole image (no crop, so faces never
+        # get cut off) and pad with black bars instead of stretching/cropping.
+        vf = f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black"
+        _run(
+            [
+                "ffmpeg",
+                "-y",
+                "-loop",
+                "1",
+                "-i",
+                str(clip_path),
+                "-t",
+                str(duration),
+                "-vf",
+                vf,
+                "-r",
+                "30",
+                str(out_path),
+            ]
+        )
+        return
+
     vf = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
     _run(
         [
@@ -87,8 +112,16 @@ def build_video(
     return out_path
 
 
-def burn_subtitles(video_path: Path, srt_path: Path, out_path: Path) -> Path:
-    style = "FontSize=22,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,BorderStyle=3"
+def burn_subtitles(video_path: Path, srt_path: Path, out_path: Path, width: int, height: int) -> Path:
+    # Without original_size, libass assumes a small default reference resolution
+    # and scales the text up to the real frame size, making it huge. BorderStyle=1
+    # draws an outline/shadow instead of a solid box, so the video stays visible.
+    font_size = max(20, height // 32)
+    margin_v = height // 12
+    style = (
+        f"FontSize={font_size},PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,"
+        f"BorderStyle=1,Outline=2,Shadow=1,MarginV={margin_v}"
+    )
     _run(
         [
             "ffmpeg",
@@ -96,7 +129,7 @@ def burn_subtitles(video_path: Path, srt_path: Path, out_path: Path) -> Path:
             "-i",
             str(video_path),
             "-vf",
-            f"subtitles={srt_path}:force_style='{style}'",
+            f"subtitles={srt_path}:original_size={width}x{height}:force_style='{style}'",
             "-c:a",
             "copy",
             str(out_path),

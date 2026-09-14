@@ -35,7 +35,7 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     )
 
     srt_path = generate_srt(narration_path, variant_dir / "subtitles.srt")
-    final_video_path = burn_subtitles(raw_video_path, srt_path, variant_dir / "final_video.mp4")
+    final_video_path = burn_subtitles(raw_video_path, srt_path, variant_dir / "final_video.mp4", width, height)
 
     thumbnail_path = generate_thumbnail(final_video_path, script["title"], variant_dir / "thumbnail.jpg", width, height)
 
