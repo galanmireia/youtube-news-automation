@@ -57,19 +57,23 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     variant_dir.mkdir(parents=True, exist_ok=True)
 
     script = generate_script(news_item, variant=variant)
-    # Every video opens with the same fixed bumper line over a branded title
-    # card, so the channel has a consistent, recognizable intro instead of
-    # leaving the opening line to the model's own (variable) wording.
-    intro_scene = {
-        "narration": INTRO_NARRATION,
-        "visual_keywords": "",
-        "photo_subject": "",
-        "photo_subject_role": "",
-        "ai_image_prompt": "",
-        "on_screen_highlight": "",
-        "is_intro": True,
-    }
-    script["scenes"] = [intro_scene] + script["scenes"]
+    # Long videos open with a fixed bumper line over a branded title card, so
+    # the channel has a consistent opening. Shorts don't: the first seconds
+    # of a Short decide whether the viewer keeps watching or swipes, and a
+    # logo card spends them on something that tells the viewer nothing. They
+    # start on the hook instead.
+    has_intro = variant == "long"
+    if has_intro:
+        intro_scene = {
+            "narration": INTRO_NARRATION,
+            "visual_keywords": "",
+            "photo_subject": "",
+            "photo_subject_role": "",
+            "ai_image_prompt": "",
+            "on_screen_highlight": "",
+            "is_intro": True,
+        }
+        script["scenes"] = [intro_scene] + script["scenes"]
     # Default to treating the story as sensitive if the field is somehow
     # missing/unparseable - that only disables the extra narration-based
     # real-photo lookup below, never anything the model explicitly asked for.
@@ -105,6 +109,7 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
         width,
         height,
         source_name=news_item.get("source_name", ""),
+        intro_duration=scene_durations[0] if has_intro and scene_durations else 0.0,
     )
 
     # Two subtitle tracks off one transcription: a sentence-level SRT still

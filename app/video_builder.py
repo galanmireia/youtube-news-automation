@@ -293,6 +293,7 @@ def build_video(
     width: int,
     height: int,
     source_name: str = "",
+    intro_duration: float = 0.0,
 ) -> Path:
     """Renders each scene's clip(s) - a stock video, a single real photo/AI
     image, or (for scenes with more than one named entity) a short slideshow
@@ -337,8 +338,12 @@ def build_video(
     silent_video_path = work_dir / "silent_video.mp4"
     _join_segments(segment_paths, frame_marks, work_dir, silent_video_path)
 
+    # intro_duration comes from the caller because only it knows whether this
+    # variant has an intro card at all - Shorts don't, and deriving it from
+    # the first scene's length would hide the source tag over the opening
+    # seconds of the story itself.
     silent_video_path = _apply_source_caption(
-        silent_video_path, source_name, scene_durations[0] if scene_durations else 0.0, width, height, work_dir
+        silent_video_path, source_name, intro_duration, width, height, work_dir
     )
 
     _run(
