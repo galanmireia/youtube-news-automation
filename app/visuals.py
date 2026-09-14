@@ -1,3 +1,4 @@
+import logging
 import random
 from pathlib import Path
 
@@ -5,6 +6,8 @@ import requests
 
 from . import ai_images, branding, real_photos
 from .config import PEXELS_API_KEY
+
+logger = logging.getLogger(__name__)
 
 PEXELS_SEARCH_URL = "https://api.pexels.com/videos/search"
 
@@ -104,6 +107,14 @@ def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path, aspect_ratio: str,
             if photo_path is not None:
                 matched_subject = candidate
                 break
+
+        if candidates:
+            logger.info(
+                "Escena %s: candidatos a foto real %s -> %s",
+                i,
+                candidates,
+                f"encontrada para {matched_subject!r}" if photo_path is not None else "ninguna foto encontrada",
+            )
 
         if photo_path is not None:
             if matched_subject == photo_subject:

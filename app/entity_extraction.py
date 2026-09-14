@@ -1,8 +1,11 @@
 import json
+import logging
 
 import anthropic
 
 from .config import ANTHROPIC_API_KEY, CLAUDE_MODEL
+
+logger = logging.getLogger(__name__)
 
 _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -68,8 +71,17 @@ def extract_entities(scenes: list[dict]) -> dict[int, list[dict]]:
         )
         text_blocks = [block.text for block in message.content if block.type == "text"]
         if not text_blocks:
+            logger.warning("extract_entities: la respuesta de Claude no traia ningun bloque de texto")
             return {}
-        parsed = json.loads(_strip_markdown_fence(text_blocks[0]))
-        return {int(index): entities for index, entities in parsed.items()}
+        raw_text = _strip_markdown_fence(text_blocks[0])
+        try:
+            parsed = json.loads(raw_text)
+        except json.JSONDecodeError:
+            logger.warning("extract_entities: JSON invalido, respuesta cruda: %r", raw_text)
+            return {}
+        result = {int(index): entities for index, entities in parsed.items()}
+        logger.info("extract_entities: entidades detectadas por escena: %s", result)
+        return result
     except Exception:
+        logger.warning("extract_entities: fallo inesperado llamando a Claude", exc_info=True)
         return {}
