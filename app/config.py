@@ -21,7 +21,7 @@ PEXELS_API_KEY = os.environ["PEXELS_API_KEY"]
 GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
     "GOOGLE_APPLICATION_CREDENTIALS", str(CREDENTIALS_DIR / "google-tts.json")
 )
-TTS_VOICE_NAME = os.environ.get("TTS_VOICE_NAME", "es-ES-Standard-A")
+TTS_VOICE_NAME = os.environ.get("TTS_VOICE_NAME", "es-ES-Chirp3-HD-Callirrhoe")
 TTS_LANGUAGE_CODE = os.environ.get("TTS_LANGUAGE_CODE", "es-ES")
 
 YOUTUBE_CLIENT_SECRETS_FILE = os.environ.get(
