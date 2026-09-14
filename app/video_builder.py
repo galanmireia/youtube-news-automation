@@ -197,7 +197,10 @@ def _build_scene_segment(
     sub_paths = []
     for j, (path, tag) in enumerate(entries):
         sub_out = tmp_dir / f"seg_{index:02d}_{j}.mp4"
-        _build_photo_segment(path, per, width, height, tag, sub_out, tmp_dir, f"{index}_{j}")
+        if path.suffix.lower() in IMAGE_SUFFIXES:
+            _build_photo_segment(path, per, width, height, tag, sub_out, tmp_dir, f"{index}_{j}")
+        else:
+            _build_video_clip_segment(path, per, width, height, tag, sub_out, tmp_dir, f"{index}_{j}")
         sub_paths.append(sub_out)
 
     concat_list = tmp_dir / f"subconcat_{index:02d}.txt"

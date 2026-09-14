@@ -1,4 +1,5 @@
 import logging
+import math
 import random
 from pathlib import Path
 
@@ -22,6 +23,12 @@ _MAX_PHOTOS_PER_SCENE = 2
 # Splitting a scene's screen time only makes sense if each resulting photo
 # still gets a readable amount of time on screen.
 _MIN_SCENE_SECONDS_FOR_MULTI_PHOTO = 6.0
+# No single stock clip should hold the screen for much longer than this. A
+# scene with a long narration used to get one clip for its whole length -
+# one Short ended on a single shot held for 13 seconds, a quarter of the
+# video.
+_MAX_SECONDS_PER_CLIP = 6.0
+_MAX_CLIPS_PER_SCENE = 3
 
 
 def _search_pexels(query: str, orientation: str) -> list[dict]:
@@ -164,15 +171,21 @@ def fetch_clips_for_scenes(
                 clip_entries.append([(image_path, None)])
                 continue
 
-        out_path = out_dir / f"clip_{i:02d}.mp4"
         # visual_keywords can be intentionally empty when the scene expected a
         # photo/AI image to be used instead; if that failed, fall back to
         # something Pexels can still search for instead of an empty query.
         query = (scene.get("visual_keywords") or "").strip() or ai_image_prompt or photo_subject or "news studio background"
-        fetch_clip_for_scene(query, out_path, aspect_ratio, used_video_ids)
-        # A scene that lands here has no real photo tied to what's being
-        # said - overlay the scene's own key fact so the point doesn't get
-        # lost in an otherwise generic stock shot.
+        # A long scene gets several clips rather than one held for its whole
+        # length. Each search excludes the clips already used, so they differ.
+        clip_count = min(_MAX_CLIPS_PER_SCENE, max(1, math.ceil(duration / _MAX_SECONDS_PER_CLIP)))
+        # Only the first clip carries the caption: repeating it on every cut
+        # of the same scene would make it flash in and out repeatedly.
         highlight = (scene.get("on_screen_highlight") or "").strip()
-        clip_entries.append([(out_path, {"caption": highlight} if highlight else None)])
+        scene_entries: list[tuple[Path, dict | None]] = []
+        for j in range(clip_count):
+            out_path = out_dir / f"clip_{i:02d}_{j}.mp4"
+            fetch_clip_for_scene(query, out_path, aspect_ratio, used_video_ids)
+            tag = {"caption": highlight} if highlight and j == 0 else None
+            scene_entries.append((out_path, tag))
+        clip_entries.append(scene_entries)
     return clip_entries
