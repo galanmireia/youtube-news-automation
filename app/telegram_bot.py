@@ -123,10 +123,21 @@ async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_
     await _run_pipeline_and_notify(context.bot)
 
 
+async def handle_reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    cleared = storage.clear_processed_sources()
+    await update.message.reply_text(
+        f"Listo, {cleared} noticias marcadas como vistas se han olvidado. "
+        "El proximo /generar puede repetir cualquiera del feed actual."
+    )
+
+
 def build_application() -> Application:
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     application.add_handler(CallbackQueryHandler(handle_decision))
     application.add_handler(CommandHandler("generar", handle_generate_command))
+    application.add_handler(CommandHandler("reset", handle_reset_command))
     # Don't auto-generate on every restart/deploy - only at the regular interval.
     # Use /generar in the chat for an on-demand run (e.g. right after deploying).
     application.job_queue.run_repeating(pipeline_job, interval=PIPELINE_INTERVAL_SECONDS, first=PIPELINE_INTERVAL_SECONDS)

@@ -69,6 +69,15 @@ def mark_source_processed(source_url: str) -> None:
         )
 
 
+def clear_processed_sources() -> int:
+    """Forgets every 'already processed' RSS entry, so the next run can pick
+    any current feed item again (including ones already turned into a video
+    before). Returns how many entries were cleared."""
+    with get_conn() as conn:
+        cur = conn.execute("DELETE FROM processed_sources")
+        return cur.rowcount
+
+
 def create_video_record(
     *,
     source_url: str,
