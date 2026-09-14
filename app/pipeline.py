@@ -10,7 +10,7 @@ from .script_generator import generate_script
 from .subtitles import generate_srt
 from .thumbnail import generate_thumbnail
 from .tts import synthesize_scenes
-from .video_builder import build_video, burn_subtitles
+from .video_builder import build_video
 from .visuals import fetch_clips_for_scenes
 
 logger = logging.getLogger(__name__)
@@ -30,12 +30,14 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     narration_path, scene_durations = synthesize_scenes(script["scenes"], variant_dir / "audio")
     clip_paths = fetch_clips_for_scenes(script["scenes"], variant_dir / "clips")
 
-    raw_video_path = build_video(
-        clip_paths, scene_durations, narration_path, variant_dir, variant_dir / "raw_video.mp4", width, height
+    final_video_path = build_video(
+        clip_paths, scene_durations, narration_path, variant_dir, variant_dir / "final_video.mp4", width, height
     )
 
+    # Subtitles are uploaded as a native, toggleable YouTube caption track
+    # instead of being burned into the video (avoids sizing/legibility issues
+    # and lets viewers turn them on/off).
     srt_path = generate_srt(narration_path, variant_dir / "subtitles.srt")
-    final_video_path = burn_subtitles(raw_video_path, srt_path, variant_dir / "final_video.mp4", width, height)
 
     thumbnail_path = generate_thumbnail(final_video_path, script["title"], variant_dir / "thumbnail.jpg", width, height)
 
@@ -47,6 +49,7 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
         tags=script["tags"],
         video_path=str(final_video_path),
         thumbnail_path=str(thumbnail_path),
+        subtitle_path=str(srt_path),
     )
     logger.info("Video #%s (%s) generado y pendiente de aprobacion.", video_id, variant)
     return video_id

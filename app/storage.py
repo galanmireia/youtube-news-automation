@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS videos (
     tags TEXT,
     video_path TEXT,
     thumbnail_path TEXT,
+    subtitle_path TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
     telegram_chat_id TEXT,
     telegram_message_id TEXT,
@@ -42,12 +43,16 @@ def get_conn():
 def init_db() -> None:
     with get_conn() as conn:
         conn.executescript(SCHEMA)
-        # Migration for databases created before the "variant" column existed.
-        try:
-            conn.execute("ALTER TABLE videos ADD COLUMN variant TEXT NOT NULL DEFAULT 'long'")
-        except sqlite3.OperationalError as exc:
-            if "duplicate column name" not in str(exc):
-                raise
+        # Migrations for columns added after the table already existed on disk.
+        for migration in (
+            "ALTER TABLE videos ADD COLUMN variant TEXT NOT NULL DEFAULT 'long'",
+            "ALTER TABLE videos ADD COLUMN subtitle_path TEXT",
+        ):
+            try:
+                conn.execute(migration)
+            except sqlite3.OperationalError as exc:
+                if "duplicate column name" not in str(exc):
+                    raise
 
 
 def is_source_processed(source_url: str) -> bool:
@@ -65,13 +70,31 @@ def mark_source_processed(source_url: str) -> None:
 
 
 def create_video_record(
-    *, source_url: str, variant: str, title: str, description: str, tags: list[str], video_path: str, thumbnail_path: str
+    *,
+    source_url: str,
+    variant: str,
+    title: str,
+    description: str,
+    tags: list[str],
+    video_path: str,
+    thumbnail_path: str,
+    subtitle_path: str,
 ) -> int:
     with get_conn() as conn:
         cur = conn.execute(
-            """INSERT INTO videos (created_at, source_url, variant, title, description, tags, video_path, thumbnail_path, status)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')""",
-            (time.time(), source_url, variant, title, description, ",".join(tags), video_path, thumbnail_path),
+            """INSERT INTO videos (created_at, source_url, variant, title, description, tags, video_path, thumbnail_path, subtitle_path, status)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')""",
+            (
+                time.time(),
+                source_url,
+                variant,
+                title,
+                description,
+                ",".join(tags),
+                video_path,
+                thumbnail_path,
+                subtitle_path,
+            ),
         )
         return cur.lastrowid
 

@@ -7,7 +7,7 @@ from telegram.ext import Application, CallbackQueryHandler, ContextTypes
 from . import storage
 from .config import PIPELINE_INTERVAL_SECONDS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from .pipeline import run_once
-from .youtube_uploader import upload_video
+from .youtube_uploader import upload_captions, upload_video
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,14 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             record["tags"].split(","),
         )
         storage.set_status(video_id, "uploaded", youtube_id)
+
+        if record["subtitle_path"]:
+            try:
+                upload_captions(youtube_id, Path(record["subtitle_path"]))
+            except Exception:
+                # Not critical: the video is already live without a captions track.
+                logger.exception("Error subiendo subtitulos para el video %s", video_id)
+
         await query.edit_message_caption(
             caption=f"{label}\nPublicado: {record['title']}\nhttps://youtu.be/{youtube_id}"
         )

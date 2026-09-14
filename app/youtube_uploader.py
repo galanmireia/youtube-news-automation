@@ -10,7 +10,10 @@ from googleapiclient.http import MediaFileUpload
 
 from .config import YOUTUBE_CLIENT_SECRETS_FILE, YOUTUBE_PRIVACY_STATUS, YOUTUBE_TOKEN_FILE
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.force-ssl",  # needed for captions.insert
+]
 
 # YouTube caps the combined tags string (joined with commas) at 500 characters.
 MAX_TAGS_CHARS = 480
@@ -84,3 +87,10 @@ def upload_video(video_path: Path, thumbnail_path: Path, title: str, description
         logger.warning("No se pudo establecer la miniatura personalizada para %s: %s", video_id, exc)
 
     return video_id
+
+
+def upload_captions(video_id: str, srt_path: Path, language: str = "es") -> None:
+    youtube = build("youtube", "v3", credentials=get_credentials())
+    body = {"snippet": {"videoId": video_id, "language": language, "name": "Español", "isDraft": False}}
+    media = MediaFileUpload(str(srt_path), mimetype="application/octet-stream")
+    youtube.captions().insert(part="snippet", body=body, media_body=media).execute()

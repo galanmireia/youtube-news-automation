@@ -53,6 +53,18 @@ mostrar su foto real en vez de video generico. Deja "photo_subject" vacio ("") e
 escenas, y SIEMPRE vacio si la persona es una victima de un crimen/tragedia o un particular sin
 relevancia publica (evita mostrar la foto real de victimas o personas privadas).
 
+Palabras clave visuales ("visual_keywords", solo se usan cuando "photo_subject" esta vacio): deben
+describir una escena LITERAL y concreta que exista de verdad en un banco de video de stock (Pexels),
+en ingles, 2-4 palabras. Evita conceptos abstractos que no se pueden filmar (mal: "government
+pressure", "economic uncertainty", "political tension"; bien: "politician press conference",
+"stock market screen closeup", "parliament building exterior"). No incluyas nombres propios de
+personas, empresas o lugares muy especificos (un banco de stock no los tendra) - en su lugar,
+describe el TIPO de escena/objeto/entorno que ilustra la idea: si la narracion habla de una empresa
+tecnologica, usa algo como "tech office workspace" en vez del nombre de la empresa; si habla de una
+ciudad concreta, usa el tipo de entorno ("european city street") salvo que sea una capital muy
+reconocible visualmente (ej. "Madrid" o "Paris skyline" si aporta identificacion clara). Prioriza
+sustantivos concretos y filmables: personas haciendo una accion, objetos, lugares, no ideas.
+
 Requisitos de SEO para YouTube (importante, esto determina si el video se encuentra en buscador y
 sugeridos):
 - "title": incluye la palabra clave principal (el tema/entidad de la noticia) cerca del inicio,
