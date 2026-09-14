@@ -2,9 +2,18 @@ from pathlib import Path
 
 import requests
 
+from .config import CHANNEL_NAME
+
 WIKIPEDIA_API_URL = "https://es.wikipedia.org/w/api.php"
 WIKIPEDIA_SUMMARY_URL = "https://es.wikipedia.org/api/rest_v1/page/summary/{title}"
 COMMONS_API_URL = "https://commons.wikimedia.org/w/api.php"
+
+# Wikimedia's API policy requires a descriptive User-Agent identifying the
+# application (https://meta.wikimedia.org/wiki/User-Agent_policy) - requests
+# without one (the default is a generic "python-requests/x.y") can be
+# rate-limited or rejected outright, which would silently look exactly like
+# "no photo exists" to every caller here.
+_HEADERS = {"User-Agent": f"{CHANNEL_NAME}NewsBot/1.0 (automated video generation; contact via YouTube channel)"}
 
 
 def _search_candidate_titles(name: str, limit: int = 3) -> list[str]:
@@ -16,6 +25,7 @@ def _search_candidate_titles(name: str, limit: int = 3) -> list[str]:
         response = requests.get(
             WIKIPEDIA_API_URL,
             params={"action": "query", "list": "search", "srsearch": name, "srlimit": limit, "format": "json"},
+            headers=_HEADERS,
             timeout=15,
         )
         if response.status_code != 200:
@@ -41,6 +51,7 @@ def _pageimages_thumbnail_url(title: str) -> str | None:
                 "redirects": 1,
                 "format": "json",
             },
+            headers=_HEADERS,
             timeout=15,
         )
         if response.status_code != 200:
@@ -57,7 +68,9 @@ def _pageimages_thumbnail_url(title: str) -> str | None:
 
 def _fetch_summary_photo(title: str, out_path: Path) -> Path | None:
     try:
-        response = requests.get(WIKIPEDIA_SUMMARY_URL.format(title=title.replace(" ", "_")), timeout=15)
+        response = requests.get(
+            WIKIPEDIA_SUMMARY_URL.format(title=title.replace(" ", "_")), headers=_HEADERS, timeout=15
+        )
         if response.status_code != 200:
             return None
 
@@ -73,7 +86,7 @@ def _fetch_summary_photo(title: str, out_path: Path) -> Path | None:
         if not thumbnail:
             return None
 
-        image_response = requests.get(thumbnail, timeout=30)
+        image_response = requests.get(thumbnail, headers=_HEADERS, timeout=30)
         image_response.raise_for_status()
         out_path.write_bytes(image_response.content)
         return out_path
@@ -102,6 +115,7 @@ def _commons_search_photo(name: str, out_path: Path) -> Path | None:
                 "iiurlwidth": 1200,
                 "format": "json",
             },
+            headers=_HEADERS,
             timeout=15,
         )
         if response.status_code != 200:
@@ -111,7 +125,7 @@ def _commons_search_photo(name: str, out_path: Path) -> Path | None:
             imageinfo = page.get("imageinfo") or [{}]
             source = imageinfo[0].get("thumburl") or imageinfo[0].get("url")
             if source:
-                image_response = requests.get(source, timeout=30)
+                image_response = requests.get(source, headers=_HEADERS, timeout=30)
                 image_response.raise_for_status()
                 out_path.write_bytes(image_response.content)
                 return out_path
