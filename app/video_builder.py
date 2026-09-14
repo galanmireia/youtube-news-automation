@@ -12,12 +12,21 @@ _TAG_SLIDE_SECONDS = 0.4
 _TAG_MAX_HOLD_SECONDS = 3.5
 
 # A still photo/AI image held for several seconds with zero motion reads as
-# "frozen" - a slow, subtle zoom-in (the classic "Ken Burns" documentary
+# "frozen" - a slow, subtle zoom (the classic "Ken Burns" documentary
 # technique) gives every static shot its own life instead of only the stock
 # video clips ever having any movement. Kept small (12% max) so it never
 # creeps in far enough to crop a face/logo near the edge of the frame.
 _ZOOM_MAX = 1.12
 _ZOOM_FPS = 30
+
+# A landscape photo (a building, a wide press-conference shot) fit within a
+# 9:16 Short without cropping leaves most of the frame as black bars - it
+# reads as small and static. A photo this wide is very unlikely to be a
+# face/logo close-up (those come back portrait or square), so it's safe to
+# scale-and-crop it to fill the frame instead of padding it. Anything under
+# this ratio (portraits, most logos) keeps the padded, never-cropped
+# treatment so a face or a two-part logo is never cut off.
+_CROP_ASPECT_THRESHOLD = 1.6
 
 
 def _run(cmd: list[str]) -> None:
@@ -36,16 +45,41 @@ def _photo_scale_pad_filter(width: int, height: int) -> str:
     return f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black"
 
 
-def _ken_burns_filter(width: int, height: int, duration: float) -> str:
+def _photo_fill_filter(width: int, height: int) -> str:
+    # Scale to cover the whole frame and crop the overflow - no black bars,
+    # but crops into the image, so only used for photos wide enough (see
+    # _CROP_ASPECT_THRESHOLD) that this won't cut into a face or a logo.
+    return f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
+
+
+def _photo_background_filter(image_path: Path, width: int, height: int) -> str:
+    try:
+        aspect = branding.image_aspect_ratio(image_path)
+    except Exception:
+        aspect = 1.0
+    if aspect >= _CROP_ASPECT_THRESHOLD:
+        return _photo_fill_filter(width, height)
+    return _photo_scale_pad_filter(width, height)
+
+
+def _ken_burns_filter(width: int, height: int, duration: float, zoom_out: bool = False) -> str:
     frames = max(1, round(duration * _ZOOM_FPS))
     increment = (_ZOOM_MAX - 1) / frames
-    return f"zoompan=z='min(zoom+{increment:.6f},{_ZOOM_MAX})':d={frames}:s={width}x{height}:fps={_ZOOM_FPS}"
+    # Alternating zoom-in and zoom-out between shots (instead of every single
+    # shot doing the exact same push-in) reads as more deliberately dynamic
+    # rather than one repeated motion.
+    if zoom_out:
+        z_expr = f"if(eq(on,0),{_ZOOM_MAX},max(zoom-{increment:.6f},1))"
+    else:
+        z_expr = f"min(zoom+{increment:.6f},{_ZOOM_MAX})"
+    return f"zoompan=z='{z_expr}':d={frames}:s={width}x{height}:fps={_ZOOM_FPS}"
 
 
 def _build_photo_segment(
     image_path: Path, duration: float, width: int, height: int, tag: dict | None, out_path: Path, tmp_dir: Path, key: str
 ) -> None:
-    vf_bg = f"{_photo_scale_pad_filter(width, height)},{_ken_burns_filter(width, height, duration)}"
+    zoom_out = int(key.split("_")[0]) % 2 == 1
+    vf_bg = f"{_photo_background_filter(image_path, width, height)},{_ken_burns_filter(width, height, duration, zoom_out)}"
 
     if not tag or duration < 1.5:
         _run(

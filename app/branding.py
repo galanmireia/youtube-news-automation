@@ -108,6 +108,11 @@ def generate_intro_card(out_path: Path, width: int, height: int) -> Path:
     return out_path
 
 
+def image_aspect_ratio(path: Path) -> float:
+    with Image.open(path) as image:
+        return image.width / image.height
+
+
 def name_tag_bar_height(frame_height: int) -> int:
     """Bar height as a fraction of the frame - noticeably smaller than the
     old baked-in version (which was ~1/9th of the frame and stayed on

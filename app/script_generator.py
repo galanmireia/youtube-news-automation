@@ -124,8 +124,11 @@ visualmente el mensaje cuando la escena termine usando un video generico de stoc
 de nadie). Debe ser un dato factual de la noticia, nunca una opinion ni relleno. Ejemplos: si la
 narracion dice "el paro subio al 12% este trimestre", "on_screen_highlight": "Paro: 12% este
 trimestre"; si dice "mas de tres mil personas fueron desalojadas", "on_screen_highlight": "3.000
-personas desalojadas". Rellena este campo SIEMPRE, en todas las escenas (incluida la primera y la
-ultima), aunque esa escena acabe mostrando una foto real y el texto no se llegue a usar.
+personas desalojadas". Si la narracion de esa escena concreta NO da ningun dato factual o hecho
+concreto (por ejemplo, es una transicion, una reflexion, una pregunta abierta o la llamada a
+suscribirse), deja el campo como cadena vacia ("") en vez de forzar un texto vago o generico como
+"una ley" o "el analisis" - es preferible no mostrar nada a mostrar un texto que no aporta
+informacion real.
 
 Requisitos de SEO para YouTube (importante, esto determina si el video se encuentra en buscador y
 sugeridos):
