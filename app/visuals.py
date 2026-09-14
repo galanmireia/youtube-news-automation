@@ -50,10 +50,17 @@ def fetch_clip_for_scene(keywords: str, out_path: Path, aspect_ratio: str, used_
     # Try the scene's own (now fairly specific) keywords first; a query that
     # happens to have zero Pexels matches falls back to a broader version of
     # itself, then to a universal query, instead of crashing the whole video.
+    # Broaden by dropping words from the END, never by keeping only the last
+    # one: the country leads these phrases ("mexico city street protest"), so
+    # falling back to the tail ("protest") threw away precisely the word
+    # keeping the footage in the right country - which is how a Hungarian
+    # flag ended up in a scene about Mexico.
     words = keywords.split()
     queries = [keywords]
-    if len(words) > 1:
-        queries.append(words[-1])
+    for cut in range(len(words) - 1, 0, -1):
+        broader = " ".join(words[:cut])
+        if broader not in queries:
+            queries.append(broader)
     queries.append(_LAST_RESORT_QUERY)
 
     chosen_video = None

@@ -117,6 +117,25 @@ def name_tag_bar_height(frame_height: int) -> int:
     return max(50, frame_height // 13)
 
 
+def _text_width(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont) -> int:
+    return draw.textbbox((0, 0), text, font=font)[2]
+
+
+def _fit_single_line_font(
+    draw: ImageDraw.ImageDraw, text: str, max_width: int, start_size: int, min_size: int
+) -> ImageFont.FreeTypeFont:
+    """Largest font size at which the text still fits on one line. Names like
+    "Universidad Autonoma del Estado de Mexico" overflow the bar at the
+    nominal size and used to be drawn straight off the right edge, cut
+    mid-word."""
+    size = start_size
+    font = _load_font("DejaVuSans-Bold.ttf", size)
+    while size > min_size and _text_width(draw, text, font) > max_width:
+        size -= 2
+        font = _load_font("DejaVuSans-Bold.ttf", size)
+    return font
+
+
 def render_name_tag_bar(name: str, role: str, width: int, bar_height: int) -> Image.Image:
     """Renders just the TV-news-style lower third (name + role over a solid
     bar) as its own transparent image, sized to the bar's own height rather
@@ -131,33 +150,37 @@ def render_name_tag_bar(name: str, role: str, width: int, bar_height: int) -> Im
     draw.rectangle([0, 0, width, accent_thickness], fill=_ACCENT_COLOR + (255,))
     draw.rectangle([0, accent_thickness, width, bar_height], fill=(0, 0, 0, 190))
 
-    name_font = _load_font("DejaVuSans-Bold.ttf", max(18, bar_height // 3))
+    left_margin = width * 0.04
+    available_width = int(width - left_margin * 2)
+
+    name_text = name.upper()
+    name_font = _fit_single_line_font(draw, name_text, available_width, max(18, bar_height // 3), 14)
     name_y = accent_thickness + bar_height // 10
-    draw.text((width * 0.04, name_y), name.upper(), font=name_font, fill=TEXT_COLOR + (255,))
+    draw.text((left_margin, name_y), name_text, font=name_font, fill=TEXT_COLOR + (255,))
 
     if role:
-        role_font = _load_font("DejaVuSans-Bold.ttf", max(13, bar_height // 5))
-        name_box = draw.textbbox((0, 0), name.upper(), font=name_font)
+        role_font = _fit_single_line_font(draw, role, available_width, max(13, bar_height // 5), 11)
+        name_box = draw.textbbox((0, 0), name_text, font=name_font)
         role_y = name_y + (name_box[3] - name_box[1]) + bar_height // 14
-        draw.text((width * 0.04, role_y), role, font=role_font, fill=(220, 220, 220, 255))
+        draw.text((left_margin, role_y), role, font=role_font, fill=(220, 220, 220, 255))
 
     return bar
 
 
-def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, max_width: int, max_lines: int) -> list[str]:
+def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, max_width: int) -> list[str]:
     words = text.split()
     lines: list[str] = []
     current = ""
     for word in words:
         trial = f"{current} {word}".strip()
-        if current and draw.textbbox((0, 0), trial, font=font)[2] > max_width:
+        if current and _text_width(draw, trial, font) > max_width:
             lines.append(current)
             current = word
         else:
             current = trial
     if current:
         lines.append(current)
-    return lines[:max_lines]
+    return lines
 
 
 def render_highlight_box(text: str, box_width: int, box_height: int) -> Image.Image:
@@ -172,8 +195,23 @@ def render_highlight_box(text: str, box_width: int, box_height: int) -> Image.Im
     draw.rectangle([0, 0, accent_width, box_height], fill=_ACCENT_COLOR + (255,))
 
     text_left = accent_width + box_height // 4
-    font = _load_font("DejaVuSans-Bold.ttf", max(16, box_height // 4))
-    lines = _wrap_text(draw, text.upper(), font, box_width - text_left - box_height // 6, max_lines=2)
+    available_width = box_width - text_left - box_height // 6
+    max_lines = 3
+
+    # Shrink until the wrapped text fits the box in both directions - a word
+    # too long for one line (e.g. "INVESTIGA") otherwise just runs past the
+    # edge of the card and gets clipped mid-word.
+    size = max(16, box_height // 4)
+    while size > 14:
+        font = _load_font("DejaVuSans-Bold.ttf", size)
+        lines = _wrap_text(draw, text.upper(), font, available_width)
+        fits_width = all(_text_width(draw, line, font) <= available_width for line in lines)
+        if fits_width and len(lines) <= max_lines and len(lines) * (size + 6) <= box_height - box_height // 6:
+            break
+        size -= 2
+    else:
+        font = _load_font("DejaVuSans-Bold.ttf", 14)
+        lines = _wrap_text(draw, text.upper(), font, available_width)[:max_lines]
 
     line_height = font.size + 6
     total_h = line_height * len(lines)
