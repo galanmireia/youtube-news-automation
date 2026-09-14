@@ -12,13 +12,12 @@ PEXELS_SEARCH_URL = "https://api.pexels.com/videos/search"
 _ENTITY_CONNECTORS = {"de", "del", "la", "las", "los", "y", "en"}
 _MAX_EXTRACTED_ENTITIES = 3
 
-# Short one-word acronyms/names the 2+-capitalized-word heuristic below
-# would otherwise miss entirely (a single capitalized word is too weak a
-# signal on its own - most sentences start with one - so real party names
-# that are just one word, like "Vox", need to be matched explicitly).
+# Belt-and-suspenders for one-word names that also happen to often open a
+# sentence (where the position-based heuristic below can't tell them apart
+# from ordinary sentence-initial capitalization).
 _KNOWN_SHORT_ENTITIES = [
     "PSOE", "PP", "Vox", "Sumar", "Podemos", "Ciudadanos", "ERC", "Junts",
-    "PNV", "Bildu", "CUP", "BNG", "UPN",
+    "PNV", "Bildu", "CUP", "BNG", "UPN", "Moncloa", "Zarzuela", "Congreso", "Senado",
 ]
 
 
@@ -27,27 +26,37 @@ def _extract_named_entities(text: str) -> list[str]:
     every named place/institution/party in photo_subject even when the
     prompt says to, so this also pulls likely proper nouns straight out of
     the narration to try as real-photo candidates too, independent of
-    whatever the model actually filled in: known short party acronyms
-    matched literally, plus capitalized multi-word phrases (Spanish
-    proper-noun patterns like "Universidad de Granada")."""
+    whatever the model actually filled in.
+
+    A capitalized word appearing mid-sentence (not right after a
+    period/start of text) is strong evidence of a proper noun in Spanish -
+    normal sentences only capitalize their first word otherwise - so even a
+    single such word (e.g. "Moncloa") is accepted on its own. A capitalized
+    word at the very start of a sentence is weaker evidence (could just be
+    ordinary sentence-initial capitalization), so alone it's ignored unless
+    it's on the known-entities list or is followed by more capitalized
+    words forming a longer phrase (e.g. "Universidad de Granada")."""
     entities: list[str] = [name for name in _KNOWN_SHORT_ENTITIES if re.search(rf"\b{name}\b", text)]
 
-    words = re.sub(r"[.,;:()\"'“”¡!¿?]", " ", text).split()
-    current: list[str] = []
-    capitalized_count = 0
-    for word in words:
-        if word[:1].isupper() and word.lower() not in _ENTITY_CONNECTORS:
-            current.append(word)
-            capitalized_count += 1
-        elif word.lower() in _ENTITY_CONNECTORS and current:
-            current.append(word.lower())
-        else:
-            if capitalized_count >= 2:
-                entities.append(" ".join(current))
-            current, capitalized_count = [], 0
-    if capitalized_count >= 2:
-        entities.append(" ".join(current))
-    return entities[:_MAX_EXTRACTED_ENTITIES]
+    for sentence in re.split(r"(?<=[.!?])\s+", text):
+        words = re.sub(r"[.,;:()\"'“”¡!¿?]", " ", sentence).split()
+        current: list[str] = []
+        confirmed = False  # a mid-sentence capitalized word already seen
+        for idx, word in enumerate(words):
+            if word[:1].isupper() and word.lower() not in _ENTITY_CONNECTORS:
+                current.append(word)
+                confirmed = confirmed or idx > 0
+            elif word.lower() in _ENTITY_CONNECTORS and current:
+                current.append(word.lower())
+            else:
+                if current and (len(current) >= 2 or confirmed):
+                    entities.append(" ".join(current))
+                current, confirmed = [], False
+        if current and (len(current) >= 2 or confirmed):
+            entities.append(" ".join(current))
+
+    deduped = list(dict.fromkeys(entities))
+    return deduped[:_MAX_EXTRACTED_ENTITIES]
 
 _PEXELS_ORIENTATION = {"9:16": "portrait", "16:9": "landscape"}
 _TARGET_DIMENSIONS = {"9:16": (1080, 1920), "16:9": (1920, 1080)}
