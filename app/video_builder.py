@@ -92,15 +92,53 @@ def _build_photo_segment(
     )
 
 
-def _build_video_clip_segment(clip_path: Path, duration: float, width: int, height: int, out_path: Path) -> None:
+def _build_video_clip_segment(
+    clip_path: Path, duration: float, width: int, height: int, tag: dict | None, out_path: Path, tmp_dir: Path, key: str
+) -> None:
     vf = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
+    caption = (tag or {}).get("caption")
+
+    if not caption or duration < 1.5:
+        _run(
+            [
+                "ffmpeg", "-y",
+                "-stream_loop", "-1", "-i", str(clip_path),
+                "-t", str(duration),
+                "-vf", vf,
+                "-an",
+                "-r", "30",
+                str(out_path),
+            ]
+        )
+        return
+
+    # A generic stock clip has no real photo tying it to what's being said -
+    # slide in a small caption box with the scene's own key fact (top-left)
+    # so the point doesn't get lost, then slide it back out.
+    box_width, box_height = int(width * 0.42), int(height * 0.16)
+    box_png = tmp_dir / f"highlight_{key}.png"
+    branding.render_highlight_box(caption, box_width, box_height).save(box_png)
+
+    margin = int(width * 0.03)
+    slide = _TAG_SLIDE_SECONDS
+    hold = min(_TAG_MAX_HOLD_SECONDS, max(1.0, duration - 2 * slide))
+    hold_end = slide + hold
+    slide_out_end = min(duration, hold_end + slide)
+    hidden_x, shown_x = -box_width, margin
+    x_expr = (
+        f"if(lt(t,{slide}),{hidden_x}+({shown_x}-{hidden_x})*(t/{slide}),"
+        f"if(lt(t,{hold_end}),{shown_x},"
+        f"if(lt(t,{slide_out_end}),{shown_x}+({hidden_x}-{shown_x})*((t-{hold_end})/({slide_out_end}-{hold_end})),{hidden_x})))"
+    )
+    filter_complex = f"[0:v]{vf}[bg];[1:v]format=rgba[fg];[bg][fg]overlay=x='{x_expr}':y={margin}:shortest=1[outv]"
     _run(
         [
             "ffmpeg", "-y",
             "-stream_loop", "-1", "-i", str(clip_path),
+            "-loop", "1", "-i", str(box_png),
             "-t", str(duration),
-            "-vf", vf,
-            "-an",
+            "-filter_complex", filter_complex,
+            "-map", "[outv]",
             "-r", "30",
             str(out_path),
         ]
@@ -115,7 +153,7 @@ def _build_scene_segment(
         if path.suffix.lower() in IMAGE_SUFFIXES:
             _build_photo_segment(path, duration, width, height, tag, out_path, tmp_dir, str(index))
         else:
-            _build_video_clip_segment(path, duration, width, height, out_path)
+            _build_video_clip_segment(path, duration, width, height, tag, out_path, tmp_dir, str(index))
         return
 
     # Multiple real photos found for this one scene (e.g. two political
@@ -133,6 +171,33 @@ def _build_scene_segment(
     _run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list), "-c", "copy", str(out_path)])
 
 
+def _apply_source_caption(
+    video_path: Path, source_name: str, intro_duration: float, width: int, height: int, work_dir: Path
+) -> Path:
+    """Overlays a small, constant "FUENTE: X" tag in a corner for the whole
+    video (skipping the intro card) - crediting where the story comes from
+    so the channel's facts read as sourced rather than just asserted."""
+    if not source_name:
+        return video_path
+
+    tag_png = work_dir / "source_tag.png"
+    branding.render_source_caption(source_name, width, height).save(tag_png)
+    margin = int(width * 0.02)
+    out_path = work_dir / "with_source.mp4"
+    _run(
+        [
+            "ffmpeg", "-y",
+            "-i", str(video_path),
+            "-loop", "1", "-i", str(tag_png),
+            "-filter_complex",
+            f"[1:v]format=rgba[fg];[0:v][fg]overlay=x=W-w-{margin}:y=H-h-{margin}:"
+            f"enable='gte(t,{intro_duration})':shortest=1",
+            str(out_path),
+        ]
+    )
+    return out_path
+
+
 def build_video(
     clip_entries: list[list[tuple[Path, dict | None]]],
     scene_durations: list[float],
@@ -141,12 +206,13 @@ def build_video(
     out_path: Path,
     width: int,
     height: int,
+    source_name: str = "",
 ) -> Path:
     """Renders each scene's clip(s) - a stock video, a single real photo/AI
     image, or (for scenes with more than one named entity) a short slideshow
     of several real photos - trimmed/looped to match the scene's narration
-    length, concatenates them in order, and muxes the narration audio on
-    top."""
+    length, concatenates them in order, overlays a source-attribution tag
+    (if given), and muxes the narration audio on top."""
     normalized_dir = work_dir / "normalized"
     normalized_dir.mkdir(parents=True, exist_ok=True)
 
@@ -167,6 +233,10 @@ def build_video(
             "-c", "copy",
             str(silent_video_path),
         ]
+    )
+
+    silent_video_path = _apply_source_caption(
+        silent_video_path, source_name, scene_durations[0] if scene_durations else 0.0, width, height, work_dir
     )
 
     _run(

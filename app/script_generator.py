@@ -115,6 +115,15 @@ esos terminos, y eso queda visualmente incorrecto y confunde al espectador en un
 pais. Si la noticia es de España usa "spain"/"spanish"/"madrid"/etc.; si es de otro pais, usa ese
 pais en su lugar.
 
+Texto destacado en pantalla ("on_screen_highlight"): para cada escena, un texto corto EN ESPAÑOL
+(3 a 6 palabras) con el dato o hecho mas concreto y verificable de esa narracion, para reforzar
+visualmente el mensaje cuando la escena termine usando un video generico de stock (sin foto real
+de nadie). Debe ser un dato factual de la noticia, nunca una opinion ni relleno. Ejemplos: si la
+narracion dice "el paro subio al 12% este trimestre", "on_screen_highlight": "Paro: 12% este
+trimestre"; si dice "mas de tres mil personas fueron desalojadas", "on_screen_highlight": "3.000
+personas desalojadas". Rellena este campo SIEMPRE, en todas las escenas (incluida la primera y la
+ultima), aunque esa escena acabe mostrando una foto real y el texto no se llegue a usar.
+
 Requisitos de SEO para YouTube (importante, esto determina si el video se encuentra en buscador y
 sugeridos):
 - "title": incluye la palabra clave principal (el tema/entidad de la noticia) cerca del inicio,
@@ -143,7 +152,8 @@ Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni ma
       "visual_keywords": "palabras clave en ingles para buscar video de stock",
       "photo_subject": "nombre de una persona publica o de un lugar/institucion con nombre propio si aplica, si no, cadena vacia",
       "photo_subject_role": "cargo de la persona o descriptor corto del lugar si photo_subject no esta vacio, si no, cadena vacia",
-      "ai_image_prompt": "descripcion en ingles para ilustracion por IA si aplica, si no, cadena vacia"
+      "ai_image_prompt": "descripcion en ingles para ilustracion por IA si aplica, si no, cadena vacia",
+      "on_screen_highlight": "texto corto en español (3-6 palabras) con el dato clave de esta escena, ver instrucciones arriba"
     }}
   ]
 }}

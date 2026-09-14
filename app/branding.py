@@ -142,3 +142,64 @@ def render_name_tag_bar(name: str, role: str, width: int, bar_height: int) -> Im
         draw.text((width * 0.04, role_y), role, font=role_font, fill=(220, 220, 220, 255))
 
     return bar
+
+
+def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, max_width: int, max_lines: int) -> list[str]:
+    words = text.split()
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        trial = f"{current} {word}".strip()
+        if current and draw.textbbox((0, 0), trial, font=font)[2] > max_width:
+            lines.append(current)
+            current = word
+        else:
+            current = trial
+    if current:
+        lines.append(current)
+    return lines[:max_lines]
+
+
+def render_highlight_box(text: str, box_width: int, box_height: int) -> Image.Image:
+    """Small caption card for scenes that end up using generic stock video
+    (no real photo tied to what's being said) - shows the scene's own key
+    fact so the point doesn't get lost in an otherwise generic shot."""
+    box = Image.new("RGBA", (box_width, box_height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(box)
+
+    draw.rounded_rectangle([0, 0, box_width, box_height], radius=box_height // 6, fill=(0, 0, 0, 190))
+    accent_width = max(4, box_width // 45)
+    draw.rectangle([0, 0, accent_width, box_height], fill=_ACCENT_COLOR + (255,))
+
+    text_left = accent_width + box_height // 4
+    font = _load_font("DejaVuSans-Bold.ttf", max(16, box_height // 4))
+    lines = _wrap_text(draw, text.upper(), font, box_width - text_left - box_height // 6, max_lines=2)
+
+    line_height = font.size + 6
+    total_h = line_height * len(lines)
+    y = (box_height - total_h) / 2
+    for line in lines:
+        draw.text((text_left, y), line, font=font, fill=TEXT_COLOR + (255,))
+        y += line_height
+
+    return box
+
+
+def render_source_caption(source_name: str, width: int, height: int) -> Image.Image:
+    """Small, unobtrusive source-attribution tag shown in a corner for the
+    whole video (after the intro) - crediting where the story comes from so
+    the channel's facts read as sourced instead of just asserted."""
+    font_size = max(14, height // 45)
+    font = _load_font("DejaVuSans-Bold.ttf", font_size)
+    text = f"FUENTE: {source_name.upper()}"
+
+    probe = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+    text_box = probe.textbbox((0, 0), text, font=font)
+    pad = font_size // 2
+    tag_w, tag_h = text_box[2] - text_box[0] + pad * 2, text_box[3] - text_box[1] + pad * 2
+
+    tag = Image.new("RGBA", (tag_w, tag_h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(tag)
+    draw.rounded_rectangle([0, 0, tag_w, tag_h], radius=tag_h // 4, fill=(0, 0, 0, 165))
+    draw.text((pad - text_box[0], pad - text_box[1]), text, font=font, fill=(220, 220, 220, 255))
+    return tag

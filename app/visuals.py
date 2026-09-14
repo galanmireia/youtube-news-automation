@@ -157,5 +157,9 @@ def fetch_clips_for_scenes(
         # something Pexels can still search for instead of an empty query.
         query = (scene.get("visual_keywords") or "").strip() or ai_image_prompt or photo_subject or "news studio background"
         fetch_clip_for_scene(query, out_path, aspect_ratio, used_video_ids)
-        clip_entries.append([(out_path, None)])
+        # A scene that lands here has no real photo tied to what's being
+        # said - overlay the scene's own key fact so the point doesn't get
+        # lost in an otherwise generic stock shot.
+        highlight = (scene.get("on_screen_highlight") or "").strip()
+        clip_entries.append([(out_path, {"caption": highlight} if highlight else None)])
     return clip_entries

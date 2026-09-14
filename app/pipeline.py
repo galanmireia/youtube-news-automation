@@ -40,6 +40,7 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
         "photo_subject": "",
         "photo_subject_role": "",
         "ai_image_prompt": "",
+        "on_screen_highlight": "",
         "is_intro": True,
     }
     script["scenes"] = [intro_scene] + script["scenes"]
@@ -70,7 +71,14 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     )
 
     final_video_path = build_video(
-        clip_entries, scene_durations, narration_path, variant_dir, variant_dir / "final_video.mp4", width, height
+        clip_entries,
+        scene_durations,
+        narration_path,
+        variant_dir,
+        variant_dir / "final_video.mp4",
+        width,
+        height,
+        source_name=news_item.get("source_name", ""),
     )
 
     # Subtitles are uploaded as a native, toggleable YouTube caption track
