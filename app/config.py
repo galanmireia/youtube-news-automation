@@ -72,6 +72,18 @@ CHANNEL_TONE_HINT = os.environ.get(
     "abiertas. El tono es intrigante y directo, pero SIEMPRE basado en hechos verificables de la "
     "propia noticia, nunca en especulacion sin fundamento ni teorias de conspiracion.",
 )
+# Burned-in subtitles are the norm on Shorts (most of the feed is watched
+# muted), on top of the caption track uploaded to YouTube.
+BURN_SUBTITLES = os.environ.get("BURN_SUBTITLES", "true").strip().lower() != "false"
+
+# Background music. Drop licensed tracks (e.g. from YouTube's own Audio
+# Library, which is the safest choice for monetization) into this folder as
+# mp3/m4a/wav; one is picked at random per video. No folder or no files
+# means videos are simply built without music.
+MUSIC_DIR = Path(os.environ.get("MUSIC_DIR", str(BASE_DIR / "assets" / "music")))
+# Quiet enough to sit under the narration without competing with it.
+MUSIC_VOLUME = float(os.environ.get("MUSIC_VOLUME", 0.08))
+
 LONG_VIDEO_WIDTH = int(os.environ.get("LONG_VIDEO_WIDTH", os.environ.get("VIDEO_WIDTH", 1920)))
 LONG_VIDEO_HEIGHT = int(os.environ.get("LONG_VIDEO_HEIGHT", os.environ.get("VIDEO_HEIGHT", 1080)))
 SHORT_VIDEO_WIDTH = int(os.environ.get("SHORT_VIDEO_WIDTH", 1080))

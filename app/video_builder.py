@@ -287,26 +287,61 @@ def build_video(
     return out_path
 
 
-def burn_subtitles(video_path: Path, srt_path: Path, out_path: Path, width: int, height: int) -> Path:
-    # Without original_size, libass assumes a small default reference resolution
-    # and scales the text up to the real frame size, making it huge. BorderStyle=1
-    # draws an outline/shadow instead of a solid box, so the video stays visible.
-    font_size = max(20, height // 32)
-    margin_v = height // 12
-    style = (
-        f"FontSize={font_size},PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,"
-        f"BorderStyle=1,Outline=2,Shadow=1,MarginV={margin_v}"
+def burn_subtitles(video_path: Path, ass_path: Path, out_path: Path) -> Path:
+    """Burns the pre-styled ASS track (see subtitles.write_ass, which sets
+    the styling in real pixels against the frame's own resolution) into the
+    picture."""
+    _run(
+        [
+            "ffmpeg", "-y",
+            "-i", str(video_path),
+            "-vf", f"ass={ass_path}",
+            "-c:a", "copy",
+            str(out_path),
+        ]
+    )
+    return out_path
+
+
+def _probe_duration(path: Path) -> float:
+    result = subprocess.run(
+        [
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            str(path),
+        ],
+        capture_output=True,
+    )
+    try:
+        return float(result.stdout.decode().strip())
+    except ValueError:
+        return 0.0
+
+
+def mix_background_music(video_path: Path, music_path: Path, out_path: Path, volume: float) -> Path:
+    """Mixes a music bed under the narration at low volume, looped to the
+    video's length and faded in and out. Kept quiet by default: the music is
+    there to stop the narration sounding bare, not to compete with it."""
+    duration = _probe_duration(video_path)
+    fade_out_start = max(0.0, duration - 2.5)
+    music_chain = (
+        f"[1:a]volume={volume},afade=t=in:st=0:d=1.5,"
+        f"afade=t=out:st={fade_out_start:.2f}:d=2.5[music]"
     )
     _run(
         [
-            "ffmpeg",
-            "-y",
-            "-i",
-            str(video_path),
-            "-vf",
-            f"subtitles={srt_path}:original_size={width}x{height}:force_style='{style}'",
-            "-c:a",
-            "copy",
+            "ffmpeg", "-y",
+            "-i", str(video_path),
+            "-stream_loop", "-1", "-i", str(music_path),
+            # normalize=0 matters: amix otherwise divides every input by the
+            # number of inputs, so simply adding music would quietly drop the
+            # narration itself by 6 dB.
+            "-filter_complex",
+            f"{music_chain};[0:a][music]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]",
+            "-map", "0:v", "-map", "[aout]",
+            "-c:v", "copy", "-c:a", "aac",
+            "-t", str(duration),
             str(out_path),
         ]
     )

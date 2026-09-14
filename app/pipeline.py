@@ -1,4 +1,5 @@
 import logging
+import random
 import shutil
 import time
 from pathlib import Path
@@ -6,14 +7,23 @@ from typing import Callable
 
 from . import storage
 from .branding import INTRO_NARRATION
-from .config import DATA_DIR, LONG_VIDEO_HEIGHT, LONG_VIDEO_WIDTH, SHORT_VIDEO_HEIGHT, SHORT_VIDEO_WIDTH
+from .config import (
+    BURN_SUBTITLES,
+    DATA_DIR,
+    LONG_VIDEO_HEIGHT,
+    LONG_VIDEO_WIDTH,
+    MUSIC_DIR,
+    MUSIC_VOLUME,
+    SHORT_VIDEO_HEIGHT,
+    SHORT_VIDEO_WIDTH,
+)
 from .entity_extraction import extract_entities
 from .news_source import fetch_candidate_news
 from .script_generator import generate_script
-from .subtitles import generate_srt
+from .subtitles import generate_subtitles
 from .thumbnail import generate_thumbnail
 from .tts import synthesize_scenes
-from .video_builder import build_video
+from .video_builder import build_video, burn_subtitles, mix_background_music
 from .visuals import fetch_clips_for_scenes
 
 logger = logging.getLogger(__name__)
@@ -23,6 +33,22 @@ _VARIANT_DIMENSIONS = {
     "long": (LONG_VIDEO_WIDTH, LONG_VIDEO_HEIGHT),
 }
 _VARIANT_ASPECT_RATIO = {"short": "9:16", "long": "16:9"}
+
+
+_MUSIC_SUFFIXES = {".mp3", ".m4a", ".wav", ".aac", ".ogg"}
+
+
+def _pick_music_track() -> Path | None:
+    """One random track from the music folder, or None if there is no folder
+    or nothing usable in it - music is optional, and a missing folder must
+    never stop a video from being generated."""
+    if not MUSIC_DIR.is_dir():
+        return None
+    tracks = sorted(p for p in MUSIC_DIR.iterdir() if p.suffix.lower() in _MUSIC_SUFFIXES)
+    if not tracks:
+        logger.info("No hay pistas de musica en %s, el video se genera sin musica de fondo.", MUSIC_DIR)
+        return None
+    return random.choice(tracks)
 
 
 def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
@@ -81,12 +107,27 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
         source_name=news_item.get("source_name", ""),
     )
 
-    # Subtitles are uploaded as a native, toggleable YouTube caption track
-    # instead of being burned into the video (avoids sizing/legibility issues
-    # and lets viewers turn them on/off).
-    srt_path = generate_srt(narration_path, variant_dir / "subtitles.srt")
+    # Two subtitle tracks off one transcription: a sentence-level SRT still
+    # uploaded to YouTube as a toggleable caption track, plus a short-chunk
+    # version burned into the picture (most of the Shorts feed is watched
+    # muted, so on-screen text is what carries the narration).
+    srt_path, burn_ass_path = generate_subtitles(
+        narration_path, variant_dir / "subtitles.srt", variant_dir / "subtitles_burn.ass", width, height
+    )
 
+    # The thumbnail is grabbed from the video, so take it before burning in
+    # subtitles - otherwise a random half-sentence ends up across the
+    # thumbnail.
     thumbnail_path = generate_thumbnail(final_video_path, script["title"], variant_dir / "thumbnail.jpg", width, height)
+
+    if BURN_SUBTITLES:
+        final_video_path = burn_subtitles(final_video_path, burn_ass_path, variant_dir / "final_subtitled.mp4")
+
+    music_path = _pick_music_track()
+    if music_path is not None:
+        final_video_path = mix_background_music(
+            final_video_path, music_path, variant_dir / "final_with_music.mp4", MUSIC_VOLUME
+        )
 
     video_id = storage.create_video_record(
         source_url=news_item["link"],
