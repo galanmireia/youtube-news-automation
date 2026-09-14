@@ -153,36 +153,51 @@ def _strip_markdown_fence(text: str) -> str:
     return text.strip()
 
 
+_MAX_TOKENS = {"short": 4000, "long": 10000}
+_MAX_ATTEMPTS = 3
+
+
 def generate_script(news_item: dict, variant: str = "long") -> dict:
     if variant not in _VARIANT_CONFIG:
         raise ValueError(f"variant desconocida: {variant!r}")
     variant_config = _VARIANT_CONFIG[variant]
 
-    message = _client.messages.create(
-        model=CLAUDE_MODEL,
-        max_tokens=3000 if variant == "short" else 8000,
-        messages=[
-            {
-                "role": "user",
-                "content": PROMPT_TEMPLATE.format(
-                    channel_name=CHANNEL_NAME,
-                    tone_hint=CHANNEL_TONE_HINT,
-                    language=NEWS_LANGUAGE_HINT,
-                    title=news_item["title"],
-                    summary=news_item["summary"],
-                    **variant_config,
-                ),
-            }
-        ],
+    prompt = PROMPT_TEMPLATE.format(
+        channel_name=CHANNEL_NAME,
+        tone_hint=CHANNEL_TONE_HINT,
+        language=NEWS_LANGUAGE_HINT,
+        title=news_item["title"],
+        summary=news_item["summary"],
+        **variant_config,
     )
-    text_blocks = [block.text for block in message.content if block.type == "text"]
-    if not text_blocks:
-        raise ValueError("Claude no devolvio ningun bloque de texto en la respuesta")
-    raw_text = _strip_markdown_fence(text_blocks[0])
-    script = json.loads(raw_text)
 
-    required_keys = {"title", "description", "tags", "scenes"}
-    if not required_keys.issubset(script):
-        raise ValueError(f"Respuesta de Claude incompleta, faltan claves: {required_keys - script.keys()}")
+    last_error: Exception | None = None
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        message = _client.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=_MAX_TOKENS[variant],
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text_blocks = [block.text for block in message.content if block.type == "text"]
+        if not text_blocks:
+            last_error = ValueError("Claude no devolvio ningun bloque de texto en la respuesta")
+            continue
 
-    return script
+        raw_text = _strip_markdown_fence(text_blocks[0])
+        try:
+            script = json.loads(raw_text)
+        except json.JSONDecodeError as exc:
+            # The response occasionally gets cut off mid-JSON (long thinking
+            # + long output competing for the same token budget). Retrying
+            # is cheap and usually succeeds on the next try.
+            last_error = exc
+            continue
+
+        required_keys = {"title", "description", "tags", "scenes"}
+        if not required_keys.issubset(script):
+            last_error = ValueError(f"Respuesta de Claude incompleta, faltan claves: {required_keys - script.keys()}")
+            continue
+
+        return script
+
+    raise RuntimeError(f"generate_script fallo tras {_MAX_ATTEMPTS} intentos: {last_error}") from last_error
