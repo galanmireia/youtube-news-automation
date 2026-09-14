@@ -21,6 +21,15 @@ _VARIANT_LABELS = {"short": "🔹 SHORT (vertical)", "long": "🔸 VIDEO LARGO (
 # overlapping (e.g. the scheduled job and a manual /generar at the same time).
 _pipeline_lock = asyncio.Lock()
 
+# A whole run (both variants) normally takes around three minutes. If it goes
+# far past that, something is stuck rather than slow, and waiting longer will
+# not help: an external call with no time limit of its own once froze the
+# worker thread indefinitely, and because the lock above was still held, every
+# later /generar was answered with "ya hay una generacion en curso" until the
+# container was restarted. The stuck thread can't be killed from here, but
+# giving up on it releases the lock so the bot stays usable.
+_PIPELINE_TIMEOUT_SECONDS = 25 * 60
+
 
 async def send_for_approval(bot, video_id: int) -> None:
     record = storage.get_video(video_id)
@@ -134,11 +143,27 @@ async def _run_pipeline_and_notify(bot, variants: tuple[str, ...] = ("short", "l
 
     async with _pipeline_lock:
         try:
-            video_ids = await loop.run_in_executor(None, run_once, on_variant_done, variants)
+            video_ids = await asyncio.wait_for(
+                loop.run_in_executor(None, run_once, on_variant_done, variants),
+                timeout=_PIPELINE_TIMEOUT_SECONDS,
+            )
             if not video_ids:
                 await bot.send_message(
                     chat_id=TELEGRAM_CHAT_ID, text="No hay noticias nuevas que procesar ahora mismo."
                 )
+        except asyncio.TimeoutError:
+            logger.error(
+                "El pipeline lleva mas de %s minutos sin terminar; se deja de esperar y se libera el bloqueo. "
+                "El ultimo mensaje del log de antes de pararse dice en que paso se quedo colgado.",
+                _PIPELINE_TIMEOUT_SECONDS // 60,
+            )
+            await bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID,
+                text=(
+                    f"La generacion lleva mas de {_PIPELINE_TIMEOUT_SECONDS // 60} minutos bloqueada, "
+                    "asi que la doy por perdida. Puedes volver a lanzar /generar."
+                ),
+            )
         except Exception:
             logger.exception("Error ejecutando el pipeline de generacion de video")
             await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="Error generando el video, revisa los logs.")

@@ -57,6 +57,11 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     variant_dir = work_dir / variant
     variant_dir.mkdir(parents=True, exist_ok=True)
 
+    # Each stage announces itself before it starts, not after. When a step
+    # froze with no error, the log simply stopped mid-run and there was no way
+    # to tell from it which call was stuck - the stage had to be inferred from
+    # whichever incidental line happened to be logged last.
+    logger.info("[%s] 1/7 Escribiendo el guion...", variant)
     script = generate_script(news_item, variant=variant)
     # Long videos open with a fixed bumper line over a branded title card, so
     # the channel has a consistent opening. Shorts don't: the first seconds
@@ -88,11 +93,15 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     # way to guarantee it excludes a crime victim's name the way the
     # script prompt's own photo_subject rule does.
     if not is_sensitive:
+        logger.info("[%s] 2/7 Extrayendo entidades del guion...", variant)
         entities_by_scene = extract_entities(script["scenes"])
         for i, scene in enumerate(script["scenes"]):
             scene["detected_entities"] = entities_by_scene.get(i, [])
 
+    logger.info("[%s] 3/7 Generando la narracion con TTS (%s escenas)...", variant, len(script["scenes"]))
     narration_path, scene_durations = synthesize_scenes(script["scenes"], variant_dir / "audio")
+
+    logger.info("[%s] 4/7 Buscando imagenes y videos para las escenas...", variant)
     clip_entries = fetch_clips_for_scenes(
         script["scenes"],
         variant_dir / "clips",
@@ -101,6 +110,7 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
         is_sensitive=is_sensitive,
     )
 
+    logger.info("[%s] 5/7 Montando el video con ffmpeg...", variant)
     final_video_path = build_video(
         clip_entries,
         scene_durations,
@@ -117,6 +127,7 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     # uploaded to YouTube as a toggleable caption track, plus a short-chunk
     # version burned into the picture (most of the Shorts feed is watched
     # muted, so on-screen text is what carries the narration).
+    logger.info("[%s] 6/7 Transcribiendo para los subtitulos...", variant)
     srt_path, burn_ass_path = generate_subtitles(
         narration_path, variant_dir / "subtitles.srt", variant_dir / "subtitles_burn.ass", width, height
     )
@@ -124,6 +135,7 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     # The thumbnail is grabbed from the video, so take it before burning in
     # subtitles - otherwise a random half-sentence ends up across the
     # thumbnail.
+    logger.info("[%s] 7/7 Miniatura, subtitulos incrustados y musica...", variant)
     thumbnail_path = generate_thumbnail(final_video_path, script["title"], variant_dir / "thumbnail.jpg", width, height)
 
     if BURN_SUBTITLES:

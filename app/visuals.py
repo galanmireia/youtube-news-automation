@@ -1,6 +1,7 @@
 import logging
 import math
 import random
+import time
 from pathlib import Path
 
 import requests
@@ -29,6 +30,19 @@ _MIN_SCENE_SECONDS_FOR_MULTI_PHOTO = 6.0
 # video.
 _MAX_SECONDS_PER_CLIP = 6.0
 _MAX_CLIPS_PER_SCENE = 3
+
+# requests' `timeout` only limits the wait between two chunks of data, so a
+# download that trickles in forever never trips it. These cap the whole
+# transfer as well, because a single stuck download is enough to freeze the
+# generation thread - and that thread holds the lock that stops two
+# generations overlapping, so the bot answers "ya hay una generacion en
+# curso" to every /generar from then on.
+_DOWNLOAD_TIMEOUT = (10, 30)
+_DOWNLOAD_MAX_SECONDS = 120.0
+# Deliberately small: the deadline below can only be checked between chunks,
+# so a large chunk size would let a slow enough trickle sit inside a single
+# read for minutes without the limit ever being looked at.
+_DOWNLOAD_CHUNK = 64 << 10
 
 
 def _search_pexels(query: str, orientation: str) -> list[dict]:
@@ -91,10 +105,24 @@ def fetch_clip_for_scene(keywords: str, out_path: Path, aspect_ratio: str, used_
     used_video_ids.add(chosen_video["id"])
     video_file = _pick_video_file(chosen_video, target_width, target_height)
 
-    video_response = requests.get(video_file["link"], timeout=60)
-    video_response.raise_for_status()
-    out_path.write_bytes(video_response.content)
+    _download_to_file(video_file["link"], out_path)
     return out_path
+
+
+def _download_to_file(url: str, out_path: Path) -> None:
+    """Streams a clip straight to disk under a total time limit.
+
+    Reading into memory first (`response.content`) meant a 4K clip sat in RAM
+    in full before being written, on top of the whisper model already loaded
+    in the same process; streaming keeps only one chunk at a time."""
+    deadline = time.monotonic() + _DOWNLOAD_MAX_SECONDS
+    with requests.get(url, timeout=_DOWNLOAD_TIMEOUT, stream=True) as response:
+        response.raise_for_status()
+        with out_path.open("wb") as fh:
+            for chunk in response.iter_content(chunk_size=_DOWNLOAD_CHUNK):
+                if time.monotonic() > deadline:
+                    raise TimeoutError(f"La descarga de {url} supero los {_DOWNLOAD_MAX_SECONDS:.0f}s")
+                fh.write(chunk)
 
 
 def fetch_clips_for_scenes(
@@ -189,6 +217,7 @@ def fetch_clips_for_scenes(
         scene_entries: list[tuple[Path, dict | None]] = []
         for j in range(clip_count):
             out_path = out_dir / f"clip_{i:02d}_{j}.mp4"
+            logger.info("Escena %s: buscando clip %s/%s en Pexels para %r...", i, j + 1, clip_count, query)
             fetch_clip_for_scene(query, out_path, aspect_ratio, used_video_ids)
             tag = {"caption": highlight} if highlight and j == 0 else None
             scene_entries.append((out_path, tag))
