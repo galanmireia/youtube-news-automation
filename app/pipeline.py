@@ -18,6 +18,7 @@ from .config import (
     SHORT_VIDEO_WIDTH,
 )
 from .entity_extraction import extract_entities
+from .news_picker import pick_best_story
 from .news_source import fetch_candidate_news
 from .script_generator import generate_script
 from .subtitles import generate_subtitles
@@ -182,12 +183,16 @@ def run_once(
     new videos' ids (empty if there was no fresh news)."""
     cleanup_finished_video_files()
 
-    candidates = fetch_candidate_news(limit=5)
+    candidates = fetch_candidate_news(limit=6)
     if not candidates:
         logger.info("No hay noticias nuevas que procesar.")
         return []
 
-    news_item = candidates[0]
+    # Which story gets made matters more than how well it is made: a
+    # procedural court filing and a story with a person in it are not worth
+    # the same 60 seconds, and taking whichever headline came first made that
+    # choice at random.
+    news_item = pick_best_story(candidates)
     logger.info("Procesando noticia: %s", news_item["title"])
 
     work_dir = Path(DATA_DIR) / f"job_{int(time.time())}"

@@ -1,0 +1,96 @@
+import json
+import logging
+
+import anthropic
+
+from .config import ANTHROPIC_API_KEY, CHANNEL_TONE_HINT, CLAUDE_MODEL
+
+logger = logging.getLogger(__name__)
+
+_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+_PROMPT_TEMPLATE = """Eres el editor de un canal de noticias en video corto (formato Short vertical, unos 60
+segundos). Tienes que elegir CUAL de estas noticias merece la pena convertir en video hoy.
+
+Identidad del canal: {tone_hint}
+
+Elige pensando en un espectador que se encuentra el video en su feed sin buscarlo y decide en dos
+segundos si sigue viendo o pasa. Prioriza, por este orden:
+1. Que haya PERSONAS concretas y algo en juego, no solo instituciones y tramites.
+2. Que se entienda sin saber nada previo del tema. Si hace falta explicar tres antecedentes antes de
+   llegar al asunto, no funciona en 60 segundos.
+3. Que afecte a mucha gente, o que sorprenda, o que tenga consecuencias reales que el espectador
+   pueda notar en su vida.
+
+Penaliza fuerte las noticias PURAMENTE de procedimiento: un tramite administrativo, una votacion de
+comision, un recurso judicial sobre un plazo, unas declaraciones de un politico respondiendo a otro
+politico. Aunque sean importantes, en 60 segundos no hay forma de que le importen a nadie que no
+siga ya el tema.
+
+No penalices una noticia por ser dura o triste: esas se cubren igual, solo que con tono sobrio y sin
+especular. Lo que se valora aqui es el interes para el espectador, no el morbo.
+
+Noticias candidatas:
+{candidates_block}
+
+Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni markdown:
+{{
+  "index": 0,
+  "reason": "en una frase, por que esta y no las otras"
+}}
+donde "index" es el numero de la noticia elegida de la lista de arriba.
+"""
+
+
+def _strip_markdown_fence(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if "\n" in text:
+            text = text.split("\n", 1)[1]
+    return text.strip()
+
+
+def pick_best_story(candidates: list[dict]) -> dict:
+    """Chooses which of the fetched headlines to actually make a video about.
+
+    The pipeline used to take whichever story happened to come first in the
+    feed, with no judgement about whether anyone would care - so a procedural
+    court filing got the same treatment as a story with a person in it. Falls
+    back to the first candidate on any failure, which is exactly the old
+    behaviour, so a bad response here can never block a video."""
+    if len(candidates) <= 1:
+        return candidates[0]
+
+    candidates_block = "\n".join(
+        f"{i}. {c['title']}\n   {c.get('summary', '')[:300]}" for i, c in enumerate(candidates)
+    )
+    prompt = _PROMPT_TEMPLATE.format(tone_hint=CHANNEL_TONE_HINT, candidates_block=candidates_block)
+
+    try:
+        message = _client.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=500,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text_blocks = [block.text for block in message.content if block.type == "text"]
+        if not text_blocks:
+            logger.warning("pick_best_story: respuesta sin texto, se usa la primera noticia")
+            return candidates[0]
+
+        parsed = json.loads(_strip_markdown_fence(text_blocks[0]))
+        index = int(parsed["index"])
+        if not 0 <= index < len(candidates):
+            logger.warning("pick_best_story: indice %s fuera de rango, se usa la primera noticia", index)
+            return candidates[0]
+
+        logger.info(
+            "pick_best_story: elegida %r de %s candidatas. Motivo: %s",
+            candidates[index]["title"],
+            len(candidates),
+            parsed.get("reason", ""),
+        )
+        return candidates[index]
+    except Exception:
+        logger.warning("pick_best_story: fallo eligiendo noticia, se usa la primera", exc_info=True)
+        return candidates[0]
