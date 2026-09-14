@@ -42,8 +42,15 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
         "is_intro": True,
     }
     script["scenes"] = [intro_scene] + script["scenes"]
+    # Default to treating the story as sensitive if the field is somehow
+    # missing/unparseable - that only disables the extra narration-based
+    # real-photo lookup below, never anything the model explicitly asked for.
+    raw_sensitive = script.get("is_sensitive", True)
+    is_sensitive = raw_sensitive.strip().lower() != "false" if isinstance(raw_sensitive, str) else bool(raw_sensitive)
     narration_path, scene_durations = synthesize_scenes(script["scenes"], variant_dir / "audio")
-    clip_paths = fetch_clips_for_scenes(script["scenes"], variant_dir / "clips", _VARIANT_ASPECT_RATIO[variant])
+    clip_paths = fetch_clips_for_scenes(
+        script["scenes"], variant_dir / "clips", _VARIANT_ASPECT_RATIO[variant], is_sensitive=is_sensitive
+    )
 
     final_video_path = build_video(
         clip_paths, scene_durations, narration_path, variant_dir, variant_dir / "final_video.mp4", width, height

@@ -1,4 +1,5 @@
 import random
+import re
 from pathlib import Path
 
 import requests
@@ -7,6 +8,35 @@ from . import ai_images, branding, real_photos
 from .config import PEXELS_API_KEY
 
 PEXELS_SEARCH_URL = "https://api.pexels.com/videos/search"
+
+_ENTITY_CONNECTORS = {"de", "del", "la", "las", "los", "y", "en"}
+_MAX_EXTRACTED_ENTITIES = 2
+
+
+def _extract_named_entities(text: str) -> list[str]:
+    """Deterministic safety net: the model doesn't always reliably tag
+    every named place/institution in photo_subject even when the prompt
+    says to, so this also pulls capitalized multi-word phrases straight
+    out of the narration (Spanish proper-noun patterns like "Universidad
+    de Granada" or "Partido Popular") to try as real-photo candidates too,
+    independent of whatever the model actually filled in."""
+    words = re.sub(r"[.,;:()\"'“”¡!¿?]", " ", text).split()
+    entities: list[str] = []
+    current: list[str] = []
+    capitalized_count = 0
+    for word in words:
+        if word[:1].isupper() and word.lower() not in _ENTITY_CONNECTORS:
+            current.append(word)
+            capitalized_count += 1
+        elif word.lower() in _ENTITY_CONNECTORS and current:
+            current.append(word.lower())
+        else:
+            if capitalized_count >= 2:
+                entities.append(" ".join(current))
+            current, capitalized_count = [], 0
+    if capitalized_count >= 2:
+        entities.append(" ".join(current))
+    return entities[:_MAX_EXTRACTED_ENTITIES]
 
 _PEXELS_ORIENTATION = {"9:16": "portrait", "16:9": "landscape"}
 _TARGET_DIMENSIONS = {"9:16": (1080, 1920), "16:9": (1920, 1080)}
@@ -74,7 +104,7 @@ def fetch_clip_for_scene(keywords: str, out_path: Path, aspect_ratio: str, used_
     return out_path
 
 
-def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path, aspect_ratio: str) -> list[Path]:
+def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path, aspect_ratio: str, is_sensitive: bool = False) -> list[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     clip_paths = []
     used_video_ids: set[int] = set()
@@ -86,13 +116,27 @@ def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path, aspect_ratio: str)
             continue
 
         photo_subject = (scene.get("photo_subject") or "").strip()
-        if photo_subject:
-            photo_path = real_photos.fetch_portrait(photo_subject, out_dir / f"clip_{i:02d}.jpg")
+        narration = scene.get("narration") or ""
+        # The narration-based entity extraction below can't tell an
+        # institution from a crime victim's name - only trust the model's
+        # own explicit photo_subject (which already has the victim/private-
+        # person exclusion baked into its prompt) for sensitive stories.
+        extra_candidates = [] if is_sensitive else _extract_named_entities(narration)
+        candidates = ([photo_subject] if photo_subject else []) + [
+            entity for entity in extra_candidates if entity != photo_subject
+        ]
+        matched_subject, photo_path = None, None
+        for candidate in candidates:
+            photo_path = real_photos.fetch_portrait(candidate, out_dir / f"clip_{i:02d}.jpg")
             if photo_path is not None:
-                role = (scene.get("photo_subject_role") or "").strip()
-                branding.add_name_tag(photo_path, photo_subject, role)
-                clip_paths.append(photo_path)
-                continue
+                matched_subject = candidate
+                break
+
+        if photo_path is not None:
+            role = (scene.get("photo_subject_role") or "").strip() if matched_subject == photo_subject else ""
+            branding.add_name_tag(photo_path, matched_subject, role)
+            clip_paths.append(photo_path)
+            continue
 
         ai_image_prompt = (scene.get("ai_image_prompt") or "").strip()
         if ai_image_prompt:

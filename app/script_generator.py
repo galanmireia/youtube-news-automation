@@ -125,6 +125,7 @@ Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni ma
 {{
   "title": "titulo optimizado para SEO, ver requisitos arriba",
   "description": "descripcion con hashtags, ver requisitos arriba",
+  "is_sensitive": "true o false - true si la noticia trata sobre una muerte, crimen violento, victima identificable o tragedia personal real (ver AVISO DE SENSIBILIDAD arriba), false en cualquier otro caso",
   "tags": ["tag1", "tag2", "... entre 10 y 15 tags"],
   "scenes": [
     {{
