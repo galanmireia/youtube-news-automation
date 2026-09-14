@@ -30,6 +30,25 @@ YOUTUBE_CLIENT_SECRETS_FILE = os.environ.get(
 YOUTUBE_TOKEN_FILE = os.environ.get("YOUTUBE_TOKEN_FILE", str(CREDENTIALS_DIR / "youtube_token.json"))
 YOUTUBE_PRIVACY_STATUS = os.environ.get("YOUTUBE_PRIVACY_STATUS", "public")
 
+
+def _materialize_credential_from_env(env_var: str, target_path: str) -> None:
+    """Allows deploying without a persistent volume: if the credential's JSON
+    content is provided directly as an env var, write it to the expected
+    path (unless it's already there, e.g. mounted locally)."""
+    content = os.environ.get(env_var)
+    if not content:
+        return
+    path = Path(target_path)
+    if path.exists():
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content)
+
+
+_materialize_credential_from_env("GOOGLE_TTS_CREDENTIALS_JSON", GOOGLE_APPLICATION_CREDENTIALS)
+_materialize_credential_from_env("YOUTUBE_CLIENT_SECRET_JSON", YOUTUBE_CLIENT_SECRETS_FILE)
+_materialize_credential_from_env("YOUTUBE_TOKEN_JSON", YOUTUBE_TOKEN_FILE)
+
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 

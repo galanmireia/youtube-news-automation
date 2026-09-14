@@ -72,9 +72,11 @@ python -c "from app.pipeline import run_once; print(run_once())"
 
 1. Crea un nuevo proyecto en Railway y conectalo a este repositorio (Railway detecta el `Dockerfile` automaticamente).
 2. Define las variables de entorno del `.env.example` en la pestana "Variables" del servicio.
-3. Sube los 3 archivos de `credentials/` como un volumen persistente, o pega su contenido JSON
-   en variables de entorno y ajusta `app/config.py` para escribirlos a disco al arrancar si prefieres
-   evitar el volumen.
+3. En vez de subir un volumen, pega el contenido completo de cada archivo JSON de `credentials/`
+   en estas 3 variables de entorno adicionales (la app los escribe a disco sola al arrancar):
+   - `GOOGLE_TTS_CREDENTIALS_JSON` -> contenido de `credentials/google-tts.json`
+   - `YOUTUBE_CLIENT_SECRET_JSON` -> contenido de `credentials/youtube_client_secret.json`
+   - `YOUTUBE_TOKEN_JSON` -> contenido de `credentials/youtube_token.json`
 4. Despliega. El servicio queda corriendo 24/7: cada `PIPELINE_INTERVAL_SECONDS` genera un video
    nuevo y te avisa por Telegram.
 
