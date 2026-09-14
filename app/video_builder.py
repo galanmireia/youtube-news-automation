@@ -28,6 +28,11 @@ _ZOOM_FPS = 30
 _BLUR_DOWNSCALE = 6
 _BLUR_SIGMA = 6
 
+# Hard cuts between every scene read as abrupt; a short crossfade is what
+# makes a cut feel deliberate. Kept brief - a long dissolve on a news video
+# looks sluggish.
+_TRANSITION_SECONDS = 0.25
+
 
 def _run(cmd: list[str]) -> None:
     result = subprocess.run(cmd, capture_output=True)
@@ -200,6 +205,53 @@ def _build_scene_segment(
     _run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list), "-c", "copy", str(out_path)])
 
 
+def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: Path, out_path: Path) -> Path:
+    """Joins the scene segments with a short crossfade between them instead
+    of hard cuts. Each transition is centred on the scene boundary, so the
+    new image is fully up by the time the narration is properly into the new
+    scene, and the total length still matches the narration."""
+    if len(segment_paths) == 1:
+        concat_list_path = work_dir / "concat_list.txt"
+        concat_list_path.write_text(f"file '{segment_paths[0].resolve()}'")
+        _run(
+            [
+                "ffmpeg", "-y",
+                "-f", "concat", "-safe", "0", "-i", str(concat_list_path),
+                "-c", "copy",
+                str(out_path),
+            ]
+        )
+        return out_path
+
+    inputs: list[str] = []
+    for path in segment_paths:
+        inputs += ["-i", str(path)]
+
+    steps = []
+    current = "[0:v]"
+    for i in range(1, len(segment_paths)):
+        boundary = frame_marks[i] / _ZOOM_FPS
+        offset = max(0.0, boundary - _TRANSITION_SECONDS / 2)
+        label = f"[x{i}]"
+        steps.append(
+            f"{current}[{i}:v]xfade=transition=fade:duration={_TRANSITION_SECONDS}:offset={offset:.3f}{label}"
+        )
+        current = label
+
+    filter_complex = ";".join(steps)
+    _run(
+        [
+            "ffmpeg", "-y",
+            *inputs,
+            "-filter_complex", filter_complex,
+            "-map", current,
+            "-r", str(_ZOOM_FPS),
+            str(out_path),
+        ]
+    )
+    return out_path
+
+
 def _apply_source_caption(
     video_path: Path, source_name: str, intro_duration: float, width: int, height: int, work_dir: Path
 ) -> Path:
@@ -250,24 +302,40 @@ def build_video(
     normalized_dir = work_dir / "normalized"
     normalized_dir.mkdir(parents=True, exist_ok=True)
 
+    # Each segment used to be rendered 0.3s longer than its scene as a safety
+    # margin against concat coming up short. Because the segments are then
+    # played back to back, that margin accumulated: every scene pushed the
+    # picture another 0.3s behind the narration (measured: +0.30s after one
+    # scene, +0.60s after two), so by the end of a long video the images
+    # lagged several seconds behind the voice.
+    # Deriving each segment's length from rounded CUMULATIVE frame positions
+    # instead keeps every scene on its real timeline, and stops per-scene
+    # rounding from accumulating either.
+    frame_marks = [0]
+    elapsed = 0.0
+    for duration in scene_durations:
+        elapsed += duration
+        frame_marks.append(round(elapsed * _ZOOM_FPS))
+
+    # Every segment except the last is rendered with an extra transition's
+    # worth of footage, which the crossfade with the next scene then eats -
+    # that is what keeps the total length (and so the narration sync) intact
+    # despite each transition overlapping two scenes. The last one still gets
+    # half a transition, because transitions are centred on the boundary and
+    # the final one therefore starts half a transition early: without it the
+    # video ends short and the audio mux clips the closing words.
+    last_index = len(clip_entries) - 1
     segment_paths = []
-    for i, (entries, duration) in enumerate(zip(clip_entries, scene_durations)):
+    for i, entries in enumerate(clip_entries):
+        seg_frames = max(1, frame_marks[i + 1] - frame_marks[i])
+        extra = _TRANSITION_SECONDS if i < last_index else _TRANSITION_SECONDS / 2
+        seg_seconds = seg_frames / _ZOOM_FPS + extra
         seg_path = normalized_dir / f"seg_{i:02d}.mp4"
-        _build_scene_segment(entries, duration + 0.3, width, height, seg_path, normalized_dir, i)
+        _build_scene_segment(entries, seg_seconds, width, height, seg_path, normalized_dir, i)
         segment_paths.append(seg_path)
 
-    concat_list_path = work_dir / "concat_list.txt"
-    concat_list_path.write_text("\n".join(f"file '{p.resolve()}'" for p in segment_paths))
-
     silent_video_path = work_dir / "silent_video.mp4"
-    _run(
-        [
-            "ffmpeg", "-y",
-            "-f", "concat", "-safe", "0", "-i", str(concat_list_path),
-            "-c", "copy",
-            str(silent_video_path),
-        ]
-    )
+    _join_segments(segment_paths, frame_marks, work_dir, silent_video_path)
 
     silent_video_path = _apply_source_caption(
         silent_video_path, source_name, scene_durations[0] if scene_durations else 0.0, width, height, work_dir
