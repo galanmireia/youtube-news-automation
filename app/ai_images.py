@@ -15,7 +15,7 @@ def _get_model() -> ImageGenerationModel:
     global _model
     if _model is None:
         vertexai.init(project=GOOGLE_CLOUD_PROJECT_ID, location=GOOGLE_CLOUD_LOCATION)
-        _model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-002")
+        _model = ImageGenerationModel.from_pretrained("imagegeneration@006")
     return _model
 
 

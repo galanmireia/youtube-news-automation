@@ -45,6 +45,10 @@ def fetch_clips_for_scenes(scenes: list[dict], out_dir: Path, aspect_ratio: str)
                 continue
 
         out_path = out_dir / f"clip_{i:02d}.mp4"
-        fetch_clip_for_scene(scene["visual_keywords"], out_path)
+        # visual_keywords can be intentionally empty when the scene expected a
+        # photo/AI image to be used instead; if that failed, fall back to
+        # something Pexels can still search for instead of an empty query.
+        query = (scene.get("visual_keywords") or "").strip() or ai_image_prompt or photo_subject or "news studio background"
+        fetch_clip_for_scene(query, out_path)
         clip_paths.append(out_path)
     return clip_paths
