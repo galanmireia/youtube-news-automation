@@ -92,13 +92,16 @@ def cleanup_finished_video_files() -> int:
     return removed
 
 
-def run_once(on_variant_done: Callable[[int], None] | None = None) -> list[int]:
-    """Picks the next unprocessed news item and generates both a vertical
-    Short and a longer horizontal video for it, storing each as 'pending'.
-    Calls on_variant_done(video_id) right after each variant finishes, so
-    callers can notify/send it immediately instead of waiting for both
-    variants to be done. Returns the new videos' ids (empty if there was no
-    fresh news)."""
+def run_once(
+    on_variant_done: Callable[[int], None] | None = None,
+    variants: tuple[str, ...] = ("short", "long"),
+) -> list[int]:
+    """Picks the next unprocessed news item and generates the requested
+    variants for it (both a vertical Short and a longer horizontal video by
+    default), storing each as 'pending'. Calls on_variant_done(video_id)
+    right after each variant finishes, so callers can notify/send it
+    immediately instead of waiting for all of them to be done. Returns the
+    new videos' ids (empty if there was no fresh news)."""
     cleanup_finished_video_files()
 
     candidates = fetch_candidate_news(limit=5)
@@ -113,7 +116,7 @@ def run_once(on_variant_done: Callable[[int], None] | None = None) -> list[int]:
     work_dir.mkdir(parents=True, exist_ok=True)
 
     video_ids = []
-    for variant in ("short", "long"):
+    for variant in variants:
         try:
             video_id = _generate_variant(news_item, variant, work_dir)
             video_ids.append(video_id)

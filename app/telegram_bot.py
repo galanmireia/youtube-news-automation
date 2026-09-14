@@ -118,7 +118,7 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await query.edit_message_caption(caption=f"{label}\nError al subir: {record['title']}. Revisa los logs.")
 
 
-async def _run_pipeline_and_notify(bot) -> None:
+async def _run_pipeline_and_notify(bot, variants: tuple[str, ...] = ("short", "long")) -> None:
     loop = asyncio.get_running_loop()
 
     def on_variant_done(video_id: int) -> None:
@@ -134,7 +134,7 @@ async def _run_pipeline_and_notify(bot) -> None:
 
     async with _pipeline_lock:
         try:
-            video_ids = await loop.run_in_executor(None, run_once, on_variant_done)
+            video_ids = await loop.run_in_executor(None, run_once, on_variant_done, variants)
             if not video_ids:
                 await bot.send_message(
                     chat_id=TELEGRAM_CHAT_ID, text="No hay noticias nuevas que procesar ahora mismo."
@@ -148,14 +148,23 @@ async def pipeline_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     await _run_pipeline_and_notify(context.bot)
 
 
+_GENERATE_ARG_VARIANTS = {"s": ("short",), "v": ("long",)}
+
+
 async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
     if _pipeline_lock.locked():
         await update.message.reply_text("Ya hay una generacion en curso, espera a que termine.")
         return
-    await update.message.reply_text("Generando video nuevo, tardara unos minutos...")
-    await _run_pipeline_and_notify(context.bot)
+
+    arg = context.args[0].lower() if context.args else ""
+    variants = _GENERATE_ARG_VARIANTS.get(arg, ("short", "long"))
+    label = {"short": "el Short", "long": "el video largo"}.get(
+        variants[0] if len(variants) == 1 else "", "el Short y el video largo"
+    )
+    await update.message.reply_text(f"Generando {label}, tardara unos minutos...")
+    await _run_pipeline_and_notify(context.bot, variants)
 
 
 async def handle_reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
