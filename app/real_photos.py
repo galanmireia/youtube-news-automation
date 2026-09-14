@@ -1,8 +1,11 @@
+import logging
 from pathlib import Path
 
 import requests
 
 from .config import CHANNEL_NAME
+
+logger = logging.getLogger(__name__)
 
 WIKIPEDIA_API_URL = "https://es.wikipedia.org/w/api.php"
 WIKIPEDIA_SUMMARY_URL = "https://es.wikipedia.org/api/rest_v1/page/summary/{title}"
@@ -122,12 +125,14 @@ def _commons_search_photo(name: str, out_path: Path) -> Path | None:
             return None
         pages = response.json().get("query", {}).get("pages", {})
         for page in pages.values():
+            title = page.get("title", "?")
             imageinfo = page.get("imageinfo") or [{}]
             source = imageinfo[0].get("thumburl") or imageinfo[0].get("url")
             if source:
                 image_response = requests.get(source, headers=_HEADERS, timeout=30)
                 image_response.raise_for_status()
                 out_path.write_bytes(image_response.content)
+                logger.info("fetch_portrait(%r): imagen de Commons via archivo %r", name, title)
                 return out_path
         return None
     except (requests.RequestException, KeyError, IndexError, ValueError):
@@ -145,5 +150,12 @@ def fetch_portrait(person_name: str, out_path: Path) -> Path | None:
     for title in candidates:
         photo_path = _fetch_summary_photo(title, out_path)
         if photo_path is not None:
+            # A generic Commons file-search match (below) is far more prone
+            # to picking an unrelated file for a short/ambiguous name (e.g.
+            # "Partido Popular" matching some unrelated icon) than a
+            # Wikipedia article match is - log which article actually
+            # supplied the image so a wrong-looking result can be diagnosed
+            # from logs instead of guessed at.
+            logger.info("fetch_portrait(%r): imagen del articulo de Wikipedia %r", person_name, title)
             return photo_path
     return _commons_search_photo(person_name, out_path)

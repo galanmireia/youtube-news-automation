@@ -176,7 +176,12 @@ def _apply_source_caption(
 ) -> Path:
     """Overlays a small, constant "FUENTE: X" tag in a corner for the whole
     video (skipping the intro card) - crediting where the story comes from
-    so the channel's facts read as sourced rather than just asserted."""
+    so the channel's facts read as sourced rather than just asserted. Placed
+    top-right specifically because the bottom is where the per-scene name
+    tag (a full-width bar) and, for stock-video scenes, the top-LEFT
+    highlight box already live - a long name/role (e.g. "PARTIDO SOCIALISTA
+    OBRERO ESPAÑOL") reaches far enough right to collide with anything
+    placed in a bottom corner."""
     if not source_name:
         return video_path
 
@@ -190,7 +195,7 @@ def _apply_source_caption(
             "-i", str(video_path),
             "-loop", "1", "-i", str(tag_png),
             "-filter_complex",
-            f"[1:v]format=rgba[fg];[0:v][fg]overlay=x=W-w-{margin}:y=H-h-{margin}:"
+            f"[1:v]format=rgba[fg];[0:v][fg]overlay=x=W-w-{margin}:y={margin}:"
             f"enable='gte(t,{intro_duration})':shortest=1",
             str(out_path),
         ]

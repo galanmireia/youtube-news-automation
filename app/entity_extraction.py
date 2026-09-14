@@ -17,7 +17,10 @@ general del guion.
 
 Para cada entidad que encuentres, da:
 - "name": el nombre tal cual deberia buscarse en Wikipedia (nombre completo, sin apodos ni articulos
-  sueltos)
+  sueltos). Si el nombre es generico y existe con el mismo nombre en varios paises (ej. "Partido
+  Popular" existe en España, Portugal y otros paises), añade el pais entre parentesis para
+  desambiguar, ej. "Partido Popular (España)" - si no, la busqueda en Wikipedia puede devolver el
+  articulo o la imagen equivocada.
 - "type": "person" si es una persona, "place" si es un lugar/institucion/organizacion/partido
 - "descriptor": para una persona, su cargo/titulo actual en 2-4 palabras; para un lugar, un
   descriptor corto, o cadena vacia si el nombre ya se explica solo

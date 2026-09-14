@@ -65,7 +65,10 @@ la narracion menciona "la Universidad de Las Palmas de Gran Canaria", el campo d
 "photo_subject": "Universidad de Las Palmas de Gran Canaria"; si menciona "el PSOE" o "el partido
 socialista", debe ser "photo_subject": "Partido Socialista Obrero Español" - NUNCA lo dejes vacio
 ni uses "visual_keywords" o "ai_image_prompt" para estos casos, por muy comun o generico que
-parezca el nombre.
+parezca el nombre. Si el nombre es generico y existe igual en varios paises (ej. "Partido Popular"
+existe en España, Portugal y otros paises), añade el pais entre parentesis: "photo_subject":
+"Partido Popular (España)" - si no, la busqueda de la foto puede acabar cogiendo el articulo o la
+imagen equivocada de otro pais.
 Cuando rellenes "photo_subject", rellena tambien "photo_subject_role" en 2-4 palabras: para una
 persona, su cargo o titulo actual (ej. "Ministro de Transportes"); para un lugar/institucion, un
 descriptor corto (ej. "Universidad publica en Granada") o dejalo vacio si el nombre ya se explica
