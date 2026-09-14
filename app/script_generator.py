@@ -1,8 +1,11 @@
 import json
+import logging
 
 import anthropic
 
 from .config import ANTHROPIC_API_KEY, CHANNEL_NAME, CHANNEL_TONE_HINT, CLAUDE_MODEL, NEWS_LANGUAGE_HINT
+
+logger = logging.getLogger(__name__)
 
 _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -146,6 +149,12 @@ sugeridos):
   sin almohadillas aqui (van solo en la descripcion).
 {shorts_seo_hint}
 
+MUY IMPORTANTE - formato del JSON: NUNCA uses comillas dobles (") dentro del texto de ningun campo.
+Una sola comilla doble sin escapar rompe el JSON entero y el video no se llega a generar. Si necesitas
+entrecomillar algo (el nombre de una ley, una cita, un termino), usa comillas simples ('asi') o
+angulares (<<asi>>). Tampoco metas saltos de linea dentro de un valor: cada narracion va en una sola
+linea.
+
 Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni markdown:
 {{
   "title": "titulo optimizado para SEO, ver requisitos arriba",
@@ -207,7 +216,12 @@ def _strip_markdown_fence(text: str) -> str:
     return text.strip()
 
 
-_MAX_TOKENS = {"short": 4000, "long": 10000}
+# Generous headroom: a response that doesn't fit is cut off mid-JSON and
+# fails to parse. A long video is 16-24 scenes, each carrying a narration
+# plus five other fields, so the old 10000 was not a comfortable margin.
+# (This was NOT what broke the CIS story - that one failed at ~800 tokens,
+# on an unescaped quote inside a string. See the prompt's quoting rule.)
+_MAX_TOKENS = {"short": 8000, "long": 20000}
 _MAX_ATTEMPTS = 3
 
 
@@ -241,9 +255,18 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
         try:
             script = json.loads(raw_text)
         except json.JSONDecodeError as exc:
-            # The response occasionally gets cut off mid-JSON (long thinking
-            # + long output competing for the same token budget). Retrying
-            # is cheap and usually succeeds on the next try.
+            # Log the offending text: a malformed response is otherwise
+            # invisible, and the failure mode matters. A truncated response
+            # is worth retrying, but a quoting mistake inside a string value
+            # is deterministic - it fails identically on all three attempts
+            # and loses the story outright, which is what happened before
+            # the prompt gained its "no double quotes inside values" rule.
+            logger.warning(
+                "generate_script (%s): JSON invalido (%s). Respuesta cruda alrededor del fallo: %r",
+                variant,
+                exc,
+                raw_text[max(0, exc.pos - 200) : exc.pos + 200],
+            )
             last_error = exc
             continue
 
