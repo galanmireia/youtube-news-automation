@@ -101,6 +101,10 @@ def fetch_clips_for_scenes(
     out_dir.mkdir(parents=True, exist_ok=True)
     clip_entries: list[list[tuple[Path, dict | None]]] = []
     used_video_ids: set[int] = set()
+    # Stock clips were already deduplicated, but real photos weren't: an
+    # entity named in several scenes (e.g. "Junta Electoral Central") showed
+    # the identical picture every time, which read as the video looping.
+    used_photo_urls: set[str] = set()
     for i, scene in enumerate(scenes):
         duration = scene_durations[i] if i < len(scene_durations) else 0.0
 
@@ -130,8 +134,10 @@ def fetch_clips_for_scenes(
             if len(found) >= max_photos:
                 break
             candidate_path = out_dir / f"clip_{i:02d}_{len(found)}.jpg"
-            photo_path = real_photos.fetch_portrait(candidate, candidate_path)
-            if photo_path is not None:
+            result = real_photos.fetch_portrait(candidate, candidate_path, exclude_urls=used_photo_urls)
+            if result is not None:
+                photo_path, photo_url = result
+                used_photo_urls.add(photo_url)
                 role = (
                     (scene.get("photo_subject_role") or "").strip()
                     if candidate == photo_subject

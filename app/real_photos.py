@@ -69,7 +69,17 @@ def _pageimages_thumbnail_url(title: str) -> str | None:
         return None
 
 
-def _fetch_summary_photo(title: str, out_path: Path) -> Path | None:
+def _download(url: str, out_path: Path) -> bool:
+    try:
+        image_response = requests.get(url, headers=_HEADERS, timeout=30)
+        image_response.raise_for_status()
+        out_path.write_bytes(image_response.content)
+        return True
+    except requests.RequestException:
+        return False
+
+
+def _fetch_summary_photo(title: str, out_path: Path, exclude_urls: set[str]) -> tuple[Path, str] | None:
     try:
         response = requests.get(
             WIKIPEDIA_SUMMARY_URL.format(title=title.replace(" ", "_")), headers=_HEADERS, timeout=15
@@ -86,24 +96,24 @@ def _fetch_summary_photo(title: str, out_path: Path) -> Path | None:
             or data.get("originalimage", {}).get("source")
             or _pageimages_thumbnail_url(title)
         )
-        if not thumbnail:
+        if not thumbnail or thumbnail in exclude_urls:
             return None
 
-        image_response = requests.get(thumbnail, headers=_HEADERS, timeout=30)
-        image_response.raise_for_status()
-        out_path.write_bytes(image_response.content)
-        return out_path
-    except requests.RequestException:
+        if not _download(thumbnail, out_path):
+            return None
+        return out_path, thumbnail
+    except (requests.RequestException, ValueError):
         return None
 
 
-def _commons_search_photo(name: str, out_path: Path) -> Path | None:
+def _commons_search_photo(name: str, out_path: Path, exclude_urls: set[str]) -> tuple[Path, str] | None:
     """Last resort: search Wikimedia Commons itself (the free-media library
     behind every Wikipedia, with far more photos per subject than any single
     Wikipedia article shows) instead of a specific Wikipedia page's lead
     image. Useful when a subject has no Wikipedia article/infobox photo at
     all but does have free-licensed photos on Commons (many buildings,
-    landmarks and organizations do)."""
+    landmarks and organizations do), and as a source of a SECOND, different
+    picture of a subject already shown earlier in the same video."""
     try:
         response = requests.get(
             COMMONS_API_URL,
@@ -112,7 +122,7 @@ def _commons_search_photo(name: str, out_path: Path) -> Path | None:
                 "generator": "search",
                 "gsrsearch": name,
                 "gsrnamespace": 6,  # File: namespace only
-                "gsrlimit": 1,
+                "gsrlimit": 8,
                 "prop": "imageinfo",
                 "iiprop": "url",
                 "iiurlwidth": 1200,
@@ -124,32 +134,38 @@ def _commons_search_photo(name: str, out_path: Path) -> Path | None:
         if response.status_code != 200:
             return None
         pages = response.json().get("query", {}).get("pages", {})
-        for page in pages.values():
+        for page in sorted(pages.values(), key=lambda p: p.get("index", 0)):
             title = page.get("title", "?")
             imageinfo = page.get("imageinfo") or [{}]
             source = imageinfo[0].get("thumburl") or imageinfo[0].get("url")
-            if source:
-                image_response = requests.get(source, headers=_HEADERS, timeout=30)
-                image_response.raise_for_status()
-                out_path.write_bytes(image_response.content)
+            if not source or source in exclude_urls:
+                continue
+            if _download(source, out_path):
                 logger.info("fetch_portrait(%r): imagen de Commons via archivo %r", name, title)
-                return out_path
+                return out_path, source
         return None
     except (requests.RequestException, KeyError, IndexError, ValueError):
         return None
 
 
-def fetch_portrait(person_name: str, out_path: Path) -> Path | None:
+def fetch_portrait(person_name: str, out_path: Path, exclude_urls: set[str] | None = None) -> tuple[Path, str] | None:
     """Looks up a real public figure's (or a named place/institution's)
     photo, preferring Wikipedia (free-licensed infobox images, trying the
     top few search results in order, skipping disambiguation pages and
     articles with no image), then falling back to a direct Wikimedia
-    Commons search if no Wikipedia article had a usable photo. Returns None
-    if nothing works at all, so callers can fall back to stock footage."""
+    Commons search if no Wikipedia article had a usable photo.
+
+    Returns the path plus the image's URL, so callers can remember what they
+    already used: an entity named in several scenes would otherwise show the
+    exact same picture every time. Anything in exclude_urls is skipped, so a
+    repeat mention gets a different picture of the same subject where one
+    exists. Returns None if nothing new works at all, letting callers fall
+    back to stock footage rather than repeating themselves."""
+    exclude = exclude_urls or set()
     candidates = _search_candidate_titles(person_name) or [person_name]
     for title in candidates:
-        photo_path = _fetch_summary_photo(title, out_path)
-        if photo_path is not None:
+        result = _fetch_summary_photo(title, out_path, exclude)
+        if result is not None:
             # A generic Commons file-search match (below) is far more prone
             # to picking an unrelated file for a short/ambiguous name (e.g.
             # "Partido Popular" matching some unrelated icon) than a
@@ -157,5 +173,5 @@ def fetch_portrait(person_name: str, out_path: Path) -> Path | None:
             # supplied the image so a wrong-looking result can be diagnosed
             # from logs instead of guessed at.
             logger.info("fetch_portrait(%r): imagen del articulo de Wikipedia %r", person_name, title)
-            return photo_path
-    return _commons_search_photo(person_name, out_path)
+            return result
+    return _commons_search_photo(person_name, out_path, exclude)
