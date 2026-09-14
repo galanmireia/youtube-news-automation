@@ -57,6 +57,28 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     return video_id
 
 
+def cleanup_finished_video_files() -> int:
+    """Deletes the on-disk working files (downloaded clips, audio, ffmpeg
+    intermediates, final video/thumbnail/subtitles) for videos that are
+    already uploaded or rejected - nothing ever needs them again once a
+    video reaches one of those states, and leaving every run's files on
+    disk forever eventually fills up the volume. Returns how many variant
+    directories were removed."""
+    removed = 0
+    for video in storage.list_finished_videos():
+        video_path = video["video_path"]
+        if not video_path:
+            continue
+        variant_dir = Path(video_path).parent
+        if variant_dir.exists():
+            shutil.rmtree(variant_dir, ignore_errors=True)
+            removed += 1
+        job_dir = variant_dir.parent
+        if job_dir.exists() and not any(job_dir.iterdir()):
+            job_dir.rmdir()
+    return removed
+
+
 def run_once(on_variant_done: Callable[[int], None] | None = None) -> list[int]:
     """Picks the next unprocessed news item and generates both a vertical
     Short and a longer horizontal video for it, storing each as 'pending'.
@@ -64,6 +86,8 @@ def run_once(on_variant_done: Callable[[int], None] | None = None) -> list[int]:
     callers can notify/send it immediately instead of waiting for both
     variants to be done. Returns the new videos' ids (empty if there was no
     fresh news)."""
+    cleanup_finished_video_files()
+
     candidates = fetch_candidate_news(limit=5)
     if not candidates:
         logger.info("No hay noticias nuevas que procesar.")

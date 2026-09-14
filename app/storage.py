@@ -130,3 +130,16 @@ def set_status(video_id: int, status: str, youtube_video_id: str | None = None) 
             )
         else:
             conn.execute("UPDATE videos SET status = ? WHERE id = ?", (status, video_id))
+
+
+# Videos in these statuses are done for good (either live on YouTube or
+# discarded) - nothing ever needs their on-disk clips/audio/final video again.
+_FINISHED_STATUSES = ("uploaded", "rejected")
+
+
+def list_finished_videos() -> list[sqlite3.Row]:
+    with get_conn() as conn:
+        placeholders = ",".join("?" for _ in _FINISHED_STATUSES)
+        return conn.execute(
+            f"SELECT * FROM videos WHERE status IN ({placeholders})", _FINISHED_STATUSES
+        ).fetchall()

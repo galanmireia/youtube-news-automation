@@ -7,7 +7,7 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 
 from . import storage
 from .config import PIPELINE_INTERVAL_SECONDS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-from .pipeline import run_once
+from .pipeline import cleanup_finished_video_files, run_once
 from .youtube_uploader import upload_captions, upload_video
 
 logger = logging.getLogger(__name__)
@@ -60,6 +60,7 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     if action == "reject":
         storage.set_status(video_id, "rejected")
+        await asyncio.get_running_loop().run_in_executor(None, cleanup_finished_video_files)
         await query.edit_message_caption(caption=f"{label}\nRechazado: {record['title']}")
         return
 
@@ -83,6 +84,10 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             except Exception:
                 # Not critical: the video is already live without a captions track.
                 logger.exception("Error subiendo subtitulos para el video %s", video_id)
+
+        # Only safe to delete the working files (video/thumbnail/subtitles)
+        # now that every upload that needed them has already happened.
+        await loop.run_in_executor(None, cleanup_finished_video_files)
 
         await query.edit_message_caption(
             caption=f"{label}\nPublicado: {record['title']}\nhttps://youtu.be/{youtube_id}"
