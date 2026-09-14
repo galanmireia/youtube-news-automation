@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import Application, CallbackQueryHandler, ContextTypes
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
 from . import storage
 from .config import PIPELINE_INTERVAL_SECONDS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
@@ -83,17 +83,33 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await query.edit_message_caption(caption=f"{label}\nError al subir: {record['title']}. Revisa los logs.")
 
 
-async def pipeline_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+async def _run_pipeline_and_notify(bot) -> None:
     try:
         video_ids = run_once()
+        if not video_ids:
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="No hay noticias nuevas que procesar ahora mismo.")
+            return
         for video_id in video_ids:
-            await send_for_approval(context.bot, video_id)
+            await send_for_approval(bot, video_id)
     except Exception:
         logger.exception("Error ejecutando el pipeline de generacion de video")
+        await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="Error generando el video, revisa los logs.")
+
+
+async def pipeline_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _run_pipeline_and_notify(context.bot)
+
+
+async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    await update.message.reply_text("Generando video nuevo, tardara unos minutos...")
+    await _run_pipeline_and_notify(context.bot)
 
 
 def build_application() -> Application:
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     application.add_handler(CallbackQueryHandler(handle_decision))
+    application.add_handler(CommandHandler("generar", handle_generate_command))
     application.job_queue.run_repeating(pipeline_job, interval=PIPELINE_INTERVAL_SECONDS, first=15)
     return application
