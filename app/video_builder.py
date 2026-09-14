@@ -11,6 +11,14 @@ IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
 _TAG_SLIDE_SECONDS = 0.4
 _TAG_MAX_HOLD_SECONDS = 3.5
 
+# A still photo/AI image held for several seconds with zero motion reads as
+# "frozen" - a slow, subtle zoom-in (the classic "Ken Burns" documentary
+# technique) gives every static shot its own life instead of only the stock
+# video clips ever having any movement. Kept small (12% max) so it never
+# creeps in far enough to crop a face/logo near the edge of the frame.
+_ZOOM_MAX = 1.12
+_ZOOM_FPS = 30
+
 
 def _run(cmd: list[str]) -> None:
     result = subprocess.run(cmd, capture_output=True)
@@ -28,10 +36,16 @@ def _photo_scale_pad_filter(width: int, height: int) -> str:
     return f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black"
 
 
+def _ken_burns_filter(width: int, height: int, duration: float) -> str:
+    frames = max(1, round(duration * _ZOOM_FPS))
+    increment = (_ZOOM_MAX - 1) / frames
+    return f"zoompan=z='min(zoom+{increment:.6f},{_ZOOM_MAX})':d={frames}:s={width}x{height}:fps={_ZOOM_FPS}"
+
+
 def _build_photo_segment(
     image_path: Path, duration: float, width: int, height: int, tag: dict | None, out_path: Path, tmp_dir: Path, key: str
 ) -> None:
-    vf_bg = _photo_scale_pad_filter(width, height)
+    vf_bg = f"{_photo_scale_pad_filter(width, height)},{_ken_burns_filter(width, height, duration)}"
 
     if not tag or duration < 1.5:
         _run(
@@ -40,7 +54,7 @@ def _build_photo_segment(
                 "-loop", "1", "-i", str(image_path),
                 "-t", str(duration),
                 "-vf", vf_bg,
-                "-r", "30",
+                "-r", str(_ZOOM_FPS),
                 str(out_path),
             ]
         )
@@ -72,7 +86,7 @@ def _build_photo_segment(
             "-t", str(duration),
             "-filter_complex", filter_complex,
             "-map", "[outv]",
-            "-r", "30",
+            "-r", str(_ZOOM_FPS),
             str(out_path),
         ]
     )
