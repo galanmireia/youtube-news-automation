@@ -55,14 +55,17 @@ concreta nombra directamente (a) una persona publica real identificable por su c
 (un ministro, un politico, un CEO, un famoso), O (b) un lugar, edificio o institucion especifico y
 con nombre propio que casi seguro tenga su propio articulo en Wikipedia con foto (una universidad
 concreta, un ministerio, un monumento, la sede de una empresa conocida, un estadio, un hospital
-concreto, etc.), rellena "photo_subject" con su nombre completo tal cual aparece en Wikipedia, para
-mostrar su foto REAL en vez de video generico o una ilustracion inventada. Nunca sustituyas un lugar
-con nombre propio conocido por una escena generica ni por una ilustracion de IA - si tiene nombre
-propio y es real, casi siempre existe una foto real de el, usa "photo_subject" primero. Ejemplo
-concreto: si la narracion menciona "la Universidad de Las Palmas de Gran Canaria", el campo debe
-ser exactamente "photo_subject": "Universidad de Las Palmas de Gran Canaria" - NUNCA lo dejes vacio
-ni uses "visual_keywords" o "ai_image_prompt" para ese caso, por muy especifico que parezca el
-nombre.
+concreto, UN PARTIDO POLITICO por su nombre - PSOE, PP, Vox, Sumar, etc. -, un sindicato, una
+organizacion internacional como la ONU o la Union Europea, etc.), rellena "photo_subject" con su
+nombre completo tal cual aparece en Wikipedia, para mostrar su foto/logo REAL en vez de video
+generico o una ilustracion inventada. Nunca sustituyas un lugar, institucion o partido con nombre
+propio conocido por una escena generica ni por una ilustracion de IA - si tiene nombre propio y es
+real, casi siempre existe una foto real de el, usa "photo_subject" primero. Ejemplos concretos: si
+la narracion menciona "la Universidad de Las Palmas de Gran Canaria", el campo debe ser exactamente
+"photo_subject": "Universidad de Las Palmas de Gran Canaria"; si menciona "el PSOE" o "el partido
+socialista", debe ser "photo_subject": "Partido Socialista Obrero Español" - NUNCA lo dejes vacio
+ni uses "visual_keywords" o "ai_image_prompt" para estos casos, por muy comun o generico que
+parezca el nombre.
 Cuando rellenes "photo_subject", rellena tambien "photo_subject_role" en 2-4 palabras: para una
 persona, su cargo o titulo actual (ej. "Ministro de Transportes"); para un lugar/institucion, un
 descriptor corto (ej. "Universidad publica en Granada") o dejalo vacio si el nombre ya se explica
