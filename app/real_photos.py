@@ -2,46 +2,38 @@ from pathlib import Path
 
 import requests
 
-WIKIPEDIA_OPENSEARCH_URL = "https://es.wikipedia.org/w/api.php"
+WIKIPEDIA_API_URL = "https://es.wikipedia.org/w/api.php"
 WIKIPEDIA_SUMMARY_URL = "https://es.wikipedia.org/api/rest_v1/page/summary/{title}"
 
 
-def _resolve_article_title(person_name: str) -> str | None:
-    """Person names from the script rarely match a Wikipedia article's exact
-    title (accents, disambiguation suffixes, middle names). Wikipedia's own
-    search resolves that the same way the site's search box does, instead of
-    guessing by replacing spaces with underscores."""
+def _search_candidate_titles(name: str, limit: int = 3) -> list[str]:
+    """Uses Wikipedia's real full-text search (the same engine behind the
+    site's own search box) ranked by relevance/popularity, instead of a
+    prefix-only match - a plain/common name like "Oscar Lopez" can otherwise
+    resolve to the wrong person or a disambiguation page with no photo."""
     try:
         response = requests.get(
-            WIKIPEDIA_OPENSEARCH_URL,
-            params={
-                "action": "opensearch",
-                "search": person_name,
-                "limit": 1,
-                "namespace": 0,
-                "format": "json",
-            },
+            WIKIPEDIA_API_URL,
+            params={"action": "query", "list": "search", "srsearch": name, "srlimit": limit, "format": "json"},
             timeout=15,
         )
         if response.status_code != 200:
-            return None
-        titles = response.json()[1]
-        return titles[0] if titles else None
-    except (requests.RequestException, IndexError, ValueError):
-        return None
+            return []
+        return [result["title"] for result in response.json().get("query", {}).get("search", [])]
+    except (requests.RequestException, KeyError, ValueError):
+        return []
 
 
-def fetch_portrait(person_name: str, out_path: Path) -> Path | None:
-    """Looks up a real public figure's photo on Wikipedia (free-licensed
-    infobox images). Returns None if there's no article, no image, or the
-    request fails for any reason, so callers can fall back to stock footage."""
-    title = _resolve_article_title(person_name) or person_name.strip().replace(" ", "_")
+def _fetch_summary_photo(title: str, out_path: Path) -> Path | None:
     try:
-        response = requests.get(WIKIPEDIA_SUMMARY_URL.format(title=title), timeout=15)
+        response = requests.get(WIKIPEDIA_SUMMARY_URL.format(title=title.replace(" ", "_")), timeout=15)
         if response.status_code != 200:
             return None
 
         data = response.json()
+        if data.get("type") == "disambiguation":
+            return None
+
         thumbnail = data.get("thumbnail", {}).get("source") or data.get("originalimage", {}).get("source")
         if not thumbnail:
             return None
@@ -52,3 +44,17 @@ def fetch_portrait(person_name: str, out_path: Path) -> Path | None:
         return out_path
     except requests.RequestException:
         return None
+
+
+def fetch_portrait(person_name: str, out_path: Path) -> Path | None:
+    """Looks up a real public figure's (or a named place/institution's)
+    photo on Wikipedia (free-licensed infobox images). Tries the top few
+    search results in order - skipping disambiguation pages and articles
+    with no image - until one yields a real photo. Returns None if nothing
+    works, so callers can fall back to stock footage."""
+    candidates = _search_candidate_titles(person_name) or [person_name]
+    for title in candidates:
+        photo_path = _fetch_summary_photo(title, out_path)
+        if photo_path is not None:
+            return photo_path
+    return None
