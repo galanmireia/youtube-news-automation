@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/
+*.egg-info/
+
+data/*
+!data/.gitkeep
+
+credentials/*
+!credentials/.gitkeep

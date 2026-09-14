@@ -1,0 +1,83 @@
+import logging
+from pathlib import Path
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Application, CallbackQueryHandler, ContextTypes
+
+from . import storage
+from .config import PIPELINE_INTERVAL_SECONDS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+from .pipeline import run_once
+from .youtube_uploader import upload_video
+
+logger = logging.getLogger(__name__)
+
+
+async def send_for_approval(bot, video_id: int) -> None:
+    record = storage.get_video(video_id)
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("Aprobar y subir", callback_data=f"approve:{video_id}"),
+                InlineKeyboardButton("Rechazar", callback_data=f"reject:{video_id}"),
+            ]
+        ]
+    )
+    caption = f"*{record['title']}*\n\n{record['description']}"
+    with open(record["thumbnail_path"], "rb") as thumbnail_file:
+        message = await bot.send_photo(
+            chat_id=TELEGRAM_CHAT_ID,
+            photo=thumbnail_file,
+            caption=caption,
+            parse_mode="Markdown",
+            reply_markup=keyboard,
+        )
+    storage.set_telegram_message(video_id, str(TELEGRAM_CHAT_ID), str(message.message_id))
+
+
+async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    action, video_id_str = query.data.split(":")
+    video_id = int(video_id_str)
+    record = storage.get_video(video_id)
+
+    if record is None or record["status"] != "pending":
+        await query.edit_message_caption(caption="Este video ya fue procesado anteriormente.")
+        return
+
+    if action == "reject":
+        storage.set_status(video_id, "rejected")
+        await query.edit_message_caption(caption=f"Rechazado: {record['title']}")
+        return
+
+    await query.edit_message_caption(caption=f"Subiendo a YouTube: {record['title']}")
+    try:
+        youtube_id = upload_video(
+            Path(record["video_path"]),
+            Path(record["thumbnail_path"]),
+            record["title"],
+            record["description"],
+            record["tags"].split(","),
+        )
+        storage.set_status(video_id, "uploaded", youtube_id)
+        await query.edit_message_caption(caption=f"Publicado: {record['title']}\nhttps://youtu.be/{youtube_id}")
+    except Exception:
+        logger.exception("Error subiendo el video %s a YouTube", video_id)
+        storage.set_status(video_id, "upload_failed")
+        await query.edit_message_caption(caption=f"Error al subir: {record['title']}. Revisa los logs.")
+
+
+async def pipeline_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    try:
+        video_id = run_once()
+        if video_id is not None:
+            await send_for_approval(context.bot, video_id)
+    except Exception:
+        logger.exception("Error ejecutando el pipeline de generacion de video")
+
+
+def build_application() -> Application:
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    application.add_handler(CallbackQueryHandler(handle_decision))
+    application.job_queue.run_repeating(pipeline_job, interval=PIPELINE_INTERVAL_SECONDS, first=15)
+    return application
