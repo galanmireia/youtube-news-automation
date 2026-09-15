@@ -39,6 +39,13 @@ _MIN_SCENE_SECONDS_FOR_MULTI_PHOTO = 6.0
 _MAX_SECONDS_PER_CLIP = 9.0
 _MAX_CLIPS_PER_SCENE = 2
 
+# How many scenes must pass between two fact cards. A card beats generic stock
+# for a scene with nothing real to show, but a run of them turns the video into
+# a slideshow - the complaint this is meant to answer is images that do not
+# belong, not images as such. Spacing them keeps a card an accent rather than
+# the format.
+_MIN_SCENES_BETWEEN_CARDS = 3
+
 # requests' `timeout` only limits the wait between two chunks of data, so a
 # download that trickles in forever never trips it. These cap the whole
 # transfer as well, because a single stuck download is enough to freeze the
@@ -214,6 +221,8 @@ def fetch_clips_for_scenes(
     # entity named in several scenes (e.g. "Junta Electoral Central") showed
     # the identical picture every time, which read as the video looping.
     used_photo_urls: set[str] = set()
+    # Far enough back that the first eligible scene can use one.
+    last_card_index = -_MIN_SCENES_BETWEEN_CARDS - 1
     for i, scene in enumerate(scenes):
         duration = scene_durations[i] if i < len(scene_durations) else 0.0
 
@@ -271,6 +280,20 @@ def fetch_clips_for_scenes(
             clip_entries.append([(path, {"name": name, "role": role}) for name, path, role in found])
             continue
 
+        highlight = (scene.get("on_screen_highlight") or "").strip()
+        # A scene with no real subject and a concrete fact to state is better
+        # served by the fact than by whatever stock footage a vague search
+        # returns. Only where there is something to say, and never twice close
+        # together.
+        if highlight and len(highlight) > 12 and i - last_card_index > _MIN_SCENES_BETWEEN_CARDS:
+            width, height = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
+            card_path = out_dir / f"card_{i:02d}.jpg"
+            branding.render_fact_card(highlight, width, height).save(card_path, quality=92)
+            logger.info("Escena %s: sin sujeto real, se usa tarjeta con %r", i, highlight)
+            clip_entries.append([(card_path, None)])
+            last_card_index = i
+            continue
+
         ai_image_prompt = (scene.get("ai_image_prompt") or "").strip()
         if ai_image_prompt:
             image_path = ai_images.generate_image(ai_image_prompt, out_dir / f"clip_{i:02d}.jpg", aspect_ratio)
@@ -291,7 +314,6 @@ def fetch_clips_for_scenes(
         clip_count = min(_MAX_CLIPS_PER_SCENE, max(1, math.ceil(duration / _MAX_SECONDS_PER_CLIP)))
         # Only the first clip carries the caption: repeating it on every cut
         # of the same scene would make it flash in and out repeatedly.
-        highlight = (scene.get("on_screen_highlight") or "").strip()
         scene_entries: list[tuple[Path, dict | None]] = []
         for j in range(clip_count):
             out_path = out_dir / f"clip_{i:02d}_{j}.mp4"

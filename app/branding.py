@@ -252,3 +252,50 @@ def render_source_caption(source_name: str, width: int, height: int) -> Image.Im
     draw.rounded_rectangle([0, 0, tag_w, tag_h], radius=tag_h // 4, fill=(0, 0, 0, 165))
     draw.text((pad - text_box[0], pad - text_box[1]), text, font=font, fill=(220, 220, 220, 255))
     return tag
+
+
+def render_fact_card(text: str, width: int, height: int) -> Image.Image:
+    """A full-frame card carrying one fact, for scenes with nothing real to show.
+
+    Abstract stories - company transparency, whether AI is dangerous - have no
+    photographable subject, so stock footage answers them with skyscrapers and
+    office meetings that illustrate nothing. Enough of those and the video
+    reads as random images with a voice over them. A card stating the scene's
+    own key fact is at least about what is being said, and looks deliberate
+    rather than borrowed.
+
+    Deliberately plain: the channel's colours, one accent rule, generous
+    margins, text as large as it can be while still fitting."""
+    image = Image.new("RGB", (width, height), _BACKGROUND_COLOR)
+    draw = ImageDraw.Draw(image)
+
+    # These cards are stills, and stills get a slow zoom of up to 1.12x in the
+    # video, which shows only the middle ~89% of the frame and crops the rest.
+    # At a 10% margin that clipped the last letter of the widest line - checked
+    # on a real rendered segment, not assumed. Everything therefore sits inside
+    # a margin wide enough to survive the closest the zoom ever gets.
+    rule_width = max(6, width // 120)
+    margin = int(width * 0.155)
+    draw.rectangle([margin, int(height * 0.33), margin + rule_width, int(height * 0.67)], fill=_ACCENT_COLOR)
+
+    text_left = margin + rule_width + int(width * 0.05)
+    max_text_width = width - text_left - margin
+    # Start large and shrink until the wrapped text fits the middle third; a
+    # card exists to be read from a phone, so the text should be as big as the
+    # space honestly allows rather than a fixed size that sometimes overflows.
+    max_text_height = int(height * 0.30)
+    size = int(height * 0.075)
+    while size > 12:
+        font = _load_font("DejaVuSans-Bold.ttf", size)
+        lines = _wrap_text(draw, text.upper(), font, max_text_width)
+        line_height = int(size * 1.25)
+        if len(lines) * line_height <= max_text_height and len(lines) <= 5:
+            break
+        size -= 2
+
+    block_height = len(lines) * line_height
+    y = (height - block_height) // 2
+    for line in lines:
+        draw.text((text_left, y), line, font=font, fill=TEXT_COLOR)
+        y += line_height
+    return image
