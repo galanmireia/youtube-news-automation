@@ -289,7 +289,14 @@ def render_fact_card(text: str, width: int, height: int) -> Image.Image:
         font = _load_font("DejaVuSans-Bold.ttf", size)
         lines = _wrap_text(draw, text.upper(), font, max_text_width)
         line_height = int(size * 1.25)
-        if len(lines) * line_height <= max_text_height and len(lines) <= 5:
+        # Height is not enough on its own. Wrapping breaks between words, so a
+        # single word wider than the column has nowhere to go and simply runs
+        # off the edge - which is what happened to "INCUMPLIO" on a short text,
+        # where the fitting loop left the font large because three lines fitted
+        # the height comfortably. Each line has to measure narrow enough too.
+        fits_width = all(_text_width(draw, line, font) <= max_text_width for line in lines)
+        fits_height = len(lines) * line_height <= max_text_height and len(lines) <= 5
+        if fits_width and fits_height:
             break
         size -= 2
 
