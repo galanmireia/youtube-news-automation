@@ -147,8 +147,33 @@ def _list_publisher_models() -> tuple[int, list[str]]:
         page_token = payload.get("nextPageToken")
         if not page_token:
             break
-    imagen = sorted({n for n in todos if "imagen" in n.lower() or "imagegeneration" in n.lower()})
+    # Deliberately broad. Looking only for "imagen"/"imagegeneration" answered
+    # the question we already knew the answer to: Vertex listed 132 models in
+    # us-central1 and reported "none of image", because anything named
+    # differently - a Gemini model with image output, say - was filtered out
+    # before anyone could see it. Match "image" anywhere instead.
+    imagen = sorted({n for n in todos if "image" in n.lower()})
     return len(todos), imagen
+
+
+def _catalogue_sample(limit: int = 25) -> list[str]:
+    """A slice of the publisher models Vertex does list here, for when none of
+    them is an image model and the question becomes what this project has."""
+    import google.auth
+    import google.auth.transport.requests
+    import requests
+
+    creds, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    creds.refresh(google.auth.transport.requests.Request())
+    response = requests.get(
+        f"https://{GOOGLE_CLOUD_LOCATION}-aiplatform.googleapis.com/v1beta1/publishers/google/models",
+        headers={"Authorization": f"Bearer {creds.token}"},
+        params={"pageSize": 200},
+        timeout=30,
+    )
+    response.raise_for_status()
+    nombres = [m.get("name", "").rsplit("/", 1)[-1] for m in response.json().get("publisherModels", [])]
+    return sorted(nombres)[:limit]
 
 
 def check_access() -> tuple[bool, str]:
@@ -223,10 +248,18 @@ def check_access() -> tuple[bool, str]:
                     "asi que el problema no es Imagen en concreto, es el acceso al catalogo "
                     f"entero.\nError de Google al pedir la imagen: {detail[:400]}"
                 )
+            # No image model under any spelling: show what the catalogue does
+            # hold, so the next step comes from the real list instead of from
+            # another guess at a model name.
+            try:
+                muestra = ", ".join(_catalogue_sample())
+            except Exception:
+                muestra = "(no se pudo releer el catalogo)"
             return False, (
-                f"Vertex lista {total} modelos en esta region pero ninguno de imagen, y los "
+                f"Vertex lista {total} modelos aqui y ninguno lleva 'image' en el nombre; los "
                 f"{len(intentados)} probados dan 404. {contexto}\n"
-                f"Error de Google: {detail[:400]}"
+                f"Muestra del catalogo: {muestra}\n"
+                f"Error de Google: {detail[:300]}"
             )
         logger.warning("check_access: error inesperado", exc_info=True)
         return False, f"Error inesperado: {detail[:300]}"
