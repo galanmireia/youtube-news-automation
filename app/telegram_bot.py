@@ -5,7 +5,7 @@ from pathlib import Path
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
-from . import storage
+from . import ai_images, storage
 from .config import PIPELINE_INTERVAL_SECONDS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from .pipeline import cleanup_finished_video_files, run_once
 from .video_builder import make_preview
@@ -209,6 +209,15 @@ async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_
     await _run_pipeline_and_notify(context.bot, variants)
 
 
+async def handle_vertex_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/vertex - says whether AI illustration is working, and if not, what to fix."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    await update.message.reply_text("Probando Vertex AI, un momento...")
+    works, detail = await asyncio.get_running_loop().run_in_executor(None, ai_images.check_access)
+    await update.message.reply_text(("OK. " if works else "NO funciona. ") + detail)
+
+
 async def handle_reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
@@ -224,6 +233,7 @@ def build_application() -> Application:
     application.add_handler(CallbackQueryHandler(handle_decision))
     application.add_handler(CommandHandler("generar", handle_generate_command))
     application.add_handler(CommandHandler("reset", handle_reset_command))
+    application.add_handler(CommandHandler("vertex", handle_vertex_command))
     # Don't auto-generate on every restart/deploy - only at the regular interval.
     # Use /generar in the chat for an on-demand run (e.g. right after deploying).
     application.job_queue.run_repeating(pipeline_job, interval=PIPELINE_INTERVAL_SECONDS, first=PIPELINE_INTERVAL_SECONDS)
