@@ -10,6 +10,7 @@ from . import ai_images, storage
 from .config import DATA_DIR, PIPELINE_INTERVAL_SECONDS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from .pipeline import (
     cleanup_finished_video_files,
+    interrupted_run_evidence,
     request_stop,
     run_once,
     stop_requested as pipeline_stop_requested,
@@ -292,8 +293,30 @@ async def handle_reset_command(update: Update, context: ContextTypes.DEFAULT_TYP
     )
 
 
+async def _warn_if_run_was_interrupted(application: Application) -> None:
+    """Says so when a restart killed a generation, instead of leaving the
+    chat waiting for a video that is never coming."""
+    evidencia = interrupted_run_evidence()
+    if not evidencia:
+        return
+    logger.warning("Se detecto una generacion interrumpida por un reinicio (%s).", evidencia)
+    try:
+        await application.bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID,
+            text=(
+                "Aviso: una generacion se quedo a medias por un reinicio del servidor "
+                "(normalmente, un despliegue). No va a llegar ningun video de esa tanda. "
+                "Vuelve a lanzar /generar cuando quieras."
+            ),
+        )
+    except Exception:
+        logger.exception("No se pudo avisar de la generacion interrumpida")
+
+
 def build_application() -> Application:
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(
+        _warn_if_run_was_interrupted
+    ).build()
     application.add_handler(CallbackQueryHandler(handle_decision))
     application.add_handler(CommandHandler("generar", handle_generate_command))
     application.add_handler(CommandHandler("reset", handle_reset_command))

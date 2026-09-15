@@ -237,6 +237,41 @@ def _discard_build_files(variant_dir: Path, keep: set[Path]) -> int:
     return freed
 
 
+_interrupted_run = ""
+
+
+def interrupted_run_evidence() -> str:
+    """What note_interrupted_run() found at startup, or "" if nothing."""
+    return _interrupted_run
+
+
+def note_interrupted_run() -> str:
+    """Names a generation that a restart killed mid-build, or "" if none.
+
+    A deploy restarts the container, and a generation in flight simply
+    vanishes: no video, no error, no message. Twice today a push of mine did
+    exactly that, and the only symptom was the user waiting for something that
+    was never coming. The leftover job directory is the evidence, so the bot
+    can say so instead of leaving somebody guessing.
+
+    Must run BEFORE sweep_orphan_build_files(), which deletes exactly the
+    files this reads as evidence."""
+    global _interrupted_run
+    keep = {Path(path).resolve() for path in storage.all_referenced_paths()}
+    for job_dir in sorted(Path(DATA_DIR).glob("job_*")):
+        if not job_dir.is_dir():
+            continue
+        # A finished build's files are either referenced by a video record or
+        # already cleaned up. Files belonging to neither mean a build stopped
+        # halfway.
+        huerfanos = [f for f in job_dir.rglob("*") if f.is_file() and f.resolve() not in keep]
+        if huerfanos:
+            _interrupted_run = job_dir.name
+            return _interrupted_run
+    _interrupted_run = ""
+    return ""
+
+
 def sweep_orphan_build_files() -> int:
     """One pass over the whole data directory removing files no video record
     points at any more.

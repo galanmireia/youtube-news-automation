@@ -2,7 +2,7 @@ import logging
 
 from . import storage
 from .config import PIXABAY_API_KEY, RSS_FEEDS
-from .pipeline import cleanup_finished_video_files, sweep_orphan_build_files
+from .pipeline import cleanup_finished_video_files, note_interrupted_run, sweep_orphan_build_files
 from .telegram_bot import build_application
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -26,6 +26,11 @@ def main() -> None:
         "Banco de video secundario (Pixabay): %s",
         "configurado" if PIXABAY_API_KEY else "sin clave, solo se usara Pexels",
     )
+    # Before the sweep: it deletes the half-finished build that is the only
+    # trace a restart killed a generation, and the bot announces that on
+    # startup so nobody is left waiting for a video that is not coming.
+    if note_interrupted_run():
+        logger.warning("Habia una generacion a medias; se avisara en Telegram.")
     sweep_orphan_build_files()
     removed = cleanup_finished_video_files()
     if removed:
