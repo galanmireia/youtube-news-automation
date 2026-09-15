@@ -320,8 +320,15 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
     # from stills by zoompan, others re-encoded from stock clips whose source
     # framerate varies. A mismatch there makes the filter wait instead of fail,
     # which is indistinguishable from the hang chased above.
+    # Order matters and got it wrong once: fps must come LAST. setpts rewrites
+    # timestamps, which leaves ffmpeg unable to promise a constant rate, and it
+    # then reports the link's frame rate as 1/0 - the exact thing xfade refuses
+    # with "The inputs needs to be a constant frame rate". Normalising the
+    # timebase and start time first and fixing the rate afterwards gives xfade
+    # the constant rate it requires, which is most likely what was missing all
+    # along: an input whose rate it cannot determine is what it was waiting on.
     steps = [
-        f"[{i}:v]fps={_ZOOM_FPS},format=yuv420p,setsar=1,setpts=PTS-STARTPTS[n{i}]"
+        f"[{i}:v]settb=AVTB,setpts=PTS-STARTPTS,fps={_ZOOM_FPS},format=yuv420p,setsar=1[n{i}]"
         for i in range(len(segment_paths))
     ]
     current = "[n0]"
