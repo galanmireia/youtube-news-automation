@@ -301,16 +301,33 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
     for path in segment_paths:
         inputs += ["-i", str(path)]
 
+    # Offsets come from what the files ACTUALLY contain, not from what they
+    # were asked to contain. An xfade placed past the end of its accumulated
+    # input does not fail - it waits for frames that will never arrive, and
+    # hangs until something kills it. Predicting those lengths was tried twice
+    # and was wrong twice, by fractions of a frame, so each offset is now
+    # clamped against the measured length of everything joined so far and
+    # cannot ask for material that is not there.
+    durations = [_probe_duration(path) for path in segment_paths]
     steps = []
     current = "[0:v]"
+    accumulated = durations[0]
     for i in range(1, len(segment_paths)):
         boundary = frame_marks[i] / _ZOOM_FPS
-        offset = max(0.0, boundary - _TRANSITION_SECONDS / 2)
+        desired = boundary - _TRANSITION_SECONDS / 2
+        offset = max(0.0, min(desired, accumulated - _TRANSITION_SECONDS))
+        if offset < desired - 1 / _ZOOM_FPS:
+            logger.warning(
+                "Transicion %s adelantada %.3fs: hay %.2fs de video y la narracion la pedia en %.2fs.",
+                i, desired - offset, accumulated, desired,
+            )
         label = f"[x{i}]"
         steps.append(
             f"{current}[{i}:v]xfade=transition=fade:duration={_TRANSITION_SECONDS}:offset={offset:.3f}{label}"
         )
         current = label
+        # xfade outputs from 0 to offset + the length of its second input.
+        accumulated = offset + durations[i]
 
     filter_complex = ";".join(steps)
     _run(
