@@ -169,6 +169,15 @@ suscribirse), deja el campo como cadena vacia ("") en vez de forzar un texto vag
 "una ley" o "el analisis" - es preferible no mostrar nada a mostrar un texto que no aporta
 informacion real.
 
+PRIORIZA SIEMPRE LAS CIFRAS. Este texto puede acabar ocupando la pantalla entera, asi que tiene que
+sostenerse solo, sin la voz. Una cantidad, un plazo, una fecha, un porcentaje o un numero de
+afectados se lee de un vistazo y se recuerda; un resumen de lo que acaba de decirse no aporta nada
+porque el espectador ya lo esta oyendo. Si la escena contiene un numero, ESE es el texto destacado.
+Ejemplo real de lo que NO hay que hacer: en una noticia sobre una condena de 194.000 euros a un
+organismo publico, el texto elegido fue "Incumplio riesgos laborales" - una parafrasis de la propia
+narracion. Lo correcto era "194.000 euros de indemnizacion": la cifra es lo que sorprende y lo que
+se retiene. Entre un dato con numero y uno sin el, elige siempre el que lleva numero.
+
 Requisitos de SEO para YouTube (importante, esto determina si el video se encuentra en buscador y
 sugeridos):
 - "title": incluye la palabra clave principal (el tema/entidad de la noticia) cerca del inicio,
@@ -204,7 +213,7 @@ Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni ma
       "photo_subject": "nombre de una persona publica o de un lugar/institucion con nombre propio si aplica, si no, cadena vacia",
       "photo_subject_role": "cargo de la persona o descriptor corto del lugar si photo_subject no esta vacio, si no, cadena vacia",
       "ai_image_prompt": "descripcion en ingles para ilustracion por IA si aplica, si no, cadena vacia",
-      "on_screen_highlight": "texto corto en español (3-6 palabras) con el dato clave de esta escena, ver instrucciones arriba"
+      "on_screen_highlight": "texto corto en español (3-6 palabras) con el dato clave de esta escena, con CIFRA si la escena tiene alguna, ver instrucciones arriba"
     }}
   ]
 }}
