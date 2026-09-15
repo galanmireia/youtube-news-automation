@@ -46,6 +46,14 @@ _MAX_CLIPS_PER_SCENE = 2
 # the format.
 _MIN_SCENES_BETWEEN_CARDS = 3
 
+# A card is, visually, a black screen with words on it. That is a fine accent
+# in the middle of a video and the worst possible opening for a Short, where
+# the first seconds are what decides whether a thumb stops. The opening scene
+# has to be a picture, whatever else is true about it - and it loses nothing,
+# because the fact the card would have stated still goes on screen as the
+# corner badge over the image.
+_FIRST_SCENE_ELIGIBLE_FOR_CARD = 2
+
 # requests' `timeout` only limits the wait between two chunks of data, so a
 # download that trickles in forever never trips it. These cap the whole
 # transfer as well, because a single stuck download is enough to freeze the
@@ -285,7 +293,12 @@ def fetch_clips_for_scenes(
         # served by the fact than by whatever stock footage a vague search
         # returns. Only where there is something to say, and never twice close
         # together.
-        if highlight and len(highlight) > 12 and i - last_card_index > _MIN_SCENES_BETWEEN_CARDS:
+        if (
+            highlight
+            and len(highlight) > 12
+            and i >= _FIRST_SCENE_ELIGIBLE_FOR_CARD
+            and i - last_card_index > _MIN_SCENES_BETWEEN_CARDS
+        ):
             width, height = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
             card_path = out_dir / f"card_{i:02d}.jpg"
             branding.render_fact_card(highlight, width, height).save(card_path, quality=92)
@@ -298,7 +311,11 @@ def fetch_clips_for_scenes(
         if ai_image_prompt:
             image_path = ai_images.generate_image(ai_image_prompt, out_dir / f"clip_{i:02d}.jpg", aspect_ratio)
             if image_path is not None:
-                clip_entries.append([(image_path, None)])
+                # Same badge the stock-footage branch puts on its first clip:
+                # a scene that states a fact should state it whatever kind of
+                # image ends up carrying it.
+                tag = {"caption": highlight} if highlight else None
+                clip_entries.append([(image_path, tag)])
                 continue
 
         # visual_keywords can be intentionally empty when the scene expected a
