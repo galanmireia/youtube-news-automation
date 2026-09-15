@@ -294,6 +294,39 @@ def _catalogue_sample(limit: int = 25) -> list[str]:
     return sorted(nombres)[:limit]
 
 
+def preview(prompt: str, out_path: Path, aspect_ratio: str = "9:16") -> tuple[Path | None, str]:
+    """One illustration from a prompt of your choosing, with the house style on
+    it, so the look can be judged before committing to a whole generation.
+
+    Seeing whether the style works otherwise costs a full video - six images
+    plus every script, voice and render call around them - when one image
+    answers the question."""
+    allowed, _ = _take_daily_allowance()
+    if not allowed:
+        return None, f"Limite diario de {AI_IMAGES_DAILY_LIMIT} imagenes alcanzado."
+    data = None
+    coste = ""
+    try:
+        client = _get_client()
+        for model in _models_to_try():
+            try:
+                data, coste = _request_image(client, model, _styled(prompt), aspect_ratio)
+                globals()["_working_model"] = model
+                break
+            except Exception as exc:
+                if not _is_missing_model(exc):
+                    raise
+    except Exception as exc:
+        return None, f"Error: {str(exc)[:300]}"
+    if not data:
+        return None, "El modelo no devolvio ninguna imagen."
+    try:
+        _save_jpeg(data, out_path)
+    except Exception as exc:
+        return None, f"La imagen llego pero no se pudo guardar: {str(exc)[:200]}"
+    return out_path, coste
+
+
 def check_access() -> tuple[bool, str]:
     """Asks Vertex AI for one small image and reports what happened.
 

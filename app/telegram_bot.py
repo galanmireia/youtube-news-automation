@@ -7,7 +7,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
 from . import ai_images, storage
-from .config import PIPELINE_INTERVAL_SECONDS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+from .config import DATA_DIR, PIPELINE_INTERVAL_SECONDS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from .pipeline import (
     cleanup_finished_video_files,
     request_stop,
@@ -243,8 +243,27 @@ async def handle_vertex_command(update: Update, context: ContextTypes.DEFAULT_TY
     """/vertex - says whether AI illustration is working, and if not, what to fix."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
+    loop = asyncio.get_running_loop()
+
+    # /vertex con texto detras genera ESA imagen, con el estilo del canal, y la
+    # manda aqui: ver si el estilo funciona cuesta entonces una imagen en vez
+    # de un video entero.
+    prompt = " ".join(context.args).strip() if context.args else ""
+    if prompt:
+        await update.message.reply_text(f"Generando una imagen de prueba: {prompt}")
+        out_path = Path(DATA_DIR) / "vertex_preview.jpg"
+        image_path, detail = await loop.run_in_executor(
+            None, ai_images.preview, prompt, out_path, "9:16"
+        )
+        if image_path is None:
+            await update.message.reply_text("No salio. " + detail)
+            return
+        with image_path.open("rb") as handle:
+            await update.message.reply_photo(photo=handle, caption=detail[:1024] or prompt[:1024])
+        return
+
     await update.message.reply_text("Probando Vertex AI, un momento...")
-    works, detail = await asyncio.get_running_loop().run_in_executor(None, ai_images.check_access)
+    works, detail = await loop.run_in_executor(None, ai_images.check_access)
     await update.message.reply_text(("OK. " if works else "NO funciona. ") + detail)
 
 
