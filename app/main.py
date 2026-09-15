@@ -1,7 +1,7 @@
 import logging
 
 from . import storage
-from .config import PIXABAY_API_KEY, RSS_FEEDS
+from .config import PIXABAY_API_KEY, RSS_FEEDS, TTS_LANGUAGE_CODE, TTS_VOICE_NAME
 from .pipeline import cleanup_finished_video_files, note_interrupted_run, sweep_orphan_build_files
 from .telegram_bot import build_application
 
@@ -31,6 +31,10 @@ def main() -> None:
     # startup so nobody is left waiting for a video that is not coming.
     if note_interrupted_run():
         logger.warning("Habia una generacion a medias; se avisara en Telegram.")
+    # Same reasoning as the feeds: an environment variable silently overriding
+    # the code default is invisible until somebody wonders why the voice
+    # changed. The voice family is what decides how natural it sounds.
+    logger.info("Voz de narracion en uso: %s (%s)", TTS_VOICE_NAME, TTS_LANGUAGE_CODE)
     sweep_orphan_build_files()
     removed = cleanup_finished_video_files()
     if removed:

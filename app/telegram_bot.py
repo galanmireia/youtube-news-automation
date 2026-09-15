@@ -6,8 +6,15 @@ from zoneinfo import ZoneInfo
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
-from . import ai_images, storage
-from .config import DATA_DIR, PIPELINE_INTERVAL_SECONDS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+from . import ai_images, storage, tts
+from .config import (
+    DATA_DIR,
+    PIPELINE_INTERVAL_SECONDS,
+    TELEGRAM_BOT_TOKEN,
+    TELEGRAM_CHAT_ID,
+    TTS_LANGUAGE_CODE,
+    TTS_VOICE_NAME,
+)
 from .pipeline import (
     cleanup_finished_video_files,
     interrupted_run_evidence,
@@ -283,6 +290,56 @@ async def handle_stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
 
+async def handle_voices_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/voces - que voces hay; /voz <nombre> - escuchar una."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    await update.message.reply_text(f"Voz en uso ahora mismo: {TTS_VOICE_NAME}\nPreguntando a Google...")
+    try:
+        voces = await asyncio.get_running_loop().run_in_executor(None, tts.list_spanish_voices)
+    except Exception as exc:
+        await update.message.reply_text(f"No se pudo consultar: {str(exc)[:300]}")
+        return
+    if not voces:
+        await update.message.reply_text("Google no devuelve ninguna voz para este idioma.")
+        return
+
+    # Grouped by family because the family is what decides how natural it
+    # sounds and what it costs - the individual name only picks a timbre.
+    familias: dict[str, list[str]] = {}
+    for nombre, genero in voces:
+        partes = nombre.split("-")
+        familia = partes[2] if len(partes) > 2 else "otras"
+        familias.setdefault(familia, []).append(f"{nombre} ({genero[0]})")
+
+    lineas = [f"{len(voces)} voces disponibles en {TTS_LANGUAGE_CODE}:"]
+    for familia in sorted(familias, key=lambda f: (f != "Chirp3", f)):
+        lineas.append(f"\n{familia} ({len(familias[familia])}):")
+        lineas.extend("  " + v for v in sorted(familias[familia]))
+    texto = "\n".join(lineas)
+    for i in range(0, len(texto), 3500):
+        await update.message.reply_text(texto[i : i + 3500])
+    await update.message.reply_text("Para escuchar una: /voz es-ES-Chirp3-HD-Enceladus")
+
+
+async def handle_voice_sample_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/voz <nombre> - manda un audio de muestra con esa voz."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    nombre = (context.args[0].strip() if context.args else "") or TTS_VOICE_NAME
+    await update.message.reply_text(f"Generando muestra con {nombre}...")
+    out_path = Path(DATA_DIR) / "voice_sample.mp3"
+    try:
+        await asyncio.get_running_loop().run_in_executor(
+            None, tts.synthesize_sample, nombre, out_path
+        )
+    except Exception as exc:
+        await update.message.reply_text(f"No salio con {nombre}: {str(exc)[:300]}")
+        return
+    with out_path.open("rb") as handle:
+        await update.message.reply_audio(audio=handle, caption=nombre)
+
+
 async def handle_reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
@@ -321,6 +378,8 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("generar", handle_generate_command))
     application.add_handler(CommandHandler("reset", handle_reset_command))
     application.add_handler(CommandHandler("parar", handle_stop_command))
+    application.add_handler(CommandHandler("voces", handle_voices_command))
+    application.add_handler(CommandHandler("voz", handle_voice_sample_command))
     application.add_handler(CommandHandler("vertex", handle_vertex_command))
     # Don't auto-generate on every restart/deploy - only at the regular interval.
     # Use /generar in the chat for an on-demand run (e.g. right after deploying).
