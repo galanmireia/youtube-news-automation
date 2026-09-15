@@ -137,6 +137,18 @@ Formato de este video: {format_hint}
 
 {structure_block}
 
+PUNTUACION Y RITMO (la narracion la lee una voz sintetica): los signos son la UNICA forma que
+tienes de dirigir como suena. La voz no interpreta lo que quisiste decir, pronuncia lo que
+escribiste, y hace pausa donde hay coma o punto y en ningun otro sitio.
+- Punto para el golpe. Una frase corta y un punto pesan mas que una coma. "España le dijo que no."
+  suena; "España le dijo que no y seis dias despues..." se diluye.
+- Coma antes del dato que quieres que se oiga: "El casco se abrio, a treinta millas de la costa."
+- Si algo es una PREGUNTA, escribela como pregunta de verdad, con ¿ y ? - asi la voz sube al final
+  y suena a pregunta. Una pregunta escrita como afirmacion se lee plana y pierde todo el efecto.
+  Esto importa especialmente en el gancho, que muchas veces es la pregunta del video.
+- Nada de frases largas encadenadas con comas: la voz las lee de corrido, sin aire, y cansa.
+- Nunca uses puntos suspensivos ni guiones para marcar una pausa: no los respeta. Usa punto.
+
 ORTOGRAFIA, MUY IMPORTANTE: el campo "narration" lo lee en voz alta un sintetizador de voz, y ese
 sintetizador pronuncia SEGUN COMO ESTE ESCRITA la palabra. Una palabra sin su tilde se pronuncia
 con el acento en la silaba equivocada y suena a robot. Escribe la narracion en español

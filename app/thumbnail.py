@@ -99,16 +99,58 @@ def _fit_title(draw: ImageDraw.ImageDraw, text: str, max_width: int, start_size:
     return font, _wrap_to_width(draw, text, font, max_width)[:max_lines]
 
 
+def _cover(image: Image.Image, width: int, height: int) -> Image.Image:
+    """Fills the frame without distorting it.
+
+    The previous version resized straight to the target, which for a vertical
+    Short turned into a horizontal thumbnail meant squashing 9:16 into 16:9 -
+    the ship got fat and the illustration bent. Scaling to cover and cropping
+    the overflow keeps everything the shape it was drawn."""
+    origen_w, origen_h = image.size
+    escala = max(width / origen_w, height / origen_h)
+    nuevo = image.resize((max(1, round(origen_w * escala)), max(1, round(origen_h * escala))))
+    izquierda = (nuevo.width - width) // 2
+    # Cropped from the upper third rather than the centre: the lower part of a
+    # frame is where this pipeline puts its own name bars and caption boxes.
+    arriba = min(max(0, (nuevo.height - height) // 3), max(0, nuevo.height - height))
+    return nuevo.crop((izquierda, arriba, izquierda + width, arriba + height))
+
+
+def _thumbnail_text(title: str) -> str:
+    """The part of the title worth putting on the picture.
+
+    A full headline set large enough to read at listing size needs three lines
+    and buries the image. Titles here are built as "Subject: the hook", so the
+    hook alone is both the shorter half and the interesting one; failing that,
+    the first few words."""
+    texto = title.strip()
+    for separador in (": ", " - ", " | ", "? ", "; "):
+        if separador in texto:
+            cabeza, _, cola = texto.partition(separador)
+            # Keep whichever half actually says something, preferring the hook.
+            texto = cola if len(cola.split()) >= 3 else cabeza
+            break
+    palabras = texto.split()
+    if len(palabras) > 7:
+        texto = " ".join(palabras[:7])
+    return texto.upper().rstrip(" ,.;:")
+
+
 def generate_thumbnail(video_path: Path, title: str, out_path: Path, width: int, height: int) -> Path:
     frame_path = _pick_frame(video_path, out_path)
-    image = Image.open(frame_path).convert("RGB").resize((width, height))
+    image = _cover(Image.open(frame_path).convert("RGB"), width, height)
 
     margin = int(width * 0.04)
     overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
 
+    # Two lines, not three. A three-line band swallowed more than half the
+    # picture, which defeats the point of choosing an interesting frame in the
+    # first place - the thumbnail has to be read at the size of a phone
+    # listing, where a picture and four words beat a whole sentence.
     font, lines = _fit_title(
-        draw, title.upper(), max_width=width - margin * 2, start_size=max(36, width // 12), max_lines=3
+        draw, _thumbnail_text(title), max_width=width - margin * 2,
+        start_size=max(36, width // 11), max_lines=2,
     )
 
     line_height = int(font.size * 1.22)
