@@ -498,7 +498,9 @@ def _ensure_duration(path: Path, expected: float, tmp_dir: Path, index: int) -> 
 
 
 
-def _join_without_transitions(segment_paths: list[Path], work_dir: Path, out_path: Path) -> Path:
+def _join_without_transitions(
+    segment_paths: list[Path], frame_marks: list[int], work_dir: Path, out_path: Path
+) -> Path:
     """Butts the segments together with hard cuts.
 
     The fallback for when crossfading fails. The concat demuxer reads one file
@@ -512,11 +514,20 @@ def _join_without_transitions(segment_paths: list[Path], work_dir: Path, out_pat
     21.5s of input. Normalising through one filter chain costs a pass and
     cannot silently lose footage.
 
-    The cut lands on the scene boundary rather than straddling it, so the video
-    runs a transition's worth longer per scene than the narration; the audio
-    mux trims that back."""
+    Each segment is trimmed back to its scene's real length on the way in.
+    Segments are rendered with a transition's worth of extra footage plus some
+    slack, because a crossfade consumes it - with hard cuts nothing consumes
+    it, so it plays. That is not merely 0.45s of surplus per scene: it
+    accumulates, putting the picture a second behind the voice by the third
+    scene and several seconds behind by the end. The first video built this way
+    showed it, and it reads as the video being broken rather than plain."""
     concat_list = work_dir / "concat_plain.txt"
-    concat_list.write_text("\n".join(f"file '{p.resolve()}'" for p in segment_paths))
+    lines = []
+    for i, path in enumerate(segment_paths):
+        lines.append(f"file '{path.resolve()}'")
+        scene_seconds = (frame_marks[i + 1] - frame_marks[i]) / _ZOOM_FPS
+        lines.append(f"outpoint {scene_seconds:.3f}")
+    concat_list.write_text("\n".join(lines))
     _run(
         [
             "ffmpeg", "-y",
@@ -600,7 +611,7 @@ def build_video(
         logger.exception(
             "Fallaron las transiciones; se une sin ellas para no perder el video entero."
         )
-        _join_without_transitions(segment_paths, work_dir, silent_video_path)
+        _join_without_transitions(segment_paths, frame_marks, work_dir, silent_video_path)
 
     # intro_duration comes from the caller because only it knows whether this
     # variant has an intro card at all - Shorts don't, and deriving it from
