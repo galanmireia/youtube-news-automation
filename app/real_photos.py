@@ -9,8 +9,26 @@ from .config import CHANNEL_NAME
 
 logger = logging.getLogger(__name__)
 
-WIKIPEDIA_API_URL = "https://es.wikipedia.org/w/api.php"
-WIKIPEDIA_SUMMARY_URL = "https://es.wikipedia.org/api/rest_v1/page/summary/{title}"
+# Spanish first - it is the channel's language, and its article is what the
+# descriptors and titles should come from. English second, because it is more
+# than three times the size and carries far more free images of exactly what
+# this channel is about: ships, aircraft, bridges, plants and the disasters
+# that befell them. Plenty of engineering subjects have an article, or a
+# photograph, in only one of the two. Commons, searched last, is shared by
+# both - but WHICH image an article puts at the top is decided per language,
+# so asking two wikis is not the same question asked twice.
+WIKI_LANGS = ("es", "en")
+
+
+def _api_url(lang: str) -> str:
+    return f"https://{lang}.wikipedia.org/w/api.php"
+
+
+def _summary_url(lang: str, title: str) -> str:
+    return f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{title}"
+
+
+WIKIPEDIA_API_URL = _api_url("es")
 COMMONS_API_URL = "https://commons.wikimedia.org/w/api.php"
 
 # Wikimedia's API policy requires a descriptive User-Agent identifying the
@@ -25,7 +43,7 @@ _HEADERS = {"User-Agent": f"{CHANNEL_NAME}NewsBot/1.0 (automated video generatio
 # same name in several countries, Spain's is the one meant unless the request
 # says otherwise. Wikipedia disambiguates exactly this way: "Fiscalia General
 # del Estado (Espana)" next to "Fiscalia General del Estado (Ecuador)".
-_HOME_QUALIFIERS = {"espana", "espanol", "espanola"}
+_HOME_QUALIFIERS = {"espana", "espanol", "espanola", "spain", "spanish"}
 
 
 def _fold(text: str) -> str:
@@ -71,14 +89,14 @@ def _rank_candidates(name: str, titles: list[str]) -> list[str]:
 
 # Six rather than three: ranking below only helps if the right article is in
 # the list at all, and they all come back from the same single request.
-def _search_candidate_titles(name: str, limit: int = 6) -> list[str]:
+def _search_candidate_titles(name: str, lang: str = "es", limit: int = 6) -> list[str]:
     """Uses Wikipedia's real full-text search (the same engine behind the
     site's own search box) ranked by relevance/popularity, instead of a
     prefix-only match - a plain/common name like "Oscar Lopez" can otherwise
     resolve to the wrong person or a disambiguation page with no photo."""
     try:
         response = requests.get(
-            WIKIPEDIA_API_URL,
+            _api_url(lang),
             params={"action": "query", "list": "search", "srsearch": name, "srlimit": limit, "format": "json"},
             headers=_HEADERS,
             timeout=15,
@@ -90,14 +108,14 @@ def _search_candidate_titles(name: str, limit: int = 6) -> list[str]:
         return []
 
 
-def _pageimages_thumbnail_url(title: str) -> str | None:
+def _pageimages_thumbnail_url(title: str, lang: str = "es") -> str | None:
     """Fallback for pages where the REST summary endpoint doesn't surface a
     lead image (common for institutions/buildings/organizations) even though
     the article does have one. action=query&prop=pageimages is a separate,
     more permissive MediaWiki API that often finds it anyway."""
     try:
         response = requests.get(
-            WIKIPEDIA_API_URL,
+            _api_url(lang),
             params={
                 "action": "query",
                 "titles": title,
@@ -131,10 +149,10 @@ def _download(url: str, out_path: Path) -> bool:
         return False
 
 
-def _fetch_summary_photo(title: str, out_path: Path, exclude_urls: set[str]) -> tuple[Path, str] | None:
+def _fetch_summary_photo(title: str, out_path: Path, exclude_urls: set[str], lang: str = "es") -> tuple[Path, str] | None:
     try:
         response = requests.get(
-            WIKIPEDIA_SUMMARY_URL.format(title=title.replace(" ", "_")), headers=_HEADERS, timeout=15
+            _summary_url(lang, title.replace(" ", "_")), headers=_HEADERS, timeout=15
         )
         if response.status_code != 200:
             return None
@@ -146,7 +164,7 @@ def _fetch_summary_photo(title: str, out_path: Path, exclude_urls: set[str]) -> 
         thumbnail = (
             data.get("thumbnail", {}).get("source")
             or data.get("originalimage", {}).get("source")
-            or _pageimages_thumbnail_url(title)
+            or _pageimages_thumbnail_url(title, lang)
         )
         if not thumbnail or thumbnail in exclude_urls:
             return None
@@ -214,16 +232,25 @@ def fetch_portrait(person_name: str, out_path: Path, exclude_urls: set[str] | No
     exists. Returns None if nothing new works at all, letting callers fall
     back to stock footage rather than repeating themselves."""
     exclude = exclude_urls or set()
-    candidates = _rank_candidates(person_name, _search_candidate_titles(person_name)) or [person_name]
-    for title in candidates:
-        result = _fetch_summary_photo(title, out_path, exclude)
-        if result is not None:
+    for lang in WIKI_LANGS:
+        candidates = _rank_candidates(
+            person_name, _search_candidate_titles(person_name, lang)
+        ) or [person_name]
+        for title in candidates:
+            result = _fetch_summary_photo(title, out_path, exclude, lang)
+            if result is None:
+                continue
             # A generic Commons file-search match (below) is far more prone
             # to picking an unrelated file for a short/ambiguous name (e.g.
             # "Partido Popular" matching some unrelated icon) than a
             # Wikipedia article match is - log which article actually
-            # supplied the image so a wrong-looking result can be diagnosed
-            # from logs instead of guessed at.
-            logger.info("fetch_portrait(%r): imagen del articulo de Wikipedia %r", person_name, title)
+            # supplied the image, and in which language, so a wrong-looking
+            # result can be diagnosed from logs instead of guessed at.
+            logger.info(
+                "fetch_portrait(%r): imagen del articulo %r de la Wikipedia en %s",
+                person_name,
+                title,
+                lang,
+            )
             return result
     return _commons_search_photo(person_name, out_path, exclude)
