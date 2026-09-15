@@ -8,6 +8,7 @@ from google import genai
 from google.genai import types
 
 from .config import (
+    AI_IMAGE_USD_PER_MILLION_OUTPUT_TOKENS,
     AI_IMAGES_DAILY_LIMIT,
     DATA_DIR,
     GOOGLE_CLOUD_LOCATION,
@@ -109,28 +110,36 @@ def _request_image(client, model: str, prompt: str, aspect_ratio: str) -> bytes 
     response = client.models.generate_content(
         model=model, contents=prompt, config=types.GenerateContentConfig(**config_kwargs)
     )
-    _log_usage(model, response)
-    return _first_image_bytes(response)
+    coste = _describe_cost(model, response)
+    if coste:
+        logger.info("%s", coste)
+    return _first_image_bytes(response), coste
 
 
-def _log_usage(model: str, response) -> None:
-    """Records what the call actually consumed.
+def _describe_cost(model: str, response) -> str:
+    """What this one call consumed, and what that costs at the configured rate.
 
-    These models are billed by token like any other Gemini call, and the reply
-    carries its own count. Logging it means the price of an image can be
-    checked against the published rate straight away, instead of waiting for
-    Cloud billing to catch up hours later - and it is per image, which a
-    monthly bill is not."""
+    These models are billed by token like any other Gemini call and the reply
+    carries its own count, so the price of a single image can be worked out
+    immediately instead of waiting hours for Cloud billing - and per image,
+    which a monthly bill never tells you. The rate is stated in the text
+    because it is a default rather than a verified figure: a number with its
+    assumption attached can be corrected, a bare number cannot."""
     usage = getattr(response, "usage_metadata", None)
     if usage is None:
-        return
-    logger.info(
-        "Consumo de %s: %s tokens de entrada, %s de salida, %s en total.",
-        model,
-        getattr(usage, "prompt_token_count", "?"),
-        getattr(usage, "candidates_token_count", "?"),
-        getattr(usage, "total_token_count", "?"),
-    )
+        return ""
+    salida = getattr(usage, "candidates_token_count", None)
+    entrada = getattr(usage, "prompt_token_count", None)
+    partes = [f"{model}: {entrada if entrada is not None else '?'} tokens de entrada, "
+              f"{salida if salida is not None else '?'} de salida"]
+    if isinstance(salida, int) and salida > 0:
+        usd = salida / 1_000_000 * AI_IMAGE_USD_PER_MILLION_OUTPUT_TOKENS
+        partes.append(
+            f"= {usd:.4f} $ por imagen a {AI_IMAGE_USD_PER_MILLION_OUTPUT_TOKENS:g} $/millon "
+            f"(tarifa SIN verificar, ajustable con AI_IMAGE_USD_PER_MILLION_OUTPUT_TOKENS). "
+            f"Un dia entero al tope de {AI_IMAGES_DAILY_LIMIT} serian {usd * AI_IMAGES_DAILY_LIMIT:.2f} $"
+        )
+    return " ".join(partes)
 
 
 def _save_jpeg(data: bytes, out_path: Path) -> Path:
@@ -269,7 +278,7 @@ def check_access() -> tuple[bool, str]:
         last_error: Exception | None = None
         for model in _models_to_try():
             try:
-                data = _request_image(client, model, "a simple blue circle on a white background", "1:1")
+                data, coste = _request_image(client, model, "a simple blue circle on a white background", "1:1")
             except Exception as exc:
                 intentados.append(model)
                 last_error = exc
@@ -279,7 +288,11 @@ def check_access() -> tuple[bool, str]:
             if not data:
                 return False, f"El modelo {model} respondio sin imagen."
             _working_model = model
-            return True, f"Funciona. Modelo en uso: {model} ({len(data) / 1024:.0f} KB de prueba)"
+            resumen = f"Funciona. Modelo en uso: {model} ({len(data) / 1024:.0f} KB)."
+            return True, (resumen + "\n" + coste) if coste else (
+                resumen + "\nGoogle no ha devuelto el consumo de esta llamada, asi que no puedo "
+                "decirte lo que ha costado."
+            )
         raise last_error  # type: ignore[misc]
     except Exception as exc:
         detail = str(exc)
@@ -363,7 +376,7 @@ def generate_image(prompt: str, out_path: Path, aspect_ratio: str) -> Path | Non
         data = None
         for model in _models_to_try():
             try:
-                data = _request_image(client, model, prompt, aspect_ratio)
+                data, _ = _request_image(client, model, prompt, aspect_ratio)
                 _working_model = model
                 break
             except Exception as exc:

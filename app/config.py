@@ -125,5 +125,15 @@ GOOGLE_CLOUD_LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
 # hitting the cap costs a video nothing but the AI illustration.
 AI_IMAGES_DAILY_LIMIT = int(os.environ.get("AI_IMAGES_DAILY_LIMIT", "40"))
 
+# Dollars per million output tokens, used to turn the token count Google
+# returns into a price per image. THIS IS A DEFAULT, NOT A VERIFIED RATE: 30 is
+# the published figure for the Gemini image models this was written against,
+# but the 3.x ones are recent and may well be priced differently. It is an
+# environment variable precisely so the real number can be put in without
+# touching code, and every message that uses it says which rate it used.
+AI_IMAGE_USD_PER_MILLION_OUTPUT_TOKENS = float(
+    os.environ.get("AI_IMAGE_USD_PER_MILLION_OUTPUT_TOKENS", "30")
+)
+
 # Google Cloud TTS reads its credentials from this env var directly.
 os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", GOOGLE_APPLICATION_CREDENTIALS)
