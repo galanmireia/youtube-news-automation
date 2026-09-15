@@ -7,7 +7,7 @@ from pathlib import Path
 import requests
 
 from . import ai_images, branding, real_photos
-from .config import CHANNEL_NAME, PEXELS_API_KEY, PIXABAY_API_KEY
+from .config import CONTENT_MODE, CHANNEL_NAME, PEXELS_API_KEY, PIXABAY_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +16,16 @@ PIXABAY_SEARCH_URL = "https://pixabay.com/api/videos/"
 
 _PEXELS_ORIENTATION = {"9:16": "portrait", "16:9": "landscape"}
 _TARGET_DIMENSIONS = {"9:16": (1080, 1920), "16:9": (1920, 1080)}
-# Always has plenty of Pexels matches, used only if every other query (the
-# scene's own keywords, then a broadened version of them) comes up empty.
-_LAST_RESORT_QUERY = "news broadcast studio"
+# Used only if every other query (the scene's own keywords, then a broadened
+# version of them) comes up empty. Per format, because the fallback is the one
+# clip guaranteed to appear and it should at least belong to the video: a news
+# studio behind a sentence about the Titanic is worse than no picture, and that
+# is exactly what two scenes of the first Titanic short got.
+_LAST_RESORT_QUERIES = {
+    "news": "news broadcast studio",
+    "topics": "dark ocean waves slow motion",
+}
+_LAST_RESORT_FALLBACK = "news broadcast studio"
 # Showing more than 2 real photos in one shot would make already-short
 # scenes feel like a rapid-fire slideshow instead of an actual news video.
 _MAX_PHOTOS_PER_SCENE = 2
@@ -160,7 +167,7 @@ def fetch_clip_for_scene(keywords: str, out_path: Path, aspect_ratio: str, used_
         broader = " ".join(words[:cut])
         if broader not in queries:
             queries.append(broader)
-    queries.append(_LAST_RESORT_QUERY)
+    queries.append(_LAST_RESORT_QUERIES.get(CONTENT_MODE, _LAST_RESORT_FALLBACK))
 
     def _choose(pool: list[dict]) -> dict:
         # Prefer a clip not already used elsewhere in this same video, and
@@ -349,7 +356,7 @@ def fetch_clips_for_scenes(
         # proper noun meant for Wikipedia, and Pexels indexes in English, so
         # searching it returns nothing useful - a scene about Pekin searched
         # Pexels for "Pekin" and fell through to generic footage anyway.
-        query = (scene.get("visual_keywords") or "").strip() or ai_image_prompt or _LAST_RESORT_QUERY
+        query = (scene.get("visual_keywords") or "").strip() or ai_image_prompt or _LAST_RESORT_QUERIES.get(CONTENT_MODE, _LAST_RESORT_FALLBACK)
         # A long scene gets several clips rather than one held for its whole
         # length. Each search excludes the clips already used, so they differ.
         clip_count = min(_MAX_CLIPS_PER_SCENE, max(1, math.ceil(duration / _MAX_SECONDS_PER_CLIP)))

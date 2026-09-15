@@ -208,8 +208,12 @@ deformados y canta muchisimo.
 Deja "ai_image_prompt" vacio ("") cuando la escena si tenga algo real que enseñar o cuando un clip
 de archivo concreto la represente bien.
 
-Palabras clave visuales ("visual_keywords", solo se usan cuando "photo_subject" Y "ai_image_prompt"
-estan vacios): tienen que representar visualmente LO QUE SE DICE EN ESA FRASE CONCRETA, no un tema
+Palabras clave visuales ("visual_keywords"): RELLENALAS SIEMPRE, en TODAS las escenas, tambien
+cuando ya hayas puesto "photo_subject" o "ai_image_prompt". Son la red de seguridad: si la foto real
+no aparece o la ilustracion falla, esto es lo unico que queda, y una escena que llega aqui sin nada
+acaba mostrando el clip generico de relleno - en el primer video del Titanic, dos escenas acabaron
+enseñando un plato de informativos. Si la escena ya tiene foto real o ilustracion, estas palabras
+simplemente no se usan; no cuestan nada y evitan ese desastre. tienen que representar visualmente LO QUE SE DICE EN ESA FRASE CONCRETA, no un tema
 generico de todo el video. Antes de escribirlas, identifica la accion, objeto o entorno mas
 concreto que menciona ESA narracion en particular, y descríbelo en ingles, 2-5 palabras, de forma
 que exista de verdad en un banco de video de stock (Pexels). Ejemplos: si la narracion dice "el
