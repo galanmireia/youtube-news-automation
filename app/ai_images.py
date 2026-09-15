@@ -40,6 +40,39 @@ _IMAGE_MODELS = (
     "gemini-3.1-flash-image-preview",
 )
 
+# The channel's illustration style, appended to every prompt.
+#
+# It lives here rather than in the script prompt on purpose: asked to describe
+# the style itself, the script model phrases it differently for every scene and
+# the video comes back a collage - one flat vector, one photoreal, one 3D
+# render. Splitting it this way means the script decides WHAT is shown and this
+# decides HOW, identically every time, across scenes and across videos.
+#
+# The palette is the channel's own (branding.py): charcoal #1A1715, cream
+# #F0EBDC, crimson #C41E2A, so an illustration and a fact card look like they
+# came from the same place.
+#
+# Two composition rules earn their place. No text of any kind, because these
+# models render lettering as convincing gibberish and the video already puts
+# real words on screen. And clear space low and top-right, where the burned
+# subtitles and the source tag sit - an illustration whose subject is dead
+# centre-bottom gets covered by its own captions.
+_HOUSE_STYLE = (
+    "editorial news illustration, flat vector shapes with subtle paper grain, "
+    "limited palette of deep charcoal #1A1715, warm cream #F0EBDC and a single "
+    "crimson #C41E2A accent, muted desaturated supporting tones, one clear focal "
+    "subject, strong simple silhouettes, restrained serious documentary tone, "
+    "not cartoonish, not whimsical, no caricature, "
+    "generous empty space across the bottom fifth and the top-right corner, "
+    "absolutely no text, no words, no letters, no numbers, no logos, no watermarks, "
+    "no recognisable real people"
+)
+
+
+def _styled(prompt: str) -> str:
+    return f"{prompt.strip().rstrip('.')}. {_HOUSE_STYLE}"
+
+
 _working_model: str | None = None
 
 # The day's tally lives on the persistent volume, not in memory: a deploy or a
@@ -380,7 +413,7 @@ def generate_image(prompt: str, out_path: Path, aspect_ratio: str) -> Path | Non
         data = None
         for model in _models_to_try():
             try:
-                data, _ = _request_image(client, model, prompt, aspect_ratio)
+                data, _ = _request_image(client, model, _styled(prompt), aspect_ratio)
                 _working_model = model
                 break
             except Exception as exc:

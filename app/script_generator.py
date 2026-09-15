@@ -116,18 +116,35 @@ nombrada es una victima de un crimen/tragedia o un particular sin relevancia pub
 la foto real de victimas o personas privadas - esta excepcion es solo para personas, nunca aplica a
 lugares).
 
-Ilustracion por IA solo como ultimo recurso: rellena "ai_image_prompt" UNICAMENTE si la escena trata
-sobre un lugar/evento/concepto tan especifico, local o inventado que NO tiene nombre propio buscable
-en Wikipedia (por eso no aplica "photo_subject") Y que un banco de video de stock generico tampoco
-tendria (ej. "la zona fronteriza de una ciudad pequeña sin articulo propio", un concepto abstracto
-de la noticia sin lugar concreto). Si el lugar tiene nombre propio conocido, usa siempre
-"photo_subject" en su lugar, nunca "ai_image_prompt" - una ilustracion de IA de un sitio real
-identificable se nota que esta inventada y no debe usarse. Cuando SI aplique, rellena
-"ai_image_prompt" con una descripcion visual detallada en ingles para generar una ilustracion (no
-un intento de foto realista de personas reales - para eso esta "photo_subject"). Ejemplo: un
-concepto abstracto sin lugar concreto asociado, "ai_image_prompt": "editorial illustration of
-international trade tensions, cargo ships and shipping containers, dramatic lighting, news graphic
-style". Deja "ai_image_prompt" vacio ("") en el resto de casos.
+Ilustracion por IA ("ai_image_prompt"): es para las escenas ABSTRACTAS, las que no tienen nada real
+que enseñar. Si la escena nombra una persona, un lugar o una institucion con nombre propio, va
+SIEMPRE en "photo_subject" y nunca aqui: una foto real de Wikipedia es gratis y siempre mejor, y una
+ilustracion de un sitio real identificable se nota que esta inventada. Pero cuando la frase habla de
+una idea, un proceso, una cifra o una consecuencia y no hay nada que fotografiar, una ilustracion
+que diga EXACTAMENTE eso vale mucho mas que un clip de archivo generico de gente tecleando: es
+precisamente ahi donde el video se llena ahora de imagenes que no pegan, y esto lo arregla.
+
+Lo que escribes es SOLO EL CONTENIDO de la imagen, en ingles, en una frase: que se ve, quien o que
+es el sujeto, que esta pasando. NO describas el estilo, ni colores, ni iluminacion, ni "editorial
+illustration", ni "news graphic style" - el estilo lo pone el sistema automaticamente e igual para
+todas, y si lo describes tu cada escena saldra de su padre y de su madre y el video parecera un
+collage.
+
+La ilustracion tiene que representar LO QUE DICE ESA FRASE CONCRETA, no el tema general del video.
+Antes de escribirla, pregunta: "si alguien ve esta imagen sin sonido, entiende la frase que estoy
+narrando?". Si la respuesta es no, esta mal.
+- Narracion: "la banca gano un 30% mas mientras las hipotecas subian" -> "a rising stack of coins
+  beside a small house weighed down by an oversized percentage arrow"
+- Narracion: "el algoritmo decide quien recibe la ayuda sin que nadie lo revise" -> "a faceless
+  automated machine sorting human silhouettes into two separate groups"
+- MAL (vago, no dice nada): "technology concept", "economic uncertainty", "political tension"
+
+Nunca pidas personas reales reconocibles. Para representar partidos o bandos usa el COLOR, que en
+España se entiende solo (azul el PP, rojo el PSOE), nunca sus logos: estos modelos los dibujan
+deformados y canta muchisimo.
+
+Deja "ai_image_prompt" vacio ("") cuando la escena si tenga algo real que enseñar o cuando un clip
+de archivo concreto la represente bien.
 
 Palabras clave visuales ("visual_keywords", solo se usan cuando "photo_subject" Y "ai_image_prompt"
 estan vacios): tienen que representar visualmente LO QUE SE DICE EN ESA FRASE CONCRETA, no un tema
