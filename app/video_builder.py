@@ -34,6 +34,14 @@ _ZOOM_FPS = 30
 _BLUR_DOWNSCALE = 6
 _BLUR_SIGMA = 6
 
+# How much of a photo's width may be cropped away to make it fill more of the
+# frame. Fitting a photo whole inside a 9:16 frame is safe but tiny: a normal
+# 16:9 press photo ends up 32% of the screen height, a thin strip floating in
+# blur, and a video whose scenes are all Wikipedia photos becomes a slideshow
+# of thin strips. Allowing a quarter of the width to go lifts that same photo
+# to 42%, and lifts a portrait one to the full height.
+_MAX_PHOTO_SIDE_CROP = 0.25
+
 # Hard cuts between every scene read as abrupt; a short crossfade is what
 # makes a cut feel deliberate. Kept brief - a long dissolve on a news video
 # looks sluggish.
@@ -94,19 +102,26 @@ def _run(cmd: list[str], step: str = "ffmpeg", timeout: float = _FFMPEG_TIMEOUT_
 
 
 def _photo_background_filter(width: int, height: int) -> str:
-    """Fits the whole photo inside the frame (never cropped) over a blurred,
-    darkened copy of itself scaled to cover the rest, so a photo whose shape
-    doesn't match the frame fills the screen instead of floating between
-    black bars. The blur is done on a downscaled copy and then scaled back
-    up - far cheaper than blurring at full resolution, and the upscale
-    smooths it further."""
+    """Lays the photo as large as it will go over a blurred, darkened copy of
+    itself, so a photo whose shape doesn't match the frame fills the screen
+    instead of floating between black bars. The blur is done on a downscaled
+    copy and then scaled back up - far cheaper than blurring at full
+    resolution, and the upscale smooths it further.
+
+    The photo is fitted into a box wider than the frame and then cropped back
+    to it, which is what lets it come out bigger than a plain fit would give.
+    _MAX_PHOTO_SIDE_CROP sets how much wider that box is, and so how much of
+    the sides may be lost; the crop is centred, and anything already narrower
+    than the frame is left untouched by it."""
     small_w, small_h = max(2, width // _BLUR_DOWNSCALE), max(2, height // _BLUR_DOWNSCALE)
+    box_w = max(width, round(width / (1 - _MAX_PHOTO_SIDE_CROP)))
     return (
         "split=2[blurbase][fitbase];"
         f"[blurbase]scale={small_w}:{small_h}:force_original_aspect_ratio=increase,"
         f"crop={small_w}:{small_h},gblur=sigma={_BLUR_SIGMA},scale={width}:{height},"
         "eq=brightness=-0.12[blurred];"
-        f"[fitbase]scale={width}:{height}:force_original_aspect_ratio=decrease[fitted];"
+        f"[fitbase]scale={box_w}:{height}:force_original_aspect_ratio=decrease,"
+        f"crop=min(iw\,{width}):min(ih\,{height})[fitted];"
         "[blurred][fitted]overlay=(W-w)/2:(H-h)/2"
     )
 

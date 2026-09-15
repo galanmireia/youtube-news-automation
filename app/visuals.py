@@ -54,6 +54,12 @@ _MIN_SCENES_BETWEEN_CARDS = 3
 # corner badge over the image.
 _FIRST_SCENE_ELIGIBLE_FOR_CARD = 2
 
+# Longest a card may stay on screen. A card holds one still frame for the
+# whole scene, so an 8-second scene became 8 seconds of black with four words
+# on it - an accent turned into a dead stop. Past this the scene gets imagery
+# instead, and the fact rides on the corner badge as it does everywhere else.
+_MAX_CARD_SECONDS = 4.0
+
 # requests' `timeout` only limits the wait between two chunks of data, so a
 # download that trickles in forever never trips it. These cap the whole
 # transfer as well, because a single stuck download is enough to freeze the
@@ -297,6 +303,7 @@ def fetch_clips_for_scenes(
             highlight
             and len(highlight) > 12
             and i >= _FIRST_SCENE_ELIGIBLE_FOR_CARD
+            and 0 < duration <= _MAX_CARD_SECONDS
             and i - last_card_index > _MIN_SCENES_BETWEEN_CARDS
         ):
             width, height = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
