@@ -1,8 +1,29 @@
+import difflib
+import logging
+import re
+import unicodedata
+from dataclasses import dataclass
 from pathlib import Path
 
 from faster_whisper import WhisperModel
 
+logger = logging.getLogger(__name__)
+
 _model = None
+
+# Below this much agreement between the transcription and the script, the two
+# are not the same text and aligning them would do more harm than good.
+_MIN_ALIGN_RATIO = 0.6
+
+
+@dataclass
+class _Word:
+    """Same three fields the transcriber's words expose, so corrected words
+    are interchangeable with the originals downstream."""
+
+    start: float
+    end: float
+    word: str
 
 # Shorts convention: a couple of words on screen at a time, swapping fast,
 # rather than a full sentence sitting there for several seconds. Whichever
@@ -97,8 +118,81 @@ def write_ass(entries: list[tuple[float, float, str]], out_path: Path, width: in
     return out_path
 
 
+
+def _norm(word: str) -> str:
+    """Comparison form of a word: no case, no accents, no punctuation, so
+    "Alozaina," and "alozaina" count as the same word."""
+    folded = unicodedata.normalize("NFKD", word.lower())
+    folded = "".join(c for c in folded if not unicodedata.combining(c))
+    return re.sub(r"[^a-z0-9]", "", folded)
+
+
+def _align_to_script(words: list, script_text: str) -> list:
+    """Replaces what the transcription heard with what the script actually
+    says, keeping the transcription's timings.
+
+    The narration is text-to-speech of a script we wrote, so the words are
+    known exactly - only their timing is not. Transcribing it back can only
+    lose information, and what it loses first is proper nouns: a village
+    called Alozaina comes back as whatever it sounded like, and that guess is
+    burned into the picture permanently. Aligning the two and preferring the
+    script also restores accents and capitalisation the transcription drops.
+
+    Returns the words unchanged if the two texts disagree too much to align
+    safely, so a failed match can never scramble the subtitles."""
+    script_words = script_text.split()
+    if not words or not script_words:
+        return words
+
+    heard = [_norm(getattr(w, "word", "")) for w in words]
+    written = [_norm(w) for w in script_words]
+    matcher = difflib.SequenceMatcher(None, heard, written, autojunk=False)
+    if matcher.ratio() < _MIN_ALIGN_RATIO:
+        logger.info(
+            "Subtitulos: transcripcion y guion solo coinciden al %.0f%%, se deja la transcripcion.",
+            matcher.ratio() * 100,
+        )
+        return words
+
+    aligned: list = []
+    replaced = 0
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            # Even here the script's spelling is preferable: the transcription
+            # drops accents and capitals that the script has.
+            for offset in range(i2 - i1):
+                aligned.append(_Word(words[i1 + offset].start, words[i1 + offset].end, script_words[j1 + offset]))
+            continue
+        if tag == "delete" or j1 == j2:
+            # Heard something the script does not have: drop it.
+            continue
+        span = words[i1:i2]
+        # Spread the replacement words evenly across whatever time the heard
+        # words occupied. For an insertion there is no time of its own, so
+        # borrow the instant between the neighbours.
+        if span:
+            start, end = span[0].start, span[-1].end
+        else:
+            prev_end = words[i1 - 1].end if i1 > 0 else 0.0
+            start = end = prev_end
+        count = j2 - j1
+        step = (end - start) / count if count else 0.0
+        for k in range(count):
+            aligned.append(_Word(start + k * step, start + (k + 1) * step, script_words[j1 + k]))
+        replaced += count
+
+    if replaced:
+        logger.info("Subtitulos: %s palabras corregidas contra el guion.", replaced)
+    return aligned
+
 def generate_subtitles(
-    audio_path: Path, srt_path: Path, burn_path: Path, width: int, height: int, language: str = "es"
+    audio_path: Path,
+    srt_path: Path,
+    burn_path: Path,
+    width: int,
+    height: int,
+    language: str = "es",
+    script_text: str = "",
 ) -> tuple[Path, Path]:
     """Transcribes the narration once and writes two subtitle files from it:
     the full-sentence SRT uploaded to YouTube as a caption track (better for
@@ -113,6 +207,11 @@ def generate_subtitles(
     for segment in segments:
         sentence_entries.append((segment.start, segment.end, segment.text.strip()))
         words.extend(segment.words or [])
+
+    # What the script says beats what the transcription heard; only the
+    # timings come from the transcription.
+    if script_text and words:
+        words = _align_to_script(words, script_text)
 
     _write_srt(sentence_entries, srt_path)
     # Falls back to the sentence timings if the model returned no per-word

@@ -17,6 +17,10 @@ ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-5")
 
 PEXELS_API_KEY = os.environ["PEXELS_API_KEY"]
+# Optional second stock library, searched when Pexels has nothing of the right
+# shape for a scene. Without a key the pipeline behaves exactly as before, so
+# it is safe to leave unset. A free key comes from https://pixabay.com/api/docs/
+PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY", "").strip()
 
 GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
     "GOOGLE_APPLICATION_CREDENTIALS", str(CREDENTIALS_DIR / "google-tts.json")

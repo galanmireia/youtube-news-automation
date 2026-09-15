@@ -7,11 +7,12 @@ from pathlib import Path
 import requests
 
 from . import ai_images, branding, real_photos
-from .config import CHANNEL_NAME, PEXELS_API_KEY
+from .config import CHANNEL_NAME, PEXELS_API_KEY, PIXABAY_API_KEY
 
 logger = logging.getLogger(__name__)
 
 PEXELS_SEARCH_URL = "https://api.pexels.com/videos/search"
+PIXABAY_SEARCH_URL = "https://pixabay.com/api/videos/"
 
 _PEXELS_ORIENTATION = {"9:16": "portrait", "16:9": "landscape"}
 _TARGET_DIMENSIONS = {"9:16": (1080, 1920), "16:9": (1920, 1080)}
@@ -50,7 +51,48 @@ def _search_pexels(query: str, orientation: str) -> list[dict]:
     params = {"query": query, "per_page": 8, "orientation": orientation}
     response = requests.get(PEXELS_SEARCH_URL, headers=headers, params=params, timeout=30)
     response.raise_for_status()
-    return response.json().get("videos", [])
+    # Namespaced so an id can never collide with one from another library and
+    # wrongly mark a different clip as already used.
+    return [dict(v, id=f"pexels-{v['id']}") for v in response.json().get("videos", [])]
+
+
+def _search_pixabay(query: str, orientation: str) -> list[dict]:
+    """Second stock library, reshaped into the same fields as a Pexels result
+    so the caller does not care where a clip came from.
+
+    Returns nothing at all when no key is configured, and never raises: this
+    is an extra chance at a good clip, so a library being down or rate-limited
+    must cost nothing more than that chance."""
+    if not PIXABAY_API_KEY:
+        return []
+    params = {"q": query, "video_type": "all", "per_page": 20, "key": PIXABAY_API_KEY}
+    try:
+        response = requests.get(PIXABAY_SEARCH_URL, params=params, timeout=30)
+        response.raise_for_status()
+        hits = response.json().get("hits", [])
+    except Exception:
+        logger.warning("Busqueda en Pixabay fallida para %r, se sigue solo con Pexels", query, exc_info=True)
+        return []
+
+    results = []
+    for hit in hits:
+        files = [
+            {"link": f.get("url"), "width": f.get("width") or 0, "height": f.get("height") or 0}
+            for f in (hit.get("videos") or {}).values()
+            if f.get("url")
+        ]
+        if not files:
+            continue
+        best = max(files, key=lambda f: f["width"] * f["height"])
+        results.append(
+            {
+                "id": f"pixabay-{hit.get('id')}",
+                "width": best["width"],
+                "height": best["height"],
+                "video_files": files,
+            }
+        )
+    return results
 
 
 def _pick_video_file(video: dict, target_width: int, target_height: int) -> dict:
@@ -84,20 +126,45 @@ def fetch_clip_for_scene(keywords: str, out_path: Path, aspect_ratio: str, used_
             queries.append(broader)
     queries.append(_LAST_RESORT_QUERY)
 
-    chosen_video = None
-    for query in queries:
-        videos = _search_pexels(query, orientation)
-        if not videos:
-            continue
-        candidates = [v for v in videos if _matches_orientation(v)] or videos
+    def _choose(pool: list[dict]) -> dict:
         # Prefer a clip not already used elsewhere in this same video, and
         # pick randomly among the top matches (instead of always the single
         # top result) so the same query doesn't return the identical clip
         # every single time it's searched, in this video or in others.
-        fresh = [v for v in candidates if v["id"] not in used_video_ids]
-        pool = fresh or candidates
-        chosen_video = random.choice(pool[:5])
+        fresh = [v for v in pool if v["id"] not in used_video_ids]
+        return random.choice((fresh or pool)[:5])
+
+    # A landscape clip in a vertical Short survives only by being cropped to
+    # the middle quarter of its frame, which throws away whatever the shot was
+    # actually of. A wrong-shaped clip is therefore worth less than a
+    # right-shaped clip from a vaguer search, so a query with no correctly
+    # oriented result moves on to the broader query instead of settling. They
+    # are kept aside all the same: a badly cropped clip still beats no video.
+    chosen_video = None
+    wrong_shape: list[dict] = []
+    for query in queries:
+        # Pixabay is only consulted when Pexels has nothing of the right shape
+        # for this exact query - a correctly shaped clip from a second library
+        # beats a broader, vaguer search of the first one.
+        videos = _search_pexels(query, orientation)
+        matching = [v for v in videos if _matches_orientation(v)]
+        if not matching:
+            wrong_shape.extend(videos)
+            extra = _search_pixabay(query, orientation)
+            matching = [v for v in extra if _matches_orientation(v)]
+            wrong_shape.extend(v for v in extra if v not in matching)
+            if matching:
+                logger.info("Pexels no tenia nada vertical/horizontal para %r; usando Pixabay", query)
+        if not matching:
+            continue
+        chosen_video = _choose(matching)
         break
+
+    if chosen_video is None and wrong_shape:
+        logger.info(
+            "Sin clips con la orientacion correcta para %r; se usa uno recortado.", keywords
+        )
+        chosen_video = _choose(wrong_shape)
 
     if chosen_video is None:
         raise RuntimeError(f"No se encontraron videos de stock ni con la busqueda de respaldo para: {keywords!r}")

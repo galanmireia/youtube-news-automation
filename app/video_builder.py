@@ -1,5 +1,7 @@
 import logging
+import shutil
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -47,8 +49,27 @@ _TRANSITION_SECONDS = 0.25
 _FFMPEG_TIMEOUT_SECONDS = 8 * 60
 
 
+# How often a still-running ffmpeg call reports that it is alive. Borrowed from
+# MoneyPrinterTurbo (MIT), which logs the same thing for the same reason: ffmpeg
+# buffers its output until it exits, so a long call looks identical to a hung
+# one in the logs. Reporting the output file's size alongside the elapsed time
+# is what separates the two - a growing file is work, a static one is a stall.
+# Yesterday that distinction had to be guessed at from CPU metrics.
+_FFMPEG_HEARTBEAT_SECONDS = 30
+
+
+def _heartbeat(step: str, out_path: Path, started: float, stop: threading.Event) -> None:
+    while not stop.wait(_FFMPEG_HEARTBEAT_SECONDS):
+        size = out_path.stat().st_size / 1e6 if out_path.exists() else 0.0
+        logger.info("  ffmpeg %s sigue: %.0fs, salida %.1f MB", step, time.monotonic() - started, size)
+
+
 def _run(cmd: list[str], step: str = "ffmpeg") -> None:
     started = time.monotonic()
+    # The output file is always the last argument of every command built here.
+    stop = threading.Event()
+    reporter = threading.Thread(target=_heartbeat, args=(step, Path(cmd[-1]), started, stop), daemon=True)
+    reporter.start()
     try:
         result = subprocess.run(cmd, capture_output=True, timeout=_FFMPEG_TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired as exc:
@@ -56,6 +77,8 @@ def _run(cmd: list[str], step: str = "ffmpeg") -> None:
         raise RuntimeError(
             f"ffmpeg bloqueado en '{step}' mas de {_FFMPEG_TIMEOUT_SECONDS}s, proceso matado"
         ) from exc
+    finally:
+        stop.set()
     logger.info("  ffmpeg %s: %.1fs", step, time.monotonic() - started)
     if result.returncode != 0:
         # subprocess.run(check=True) alone would only report the exit code -
@@ -229,11 +252,27 @@ def _build_scene_segment(
     _run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list), "-c", "copy", str(out_path)])
 
 
+# Crossfading every scene in one ffmpeg call means every segment is opened and
+# decoded at once, and the filter graph holds frames for all of them. Measured
+# at 1920x1080: 7 segments peak at 1.57GB, 14 at 2.28GB, 21 at 3.00GB. A long
+# video hit 21 scenes, and on top of what the bot process already holds that was
+# enough for the kernel to SIGKILL ffmpeg mid-join (exit code -9), losing the
+# whole video. Capping encoder threads does not help (3.00 -> 2.82GB for 50%
+# more time) and neither does capping filter threads (2.97GB) - the frames are
+# the cost, so the only real fix is to hold fewer inputs at a time.
+_MAX_JOIN_INPUTS = 6
+
+
 def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: Path, out_path: Path) -> Path:
     """Joins the scene segments with a short crossfade between them instead
     of hard cuts. Each transition is centred on the scene boundary, so the
     new image is fully up by the time the narration is properly into the new
-    scene, and the total length still matches the narration."""
+    scene, and the total length still matches the narration.
+
+    Long videos are joined in groups and the groups joined together, so no
+    single ffmpeg call ever holds more than _MAX_JOIN_INPUTS segments open."""
+    if len(segment_paths) > _MAX_JOIN_INPUTS:
+        return _join_in_groups(segment_paths, frame_marks, work_dir, out_path)
     if len(segment_paths) == 1:
         concat_list_path = work_dir / "concat_list.txt"
         concat_list_path.write_text(f"file '{segment_paths[0].resolve()}'")
@@ -271,8 +310,65 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
             "-map", current,
             "-r", str(_ZOOM_FPS),
             str(out_path),
-        ]
+        ],
+        f"transiciones x{len(segment_paths)}",
     )
+    return out_path
+
+
+def _join_in_groups(segment_paths: list[Path], frame_marks: list[int], work_dir: Path, out_path: Path) -> Path:
+    """Joins in two levels: each group of scenes is crossfaded on its own, then
+    the group results are crossfaded together with the very same rule.
+
+    Joining a group yields a clip half a transition shorter than the outer join
+    needs from it, because its own last scene has nothing after it to overlap
+    with. Rather than re-render that scene longer, the group's final frame is
+    held for that half transition: those frames exist only to be consumed by
+    the crossfade into the next group, so they are never seen as a freeze."""
+    group_dir = work_dir / "join_groups"
+    group_dir.mkdir(parents=True, exist_ok=True)
+
+    bounds = list(range(0, len(segment_paths), _MAX_JOIN_INPUTS))
+    group_paths: list[Path] = []
+    group_marks: list[int] = []
+    half = _TRANSITION_SECONDS / 2
+
+    for g, start in enumerate(bounds):
+        stop = min(start + _MAX_JOIN_INPUTS, len(segment_paths))
+        is_last_group = stop == len(segment_paths)
+        group_marks.append(frame_marks[start])
+
+        # Frame marks restated relative to this group's own start, so the
+        # inner join can use them exactly as it would for a whole video.
+        local_marks = [frame_marks[i] - frame_marks[start] for i in range(start, stop + 1)]
+        joined = group_dir / f"group_{g:02d}.mp4"
+        logger.info("  grupo %s/%s: uniendo escenas %s-%s", g + 1, len(bounds), start + 1, stop)
+        _join_segments(segment_paths[start:stop], local_marks, group_dir, joined)
+
+        if is_last_group:
+            group_paths.append(joined)
+            continue
+        padded = group_dir / f"group_{g:02d}_padded.mp4"
+        _run(
+            [
+                "ffmpeg", "-y",
+                "-i", str(joined),
+                "-vf", f"tpad=stop_mode=clone:stop_duration={half}",
+                "-r", str(_ZOOM_FPS),
+                str(padded),
+            ],
+            f"margen grupo {g + 1}",
+        )
+        group_paths.append(padded)
+
+    group_marks.append(frame_marks[-1])
+    logger.info("  uniendo %s grupos", len(group_paths))
+    _join_segments(group_paths, group_marks, work_dir, out_path)
+    # The per-group files are only scaffolding for the join above, and at this
+    # resolution they are hundreds of megabytes. The data volume is small and
+    # shared with every video still waiting for approval, so they go as soon
+    # as the join that needed them has finished.
+    shutil.rmtree(group_dir, ignore_errors=True)
     return out_path
 
 

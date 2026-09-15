@@ -129,7 +129,16 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     # muted, so on-screen text is what carries the narration).
     logger.info("[%s] 6/7 Transcribiendo para los subtitulos...", variant)
     srt_path, burn_ass_path = generate_subtitles(
-        narration_path, variant_dir / "subtitles.srt", variant_dir / "subtitles_burn.ass", width, height
+        narration_path,
+        variant_dir / "subtitles.srt",
+        variant_dir / "subtitles_burn.ass",
+        width,
+        height,
+        # The narration is this exact text spoken aloud, so the transcription
+        # is only needed for its timings - the wording is already known, and
+        # trusting the transcription for it burns misheard names into the
+        # picture.
+        script_text=" ".join(scene.get("narration", "") for scene in script["scenes"]),
     )
 
     # The thumbnail is grabbed from the video, so take it before burning in
