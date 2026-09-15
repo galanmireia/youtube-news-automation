@@ -1,4 +1,6 @@
 import logging
+import re
+import unicodedata
 from pathlib import Path
 
 import requests
@@ -19,7 +21,57 @@ COMMONS_API_URL = "https://commons.wikimedia.org/w/api.php"
 _HEADERS = {"User-Agent": f"{CHANNEL_NAME}NewsBot/1.0 (automated video generation; contact via YouTube channel)"}
 
 
-def _search_candidate_titles(name: str, limit: int = 3) -> list[str]:
+# The channel reports Spanish news, so where an institution exists under the
+# same name in several countries, Spain's is the one meant unless the request
+# says otherwise. Wikipedia disambiguates exactly this way: "Fiscalia General
+# del Estado (Espana)" next to "Fiscalia General del Estado (Ecuador)".
+_HOME_QUALIFIERS = {"espana", "espanol", "espanola"}
+
+
+def _fold(text: str) -> str:
+    """Accent- and case-insensitive comparison form, so "Espana" matches the
+    "(España)" a Wikipedia title actually carries."""
+    stripped = unicodedata.normalize("NFKD", text.lower())
+    return "".join(c for c in stripped if not unicodedata.combining(c))
+
+
+def _qualifier(title: str) -> str:
+    """The disambiguator Wikipedia puts in trailing parentheses, folded.
+    Empty for a plain title."""
+    match = re.search(r"\(([^()]*)\)\s*$", title)
+    return _fold(match.group(1)) if match else ""
+
+
+def _rank_candidates(name: str, titles: list[str]) -> list[str]:
+    """Reorders search results by how well they answer what was asked.
+
+    Wikipedia's search ranks by relevance across the whole encyclopedia,
+    which is not the same question. Asked for "Fiscalia General del Estado"
+    in a story about Spain, it put Ecuador's article first and that is the
+    image that reached a video - the same class of mistake as the Chinese
+    flag in an earlier one.
+
+    Sorting is stable, so search relevance still decides within a tier."""
+    asked = _fold(name)
+
+    def tier(title: str) -> int:
+        qualifier = _qualifier(title)
+        if _fold(title) == asked:
+            return 0  # exactly the article asked for
+        if qualifier and qualifier in asked:
+            return 1  # the request named this country/qualifier itself
+        if not qualifier:
+            return 2  # the plain article, i.e. the primary meaning
+        if qualifier in _HOME_QUALIFIERS:
+            return 3  # Spain, the channel's default
+        return 4  # some other country's namesake
+
+    return sorted(titles, key=tier)
+
+
+# Six rather than three: ranking below only helps if the right article is in
+# the list at all, and they all come back from the same single request.
+def _search_candidate_titles(name: str, limit: int = 6) -> list[str]:
     """Uses Wikipedia's real full-text search (the same engine behind the
     site's own search box) ranked by relevance/popularity, instead of a
     prefix-only match - a plain/common name like "Oscar Lopez" can otherwise
@@ -162,7 +214,7 @@ def fetch_portrait(person_name: str, out_path: Path, exclude_urls: set[str] | No
     exists. Returns None if nothing new works at all, letting callers fall
     back to stock footage rather than repeating themselves."""
     exclude = exclude_urls or set()
-    candidates = _search_candidate_titles(person_name) or [person_name]
+    candidates = _rank_candidates(person_name, _search_candidate_titles(person_name)) or [person_name]
     for title in candidates:
         result = _fetch_summary_photo(title, out_path, exclude)
         if result is not None:
