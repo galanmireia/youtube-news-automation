@@ -78,7 +78,10 @@ def extract_entities(scenes: list[dict]) -> dict[int, list[dict]]:
     try:
         message = _client.messages.create(
             model=CLAUDE_MODEL,
-            max_tokens=2000,
+            # Room for the model to reason before answering as well as for the
+            # answer: the news picker hit max_tokens with nothing but a
+            # thinking block, and this call makes a longer reply than that one.
+            max_tokens=6000,
             messages=[{"role": "user", "content": prompt}],
         )
         text_blocks = [block.text for block in message.content if block.type == "text"]

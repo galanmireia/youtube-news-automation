@@ -126,7 +126,12 @@ def _pick_once(prompt: str, candidates: list[dict]) -> dict:
     """One attempt. Raises rather than falling back, so the caller can retry."""
     message = _client.messages.create(
         model=CLAUDE_MODEL,
-        max_tokens=800,
+        # Generous for a reply that is two fields long, because the budget is
+        # not spent on the reply alone: the model reasons first, and a run was
+        # observed ending with stop_reason=max_tokens having produced only a
+        # thinking block and no answer at all. Raising the ceiling is the whole
+        # fix - the reply itself is a couple of dozen tokens.
+        max_tokens=4000,
         messages=[{"role": "user", "content": prompt}],
     )
     text_blocks = [block.text for block in message.content if block.type == "text"]
