@@ -262,6 +262,17 @@ def _build_scene_segment(
 # the cost, so the only real fix is to hold fewer inputs at a time.
 _MAX_JOIN_INPUTS = 6
 
+# Slack added to every segment that is not the last. Without it each segment
+# is rendered to exactly the length its crossfade consumes and no more, so the
+# margin is zero and any rounding makes it negative - at which point xfade
+# waits for frames that will never arrive, which hangs rather than fails. A
+# real case: a transition needed material up to 41.958s and the running video
+# ended at 41.942s, sixteen milliseconds short, and the call sat there until
+# it was killed. The slack is never seen: it sits past the crossfade that
+# consumes it, and it cannot lengthen the video either, since the total is
+# fixed by the last segment, which does not get it.
+_JOIN_MARGIN_SECONDS = 0.2
+
 
 def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: Path, out_path: Path) -> Path:
     """Joins the scene segments with a short crossfade between them instead
@@ -404,6 +415,49 @@ def _apply_source_caption(
     return out_path
 
 
+
+def _ensure_duration(path: Path, expected: float, tmp_dir: Path, index: int) -> None:
+    """Pads a segment that came out shorter than asked for.
+
+    The crossfades leave no slack: each transition is placed so that it starts
+    at the last moment the running video can supply, so a segment even a frame
+    short means xfade waits for frames that never arrive - and waits for ever,
+    which is a hang rather than an error. Sources do come up short: a stock
+    clip can decode to slightly less than its container claims, and a rounded
+    duration can land just under a frame boundary.
+
+    Holding the final frame for the missing fraction is invisible - those
+    frames are inside the crossfade that follows."""
+    actual = _probe_duration(path)
+    if actual <= 0:
+        logger.warning("No se pudo leer la duracion de %s, se sigue sin comprobarla", path.name)
+        return
+    shortfall = expected - actual
+    # Under one frame is not worth a re-encode; xfade tolerates that much.
+    if shortfall <= 1 / _ZOOM_FPS:
+        return
+
+    logger.warning(
+        "Escena %s salio %.2fs corta (%.2fs de %.2fs); se alarga para que la transicion tenga material.",
+        index + 1,
+        shortfall,
+        actual,
+        expected,
+    )
+    padded = tmp_dir / f"seg_{index:02d}_padded.mp4"
+    _run(
+        [
+            "ffmpeg", "-y",
+            "-i", str(path),
+            "-vf", f"tpad=stop_mode=clone:stop_duration={shortfall:.3f}",
+            "-r", str(_ZOOM_FPS),
+            str(padded),
+        ],
+        f"alargar escena {index + 1}",
+    )
+    padded.replace(path)
+
+
 def build_video(
     clip_entries: list[list[tuple[Path, dict | None]]],
     scene_durations: list[float],
@@ -449,13 +503,16 @@ def build_video(
     segment_paths = []
     for i, entries in enumerate(clip_entries):
         seg_frames = max(1, frame_marks[i + 1] - frame_marks[i])
-        extra = _TRANSITION_SECONDS if i < last_index else _TRANSITION_SECONDS / 2
+        extra = (
+            _TRANSITION_SECONDS + _JOIN_MARGIN_SECONDS if i < last_index else _TRANSITION_SECONDS / 2
+        )
         seg_seconds = seg_frames / _ZOOM_FPS + extra
         seg_path = normalized_dir / f"seg_{i:02d}.mp4"
         logger.info(
             "Renderizando escena %s/%s (%.1fs, %s clip(s))...", i + 1, len(clip_entries), seg_seconds, len(entries)
         )
         _build_scene_segment(entries, seg_seconds, width, height, seg_path, normalized_dir, i)
+        _ensure_duration(seg_path, seg_seconds, normalized_dir, i)
         segment_paths.append(seg_path)
 
     silent_video_path = work_dir / "silent_video.mp4"
@@ -509,6 +566,7 @@ def _probe_duration(path: Path) -> float:
             str(path),
         ],
         capture_output=True,
+        timeout=60,
     )
     try:
         return float(result.stdout.decode().strip())
