@@ -1,7 +1,7 @@
 import logging
 import shutil
 import subprocess
-import threading
+import tempfile
 import time
 from pathlib import Path
 
@@ -56,12 +56,20 @@ _TRANSITION_SECONDS = 0.25
 # variant failure, which the pipeline already catches, cleans up and reports.
 _FFMPEG_TIMEOUT_SECONDS = 8 * 60
 
-# Crossfading gets far less rope than anything else here. A join that is going
-# to work takes well under a minute - the slowest measured was 52s for seven
-# 1080x1920 segments - and one that is going to stall never finishes at all.
-# Waiting the full eight minutes to learn which it was is pure loss, and a long
-# video makes five of these calls. Cut it short and take the hard-cut fallback.
-_JOIN_TIMEOUT_SECONDS = 2 * 60
+# A call is stuck when its output file stops growing - not when it has been
+# running a while. Telling those apart by the clock alone is what killed the
+# crossfade on video 53: the join was capped at two minutes because the
+# slowest one ever measured took 52s, but that measurement was seven short
+# 1080x1920 segments, and a five-minute horizontal video is far more work. It
+# was killed at 120s having written 10, 41, 67 and finally 97 MB - plainly
+# working - and the video fell back to hard cuts for nothing.
+_FFMPEG_STALL_SECONDS = 90
+
+# How often the output file is checked while a call runs. Also how often a
+# still-running call reports that it is alive: ffmpeg buffers its own output
+# until it exits, so a long call looks identical to a hung one in the logs,
+# and the output file's size is what separates them.
+_FFMPEG_POLL_SECONDS = 30
 
 
 # How often a still-running ffmpeg call reports that it is alive. Borrowed from
@@ -73,32 +81,60 @@ _JOIN_TIMEOUT_SECONDS = 2 * 60
 _FFMPEG_HEARTBEAT_SECONDS = 30
 
 
-def _heartbeat(step: str, out_path: Path, started: float, stop: threading.Event) -> None:
-    while not stop.wait(_FFMPEG_HEARTBEAT_SECONDS):
-        size = out_path.stat().st_size / 1e6 if out_path.exists() else 0.0
-        logger.info("  ffmpeg %s sigue: %.0fs, salida %.1f MB", step, time.monotonic() - started, size)
-
-
 def _run(cmd: list[str], step: str = "ffmpeg", timeout: float = _FFMPEG_TIMEOUT_SECONDS) -> None:
+    """Runs one ffmpeg call, killing it if it stalls or runs past the ceiling.
+
+    Two different failures are being guarded against. A stall - blocked at
+    roughly zero CPU, output frozen, never finishing on its own - is caught by
+    watching the output file: no growth for _FFMPEG_STALL_SECONDS means stuck,
+    whatever the elapsed time says. The timeout is only a backstop for a call
+    that keeps writing for ever.
+
+    stderr goes to a temporary file rather than a pipe: a pipe can fill and
+    deadlock the child while nobody is reading it, and ffmpeg is talkative."""
     started = time.monotonic()
     # The output file is always the last argument of every command built here.
-    stop = threading.Event()
-    reporter = threading.Thread(target=_heartbeat, args=(step, Path(cmd[-1]), started, stop), daemon=True)
-    reporter.start()
-    try:
-        result = subprocess.run(cmd, capture_output=True, timeout=timeout)
-    except subprocess.TimeoutExpired as exc:
-        # subprocess.run kills the child before raising.
-        raise RuntimeError(f"ffmpeg bloqueado en '{step}' mas de {timeout:.0f}s, proceso matado") from exc
-    finally:
-        stop.set()
-    logger.info("  ffmpeg %s: %.1fs", step, time.monotonic() - started)
-    if result.returncode != 0:
-        # subprocess.run(check=True) alone would only report the exit code -
-        # ffmpeg's actual error (bad filter syntax, missing font, etc.) is on
-        # stderr, and without it a failure here is undebuggable from logs.
-        stderr_tail = result.stderr.decode(errors="replace")[-2000:]
-        raise RuntimeError(f"ffmpeg fallo en '{step}' (codigo {result.returncode}): {stderr_tail}")
+    out_path = Path(cmd[-1])
+
+    def out_size() -> int:
+        try:
+            return out_path.stat().st_size
+        except OSError:
+            return 0
+
+    with tempfile.TemporaryFile() as err_file:
+        process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=err_file)
+        biggest, last_growth = out_size(), time.monotonic()
+        while True:
+            try:
+                returncode = process.wait(timeout=_FFMPEG_POLL_SECONDS)
+                break
+            except subprocess.TimeoutExpired:
+                pass
+
+            now, size = time.monotonic(), out_size()
+            logger.info("  ffmpeg %s sigue: %.0fs, salida %.1f MB", step, now - started, size / 1e6)
+            if size > biggest:
+                biggest, last_growth = size, now
+            elif now - last_growth >= _FFMPEG_STALL_SECONDS:
+                process.kill()
+                process.wait()
+                raise RuntimeError(
+                    f"ffmpeg atascado en '{step}': la salida lleva {now - last_growth:.0f}s "
+                    f"sin crecer ({size / 1e6:.1f} MB). Proceso matado."
+                )
+            if now - started >= timeout:
+                process.kill()
+                process.wait()
+                raise RuntimeError(f"ffmpeg bloqueado en '{step}' mas de {timeout:.0f}s, proceso matado")
+
+        logger.info("  ffmpeg %s: %.1fs", step, time.monotonic() - started)
+        if returncode != 0:
+            # The exit code alone is undebuggable - ffmpeg's actual error (bad
+            # filter syntax, missing font, etc.) is on stderr.
+            err_file.seek(0)
+            stderr_tail = err_file.read().decode(errors="replace")[-2000:]
+            raise RuntimeError(f"ffmpeg fallo en '{step}' (codigo {returncode}): {stderr_tail}")
 
 
 def _photo_background_filter(width: int, height: int) -> str:
@@ -376,7 +412,6 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
             str(out_path),
         ],
         f"transiciones x{len(segment_paths)}",
-        timeout=_JOIN_TIMEOUT_SECONDS,
     )
     return out_path
 
