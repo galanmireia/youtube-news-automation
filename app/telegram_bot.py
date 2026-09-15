@@ -8,7 +8,12 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 
 from . import ai_images, storage
 from .config import PIPELINE_INTERVAL_SECONDS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-from .pipeline import cleanup_finished_video_files, run_once
+from .pipeline import (
+    cleanup_finished_video_files,
+    request_stop,
+    run_once,
+    stop_requested as pipeline_stop_requested,
+)
 from .video_builder import make_preview
 from .youtube_uploader import upload_captions, upload_video
 
@@ -172,7 +177,17 @@ async def _run_pipeline_and_notify(bot, variants: tuple[str, ...] = ("short", "l
                 loop.run_in_executor(None, run_once, on_variant_done, variants),
                 timeout=_PIPELINE_TIMEOUT_SECONDS,
             )
-            if not video_ids:
+            if pipeline_stop_requested():
+                await bot.send_message(
+                    chat_id=TELEGRAM_CHAT_ID,
+                    text=(
+                        f"Generacion parada. {len(video_ids)} video(s) terminados antes de parar "
+                        "siguen pendientes de tu aprobacion."
+                        if video_ids
+                        else "Generacion parada. No habia ningun video terminado todavia."
+                    ),
+                )
+            elif not video_ids:
                 await bot.send_message(
                     chat_id=TELEGRAM_CHAT_ID, text="No hay noticias nuevas que procesar ahora mismo."
                 )
@@ -214,7 +229,14 @@ async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_
         variants[0] if len(variants) == 1 else "", "el Short y el video largo"
     )
     await update.message.reply_text(f"Generando {label}, tardara unos minutos...")
-    await _run_pipeline_and_notify(context.bot, variants)
+    # Deliberately NOT awaited. python-telegram-bot handles updates one at a
+    # time by default (max_concurrent_updates=1), so awaiting the generation
+    # here froze the whole bot for as long as it ran: /vertex, /reset and -
+    # worse - the approve and reject buttons on a Short that had already been
+    # sent all sat unprocessed in the queue until the long video finished.
+    # Running it as a task lets the handler return now and the bot keep
+    # answering; _pipeline_lock still stops two generations overlapping.
+    context.application.create_task(_run_pipeline_and_notify(context.bot, variants))
 
 
 async def handle_vertex_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -224,6 +246,21 @@ async def handle_vertex_command(update: Update, context: ContextTypes.DEFAULT_TY
     await update.message.reply_text("Probando Vertex AI, un momento...")
     works, detail = await asyncio.get_running_loop().run_in_executor(None, ai_images.check_access)
     await update.message.reply_text(("OK. " if works else "NO funciona. ") + detail)
+
+
+async def handle_stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/parar - gives up on the generation in progress."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    if not _pipeline_lock.locked():
+        await update.message.reply_text("No hay ninguna generacion en marcha ahora mismo.")
+        return
+    request_stop()
+    await update.message.reply_text(
+        "Vale, la paro. No es instantaneo: el paso que este haciendo ahora (una llamada a la IA, "
+        "un montaje de ffmpeg) no se puede interrumpir a medias, asi que se corta al terminarlo. "
+        "Suele tardar entre unos segundos y un par de minutos. Te aviso cuando este parada."
+    )
 
 
 async def handle_reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -241,6 +278,7 @@ def build_application() -> Application:
     application.add_handler(CallbackQueryHandler(handle_decision))
     application.add_handler(CommandHandler("generar", handle_generate_command))
     application.add_handler(CommandHandler("reset", handle_reset_command))
+    application.add_handler(CommandHandler("parar", handle_stop_command))
     application.add_handler(CommandHandler("vertex", handle_vertex_command))
     # Don't auto-generate on every restart/deploy - only at the regular interval.
     # Use /generar in the chat for an on-demand run (e.g. right after deploying).

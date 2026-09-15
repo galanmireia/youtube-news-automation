@@ -1,6 +1,7 @@
 import logging
 import random
 import shutil
+import threading
 import time
 from pathlib import Path
 from typing import Callable
@@ -28,6 +29,37 @@ from .video_builder import build_video, burn_subtitles, mix_background_music
 from .visuals import fetch_clips_for_scenes
 
 logger = logging.getLogger(__name__)
+
+# Set by request_stop() (the bot's /parar) and cleared at the start of every
+# run. A generation is a chain of single blocking calls - an API request, an
+# ffmpeg run - with nowhere inside them to check a flag, so a stop can only
+# take effect between stages, not instantly.
+_stop_requested = threading.Event()
+
+
+class GenerationStopped(Exception):
+    """Raised at a stage boundary when a stop has been requested."""
+
+
+def request_stop() -> None:
+    """Asks the running generation to give up at its next stage boundary."""
+    _stop_requested.set()
+
+
+def stop_requested() -> bool:
+    """Whether the run that just finished ended because a stop was asked for.
+    The flag survives until the next run clears it, so a caller can tell a
+    stopped run apart from one that simply had nothing to do."""
+    return _stop_requested.is_set()
+
+
+def _stage(variant: str, number: int, message: str, *args) -> None:
+    """Announces a stage, and aborts the generation here if a stop was asked
+    for. Every stage goes through this, so a stop is honoured at whichever
+    boundary comes next rather than only between variants."""
+    if _stop_requested.is_set():
+        raise GenerationStopped(f"parada pedida antes de [{variant}] {number}/7")
+    logger.info("[%s] %s/7 " + message, variant, number, *args)
 
 _VARIANT_DIMENSIONS = {
     "short": (SHORT_VIDEO_WIDTH, SHORT_VIDEO_HEIGHT),
@@ -61,7 +93,7 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     # froze with no error, the log simply stopped mid-run and there was no way
     # to tell from it which call was stuck - the stage had to be inferred from
     # whichever incidental line happened to be logged last.
-    logger.info("[%s] 1/7 Escribiendo el guion...", variant)
+    _stage(variant, 1, "Escribiendo el guion...")
     script = generate_script(news_item, variant=variant)
     # Long videos open with a fixed bumper line over a branded title card, so
     # the channel has a consistent opening. Shorts don't: the first seconds
@@ -93,15 +125,15 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     # way to guarantee it excludes a crime victim's name the way the
     # script prompt's own photo_subject rule does.
     if not is_sensitive:
-        logger.info("[%s] 2/7 Extrayendo entidades del guion...", variant)
+        _stage(variant, 2, "Extrayendo entidades del guion...")
         entities_by_scene = extract_entities(script["scenes"])
         for i, scene in enumerate(script["scenes"]):
             scene["detected_entities"] = entities_by_scene.get(i, [])
 
-    logger.info("[%s] 3/7 Generando la narracion con TTS (%s escenas)...", variant, len(script["scenes"]))
+    _stage(variant, 3, "Generando la narracion con TTS (%s escenas)...", len(script["scenes"]))
     narration_path, scene_durations = synthesize_scenes(script["scenes"], variant_dir / "audio")
 
-    logger.info("[%s] 4/7 Buscando imagenes y videos para las escenas...", variant)
+    _stage(variant, 4, "Buscando imagenes y videos para las escenas...")
     clip_entries = fetch_clips_for_scenes(
         script["scenes"],
         variant_dir / "clips",
@@ -110,7 +142,7 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
         is_sensitive=is_sensitive,
     )
 
-    logger.info("[%s] 5/7 Montando el video con ffmpeg...", variant)
+    _stage(variant, 5, "Montando el video con ffmpeg...")
     final_video_path = build_video(
         clip_entries,
         scene_durations,
@@ -127,7 +159,7 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     # uploaded to YouTube as a toggleable caption track, plus a short-chunk
     # version burned into the picture (most of the Shorts feed is watched
     # muted, so on-screen text is what carries the narration).
-    logger.info("[%s] 6/7 Transcribiendo para los subtitulos...", variant)
+    _stage(variant, 6, "Transcribiendo para los subtitulos...")
     srt_path, burn_ass_path = generate_subtitles(
         narration_path,
         variant_dir / "subtitles.srt",
@@ -144,7 +176,7 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     # The thumbnail is grabbed from the video, so take it before burning in
     # subtitles - otherwise a random half-sentence ends up across the
     # thumbnail.
-    logger.info("[%s] 7/7 Miniatura, subtitulos incrustados y musica...", variant)
+    _stage(variant, 7, "Miniatura, subtitulos incrustados y musica...")
     thumbnail_path = generate_thumbnail(final_video_path, script["title"], variant_dir / "thumbnail.jpg", width, height)
 
     if BURN_SUBTITLES:
@@ -266,6 +298,7 @@ def run_once(
     right after each variant finishes, so callers can notify/send it
     immediately instead of waiting for all of them to be done. Returns the
     new videos' ids (empty if there was no fresh news)."""
+    _stop_requested.clear()
     cleanup_finished_video_files()
 
     candidates = fetch_candidate_news(limit=6)
@@ -295,6 +328,10 @@ def run_once(
             video_ids.append(video_id)
             if on_variant_done is not None:
                 on_variant_done(video_id)
+        except GenerationStopped as exc:
+            logger.info("Generacion detenida a peticion: %s", exc)
+            shutil.rmtree(work_dir / variant, ignore_errors=True)
+            break
         except Exception:
             # Don't let one variant's failure wipe out the other's already-finished
             # video: only the failed variant's own directory is cleaned up.
