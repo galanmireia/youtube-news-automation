@@ -780,6 +780,8 @@ def build_video(
         silent_video_path, source_name, intro_duration, width, height, work_dir
     )
 
+    silent_video_path = _cover_narration(silent_video_path, narration_path, work_dir)
+
     _run(
         [
             "ffmpeg", "-y",
@@ -792,6 +794,49 @@ def build_video(
         ]
     )
     return out_path
+
+
+def _cover_narration(video_path: Path, narration_path: Path, work_dir: Path) -> Path:
+    """Holds the last frame until the picture is at least as long as the voice.
+
+    The mux below uses -shortest, so a picture that runs out early does not
+    end the video early - it CUTS THE NARRATION. The Titanic short ended
+    mid-sentence on "entonces, todo" because the joined picture came out 70.3s
+    against 81.9s of narration, and nothing checked.
+
+    Whatever loses that time in the join arithmetic is worth finding, and the
+    warning below is how it gets found - but the story must not be truncated
+    while we look. Holding the closing shot for the difference is the one
+    outcome that is always acceptable; cutting the last sentence never is."""
+    video_seconds = _probe_duration(video_path)
+    narration_seconds = _probe_duration(narration_path)
+    if video_seconds <= 0 or narration_seconds <= 0:
+        logger.warning("No se pudo medir imagen o narracion; se mezcla sin comprobar la duracion.")
+        return video_path
+
+    shortfall = narration_seconds - video_seconds
+    if shortfall <= 1 / _ZOOM_FPS:
+        return video_path
+
+    logger.warning(
+        "La imagen (%.2fs) es mas corta que la narracion (%.2fs): faltan %.2fs y se cortaria el "
+        "final. Se congela el ultimo plano para cubrirlos.",
+        video_seconds,
+        narration_seconds,
+        shortfall,
+    )
+    covered = work_dir / "silent_video_cubierto.mp4"
+    _run(
+        [
+            "ffmpeg", "-y",
+            "-i", str(video_path),
+            "-vf", f"tpad=stop_mode=clone:stop_duration={shortfall:.3f}",
+            "-r", str(_ZOOM_FPS),
+            str(covered),
+        ],
+        "cubrir narracion",
+    )
+    return covered
 
 
 def burn_subtitles(video_path: Path, ass_path: Path, out_path: Path) -> Path:
