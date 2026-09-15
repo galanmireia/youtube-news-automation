@@ -116,5 +116,14 @@ SHORT_VIDEO_HEIGHT = int(os.environ.get("SHORT_VIDEO_HEIGHT", 1920))
 GOOGLE_CLOUD_PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT_ID", "lucky-album-508608-t0")
 GOOGLE_CLOUD_LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
 
+# Most an AI illustration can cost in a day, counted in images. Google's own
+# Vertex quotas are per MINUTE, so they bound how fast money can be spent, not
+# how much: at the default 10 a minute a runaway loop could still bill for
+# thousands of images in a day. This is the ceiling that actually holds,
+# because it is ours. Past it the pipeline goes back to stock footage and fact
+# cards, which is the behaviour it already has when Imagen is unavailable, so
+# hitting the cap costs a video nothing but the AI illustration.
+AI_IMAGES_DAILY_LIMIT = int(os.environ.get("AI_IMAGES_DAILY_LIMIT", "40"))
+
 # Google Cloud TTS reads its credentials from this env var directly.
 os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", GOOGLE_APPLICATION_CREDENTIALS)

@@ -1,10 +1,18 @@
+import json
 import logging
+import threading
+from datetime import date
 from pathlib import Path
 
 from google import genai
 from google.genai import types
 
-from .config import GOOGLE_CLOUD_LOCATION, GOOGLE_CLOUD_PROJECT_ID
+from .config import (
+    AI_IMAGES_DAILY_LIMIT,
+    DATA_DIR,
+    GOOGLE_CLOUD_LOCATION,
+    GOOGLE_CLOUD_PROJECT_ID,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +37,41 @@ _IMAGE_MODELS = (
 )
 
 _working_model: str | None = None
+
+# The day's tally lives on the persistent volume, not in memory: a deploy or a
+# crash restarts the process several times a day, and a counter that resets
+# with it would not be a daily limit at all.
+_USAGE_FILE = Path(DATA_DIR) / "ai_image_usage.json"
+_usage_lock = threading.Lock()
+
+
+def _take_daily_allowance() -> tuple[bool, int]:
+    """Counts one image against today's allowance.
+
+    Returns (allowed, images used today including this one). Reserves the slot
+    before the image is requested rather than after it arrives: a failed call
+    that still counted is the safe way round, since the alternative is a call
+    that bills but never counts."""
+    with _usage_lock:
+        today = date.today().isoformat()
+        used = 0
+        try:
+            stored = json.loads(_USAGE_FILE.read_text())
+            if stored.get("date") == today:
+                used = int(stored.get("count", 0))
+        except (OSError, ValueError, TypeError):
+            # No tally yet, or an unreadable one: today starts at zero. Never
+            # fail image generation over a bookkeeping file.
+            used = 0
+        if used >= AI_IMAGES_DAILY_LIMIT:
+            return False, used
+        used += 1
+        try:
+            _USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            _USAGE_FILE.write_text(json.dumps({"date": today, "count": used}))
+        except OSError:
+            logger.warning("No se pudo guardar el contador de imagenes de IA", exc_info=True)
+        return True, used
 
 
 def _is_missing_model(error: Exception) -> bool:
@@ -69,12 +112,16 @@ def _get_client() -> genai.Client:
     return _client
 
 
-def _list_available_models() -> list[str]:
-    """Asks Vertex which image models this project can actually see.
+def _list_publisher_models() -> tuple[int, list[str]]:
+    """Asks Vertex what publisher models it will list here, returning how many
+    came back in total and which of those are image models.
 
-    Six names were tried by hand and all came back 404, which says the guess
-    list is the wrong tool: the answer should come from Google rather than from
-    a list written from memory."""
+    The total matters as much as the image names. The previous version passed
+    filter=model_garden, a guess: a filter Vertex does not understand returns
+    an empty list, which is indistinguishable from "this project has no image
+    models" - and that is exactly what it looked like. Nothing is filtered
+    server-side now, so zero models listed means the query itself is wrong,
+    while many models listed and no image ones among them is a real answer."""
     import google.auth
     import google.auth.transport.requests
     import requests
@@ -85,20 +132,23 @@ def _list_available_models() -> list[str]:
         f"https://{GOOGLE_CLOUD_LOCATION}-aiplatform.googleapis.com/v1beta1/"
         f"publishers/google/models"
     )
-    response = requests.get(
-        url,
-        headers={"Authorization": f"Bearer {creds.token}"},
-        params={"filter": "model_garden", "pageSize": 200},
-        timeout=30,
-    )
-    response.raise_for_status()
-    nombres = []
-    for model in response.json().get("publisherModels", []):
-        name = model.get("name", "")
-        corto = name.rsplit("/", 1)[-1]
-        if "imagen" in corto.lower() or "imagegeneration" in corto.lower():
-            nombres.append(corto)
-    return sorted(set(nombres))
+    todos: list[str] = []
+    page_token = None
+    for _ in range(5):  # enough pages for any plausible catalogue
+        params = {"pageSize": 200}
+        if page_token:
+            params["pageToken"] = page_token
+        response = requests.get(
+            url, headers={"Authorization": f"Bearer {creds.token}"}, params=params, timeout=30
+        )
+        response.raise_for_status()
+        payload = response.json()
+        todos.extend(m.get("name", "").rsplit("/", 1)[-1] for m in payload.get("publisherModels", []))
+        page_token = payload.get("nextPageToken")
+        if not page_token:
+            break
+    imagen = sorted({n for n in todos if "imagen" in n.lower() or "imagegeneration" in n.lower()})
+    return len(todos), imagen
 
 
 def check_access() -> tuple[bool, str]:
@@ -148,23 +198,35 @@ def check_access() -> tuple[bool, str]:
         if "billing" in detail.lower():
             return False, "Google pide activar la facturacion del proyecto para usar Imagen."
         if _is_missing_model(exc):
-            # Rather than send someone to hunt through the console, ask Vertex
-            # what it does have.
+            # Report what Google actually said rather than a theory about why.
+            # The previous wording asserted the account was still on a free
+            # trial; that was a guess dressed as a finding, and it sent us
+            # looking in the wrong place.
+            contexto = f"Proyecto {GOOGLE_CLOUD_PROJECT_ID}, region {GOOGLE_CLOUD_LOCATION}."
             try:
-                disponibles = _list_available_models()
-            except Exception:
+                total, imagen = _list_publisher_models()
+            except Exception as list_exc:
                 logger.warning("No se pudo listar los modelos disponibles", exc_info=True)
-                disponibles = []
-            if disponibles:
                 return False, (
-                    f"Ninguno de los {len(intentados)} modelos probados existe aqui, pero tu "
-                    "proyecto SI ve estos: " + ", ".join(disponibles[:12]) + ". Dimelo y lo cambio."
+                    f"Los {len(intentados)} modelos probados dan 404 y ademas no se puede "
+                    f"listar el catalogo. {contexto}\nAl listar: {str(list_exc)[:200]}"
+                    f"\nError de Google al pedir la imagen: {detail[:400]}"
+                )
+            if imagen:
+                return False, (
+                    f"Ninguno de los {len(intentados)} probados existe aqui, pero tu proyecto SI "
+                    "ve estos: " + ", ".join(imagen[:12]) + ". Dimelo y lo cambio."
+                )
+            if total == 0:
+                return False, (
+                    f"Vertex no lista NINGUN modelo, ni de imagen ni de nada ({contexto}) - "
+                    "asi que el problema no es Imagen en concreto, es el acceso al catalogo "
+                    f"entero.\nError de Google al pedir la imagen: {detail[:400]}"
                 )
             return False, (
-                f"Tu proyecto no ve NINGUN modelo de imagen (probados {len(intentados)}). "
-                "Eso suele significar que la cuenta sigue en prueba gratuita: Google reserva "
-                "Imagen para cuentas completas. Mira si en console.cloud.google.com sigue el "
-                "aviso de 'Activa tu cuenta completa'."
+                f"Vertex lista {total} modelos en esta region pero ninguno de imagen, y los "
+                f"{len(intentados)} probados dan 404. {contexto}\n"
+                f"Error de Google: {detail[:400]}"
             )
         logger.warning("check_access: error inesperado", exc_info=True)
         return False, f"Error inesperado: {detail[:300]}"
@@ -175,10 +237,22 @@ def generate_image(prompt: str, out_path: Path, aspect_ratio: str) -> Path | Non
     place/concept that generic stock footage won't have (e.g. a particular
     town or a local event). Returns None on any failure so callers fall back
     to stock footage instead of breaking the whole video."""
+    allowed, used = _take_daily_allowance()
+    if not allowed:
+        logger.warning(
+            "Limite diario de imagenes por IA alcanzado (%s). Se usa material de archivo en su lugar.",
+            AI_IMAGES_DAILY_LIMIT,
+        )
+        return None
     try:
         global _working_model
         client = _get_client()
-        logger.info("Generando imagen con IA para el prompt %r...", prompt)
+        logger.info(
+            "Generando imagen con IA para el prompt %r... (%s/%s hoy)",
+            prompt,
+            used,
+            AI_IMAGES_DAILY_LIMIT,
+        )
         response = None
         for model in _models_to_try():
             try:
