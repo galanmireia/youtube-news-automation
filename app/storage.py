@@ -99,6 +99,14 @@ def recent_processed_titles(limit: int = 80) -> list[str]:
     return [row["title"] for row in rows]
 
 
+def all_referenced_paths() -> set[str]:
+    """Every on-disk file any video record still points at. Anything else
+    under the data directory is left over from a build and can go."""
+    with get_conn() as conn:
+        rows = conn.execute("SELECT video_path, thumbnail_path, subtitle_path FROM videos").fetchall()
+    return {value for row in rows for value in (row["video_path"], row["thumbnail_path"], row["subtitle_path"]) if value}
+
+
 def clear_processed_sources() -> int:
     """Forgets every 'already processed' RSS entry, so the next run can pick
     any current feed item again (including ones already turned into a video

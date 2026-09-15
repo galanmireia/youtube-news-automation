@@ -2,7 +2,7 @@ import logging
 
 from . import storage
 from .config import PIXABAY_API_KEY, RSS_FEEDS
-from .pipeline import cleanup_finished_video_files
+from .pipeline import cleanup_finished_video_files, sweep_orphan_build_files
 from .telegram_bot import build_application
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -26,6 +26,7 @@ def main() -> None:
         "Banco de video secundario (Pixabay): %s",
         "configurado" if PIXABAY_API_KEY else "sin clave, solo se usara Pexels",
     )
+    sweep_orphan_build_files()
     removed = cleanup_finished_video_files()
     if removed:
         logger.info("Limpieza al arrancar: %s directorios de videos ya terminados eliminados.", removed)

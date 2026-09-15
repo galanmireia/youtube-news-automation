@@ -156,6 +156,15 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
             final_video_path, music_path, variant_dir / "final_with_music.mp4", MUSIC_VOLUME
         )
 
+    # Everything else in this directory was scaffolding for the build: the
+    # downloaded stock clips and photos, the per-scene audio, the rendered
+    # scene segments and every ffmpeg intermediate. Together they dwarf the
+    # three files that are actually needed from here on, and they were being
+    # kept until the video was uploaded or rejected - so a few videos waiting
+    # for approval filled the volume and the next build died with "No space
+    # left on device".
+    _discard_build_files(variant_dir, keep={final_video_path, thumbnail_path, srt_path})
+
     video_id = storage.create_video_record(
         source_url=news_item["link"],
         variant=variant,
@@ -168,6 +177,61 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     )
     logger.info("Video #%s (%s) generado y pendiente de aprobacion.", video_id, variant)
     return video_id
+
+
+
+def _discard_build_files(variant_dir: Path, keep: set[Path]) -> int:
+    """Removes everything under a finished variant's directory except the
+    files that are still needed - the video itself, its thumbnail and its
+    subtitle track. Returns the megabytes freed."""
+    keep_resolved = {path.resolve() for path in keep}
+    freed = 0
+    for path in sorted(variant_dir.rglob("*"), key=lambda p: len(p.parts), reverse=True):
+        if path.is_dir():
+            # Only removes it if the loop above already emptied it.
+            try:
+                path.rmdir()
+            except OSError:
+                pass
+            continue
+        if path.resolve() in keep_resolved:
+            continue
+        freed += path.stat().st_size
+        path.unlink(missing_ok=True)
+    if freed:
+        logger.info("Limpieza: %.0f MB de ficheros intermedios eliminados.", freed / 1e6)
+    return freed
+
+
+def sweep_orphan_build_files() -> int:
+    """One pass over the whole data directory removing files no video record
+    points at any more.
+
+    Builds used to leave their scaffolding behind until the video was uploaded
+    or rejected, and a failed run could leave a whole job directory with no
+    record at all. That filled the volume - a build died with "No space left
+    on device" with 4.8GB of a 5GB disk used. New builds clean up after
+    themselves now; this clears what earlier ones left. Returns megabytes
+    freed."""
+    keep = {Path(path).resolve() for path in storage.all_referenced_paths()}
+    freed = 0
+    for job_dir in Path(DATA_DIR).glob("job_*"):
+        for path in sorted(job_dir.rglob("*"), key=lambda p: len(p.parts), reverse=True):
+            if path.is_dir():
+                try:
+                    path.rmdir()
+                except OSError:
+                    pass
+                continue
+            if path.resolve() in keep:
+                continue
+            freed += path.stat().st_size
+            path.unlink(missing_ok=True)
+        if job_dir.is_dir() and not any(job_dir.iterdir()):
+            job_dir.rmdir()
+    if freed:
+        logger.info("Limpieza de arranque: %.0f MB de ficheros huerfanos eliminados.", freed / 1e6)
+    return freed
 
 
 def cleanup_finished_video_files() -> int:
