@@ -381,6 +381,11 @@ _MAX_JOIN_INPUTS = 6
 # fixed by the last segment, which does not get it.
 _JOIN_MARGIN_SECONDS = 0.2
 
+# How far short a crossfaded join may come out before it is thrown away and
+# redone with hard cuts. Generous, because ordinary rounding costs fractions of
+# a second; this is here to catch a collapse, not a wobble.
+_MAX_JOIN_SHORTFALL_SECONDS = 2.0
+
 
 def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: Path, out_path: Path) -> Path:
     """Joins the scene segments with a short crossfade between them instead
@@ -436,6 +441,7 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
     ]
     current = "[n0]"
     accumulated = durations[0]
+    offsets: list[float] = []
     for i in range(1, len(segment_paths)):
         boundary = frame_marks[i] / _ZOOM_FPS
         desired = boundary - _TRANSITION_SECONDS / 2
@@ -445,6 +451,7 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
                 "Transicion %s adelantada %.3fs: hay %.2fs de video y la narracion la pedia en %.2fs.",
                 i, desired - offset, accumulated, desired,
             )
+        offsets.append(offset)
         label = f"[x{i}]"
         steps.append(
             f"{current}[n{i}]xfade=transition=fade:duration={_TRANSITION_SECONDS}:offset={offset:.3f}{label}"
@@ -454,6 +461,20 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
         accumulated = offset + durations[i]
 
     filter_complex = ";".join(steps)
+    esperado = frame_marks[-1] / _ZOOM_FPS
+    # A join that comes out far short is the worst failure this file has: the
+    # picture runs out, the last frame freezes for the rest of the narration,
+    # and nothing about the video says why. It happened - six scenes totalling
+    # 58 seconds joined into 11 - and could not be reproduced afterwards
+    # because none of the numbers that produced it were written down. They are
+    # now, before the call rather than after it.
+    logger.info(
+        "  union: %s segmentos, duraciones medidas %s, desfases %s, esperado %.2fs",
+        len(segment_paths),
+        [f"{d:.2f}" for d in durations],
+        [f"{o:.2f}" for o in offsets],
+        esperado,
+    )
     _run(
         [
             "ffmpeg", "-y",
@@ -465,6 +486,19 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
         ],
         f"transiciones x{len(segment_paths)}",
     )
+
+    # And if it still comes out short, hard cuts beat a frozen frame. Butting
+    # the segments together cannot lose time - it copies streams - so a plain
+    # video is always available and is enormously better than 80% of a Short
+    # being one still image.
+    obtenido = _probe_duration(out_path)
+    if obtenido > 0 and esperado - obtenido > _MAX_JOIN_SHORTFALL_SECONDS:
+        logger.error(
+            "La union con transiciones devolvio %.2fs cuando la narracion pide %.2fs "
+            "(faltan %.2fs). Se rehace con cortes secos para no dejar el video congelado.",
+            obtenido, esperado, esperado - obtenido,
+        )
+        _join_without_transitions(segment_paths, frame_marks, work_dir, out_path)
     return out_path
 
 
