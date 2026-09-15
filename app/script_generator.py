@@ -332,12 +332,10 @@ _VARIANT_CONFIG = {
         "duration_hint": "40-50 segundos",
         "scene_count_hint": "entre 5 y 6 escenas",
         "scene_length_hint": (
-            "Cada narracion es UNA frase corta y directa. Y un limite duro que manda sobre todo lo "
-            "demas: sumando TODAS las narraciones, el guion entero no puede pasar de 120 PALABRAS. "
-            "Cuentalas antes de responder. Un Short pedido a 45 segundos salio de 70 porque las "
-            "escenas se fueron alargando de una en una; las palabras si se pueden contar, los "
-            "segundos no. Si te pasas, recorta - empezando por los adjetivos y el contexto, nunca "
-            "por las cifras ni por la causa tecnica."
+            "Cada narracion es UNA frase corta y directa de UNAS 20 PALABRAS - nunca dos frases, "
+            "nunca una frase larga con comas encadenadas. Con 5 o 6 escenas asi el Short sale en su "
+            "duracion. Si una frase se te va larga, recorta adjetivos y contexto, nunca las cifras "
+            "ni la causa tecnica."
         ),
         "shorts_seo_hint": (
             '- Incluye "#Shorts" como uno de los hashtags al final de la descripcion (obligatorio '
@@ -372,7 +370,12 @@ def _strip_markdown_fence(text: str) -> str:
 # plus five other fields, so the old 10000 was not a comfortable margin.
 # (This was NOT what broke the CIS story - that one failed at ~800 tokens,
 # on an unescaped quote inside a string. See the prompt's quoting rule.)
-_MAX_TOKENS = {"short": 8000, "long": 20000}
+# Headroom for the model to reason before writing, not a target length: the
+# reply itself is a few hundred tokens. The Short's ceiling was 8000 and a
+# harder prompt walked straight into it - three attempts in a row spent the
+# entire budget thinking and returned no text at all, which reads as a broken
+# API rather than as "give me more room".
+_MAX_TOKENS = {"short": 12000, "long": 20000}
 _MAX_ATTEMPTS = 3
 
 

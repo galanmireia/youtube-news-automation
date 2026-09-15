@@ -7,6 +7,8 @@ from pathlib import Path
 
 from faster_whisper import WhisperModel
 
+from . import branding
+
 logger = logging.getLogger(__name__)
 
 _model = None
@@ -66,14 +68,17 @@ def _write_srt(entries: list[tuple[float, float, str]], out_path: Path) -> Path:
 
 def _chunk_words(
     words: list, max_words: int, max_seconds: float, max_chars: int = _BURN_MAX_CHARS
-) -> list[tuple[float, float, str]]:
-    entries: list[tuple[float, float, str]] = []
+) -> list[list]:
+    """Groups words into the blocks shown on screen, keeping each block's words
+    with their individual timings rather than flattening them into one string -
+    that is what lets the burner light up the word being spoken."""
+    entries: list[list] = []
     current: list = []
 
     def flush() -> None:
         nonlocal current
         if current:
-            entries.append((current[0].start, current[-1].end, _join(current)))
+            entries.append(current)
             current = []
 
     for word in words:
@@ -101,16 +106,39 @@ def _format_ass_timestamp(seconds: float) -> str:
     return f"{hours:d}:{minutes:02d}:{secs:02d}.{cs:02d}"
 
 
-def write_ass(entries: list[tuple[float, float, str]], out_path: Path, width: int, height: int) -> Path:
-    """Writes the burned-in track as ASS rather than SRT. ffmpeg converts an
-    SRT to ASS using a fixed 384x288 reference resolution, so font sizes and
-    margins given in force_style are in THAT space, not video pixels - a
-    margin meant to clear the lower third silently pushed the text off
-    screen entirely. Declaring PlayResX/Y as the real frame size makes every
-    value below plain pixels."""
+def _ass_colour(rgb: tuple[int, int, int]) -> str:
+    """ASS wants colours as &HBBGGRR - reversed from RGB, which is a classic
+    way to end up with a blue subtitle where a red one was meant."""
+    r, g, b = rgb
+    return f"&H{b:02X}{g:02X}{r:02X}&"
+
+
+def write_ass(chunks: list[list], out_path: Path, width: int, height: int) -> Path:
+    """Writes the burned track as ASS, lighting up each word as it is spoken.
+
+    ffmpeg converts an SRT to ASS using a fixed 384x288 reference resolution,
+    so font sizes and margins given in force_style are in THAT space, not video
+    pixels - a margin meant to clear the lower third silently pushed the text
+    off screen entirely. Declaring PlayResX/Y as the real frame size makes every
+    value below plain pixels.
+
+    The words in a block were already being measured one by one to align the
+    transcription against the script, and then thrown away: the block was
+    flattened into a single static line. Keeping them is what allows the
+    convention every short-form feed now uses - the word being spoken picks up
+    the channel's accent colour while the rest of its block stays white. It is
+    not decoration; it gives the eye something to follow at the speed the voice
+    is actually going.
+
+    Rendered as one Dialogue line per word rather than with ASS's own \k
+    karaoke tags: \k only sweeps between two colours declared in the style,
+    while a line per word can say exactly what each word looks like at each
+    instant, and reads identically in every player."""
     font_size = max(24, height // 24)
     margin_v = height // 5
     margin_h = width // 12
+    blanco = "&H00FFFFFF&"
+    acento = _ass_colour(branding.ACCENT_COLOR)
     header = "\n".join(
         [
             "[Script Info]",
@@ -128,21 +156,35 @@ def write_ass(entries: list[tuple[float, float, str]], out_path: Path, width: in
             "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour,"
             " Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline,"
             " Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-            f"Style: Main,DejaVu Sans,{font_size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H64000000,"
+            f"Style: Main,DejaVu Sans,{font_size},{blanco},{blanco},&H00000000,&H64000000,"
             f"-1,0,0,0,100,100,0,0,1,{max(3, font_size // 14)},2,2,{margin_h},{margin_h},{margin_v},1",
             "",
             "[Events]",
             "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
         ]
     )
-    events = [
-        f"Dialogue: 0,{_format_ass_timestamp(start)},{_format_ass_timestamp(end)},Main,,0,0,0,,"
-        + text.replace("\n", " ").strip()
-        for start, end, text in entries
-    ]
+
+    events: list[str] = []
+    for chunk in chunks:
+        palabras = [w.word.strip().replace("\n", " ") for w in chunk]
+        for i, word in enumerate(chunk):
+            # The last word holds until the block ends, so no gap is left where
+            # the block would flicker away early.
+            inicio = word.start
+            fin = chunk[-1].end if i == len(chunk) - 1 else chunk[i + 1].start
+            if fin <= inicio:
+                continue
+            pintadas = [
+                f"{{\\c{acento}}}{w}{{\\c{blanco}}}" if j == i else w
+                for j, w in enumerate(palabras)
+            ]
+            events.append(
+                f"Dialogue: 0,{_format_ass_timestamp(inicio)},{_format_ass_timestamp(fin)},Main,,0,0,0,,"
+                + " ".join(pintadas)
+            )
+
     out_path.write_text(header + "\n" + "\n".join(events) + "\n", encoding="utf-8")
     return out_path
-
 
 
 def _norm(word: str) -> str:
@@ -242,6 +284,13 @@ def generate_subtitles(
     _write_srt(sentence_entries, srt_path)
     # Falls back to the sentence timings if the model returned no per-word
     # timestamps, so the burned track is never empty.
-    burn_entries = _chunk_words(words, _BURN_MAX_WORDS, _BURN_MAX_SECONDS) if words else sentence_entries
-    write_ass(burn_entries, burn_path, width, height)
+    if words:
+        burn_chunks = _chunk_words(words, _BURN_MAX_WORDS, _BURN_MAX_SECONDS)
+    else:
+        # No per-word timings came back. Each sentence becomes a block of one
+        # "word" spanning its whole span, which renders as plain static text -
+        # the burned track is never empty just because the highlight cannot be
+        # done.
+        burn_chunks = [[_Word(start, end, text)] for start, end, text in sentence_entries]
+    write_ass(burn_chunks, burn_path, width, height)
     return srt_path, burn_path
