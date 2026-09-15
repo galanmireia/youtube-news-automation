@@ -29,8 +29,15 @@ _MIN_SCENE_SECONDS_FOR_MULTI_PHOTO = 6.0
 # scene with a long narration used to get one clip for its whole length -
 # one Short ended on a single shot held for 13 seconds, a quarter of the
 # video.
-_MAX_SECONDS_PER_CLIP = 6.0
-_MAX_CLIPS_PER_SCENE = 3
+#
+# These were first set for a 60s Short, where a handful of scenes meant a
+# handful of cuts. On a five-minute video the same rule produced 57 stock
+# shots, one every five seconds, and that reads as randomness rather than
+# pace: none of them illustrates anything in particular, so more of them only
+# means more images that do not belong. Cutting the count roughly in third
+# still keeps any one shot from outstaying nine seconds.
+_MAX_SECONDS_PER_CLIP = 9.0
+_MAX_CLIPS_PER_SCENE = 2
 
 # requests' `timeout` only limits the wait between two chunks of data, so a
 # download that trickles in forever never trips it. These cap the whole
