@@ -2,6 +2,7 @@ import logging
 import re
 import unicodedata
 from pathlib import Path
+from urllib.parse import unquote
 
 import requests
 
@@ -139,6 +140,120 @@ def _pageimages_thumbnail_url(title: str, lang: str = "es") -> str | None:
         return None
 
 
+# What Wikipedia puts at the top of an article is not always a photograph.
+# For a country it is the flag; for a public body, the logo; for a region, a
+# locator map. Those are all correct answers to "illustrate this article" and
+# all useless as a shot in a video: they carry no information the narration
+# does not already give, they are visually dead, and a logo on screen is
+# something this channel does not do. They are recognisable from the file
+# name, which Wikimedia keeps descriptive.
+#
+# The strongest single signal is the format. A flag, a coat of arms, a logo
+# and a locator map are vector drawings; a photograph never is. The REST API
+# hands back a rasterised PNG of the SVG, so the ".svg" survives in the path
+# of the thumbnail URL and is still there to be seen.
+#
+# The name patterns are anchored at word boundaries on purpose: a bare
+# "logo" substring also appears inside "geologo", and "map" inside
+# "Mapuche". Rejecting a real photograph is worse than letting a symbol
+# through, because the symbol has a fallback (stock footage or an AI
+# illustration) and the photograph does not.
+_SYMBOL_PATTERNS = (
+    r"\.svg",
+    r"(^|[/_\- ])flags?([_\- ]|$)",
+    r"(^|[/_\- ])banderas?([_\- ]|$)",
+    r"coat[_\- ]of[_\- ]arms",
+    r"(^|[/_\- ])escudo([_\- ]|$)",
+    r"(^|[/_\- ])emblem",
+    r"seal[_\- ]of[_\- ]",
+    r"(^|[/_\- ])logos?([_\- ]|$)",
+    r"logotipo",
+    r"wordmark",
+    r"location[_\- ]map",
+    r"(^|[/_\- ])locator([_\- ]|$)",
+    r"(^|[/_\- ])map[_\- ]of([_\- ]|$)",
+    r"(^|[/_\- ])mapa[_\- ]de([_\- ]|$)",
+    r"orthographic",
+)
+
+_SYMBOL_RE = re.compile("|".join(_SYMBOL_PATTERNS), re.IGNORECASE)
+
+
+def _is_symbol_not_photograph(url: str) -> bool:
+    """True for a flag, coat of arms, emblem, logo or locator map - the
+    things Wikipedia leads with when a subject is too abstract to photograph."""
+    return bool(_SYMBOL_RE.search(unquote(url)))
+
+
+# A subject with no single photograph of it. Asked to illustrate "China",
+# Wikipedia can only offer a flag, a map or a national emblem, because there
+# is no photograph of a country - and the pipeline will happily put twelve
+# seconds of it on screen while the narration talks about a shipyard. These
+# are never the subject of a story on this channel; they are the place a
+# subject happens to be, which the narration already says out loud.
+#
+# The list is deliberately only the over-broad names. A city, a coastline, a
+# ship or a plant is a real place with real photographs and must keep working
+# - "Costa de la Muerte" gives a photograph of a cape, and that is a good
+# shot.
+_TOO_BROAD_FOR_A_PHOTO = frozenset(
+    _fold(name)
+    for name in (
+        # Continents, oceans and the broad regions a script name-drops.
+        "Europa", "Asia", "Africa", "America", "America del Norte",
+        "America del Sur", "Norteamerica", "Sudamerica", "Latinoamerica",
+        "America Latina", "Centroamerica", "Oceania", "Antartida",
+        "Oriente Medio", "Oriente Proximo", "Union Europea", "OTAN", "ONU",
+        "Naciones Unidas", "Occidente", "Escandinavia", "los Balcanes",
+        "Oceano Atlantico", "Oceano Pacifico", "Oceano Indico",
+        "Oceano Artico", "Mar Mediterraneo", "Mar del Norte", "Mar Baltico",
+        "Mar Negro", "Mar Caribe", "el mundo", "la Tierra",
+        # Countries. A country is a flag, never a photograph.
+        "Afganistan", "Albania", "Alemania", "Andorra", "Angola",
+        "Arabia Saudi", "Arabia Saudita", "Argelia", "Argentina", "Armenia",
+        "Australia", "Austria", "Azerbaiyan", "Bahamas", "Banglades",
+        "Barein", "Belgica", "Belice", "Benin", "Bielorrusia", "Bolivia",
+        "Bosnia y Herzegovina", "Botsuana", "Brasil", "Brunei", "Bulgaria",
+        "Burkina Faso", "Burundi", "Butan", "Cabo Verde", "Camboya",
+        "Camerun", "Canada", "Catar", "Chad", "Chile", "China", "Chipre",
+        "Colombia", "Comoras", "Corea del Norte", "Corea del Sur",
+        "Costa de Marfil", "Costa Rica", "Croacia", "Cuba", "Dinamarca",
+        "Ecuador", "Egipto", "El Salvador", "Emiratos Arabes Unidos",
+        "Eritrea", "Eslovaquia", "Eslovenia", "Espana", "Estados Unidos",
+        "Estonia", "Etiopia", "Filipinas", "Finlandia", "Fiyi", "Francia",
+        "Gabon", "Gambia", "Georgia", "Ghana", "Grecia", "Guatemala",
+        "Guinea", "Guinea Ecuatorial", "Guyana", "Haiti", "Honduras",
+        "Hungria", "India", "Indonesia", "Irak", "Iran", "Irlanda",
+        "Islandia", "Islas Marshall", "Israel", "Italia", "Jamaica",
+        "Japon", "Jordania", "Kazajistan", "Kenia", "Kirguistan", "Kiribati",
+        "Kosovo", "Kuwait", "Laos", "Lesoto", "Letonia", "Libano", "Liberia",
+        "Libia", "Liechtenstein", "Lituania", "Luxemburgo", "Macedonia del Norte",
+        "Madagascar", "Malasia", "Malaui", "Maldivas", "Mali", "Malta",
+        "Marruecos", "Mauricio", "Mauritania", "Mexico", "Micronesia",
+        "Moldavia", "Monaco", "Mongolia", "Montenegro", "Mozambique",
+        "Myanmar", "Namibia", "Nauru", "Nepal", "Nicaragua", "Niger",
+        "Nigeria", "Noruega", "Nueva Zelanda", "Oman", "Paises Bajos",
+        "Pakistan", "Palaos", "Palestina", "Panama", "Papua Nueva Guinea",
+        "Paraguay", "Peru", "Polonia", "Portugal", "Reino Unido",
+        "Republica Checa", "Republica Centroafricana",
+        "Republica Democratica del Congo", "Republica Dominicana",
+        "Ruanda", "Rumania", "Rusia", "Samoa", "San Marino", "Santa Lucia",
+        "Santo Tome y Principe", "Senegal", "Serbia", "Seychelles",
+        "Sierra Leona", "Singapur", "Siria", "Somalia", "Sri Lanka",
+        "Suazilandia", "Sudafrica", "Sudan", "Sudan del Sur", "Suecia",
+        "Suiza", "Surinam", "Tailandia", "Tanzania", "Tayikistan",
+        "Timor Oriental", "Togo", "Tonga", "Trinidad y Tobago", "Tunez",
+        "Turkmenistan", "Turquia", "Tuvalu", "Ucrania", "Uganda", "Uruguay",
+        "Uzbekistan", "Vanuatu", "Vaticano", "Venezuela", "Vietnam",
+        "Yemen", "Yibuti", "Zambia", "Zimbabue",
+    )
+)
+
+
+def _is_too_broad_to_photograph(name: str) -> bool:
+    return _fold(name.strip()) in _TOO_BROAD_FOR_A_PHOTO
+
+
 def _download(url: str, out_path: Path) -> bool:
     try:
         image_response = requests.get(url, headers=_HEADERS, timeout=30)
@@ -167,6 +282,12 @@ def _fetch_summary_photo(title: str, out_path: Path, exclude_urls: set[str], lan
             or _pageimages_thumbnail_url(title, lang)
         )
         if not thumbnail or thumbnail in exclude_urls:
+            return None
+        if _is_symbol_not_photograph(thumbnail):
+            logger.info(
+                "  %r en %s: su imagen principal es un simbolo (%s), no una foto; se descarta.",
+                title, lang, thumbnail.rsplit("/", 1)[-1],
+            )
             return None
 
         if not _download(thumbnail, out_path):
@@ -210,6 +331,8 @@ def _commons_search_photo(name: str, out_path: Path, exclude_urls: set[str]) -> 
             source = imageinfo[0].get("thumburl") or imageinfo[0].get("url")
             if not source or source in exclude_urls:
                 continue
+            if _is_symbol_not_photograph(source):
+                continue
             if _download(source, out_path):
                 logger.info("fetch_portrait(%r): imagen de Commons via archivo %r", name, title)
                 return out_path, source
@@ -232,6 +355,13 @@ def fetch_portrait(person_name: str, out_path: Path, exclude_urls: set[str] | No
     exists. Returns None if nothing new works at all, letting callers fall
     back to stock footage rather than repeating themselves."""
     exclude = exclude_urls or set()
+    if _is_too_broad_to_photograph(person_name):
+        logger.info(
+            "fetch_portrait(%r): sujeto demasiado amplio para tener una foto; "
+            "la escena buscara imagen por otra via.",
+            person_name,
+        )
+        return None
     for lang in WIKI_LANGS:
         candidates = _rank_candidates(
             person_name, _search_candidate_titles(person_name, lang)

@@ -72,7 +72,14 @@ _MAX_CARD_SECONDS = 4.0
 # predictable: at roughly four cents an image, a Short and a long video
 # together come to about twenty. Past it the scene falls back to stock footage
 # or a card exactly as it did when there was no AI illustration at all.
-_MAX_AI_IMAGES = {"9:16": 2, "16:9": 4}
+#
+# The Short's share goes to three because the flag filter above frees scenes
+# that used to be swallowed by a national emblem before they could ask for an
+# illustration - video 60 asked for illustrations and spent nothing, because
+# "China", "Espana" and "Portugal" all "found" a photo first. Three leaves a
+# six-scene Short at least three shots of real footage, which is the balance
+# wanted: the AI image is for what cannot be filmed, not for everything.
+_MAX_AI_IMAGES = {"9:16": 3, "16:9": 4}
 _MAX_AI_IMAGES_DEFAULT = 2
 
 # requests' `timeout` only limits the wait between two chunks of data, so a
