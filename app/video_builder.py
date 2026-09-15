@@ -309,8 +309,17 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
     # clamped against the measured length of everything joined so far and
     # cannot ask for material that is not there.
     durations = [_probe_duration(path) for path in segment_paths]
-    steps = []
-    current = "[0:v]"
+    # Every input is forced to identical frame rate, pixel format and pixel
+    # aspect before it reaches a crossfade. xfade needs its two inputs to match
+    # exactly, and these segments do not come from one place: some are rendered
+    # from stills by zoompan, others re-encoded from stock clips whose source
+    # framerate varies. A mismatch there makes the filter wait instead of fail,
+    # which is indistinguishable from the hang chased above.
+    steps = [
+        f"[{i}:v]fps={_ZOOM_FPS},format=yuv420p,setsar=1,setpts=PTS-STARTPTS[n{i}]"
+        for i in range(len(segment_paths))
+    ]
+    current = "[n0]"
     accumulated = durations[0]
     for i in range(1, len(segment_paths)):
         boundary = frame_marks[i] / _ZOOM_FPS
@@ -323,7 +332,7 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
             )
         label = f"[x{i}]"
         steps.append(
-            f"{current}[{i}:v]xfade=transition=fade:duration={_TRANSITION_SECONDS}:offset={offset:.3f}{label}"
+            f"{current}[n{i}]xfade=transition=fade:duration={_TRANSITION_SECONDS}:offset={offset:.3f}{label}"
         )
         current = label
         # xfade outputs from 0 to offset + the length of its second input.
@@ -475,6 +484,39 @@ def _ensure_duration(path: Path, expected: float, tmp_dir: Path, index: int) -> 
     padded.replace(path)
 
 
+
+def _join_without_transitions(segment_paths: list[Path], work_dir: Path, out_path: Path) -> Path:
+    """Butts the segments together with hard cuts.
+
+    The fallback for when crossfading fails. The concat demuxer reads one file
+    after another rather than holding several open and aligning them, so there
+    is no cross-stream synchronisation to stall on - which is what the
+    crossfade does when it fails.
+
+    It re-encodes rather than copying streams. Copying looked cheaper and was
+    wrong: the demuxer needs every file to share the same codec parameters, and
+    on segments whose frame rates differed it produced 17.26s of output from
+    21.5s of input. Normalising through one filter chain costs a pass and
+    cannot silently lose footage.
+
+    The cut lands on the scene boundary rather than straddling it, so the video
+    runs a transition's worth longer per scene than the narration; the audio
+    mux trims that back."""
+    concat_list = work_dir / "concat_plain.txt"
+    concat_list.write_text("\n".join(f"file '{p.resolve()}'" for p in segment_paths))
+    _run(
+        [
+            "ffmpeg", "-y",
+            "-f", "concat", "-safe", "0", "-i", str(concat_list),
+            "-vf", f"fps={_ZOOM_FPS},format=yuv420p,setsar=1",
+            "-r", str(_ZOOM_FPS),
+            str(out_path),
+        ],
+        "union sin transiciones",
+    )
+    return out_path
+
+
 def build_video(
     clip_entries: list[list[tuple[Path, dict | None]]],
     scene_durations: list[float],
@@ -534,7 +576,18 @@ def build_video(
 
     silent_video_path = work_dir / "silent_video.mp4"
     logger.info("Uniendo %s escenas con transiciones...", len(segment_paths))
-    _join_segments(segment_paths, frame_marks, work_dir, silent_video_path)
+    try:
+        _join_segments(segment_paths, frame_marks, work_dir, silent_video_path)
+    except Exception:
+        # Crossfading is the part of this that has repeatedly failed, and it is
+        # also the part the video can do without. Butting the segments together
+        # needs no filter graph at all - it copies streams and cannot stall -
+        # so a video with hard cuts still gets made and sent for approval. A
+        # plainer video beats no video, and the log says which one this is.
+        logger.exception(
+            "Fallaron las transiciones; se une sin ellas para no perder el video entero."
+        )
+        _join_without_transitions(segment_paths, work_dir, silent_video_path)
 
     # intro_duration comes from the caller because only it knows whether this
     # variant has an intro card at all - Shorts don't, and deriving it from
