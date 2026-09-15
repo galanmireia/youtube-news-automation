@@ -30,6 +30,12 @@ class _Word:
 # limit is hit first closes the chunk.
 _BURN_MAX_WORDS = 3
 _BURN_MAX_SECONDS = 1.2
+# Three words is a good rhythm but a bad width: "investigacion mexicana como"
+# is three words and 27 characters, and at the burned font size that runs off
+# both edges of a 1080-wide frame. Measured against the real style, a line of
+# the subtitle font fits about 23 characters inside the side margins, so the
+# chunk closes at 20 to leave headroom for wide glyphs.
+_BURN_MAX_CHARS = 20
 
 
 def _get_model() -> WhisperModel:
@@ -58,17 +64,33 @@ def _write_srt(entries: list[tuple[float, float, str]], out_path: Path) -> Path:
     return out_path
 
 
-def _chunk_words(words: list, max_words: int, max_seconds: float) -> list[tuple[float, float, str]]:
+def _chunk_words(
+    words: list, max_words: int, max_seconds: float, max_chars: int = _BURN_MAX_CHARS
+) -> list[tuple[float, float, str]]:
     entries: list[tuple[float, float, str]] = []
     current: list = []
+
+    def flush() -> None:
+        nonlocal current
+        if current:
+            entries.append((current[0].start, current[-1].end, _join(current)))
+            current = []
+
     for word in words:
+        # Close the chunk BEFORE adding a word that would overflow the line,
+        # unless it would leave the chunk empty: a single word longer than the
+        # budget has nowhere else to go.
+        if current and len(_join(current + [word])) > max_chars:
+            flush()
         current.append(word)
         if len(current) >= max_words or (current[-1].end - current[0].start) >= max_seconds:
-            entries.append((current[0].start, current[-1].end, " ".join(w.word.strip() for w in current)))
-            current = []
-    if current:
-        entries.append((current[0].start, current[-1].end, " ".join(w.word.strip() for w in current)))
+            flush()
+    flush()
     return entries
+
+
+def _join(chunk: list) -> str:
+    return " ".join(w.word.strip() for w in chunk)
 
 
 def _format_ass_timestamp(seconds: float) -> str:
@@ -95,7 +117,11 @@ def write_ass(entries: list[tuple[float, float, str]], out_path: Path, width: in
             "ScriptType: v4.00+",
             f"PlayResX: {width}",
             f"PlayResY: {height}",
-            "WrapStyle: 2",
+            # 2 means "never wrap", which silently lets a long line run off
+            # both edges instead of breaking it. 0 wraps inside the margins,
+            # so a chunk that still comes out too wide loses a line break
+            # rather than its first and last words.
+            "WrapStyle: 0",
             "ScaledBorderAndShadow: yes",
             "",
             "[V4+ Styles]",
