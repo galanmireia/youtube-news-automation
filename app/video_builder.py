@@ -175,13 +175,65 @@ def _ken_burns_filter(width: int, height: int, duration: float, zoom_out: bool =
     return f"zoompan=z='{z_expr}':d={frames}:s={width}x{height}:fps={_ZOOM_FPS}"
 
 
+def _build_caption_over_still(
+    image_path: Path, duration: float, width: int, height: int, caption: str,
+    out_path: Path, tmp_dir: Path, key: str, vf_bg: str,
+) -> None:
+    """A still with the scene's key fact in the corner, the same box a stock
+    clip gets - for pictures with no real subject to name."""
+    if duration < 1.5:
+        _run(["ffmpeg", "-y", "-loop", "1", "-i", str(image_path), "-t", str(duration),
+              "-vf", vf_bg, "-r", str(_ZOOM_FPS), str(out_path)])
+        return
+    box_width, box_height = int(width * 0.42), int(height * 0.16)
+    box_png = tmp_dir / f"stillcap_{key}.png"
+    branding.render_highlight_box(caption, box_width, box_height).save(box_png)
+    margin = int(width * 0.03)
+    slide = _TAG_SLIDE_SECONDS
+    hold = min(_TAG_MAX_HOLD_SECONDS, max(1.0, duration - 2 * slide))
+    hold_end = slide + hold
+    slide_out_end = min(duration, hold_end + slide)
+    hidden_x, shown_x = -box_width, margin
+    x_expr = (
+        f"if(lt(t,{slide}),{hidden_x}+({shown_x}-{hidden_x})*(t/{slide}),"
+        f"if(lt(t,{hold_end}),{shown_x},"
+        f"if(lt(t,{slide_out_end}),{shown_x}+({hidden_x}-{shown_x})*((t-{hold_end})/({slide_out_end}-{hold_end})),{hidden_x})))"
+    )
+    filter_complex = f"[0:v]{vf_bg}[bg];[1:v]format=rgba[fg];[bg][fg]overlay=x='{x_expr}':y={margin}:shortest=1[outv]"
+    _run([
+        "ffmpeg", "-y",
+        "-loop", "1", "-i", str(image_path),
+        "-loop", "1", "-i", str(box_png),
+        "-t", str(duration),
+        "-filter_complex", filter_complex,
+        "-map", "[outv]",
+        "-r", str(_ZOOM_FPS),
+        str(out_path),
+    ])
+
+
 def _build_photo_segment(
     image_path: Path, duration: float, width: int, height: int, tag: dict | None, out_path: Path, tmp_dir: Path, key: str
 ) -> None:
     zoom_out = int(key.split("_")[0]) % 2 == 1
     vf_bg = f"{_photo_background_filter(width, height)},{_ken_burns_filter(width, height, duration, zoom_out)}"
 
-    if not tag or duration < 1.5:
+    # Two kinds of still reach this function and they want different labels. A
+    # real photograph of a named subject gets the name bar along the bottom
+    # ("TRIBUNAL SUPREMO DE ESPAÑA / Maximo tribunal de España"). An AI
+    # illustration has no name to put there - naming an invented picture would
+    # be a lie - so it takes the same corner fact box a stock clip gets.
+    #
+    # Until today this could not happen: the AI branch produced no images at
+    # all while Imagen was unreachable, so its caption tag never arrived here
+    # and the code read tag["name"] unconditionally. The first video that
+    # actually generated an illustration crashed on it.
+    caption = (tag or {}).get("caption", "").strip() if tag else ""
+    if tag and not tag.get("name") and caption:
+        _build_caption_over_still(image_path, duration, width, height, caption, out_path, tmp_dir, key, vf_bg)
+        return
+
+    if not tag or not tag.get("name") or duration < 1.5:
         _run(
             [
                 "ffmpeg", "-y",
