@@ -48,6 +48,13 @@ _TRANSITION_SECONDS = 0.25
 # variant failure, which the pipeline already catches, cleans up and reports.
 _FFMPEG_TIMEOUT_SECONDS = 8 * 60
 
+# Crossfading gets far less rope than anything else here. A join that is going
+# to work takes well under a minute - the slowest measured was 52s for seven
+# 1080x1920 segments - and one that is going to stall never finishes at all.
+# Waiting the full eight minutes to learn which it was is pure loss, and a long
+# video makes five of these calls. Cut it short and take the hard-cut fallback.
+_JOIN_TIMEOUT_SECONDS = 2 * 60
+
 
 # How often a still-running ffmpeg call reports that it is alive. Borrowed from
 # MoneyPrinterTurbo (MIT), which logs the same thing for the same reason: ffmpeg
@@ -64,19 +71,17 @@ def _heartbeat(step: str, out_path: Path, started: float, stop: threading.Event)
         logger.info("  ffmpeg %s sigue: %.0fs, salida %.1f MB", step, time.monotonic() - started, size)
 
 
-def _run(cmd: list[str], step: str = "ffmpeg") -> None:
+def _run(cmd: list[str], step: str = "ffmpeg", timeout: float = _FFMPEG_TIMEOUT_SECONDS) -> None:
     started = time.monotonic()
     # The output file is always the last argument of every command built here.
     stop = threading.Event()
     reporter = threading.Thread(target=_heartbeat, args=(step, Path(cmd[-1]), started, stop), daemon=True)
     reporter.start()
     try:
-        result = subprocess.run(cmd, capture_output=True, timeout=_FFMPEG_TIMEOUT_SECONDS)
+        result = subprocess.run(cmd, capture_output=True, timeout=timeout)
     except subprocess.TimeoutExpired as exc:
         # subprocess.run kills the child before raising.
-        raise RuntimeError(
-            f"ffmpeg bloqueado en '{step}' mas de {_FFMPEG_TIMEOUT_SECONDS}s, proceso matado"
-        ) from exc
+        raise RuntimeError(f"ffmpeg bloqueado en '{step}' mas de {timeout:.0f}s, proceso matado") from exc
     finally:
         stop.set()
     logger.info("  ffmpeg %s: %.1fs", step, time.monotonic() - started)
@@ -349,6 +354,7 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
             str(out_path),
         ],
         f"transiciones x{len(segment_paths)}",
+        timeout=_JOIN_TIMEOUT_SECONDS,
     )
     return out_path
 
