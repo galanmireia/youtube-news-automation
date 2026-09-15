@@ -60,6 +60,14 @@ _FIRST_SCENE_ELIGIBLE_FOR_CARD = 2
 # instead, and the fact rides on the corner badge as it does everywhere else.
 _MAX_CARD_SECONDS = 4.0
 
+# Most AI illustrations one video may use. The daily cap in ai_images.py stops
+# a runaway; this is the everyday one, and it is what keeps a video's cost
+# predictable: at roughly four cents an image, a Short and a long video
+# together come to about twenty. Past it the scene falls back to stock footage
+# or a card exactly as it did when there was no AI illustration at all.
+_MAX_AI_IMAGES = {"9:16": 2, "16:9": 4}
+_MAX_AI_IMAGES_DEFAULT = 2
+
 # requests' `timeout` only limits the wait between two chunks of data, so a
 # download that trickles in forever never trips it. These cap the whole
 # transfer as well, because a single stuck download is enough to freeze the
@@ -237,6 +245,7 @@ def fetch_clips_for_scenes(
     used_photo_urls: set[str] = set()
     # Far enough back that the first eligible scene can use one.
     last_card_index = -_MIN_SCENES_BETWEEN_CARDS - 1
+    ai_images_left = _MAX_AI_IMAGES.get(aspect_ratio, _MAX_AI_IMAGES_DEFAULT)
     for i, scene in enumerate(scenes):
         duration = scene_durations[i] if i < len(scene_durations) else 0.0
 
@@ -315,7 +324,15 @@ def fetch_clips_for_scenes(
             continue
 
         ai_image_prompt = (scene.get("ai_image_prompt") or "").strip()
+        if ai_image_prompt and ai_images_left <= 0:
+            logger.info(
+                "Escena %s: pedia ilustracion por IA, pero este video ya ha gastado su cupo de %s.",
+                i,
+                _MAX_AI_IMAGES.get(aspect_ratio, _MAX_AI_IMAGES_DEFAULT),
+            )
+            ai_image_prompt = ""
         if ai_image_prompt:
+            ai_images_left -= 1
             image_path = ai_images.generate_image(ai_image_prompt, out_dir / f"clip_{i:02d}.jpg", aspect_ratio)
             if image_path is not None:
                 # Same badge the stock-footage branch puts on its first clip:

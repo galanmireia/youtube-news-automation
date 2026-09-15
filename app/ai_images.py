@@ -28,9 +28,13 @@ logger = logging.getLogger(__name__)
 # reports is the only reliable source, and /vertex prints it when nothing
 # works. Flash first because it is the cheap one and this is illustration,
 # not art direction; pro as a fallback; the preview build last.
+# 2.5 first because it is the one that actually answers. The 3.x names are in
+# the catalogue Vertex lists for this project and still 404 on generateContent,
+# which is worth knowing: being listed is not the same as being callable, so
+# the order here comes from what replied, not from what was advertised.
 _IMAGE_MODELS = (
-    "gemini-3.1-flash-image",
     "gemini-2.5-flash-image",
+    "gemini-3.1-flash-image",
     "gemini-3-pro-image",
     "gemini-3.1-flash-lite-image",
     "gemini-3.1-flash-image-preview",
