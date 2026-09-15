@@ -16,24 +16,23 @@ from .config import (
 
 logger = logging.getLogger(__name__)
 
-# The old vertexai.preview.vision_models.ImageGenerationModel path 404'd on
-# its model-metadata lookup (publishers/google/models/imagegeneration@006
-# "not found") regardless of the model name tried. The unified google-genai
-# SDK skips that lookup entirely and calls the model's :predict endpoint
-# directly, which is the officially supported replacement going forward.
-# Tried in order until one answers. Google retires and renames these every few
-# months, and asking for a retired one comes back as 404 "not found or your
-# project does not have access to it" - which reads like a permissions problem
-# and is not. Picking a single name means being wrong again the next time one
-# is retired; trying a list means the first working model is found whatever
-# Google has done since, and the one that works is remembered for the process.
+# Google retired Imagen from this project entirely and moved image generation
+# into the Gemini models: asking Vertex what it actually has here returned 132
+# models, none of them an Imagen, and these five. So this is no longer an
+# Imagen client - these are ordinary Gemini models called through
+# generate_content, asked to answer with a picture instead of with text.
+#
+# Names come from that live catalogue rather than from memory. Six Imagen
+# names were guessed at over two days and all six 404'd; the list Vertex
+# reports is the only reliable source, and /vertex prints it when nothing
+# works. Flash first because it is the cheap one and this is illustration,
+# not art direction; pro as a fallback; the preview build last.
 _IMAGE_MODELS = (
-    "imagen-4.0-generate-001",
-    "imagen-4.0-fast-generate-001",
-    "imagen-3.0-generate-002",
-    "imagen-3.0-generate-001",
-    "imagen-3.0-fast-generate-001",
-    "imagegeneration@006",
+    "gemini-3.1-flash-image",
+    "gemini-2.5-flash-image",
+    "gemini-3-pro-image",
+    "gemini-3.1-flash-lite-image",
+    "gemini-3.1-flash-image-preview",
 )
 
 _working_model: str | None = None
@@ -72,6 +71,58 @@ def _take_daily_allowance() -> tuple[bool, int]:
         except OSError:
             logger.warning("No se pudo guardar el contador de imagenes de IA", exc_info=True)
         return True, used
+
+
+def _image_config(aspect_ratio: str):
+    """The frame shape to ask for, or None if this SDK build has no say in it.
+    Not worth failing a whole image over: a picture in the wrong shape still
+    gets blur-fitted into the frame like every stock photo does."""
+    try:
+        return types.ImageConfig(aspect_ratio=aspect_ratio)
+    except (AttributeError, TypeError, ValueError):
+        logger.info("El SDK de genai no acepta image_config; la imagen vendra en su forma por defecto.")
+        return None
+
+
+def _first_image_bytes(response) -> bytes | None:
+    """Digs the picture out of a Gemini reply. These models answer with the
+    same parts structure as any other Gemini call - the image arrives as
+    inline data among them, possibly alongside text, which is ignored."""
+    for candidate in getattr(response, "candidates", None) or []:
+        content = getattr(candidate, "content", None)
+        for part in (getattr(content, "parts", None) or []):
+            inline = getattr(part, "inline_data", None)
+            data = getattr(inline, "data", None)
+            if data:
+                return data
+    return None
+
+
+def _request_image(client, model: str, prompt: str, aspect_ratio: str) -> bytes | None:
+    """Asks one model for one picture. TEXT is left in the accepted reply
+    types alongside IMAGE because some of these models refuse an image-only
+    request, and an unwanted text part costs nothing to ignore."""
+    config_kwargs = {"response_modalities": ["TEXT", "IMAGE"]}
+    image_config = _image_config(aspect_ratio)
+    if image_config is not None:
+        config_kwargs["image_config"] = image_config
+    response = client.models.generate_content(
+        model=model, contents=prompt, config=types.GenerateContentConfig(**config_kwargs)
+    )
+    return _first_image_bytes(response)
+
+
+def _save_jpeg(data: bytes, out_path: Path) -> Path:
+    """Writes the picture as a real JPEG whatever Gemini sent back, since the
+    rest of the pipeline names these files .jpg and ffmpeg is happier when the
+    name and the contents agree."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    with Image.open(BytesIO(data)) as image:
+        image.convert("RGB").save(out_path, "JPEG", quality=92)
+    return out_path
 
 
 def _is_missing_model(error: Exception) -> bool:
@@ -185,27 +236,29 @@ def check_access() -> tuple[bool, str]:
     Returns (works, explanation in Spanish) so the answer can be read
     anywhere."""
     global _working_model
+    allowed, used = _take_daily_allowance()
+    if not allowed:
+        return False, (
+            f"No lo pruebo: ya se ha llegado al limite de {AI_IMAGES_DAILY_LIMIT} imagenes de hoy. "
+            "La prueba genera una imagen de verdad y se cobra como cualquier otra."
+        )
     intentados = []
     try:
         client = _get_client()
         last_error: Exception | None = None
         for model in _models_to_try():
             try:
-                response = client.models.generate_images(
-                    model=model,
-                    prompt="a simple blue circle on a white background",
-                    config=types.GenerateImagesConfig(number_of_images=1, aspect_ratio="1:1"),
-                )
+                data = _request_image(client, model, "a simple blue circle on a white background", "1:1")
             except Exception as exc:
                 intentados.append(model)
                 last_error = exc
                 if _is_missing_model(exc):
                     continue
                 raise
-            if not response.generated_images:
+            if not data:
                 return False, f"El modelo {model} respondio sin imagen."
             _working_model = model
-            return True, f"Funciona. Modelo en uso: {model}"
+            return True, f"Funciona. Modelo en uso: {model} ({len(data) / 1024:.0f} KB de prueba)"
         raise last_error  # type: ignore[misc]
     except Exception as exc:
         detail = str(exc)
@@ -286,20 +339,10 @@ def generate_image(prompt: str, out_path: Path, aspect_ratio: str) -> Path | Non
             used,
             AI_IMAGES_DAILY_LIMIT,
         )
-        response = None
+        data = None
         for model in _models_to_try():
             try:
-                response = client.models.generate_images(
-                    model=model,
-                    prompt=prompt,
-                    config=types.GenerateImagesConfig(
-                        number_of_images=1,
-                        aspect_ratio=aspect_ratio,
-                        safety_filter_level=types.SafetyFilterLevel.BLOCK_MEDIUM_AND_ABOVE,
-                        person_generation=types.PersonGeneration.ALLOW_ADULT,
-                        output_mime_type="image/jpeg",
-                    ),
-                )
+                data = _request_image(client, model, prompt, aspect_ratio)
                 _working_model = model
                 break
             except Exception as exc:
@@ -309,11 +352,11 @@ def generate_image(prompt: str, out_path: Path, aspect_ratio: str) -> Path | Non
                 if not _is_missing_model(exc):
                     raise
                 logger.info("Modelo %s no disponible, probando el siguiente.", model)
-        if response is None or not response.generated_images:
-            logger.warning("Vertex AI no devolvio ninguna imagen para el prompt %r", prompt)
+        if not data:
+            logger.warning("Vertex no devolvio ninguna imagen para el prompt %r", prompt)
             return None
-        response.generated_images[0].image.save(str(out_path))
-        logger.info("Imagen generada con IA para el prompt %r", prompt)
+        _save_jpeg(data, out_path)
+        logger.info("Imagen generada con IA (%s) para el prompt %r", _working_model, prompt)
         return out_path
     except Exception:
         logger.warning("No se pudo generar la imagen con IA para el prompt %r", prompt, exc_info=True)
