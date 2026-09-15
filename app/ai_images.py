@@ -109,7 +109,28 @@ def _request_image(client, model: str, prompt: str, aspect_ratio: str) -> bytes 
     response = client.models.generate_content(
         model=model, contents=prompt, config=types.GenerateContentConfig(**config_kwargs)
     )
+    _log_usage(model, response)
     return _first_image_bytes(response)
+
+
+def _log_usage(model: str, response) -> None:
+    """Records what the call actually consumed.
+
+    These models are billed by token like any other Gemini call, and the reply
+    carries its own count. Logging it means the price of an image can be
+    checked against the published rate straight away, instead of waiting for
+    Cloud billing to catch up hours later - and it is per image, which a
+    monthly bill is not."""
+    usage = getattr(response, "usage_metadata", None)
+    if usage is None:
+        return
+    logger.info(
+        "Consumo de %s: %s tokens de entrada, %s de salida, %s en total.",
+        model,
+        getattr(usage, "prompt_token_count", "?"),
+        getattr(usage, "candidates_token_count", "?"),
+        getattr(usage, "total_token_count", "?"),
+    )
 
 
 def _save_jpeg(data: bytes, out_path: Path) -> Path:
