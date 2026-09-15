@@ -278,6 +278,11 @@ def run_once(
     # the same 60 seconds, and taking whichever headline came first made that
     # choice at random.
     news_item = pick_best_story(candidates)
+    if news_item is None:
+        # The picker also enforces which stories the channel must not make, so
+        # there is no safe default to fall back on here.
+        logger.info("No se ha podido elegir noticia con garantias; no se genera nada.")
+        return []
     logger.info("Procesando noticia: %s", news_item["title"])
 
     work_dir = Path(DATA_DIR) / f"job_{int(time.time())}"

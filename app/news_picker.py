@@ -10,6 +10,10 @@ logger = logging.getLogger(__name__)
 
 _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
+# Choosing is one cheap call, and the failures seen are transient (an empty
+# reply, malformed JSON). Retrying costs seconds; not retrying costs the run.
+_MAX_ATTEMPTS = 3
+
 _PROMPT_TEMPLATE = """Eres el editor de un canal de noticias en video corto (formato Short vertical, unos 60
 segundos). Tienes que elegir CUAL de estas noticias merece la pena convertir en video hoy.
 
@@ -83,56 +87,81 @@ def _strip_markdown_fence(text: str) -> str:
     return text.strip()
 
 
-def pick_best_story(candidates: list[dict]) -> dict:
-    """Chooses which of the fetched headlines to actually make a video about.
+def pick_best_story(candidates: list[dict]) -> dict | None:
+    """Chooses which of the fetched headlines to actually make a video about,
+    or None when it cannot choose safely.
 
     The pipeline used to take whichever story happened to come first in the
     feed, with no judgement about whether anyone would care - so a procedural
-    court filing got the same treatment as a story with a person in it. Falls
-    back to the first candidate on any failure, which is exactly the old
-    behaviour, so a bad response here can never block a video."""
+    court filing got the same treatment as a story with a person in it."""
     if len(candidates) <= 1:
-        return candidates[0]
+        return candidates[0] if candidates else None
 
     candidates_block = "\n".join(
         f"{i}. {c['title']}\n   {c.get('summary', '')[:300]}" for i, c in enumerate(candidates)
     )
     prompt = _PROMPT_TEMPLATE.format(tone_hint=CHANNEL_TONE_HINT, candidates_block=candidates_block)
 
-    try:
-        message = _client.messages.create(
-            model=CLAUDE_MODEL,
-            max_tokens=500,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text_blocks = [block.text for block in message.content if block.type == "text"]
-        if not text_blocks:
-            logger.warning("pick_best_story: respuesta sin texto, se usa la primera noticia")
-            return candidates[0]
-
-        raw = _strip_markdown_fence(text_blocks[0])
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
         try:
-            parsed = json.loads(raw)
-            reason = parsed.get("reason", "")
-            index = int(parsed["index"])
-        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
-            match = _INDEX_RE.search(raw)
-            if match is None:
-                raise
-            index = int(match.group(1))
-            reason = "(JSON mal formado, se recupero solo el indice)"
-            logger.warning("pick_best_story: JSON invalido, indice %s recuperado del texto", index)
-        if not 0 <= index < len(candidates):
-            logger.warning("pick_best_story: indice %s fuera de rango, se usa la primera noticia", index)
-            return candidates[0]
+            return _pick_once(prompt, candidates)
+        except Exception:
+            logger.warning("pick_best_story: intento %s/%s fallido", attempt, _MAX_ATTEMPTS, exc_info=True)
 
-        logger.info(
-            "pick_best_story: elegida %r de %s candidatas. Motivo: %s",
-            candidates[index]["title"],
-            len(candidates),
-            reason,
+    # Taking the first headline on failure is no longer the harmless default
+    # it was. This prompt also decides which stories the channel must not make
+    # at all, so choosing blindly can hand back precisely the story it was
+    # asked to rule out - it just did, returning a story about a dead child
+    # that the rules exclude. Making nothing this run is the cheaper mistake:
+    # the schedule comes round again.
+    logger.error(
+        "pick_best_story: no se pudo elegir tras %s intentos; no se genera nada en esta pasada, "
+        "porque coger la primera a ciegas se saltaria los filtros de monetizacion.",
+        _MAX_ATTEMPTS,
+    )
+    return None
+
+
+def _pick_once(prompt: str, candidates: list[dict]) -> dict:
+    """One attempt. Raises rather than falling back, so the caller can retry."""
+    message = _client.messages.create(
+        model=CLAUDE_MODEL,
+        max_tokens=800,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    text_blocks = [block.text for block in message.content if block.type == "text"]
+    if not text_blocks:
+        # Says why, rather than just that it happened: an empty reply looks the
+        # same whether the model stopped early, hit the token ceiling, or
+        # returned only non-text blocks, and those need different fixes.
+        raise ValueError(
+            f"respuesta sin texto (stop_reason={getattr(message, 'stop_reason', '?')}, "
+            f"bloques={[b.type for b in message.content]})"
         )
-        return candidates[index]
-    except Exception:
-        logger.warning("pick_best_story: fallo eligiendo noticia, se usa la primera", exc_info=True)
-        return candidates[0]
+
+    raw = _strip_markdown_fence(text_blocks[0])
+    try:
+        parsed = json.loads(raw)
+        index = int(parsed["index"])
+        reason = parsed.get("reason", "")
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+        # The prose in "reason" is what breaks the JSON, usually an unescaped
+        # quote copied from a headline. The index is the actual answer, so it
+        # is worth recovering on its own.
+        match = _INDEX_RE.search(raw)
+        if match is None:
+            raise
+        index = int(match.group(1))
+        reason = "(JSON mal formado, se recupero solo el indice)"
+        logger.warning("pick_best_story: JSON invalido, indice %s recuperado del texto", index)
+
+    if not 0 <= index < len(candidates):
+        raise ValueError(f"indice {index} fuera de rango (hay {len(candidates)} candidatas)")
+
+    logger.info(
+        "pick_best_story: elegida %r de %s candidatas. Motivo: %s",
+        candidates[index]["title"],
+        len(candidates),
+        reason,
+    )
+    return candidates[index]
