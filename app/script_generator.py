@@ -71,21 +71,33 @@ historia documentada, y tratarlos como sensibles solo empeora el video sin prote
         "structure_block": """Este video cuenta UN caso concreto: una catastrofe, un accidente o una obra de
 ingenieria. El espectador viene por entender COMO pasa algo asi, no por un resumen de enciclopedia.
 
+LO QUE DECIDE SI ALGUIEN SE QUEDA A VERLO: no le cuentes la historia en orden y completa, porque
+entonces no tiene ningun motivo para seguir viendola. Abre una pregunta al principio y NO la
+respondas hasta pasada la mitad. Esa tension es lo unico que sostiene el video.
+
 Estructura obligatoria del guion ({duration_hint}, en este orden):
-1. Gancho: el momento en que todo cambia, o la cifra que no encaja. Una frase. Nunca empieces por
-   "el 14 de abril de 1912..." - la fecha va despues; primero engancha.
-2. La escala: que era esto y por que era extraordinario. Aqui van las CIFRAS de construccion -
-   cuanto medio, cuanto peso, cuanto costo, cuanta gente iba dentro, cuantos años se tardo. Esta
-   parte existe para que el espectador entienda el tamaño de lo que luego se rompe.
-3. Lo que pasó: la cronologia de los hechos, en orden, con las horas y los datos concretos. Sobria,
-   sin dramatizar y sin recrearse en el sufrimiento de nadie.
-4. Por qué pasó: LA PARTE MAS IMPORTANTE DEL VIDEO. La causa tecnica explicada de forma que la
-   entienda cualquiera: que fallo exactamente, que decision lo provoco, que señal se ignoro. Si hubo
-   informe oficial o investigacion, citala. Esto es lo que diferencia el canal de quien solo cuenta
-   la tragedia: aqui se explica la ingenieria.
-5. Qué queda hoy: en que estado esta ahora, que se cambio a raiz de esto (normas, diseños, leyes),
-   que se puede visitar o ver todavia. Cierra con una reflexion o pregunta abierta y la llamada a
-   suscribirse.
+
+1. ARRANQUE EN FRIO + LA PREGUNTA. Empieza DENTRO del suceso: el instante en que alguien toma la
+   decision, salta la alarma o algo se rompe. Nunca empieces situando ("el 13 de noviembre de 2002,
+   el Prestige navegaba frente a..."). Y en esa misma frase o la siguiente, deja planteada LA
+   PREGUNTA que el video va a responder.
+   Ejemplo: "El capitan del Prestige pidio entrar a puerto. España le dijo que no. Seis dias
+   despues habia ochenta mil toneladas de fuel en la costa gallega." -> la pregunta que queda
+   flotando es POR QUE le dijeron que no, y no se responde todavia.
+
+2. POR QUE IMPORTABA. Corto. Solo las cifras que hacen entender lo que habia en juego - tamaño,
+   carga, cuanta gente, cuanto costaba. Dos o tres datos, no un inventario.
+
+3. LO QUE PASO. La cronologia, en orden, con horas y datos concretos. Sobria, sin dramatizar.
+   AQUI TODAVIA NO SE RESPONDE LA PREGUNTA DEL PRINCIPIO.
+
+4. LA RESPUESTA. La parte mas importante y el pago de todo lo anterior: la causa tecnica explicada
+   para cualquiera. Que fallo exactamente, que decision lo provoco, que señal se ignoro. Si hubo
+   informe oficial, citalo. Esto es lo que separa este canal de quien solo cuenta la tragedia:
+   aqui se explica la ingenieria. No puede llegar antes de la mitad del video.
+
+5. QUE QUEDA HOY. En que estado esta ahora, que normas o diseños cambiaron por esto, que se puede
+   ver todavia. Cierra con la llamada a suscribirse.
 
 TONO: documental, sobrio y preciso. El drama lo ponen los hechos y las cifras, no los adjetivos.
 Si hubo victimas, se mencionan con respeto y sin detalles morbosos: nunca describas agonias,
@@ -317,9 +329,16 @@ _VARIANT_CONFIG = {
             "YouTube Short vertical (9:16). Debe ser autoconclusivo, directo al grano, pensado "
             "para verse en el feed de Shorts sin contexto previo."
         ),
-        "duration_hint": "45-60 segundos",
-        "scene_count_hint": "entre 5 y 7 escenas",
-        "scene_length_hint": "Cada narracion debe ser una frase corta y directa, ritmo rapido.",
+        "duration_hint": "40-50 segundos",
+        "scene_count_hint": "entre 5 y 6 escenas",
+        "scene_length_hint": (
+            "Cada narracion es UNA frase corta y directa. Y un limite duro que manda sobre todo lo "
+            "demas: sumando TODAS las narraciones, el guion entero no puede pasar de 120 PALABRAS. "
+            "Cuentalas antes de responder. Un Short pedido a 45 segundos salio de 70 porque las "
+            "escenas se fueron alargando de una en una; las palabras si se pueden contar, los "
+            "segundos no. Si te pasas, recorta - empezando por los adjetivos y el contexto, nunca "
+            "por las cifras ni por la causa tecnica."
+        ),
         "shorts_seo_hint": (
             '- Incluye "#Shorts" como uno de los hashtags al final de la descripcion (obligatorio '
             "para que YouTube lo clasifique bien como Short)."
