@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
@@ -113,7 +114,7 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.edit_message_caption(caption=f"{label}\nSubiendo a YouTube: {record['title']}")
     loop = asyncio.get_running_loop()
     try:
-        youtube_id = await loop.run_in_executor(
+        youtube_id, publish_at = await loop.run_in_executor(
             None,
             upload_video,
             Path(record["video_path"]),
@@ -135,8 +136,15 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # now that every upload that needed them has already happened.
         await loop.run_in_executor(None, cleanup_finished_video_files)
 
+        if publish_at is None:
+            estado = "Publicado"
+        else:
+            # Shown in Spanish local time, which is what the user reads the
+            # message in - publish_at itself is UTC.
+            local = publish_at.astimezone(ZoneInfo("Europe/Madrid"))
+            estado = f"Subido en privado, se publica solo a las {local.strftime('%H:%M')}"
         await query.edit_message_caption(
-            caption=f"{label}\nPublicado: {record['title']}\nhttps://youtu.be/{youtube_id}"
+            caption=f"{label}\n{estado}: {record['title']}\nhttps://youtu.be/{youtube_id}"
         )
     except Exception:
         logger.exception("Error subiendo el video %s a YouTube", video_id)

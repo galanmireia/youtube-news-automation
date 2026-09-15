@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from google.auth.transport.requests import Request
@@ -8,7 +9,12 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
-from .config import YOUTUBE_CLIENT_SECRETS_FILE, YOUTUBE_PRIVACY_STATUS, YOUTUBE_TOKEN_FILE
+from .config import (
+    YOUTUBE_CLIENT_SECRETS_FILE,
+    YOUTUBE_PRIVACY_STATUS,
+    YOUTUBE_PUBLISH_DELAY_MINUTES,
+    YOUTUBE_TOKEN_FILE,
+)
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
@@ -54,8 +60,44 @@ def get_credentials() -> Credentials:
     return creds
 
 
-def upload_video(video_path: Path, thumbnail_path: Path, title: str, description: str, tags: list[str]) -> str:
+def _publish_status() -> tuple[dict, datetime | None]:
+    """Builds the status block, and says when the video will actually be live.
+
+    A scheduled upload is a private video carrying a publishAt time - YouTube
+    ignores publishAt on anything that is already public, so the two have to
+    be set together. Returns the time it will go live, or None if it goes live
+    on upload.
+
+    Holding a video back is not an algorithmic trick; YouTube gives no
+    advantage to a video that sat private first. What the delay actually buys
+    is that the high-resolution transcode has finished before anyone watches:
+    a video that goes public the instant it finishes uploading is often only
+    available in 360p for its first minutes, which is exactly when its
+    retention is being measured."""
+    if YOUTUBE_PUBLISH_DELAY_MINUTES <= 0 or YOUTUBE_PRIVACY_STATUS != "public":
+        return {"privacyStatus": YOUTUBE_PRIVACY_STATUS, "selfDeclaredMadeForKids": False}, None
+
+    publish_at = datetime.now(timezone.utc) + timedelta(minutes=YOUTUBE_PUBLISH_DELAY_MINUTES)
+    return (
+        {
+            "privacyStatus": "private",
+            "publishAt": publish_at.isoformat().replace("+00:00", "Z"),
+            "selfDeclaredMadeForKids": False,
+        },
+        publish_at,
+    )
+
+
+def upload_video(
+    video_path: Path, thumbnail_path: Path, title: str, description: str, tags: list[str]
+) -> tuple[str, datetime | None]:
+    """Uploads the video and returns its id together with the moment it goes
+    public, which is None when it is already public (or staying private)."""
     youtube = build("youtube", "v3", credentials=get_credentials())
+
+    status, publish_at = _publish_status()
+    if publish_at is not None:
+        logger.info("Subiendo en privado, publicacion programada para %s UTC.", publish_at.strftime("%Y-%m-%d %H:%M"))
 
     body = {
         "snippet": {
@@ -66,7 +108,7 @@ def upload_video(video_path: Path, thumbnail_path: Path, title: str, description
             "defaultLanguage": "es",
             "defaultAudioLanguage": "es",
         },
-        "status": {"privacyStatus": YOUTUBE_PRIVACY_STATUS, "selfDeclaredMadeForKids": False},
+        "status": status,
     }
     media = MediaFileUpload(str(video_path), chunksize=-1, resumable=True, mimetype="video/mp4")
     request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
@@ -83,7 +125,7 @@ def upload_video(video_path: Path, thumbnail_path: Path, title: str, description
         # already uploaded fine, so this shouldn't fail the whole operation.
         logger.warning("No se pudo establecer la miniatura personalizada para %s: %s", video_id, exc)
 
-    return video_id
+    return video_id, publish_at
 
 
 def upload_captions(video_id: str, srt_path: Path, language: str = "es") -> None:

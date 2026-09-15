@@ -34,6 +34,14 @@ YOUTUBE_CLIENT_SECRETS_FILE = os.environ.get(
 YOUTUBE_TOKEN_FILE = os.environ.get("YOUTUBE_TOKEN_FILE", str(CREDENTIALS_DIR / "youtube_token.json"))
 YOUTUBE_PRIVACY_STATUS = os.environ.get("YOUTUBE_PRIVACY_STATUS", "public")
 
+# Minutes to hold a video back before it goes live. 0 publishes immediately.
+#
+# This only applies when YOUTUBE_PRIVACY_STATUS is "public": scheduling works
+# by uploading as private with a publishAt time, so if the channel is already
+# meant to stay private (testing), scheduling it would do the one thing that
+# setting exists to prevent - make it public on its own.
+YOUTUBE_PUBLISH_DELAY_MINUTES = int(os.environ.get("YOUTUBE_PUBLISH_DELAY_MINUTES", "0"))
+
 
 def _materialize_credential_from_env(env_var: str, target_path: str) -> None:
     """Allows deploying without a persistent volume: if the credential's JSON
