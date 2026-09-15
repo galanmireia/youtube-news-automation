@@ -28,8 +28,27 @@ comision, un recurso judicial sobre un plazo, unas declaraciones de un politico 
 politico. Aunque sean importantes, en 60 segundos no hay forma de que le importen a nadie que no
 siga ya el tema.
 
-No penalices una noticia por ser dura o triste: esas se cubren igual, solo que con tono sobrio y sin
-especular. Lo que se valora aqui es el interes para el espectador, no el morbo.
+No penalices una noticia por ser dura o triste: sucesos, investigaciones, juicios, condenas,
+desapariciones, corrupcion y fallos institucionales SE CUBREN, solo que con tono sobrio y sin
+especular. Ese es el terreno donde mejor funciona el canal. Lo que se valora aqui es el interes
+para el espectador, no el morbo.
+
+PERO HAY NOTICIAS QUE NO SE PUEDEN CONVERTIR EN VIDEO, por muy interesantes que parezcan, porque
+YouTube no las monetiza casi nunca y el canal vive de monetizar. NO ELIJAS NUNCA una noticia cuyo
+asunto central sea:
+1. La muerte, el maltrato o el abuso de un MENOR de edad.
+2. Un suicidio o una autolesion.
+3. Violencia sexual, sobre todo con victimas identificables.
+4. El detalle de COMO murio o fue herida una persona concreta (heridas, sufrimiento, la escena).
+5. La desgracia recien ocurrida de un particular sin relevancia publica, cuando la noticia se
+   reduce a que esa persona ha muerto y no hay nada mas que contar todavia.
+Estas no son "noticias duras que hay que tratar con cuidado": son noticias que este canal no hace.
+Si la unica candidata potente es de este tipo, elige otra aunque sea menos llamativa.
+
+Ojo con la diferencia, porque es sutil: "un juicio por un crimen" SI se cubre; "como murio la
+victima de ese crimen" NO. "Una red de abusos destapada por una investigacion" SI; "el relato de lo
+que sufrio una victima concreta" NO. Lo que decide no es el tema, es si el video acabaria girando
+sobre el dano a una persona concreta.
 
 Noticias candidatas:
 {candidates_block}
