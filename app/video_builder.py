@@ -137,6 +137,99 @@ def _run(cmd: list[str], step: str = "ffmpeg", timeout: float = _FFMPEG_TIMEOUT_
             raise RuntimeError(f"ffmpeg fallo en '{step}' (codigo {returncode}): {stderr_tail}")
 
 
+# A photo that does not match the frame's shape has two possible fates and
+# until now only got the worse one. Fitting it whole leaves it floating in a
+# band of blur - an ordinary 16:9 press photo covers 42% of a 9:16 screen, and
+# a Short made of those reads as a badly cropped repost. Filling the frame and
+# sliding across the photo instead shows all of it, over time, at full size.
+# That is the move a human editor makes, and it is why the bars were never
+# necessary.
+#
+# The pan uses the middle of the available travel rather than edge to edge, so
+# a shot never opens or closes on the extreme rim of a picture, where the
+# subject almost never is.
+_PAN_TRAVEL_FRACTION = 0.70
+
+# Below this the crop stops being a crop and becomes a keyhole: less than this
+# share of the long side surviving means a panorama reduced to a crawling
+# sliver, and there the blurred background genuinely is the better answer.
+_MIN_PHOTO_RETAINED = 0.18
+
+# Travel smaller than this is not a movement, it is a jitter - a photo already
+# close to the frame's shape should hold still and let the Ken Burns zoom do
+# the work instead.
+_MIN_PAN_PIXELS = 40
+
+# How fast the frame may travel across the photo, as a share of its own width
+# per second. Without a cap the travel is simply "all of it, over the length
+# of the shot", which on a 16:9 photo in a four-second scene works out at 38%
+# of the frame every second - a whip-pan that is harder to watch than the bars
+# it replaced. Eight per cent is a drift: enough that the shot is alive,
+# slow enough to read what is in it. Where that means not reaching the ends of
+# the photo, not reaching them is the right answer.
+_MAX_PAN_SPEED = 0.08
+
+
+def _probe_image_size(path: Path) -> tuple[int, int] | None:
+    """The photo's pixel size, needed to decide between filling and padding.
+    None when ffprobe cannot read it, which sends the caller down the old
+    blurred-background path rather than guessing."""
+    result = subprocess.run(
+        [
+            "ffprobe", "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=width,height",
+            "-of", "csv=p=0:s=x",
+            str(path),
+        ],
+        capture_output=True,
+        timeout=30,
+    )
+    try:
+        w, h = result.stdout.decode().strip().split("x")[:2]
+        return (int(w), int(h)) if int(w) > 0 and int(h) > 0 else None
+    except ValueError:
+        return None
+
+
+def _photo_fill_filter(
+    image_w: int, image_h: int, width: int, height: int, duration: float, backwards: bool = False
+) -> tuple[str, bool] | None:
+    """Scales the photo until it covers the frame and slides the frame across
+    it for the length of the shot. Returns the filter and whether it actually
+    moves, or None when covering would cost too much of the picture, leaving
+    the caller to pad instead."""
+    cover = max(width / image_w, height / image_h)
+    shown_w, shown_h = image_w * cover, image_h * cover
+    # Whichever axis overflows is the one being cropped; the other fits exactly.
+    retained = min(width / shown_w, height / shown_h)
+    if retained < _MIN_PHOTO_RETAINED:
+        return None
+
+    scaled_w = max(width, int(shown_w // 2 * 2))
+    scaled_h = max(height, int(shown_h // 2 * 2))
+    travel_x, travel_y = scaled_w - width, scaled_h - height
+
+    def used_travel(travel: int, extent: int) -> float:
+        if duration <= 0:
+            return 0.0
+        return min(travel * _PAN_TRAVEL_FRACTION, _MAX_PAN_SPEED * extent * duration)
+
+    moves = max(used_travel(travel_x, width), used_travel(travel_y, height)) >= _MIN_PAN_PIXELS
+
+    def sweep(travel: int, extent: int) -> str:
+        used = used_travel(travel, extent)
+        if used < _MIN_PAN_PIXELS:
+            return f"{travel // 2}"
+        start, end = (travel - used) / 2, (travel + used) / 2
+        if backwards:
+            start, end = end, start
+        return f"'{start:.1f}+({end - start:.1f})*min(t/{duration:.3f}\,1)'"
+
+    chain = f"scale={scaled_w}:{scaled_h},crop={width}:{height}:x={sweep(travel_x, width)}:y={sweep(travel_y, height)}"
+    return chain, moves
+
+
 def _photo_background_filter(width: int, height: int) -> str:
     """Lays the photo as large as it will go over a blurred, darkened copy of
     itself, so a photo whose shape doesn't match the frame fills the screen
@@ -216,7 +309,19 @@ def _build_photo_segment(
     image_path: Path, duration: float, width: int, height: int, tag: dict | None, out_path: Path, tmp_dir: Path, key: str
 ) -> None:
     zoom_out = int(key.split("_")[0]) % 2 == 1
-    vf_bg = f"{_photo_background_filter(width, height)},{_ken_burns_filter(width, height, duration, zoom_out)}"
+
+    # Filling the frame and panning is the first choice; the blurred
+    # background is the fallback for a photo too extreme to crop and for one
+    # ffprobe could not measure. A shot that already pans does not also zoom -
+    # one deliberate move reads as camera work, two at once read as a screen
+    # saver - so the Ken Burns push is added only when the photo sits still.
+    size = _probe_image_size(image_path)
+    fill = _photo_fill_filter(*size, width, height, duration, zoom_out) if size else None
+    if fill is not None:
+        chain, moves = fill
+        vf_bg = chain if moves else f"{chain},{_ken_burns_filter(width, height, duration, zoom_out)}"
+    else:
+        vf_bg = f"{_photo_background_filter(width, height)},{_ken_burns_filter(width, height, duration, zoom_out)}"
 
     # Two kinds of still reach this function and they want different labels. A
     # real photograph of a named subject gets the name bar along the bottom
