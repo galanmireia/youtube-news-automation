@@ -368,7 +368,17 @@ def _build_scene_segment(
 # whole video. Capping encoder threads does not help (3.00 -> 2.82GB for 50%
 # more time) and neither does capping filter threads (2.97GB) - the frames are
 # the cost, so the only real fix is to hold fewer inputs at a time.
-_MAX_JOIN_INPUTS = 6
+#
+# Lowered from 6 to 3 after a six-way join stalled outright: the output file
+# sat frozen at 16MB for two minutes until the watchdog killed it, and an
+# earlier one returned 10.93 seconds where 57.63 were asked for. Both had six
+# segments, all of them rendered from stills, and the offsets going in were
+# correct in both cases - so the arithmetic was never the problem, the size of
+# the graph was. Three inputs per call turns one fragile filter graph into a
+# few small ones, at the price of joining twice. Crossfades have cost more time
+# today than every other part of the build put together; making them boring is
+# worth more than making them fast.
+_MAX_JOIN_INPUTS = 3
 
 # Slack added to every segment that is not the last. Without it each segment
 # is rendered to exactly the length its crossfade consumes and no more, so the
