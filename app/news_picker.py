@@ -4,6 +4,7 @@ import re
 
 import anthropic
 
+from . import llm_usage
 from .config import ANTHROPIC_API_KEY, CHANNEL_TONE_HINT, CLAUDE_MODEL
 
 logger = logging.getLogger(__name__)
@@ -134,6 +135,7 @@ def _pick_once(prompt: str, candidates: list[dict]) -> dict:
         max_tokens=4000,
         messages=[{"role": "user", "content": prompt}],
     )
+    llm_usage.record("selector", CLAUDE_MODEL, message)
     text_blocks = [block.text for block in message.content if block.type == "text"]
     if not text_blocks:
         # Says why, rather than just that it happened: an empty reply looks the

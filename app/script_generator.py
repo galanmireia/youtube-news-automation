@@ -5,11 +5,16 @@ import unicodedata
 
 import anthropic
 
+from . import llm_usage
 from .config import ANTHROPIC_API_KEY, CHANNEL_NAME, CHANNEL_TONE_HINT, CLAUDE_MODEL, NEWS_LANGUAGE_HINT
 
 logger = logging.getLogger(__name__)
 
 _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+# Where the instructions end and the day's story begins. Everything before it
+# is identical on every call and is what gets cached.
+_STORY_MARKER = "Noticia de partida (usala solo como disparador de hechos"
 
 PROMPT_TEMPLATE = """Eres el guionista y analista del canal de YouTube "{channel_name}" en {language}.
 
@@ -44,11 +49,6 @@ que solo es una sospecha, ni construyas el gancho sobre la culpabilidad de esa p
 explicitamente en el guion en que punto esta el caso (denuncia, investigacion abierta, juicio
 pendiente, condena firme). Presentar a una persona identificable como culpable de algo que no esta
 probado desmonetiza el video y ademas es un problema legal real para el canal.
-
-Noticia de partida (usala solo como disparador de hechos, NO la copies ni parafrasees frase a
-frase):
-Titular: {title}
-Resumen: {summary}
 
 Formato de este video: {format_hint}
 
@@ -239,6 +239,11 @@ Genera {scene_count_hint} siguiendo la estructura de arriba (gancho, contexto, h
 cierre - el hecho y el analisis pueden ocupar varias escenas). {scene_length_hint} No inventes
 datos que no esten en la noticia original: puedes analizar y contextualizar, pero los hechos deben
 ser reales.
+
+Noticia de partida (usala solo como disparador de hechos, NO la copies ni parafrasees frase a
+frase):
+Titular: {title}
+Resumen: {summary}
 """
 
 _VARIANT_CONFIG = {
@@ -332,14 +337,32 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
         summary=news_item["summary"],
         **variant_config,
     )
+    # Split into the part that never changes and the story of the day, so the
+    # instructions can be cached.
+    #
+    # Caching is a prefix match: everything after the first differing byte is
+    # re-read at full price. The story used to sit 15% of the way in, which put
+    # the other 85% - about four thousand tokens of instructions, resent on
+    # every script of every video - permanently past the point of difference.
+    # Moving it to the end and sending the instructions as a cached system
+    # prompt means they are written once and then read at a tenth of the price.
+    instrucciones, _, noticia = prompt.partition(_STORY_MARKER)
 
     last_error: Exception | None = None
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         message = _client.messages.create(
             model=CLAUDE_MODEL,
             max_tokens=_MAX_TOKENS[variant],
-            messages=[{"role": "user", "content": prompt}],
+            system=[
+                {
+                    "type": "text",
+                    "text": instrucciones,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
+            messages=[{"role": "user", "content": _STORY_MARKER + noticia}],
         )
+        llm_usage.record(f"guion-{variant}", CLAUDE_MODEL, message)
         text_blocks = [block.text for block in message.content if block.type == "text"]
         if not text_blocks:
             last_error = ValueError("Claude no devolvio ningun bloque de texto en la respuesta")

@@ -3,6 +3,7 @@ import logging
 
 import anthropic
 
+from . import llm_usage
 from .config import ANTHROPIC_API_KEY, CLAUDE_MODEL
 
 logger = logging.getLogger(__name__)
@@ -84,6 +85,7 @@ def extract_entities(scenes: list[dict]) -> dict[int, list[dict]]:
             max_tokens=6000,
             messages=[{"role": "user", "content": prompt}],
         )
+        llm_usage.record("entidades", CLAUDE_MODEL, message)
         text_blocks = [block.text for block in message.content if block.type == "text"]
         if not text_blocks:
             logger.warning("extract_entities: la respuesta de Claude no traia ningun bloque de texto")

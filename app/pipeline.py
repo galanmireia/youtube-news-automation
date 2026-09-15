@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from . import storage
+from . import llm_usage, storage
 from .branding import INTRO_NARRATION
 from .config import (
     BURN_SUBTITLES,
@@ -325,6 +325,9 @@ def run_once(
     for variant in variants:
         try:
             video_id = _generate_variant(news_item, variant, work_dir)
+            resumen_coste = llm_usage.report_and_reset()
+            if resumen_coste:
+                logger.info("[%s] %s", variant, resumen_coste)
             video_ids.append(video_id)
             if on_variant_done is not None:
                 on_variant_done(video_id)
