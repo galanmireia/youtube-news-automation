@@ -100,12 +100,27 @@ CHANNEL_LOGO_URL = os.environ.get(
     "CHANNEL_LOGO_URL",
     "https://yt3.googleusercontent.com/7pwcunu0h_a_fxTodi6tBv1pRBHF5J7AG78RFPKAOODHFyWYd1-Zkj9NunqTeDR52aQ1ed54Lw=s160-c-k-c0x00ffffff-no-rj",
 )
-CHANNEL_TONE_HINT = os.environ.get(
-    "CHANNEL_TONE_HINT",
-    "revela el lado oculto, inquietante o menos contado de cada noticia: que se esconde detras "
-    "del titular, que consecuencias no se ven a simple vista, que preguntas incomodas deja "
-    "abiertas. El tono es intrigante y directo, pero SIEMPRE basado en hechos verificables de la "
-    "propia noticia, nunca en especulacion sin fundamento ni teorias de conspiracion.",
+# Who the channel is, per format. The news identity is built on the headline -
+# what is behind it, what it does not say - and reads as nonsense applied to a
+# ship that sank in 1912, so each mode gets its own. An explicit
+# CHANNEL_TONE_HINT still overrides both.
+_TONE_HINTS = {
+    "news": (
+        "revela el lado oculto, inquietante o menos contado de cada noticia: que se esconde detras "
+        "del titular, que consecuencias no se ven a simple vista, que preguntas incomodas deja "
+        "abiertas. El tono es intrigante y directo, pero SIEMPRE basado en hechos verificables de la "
+        "propia noticia, nunca en especulacion sin fundamento ni teorias de conspiracion."
+    ),
+    "topics": (
+        "explica como se construyo y como fallo algo enorme: la decision que lo provoco, el fallo "
+        "tecnico exacto, la señal que alguien ignoro. No cuenta la tragedia, explica la ingenieria - "
+        "lo que el espectador se lleva es entender POR QUE paso, no solo QUE paso. El tono es "
+        "documental, preciso y sobrio: el drama lo ponen los hechos y las cifras, nunca los "
+        "adjetivos ni el morbo. Todo anclado en lo documentado, jamas en especulacion."
+    ),
+}
+CHANNEL_TONE_HINT = os.environ.get("CHANNEL_TONE_HINT") or _TONE_HINTS.get(
+    CONTENT_MODE, _TONE_HINTS["news"]
 )
 # Burned-in subtitles are the norm on Shorts (most of the feed is watched
 # muted), on top of the caption track uploaded to YouTube.
