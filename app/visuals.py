@@ -274,7 +274,11 @@ def fetch_clips_for_scenes(
         # visual_keywords can be intentionally empty when the scene expected a
         # photo/AI image to be used instead; if that failed, fall back to
         # something Pexels can still search for instead of an empty query.
-        query = (scene.get("visual_keywords") or "").strip() or ai_image_prompt or photo_subject or "news studio background"
+        # photo_subject is deliberately not part of this chain: it is a Spanish
+        # proper noun meant for Wikipedia, and Pexels indexes in English, so
+        # searching it returns nothing useful - a scene about Pekin searched
+        # Pexels for "Pekin" and fell through to generic footage anyway.
+        query = (scene.get("visual_keywords") or "").strip() or ai_image_prompt or _LAST_RESORT_QUERY
         # A long scene gets several clips rather than one held for its whole
         # length. Each search excludes the clips already used, so they differ.
         clip_count = min(_MAX_CLIPS_PER_SCENE, max(1, math.ceil(duration / _MAX_SECONDS_PER_CLIP)))

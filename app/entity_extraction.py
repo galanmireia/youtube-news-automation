@@ -26,8 +26,17 @@ Para cada entidad que encuentres, da:
   descriptor corto, o cadena vacia si el nombre ya se explica solo
 
 No incluyas victimas de crimenes/tragedias ni particulares sin relevancia publica como "person" -
-si la unica persona nombrada en una escena es asi, omitela por completo de esa escena. Si una
-escena no menciona ninguna entidad valida, su lista debe ser exactamente [].
+si la unica persona nombrada en una escena es asi, omitela por completo de esa escena.
+
+NO INCLUYAS NUNCA al MEDIO DE COMUNICACION que publica o difunde la noticia: BBC, El Mundo, El
+Pais, El Confidencial, La Vanguardia, RTVE, Antena 3, Muy Interesante, Reuters, EFE, etc. Cuando la
+narracion dice "segun El Mundo" o "informa la BBC", ese medio es solo la FUENTE de la informacion,
+no algo de lo que trate la noticia. Sacar su logo o una foto suya en pantalla no ilustra nada: en
+un video sobre riesgos de la inteligencia artificial acabaria apareciendo la foto de una fiesta de
+aniversario de un periodico. Omitelo. La unica excepcion es que el medio sea el ASUNTO de la
+noticia (por ejemplo, un juicio contra ese periodico o su cierre).
+
+Si una escena no menciona ninguna entidad valida, su lista debe ser exactamente [].
 
 Escenas (indice: texto de la narracion):
 {scenes_block}

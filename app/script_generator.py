@@ -1,5 +1,7 @@
 import json
 import logging
+import re
+import unicodedata
 
 import anthropic
 
@@ -60,6 +62,16 @@ Estructura obligatoria del guion ({duration_hint}, en este orden):
    diferencia el canal de un simple agregador de titulares.
 5. Cierre: una reflexion o pregunta abierta al espectador, y llamada a suscribirse (en noticias
    sensibles, sobria y sin banalizar).
+
+ORTOGRAFIA, MUY IMPORTANTE: el campo "narration" lo lee en voz alta un sintetizador de voz, y ese
+sintetizador pronuncia SEGUN COMO ESTE ESCRITA la palabra. Una palabra sin su tilde se pronuncia
+con el acento en la silaba equivocada y suena a robot. Escribe la narracion en español
+PERFECTAMENTE acentuado, con todas las tildes, eñes y signos de apertura: "investigación" y no
+"investigacion", "según" y no "segun", "murió" y no "murio", "más" y no "mas", "año" y no "ano",
+"España" y no "Espana", "análisis", "policía", "también", "qué", "cómo", "aquí". Lo mismo para
+"title", "description" y "on_screen_highlight", que se leen en pantalla. Fijate en que estas
+instrucciones estan escritas sin tildes por motivos tecnicos: NO imites ese estilo, tu texto debe
+ir correctamente acentuado.
 
 Recuerda: SIEMPRE anclado en los hechos de la noticia original. Nunca inventes conspiraciones ni
 afirmes cosas que no esten respaldadas por la fuente.
@@ -187,7 +199,7 @@ Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni ma
   "tags": ["tag1", "tag2", "... entre 10 y 15 tags"],
   "scenes": [
     {{
-      "narration": "texto que se narrara en esta escena",
+      "narration": "texto que se narrara en esta escena, en español con TODAS las tildes correctas",
       "visual_keywords": "palabras clave en ingles para buscar video de stock",
       "photo_subject": "nombre de una persona publica o de un lugar/institucion con nombre propio si aplica, si no, cadena vacia",
       "photo_subject_role": "cargo de la persona o descriptor corto del lugar si photo_subject no esta vacio, si no, cadena vacia",
@@ -249,6 +261,38 @@ _MAX_TOKENS = {"short": 8000, "long": 20000}
 _MAX_ATTEMPTS = 3
 
 
+
+# Written Spanish carries an accent or an ene on roughly one word in twenty.
+# Well under that means the narration came back effectively unaccented, which
+# the voice then mispronounces - it stresses whatever the spelling says.
+_MIN_ACCENT_RATE = 0.02
+
+
+def _log_accent_rate(script: dict, variant: str) -> None:
+    """Reports how accented the narration came out.
+
+    The prompt asks for correctly accented Spanish because the speech
+    synthesiser pronounces from the spelling, and an unaccented word lands its
+    stress on the wrong syllable. Whether the model actually complied is not
+    otherwise visible until the video is listened to."""
+    text = " ".join(scene.get("narration", "") for scene in script.get("scenes", []))
+    words = re.findall(r"[^\W\d_]{3,}", text, re.UNICODE)
+    if not words:
+        return
+    accented = sum(
+        1 for w in words if any(unicodedata.combining(c) for c in unicodedata.normalize("NFD", w)) or "ñ" in w.lower()
+    )
+    rate = accented / len(words)
+    message = "Guion: %.1f%% de palabras acentuadas (%s de %s)"
+    if rate < _MIN_ACCENT_RATE:
+        logger.warning(
+            message + " - demasiado pocas, la voz pronunciara mal. Variante '%s'.",
+            rate * 100, accented, len(words), variant,
+        )
+    else:
+        logger.info(message, rate * 100, accented, len(words))
+
+
 def generate_script(news_item: dict, variant: str = "long") -> dict:
     if variant not in _VARIANT_CONFIG:
         raise ValueError(f"variant desconocida: {variant!r}")
@@ -299,6 +343,7 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
             last_error = ValueError(f"Respuesta de Claude incompleta, faltan claves: {required_keys - script.keys()}")
             continue
 
+        _log_accent_rate(script, variant)
         return script
 
     raise RuntimeError(f"generate_script fallo tras {_MAX_ATTEMPTS} intentos: {last_error}") from last_error
