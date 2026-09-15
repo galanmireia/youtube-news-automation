@@ -70,7 +70,10 @@ concreta nombra directamente (a) una persona publica real identificable por su c
 con nombre propio que casi seguro tenga su propio articulo en Wikipedia con foto (una universidad
 concreta, un ministerio, un monumento, la sede de una empresa conocida, un estadio, un hospital
 concreto, UN PARTIDO POLITICO por su nombre - PSOE, PP, Vox, Sumar, etc. -, un sindicato, una
-organizacion internacional como la ONU o la Union Europea, etc.), rellena "photo_subject" con su
+organizacion internacional como la ONU o la Union Europea, y TAMBIEN CUALQUIER PUEBLO, MUNICIPIO,
+CIUDAD, COMARCA, ISLA O PROVINCIA con nombre propio - Alozaina, Ronda, Teruel, El Hierro, etc.,
+por pequeño que sea, casi todos tienen articulo en Wikipedia con foto del sitio real), rellena
+"photo_subject" con su
 nombre completo tal cual aparece en Wikipedia, para mostrar su foto/logo REAL en vez de video
 generico o una ilustracion inventada. Nunca sustituyas un lugar, institucion o partido con nombre
 propio conocido por una escena generica ni por una ilustracion de IA - si tiene nombre propio y es
@@ -86,7 +89,17 @@ imagen equivocada de otro pais.
 Cuando rellenes "photo_subject", rellena tambien "photo_subject_role" en 2-4 palabras: para una
 persona, su cargo o titulo actual (ej. "Ministro de Transportes"); para un lugar/institucion, un
 descriptor corto (ej. "Universidad publica en Granada") o dejalo vacio si el nombre ya se explica
-solo. Deja ambos campos vacios ("") en el resto de escenas, y SIEMPRE vacios si la persona
+solo.
+
+MUY IMPORTANTE, el lugar va PRIMERO: si la noticia ocurre en un sitio concreto, la PRIMERA escena
+que lo nombre (normalmente el gancho) es la que debe llevar ese "photo_subject", no una escena
+posterior. Poner video de archivo generico mientras se nombra el pueblo, y enseñar la foto real del
+pueblo dos escenas despues, deja al espectador viendo gente anonima cualquiera justo cuando se le
+esta diciendo donde paso todo. Si varias escenas seguidas hablan del mismo sitio, repite el mismo
+"photo_subject" en ellas en lugar de dejarlo vacio: es preferible ver el sitio real otra vez que
+un video de stock que no es ese sitio.
+
+Deja ambos campos vacios ("") en las escenas que no hablen de ningun lugar ni entidad concreta, y SIEMPRE vacios si la persona
 nombrada es una victima de un crimen/tragedia o un particular sin relevancia publica (evita mostrar
 la foto real de victimas o personas privadas - esta excepcion es solo para personas, nunca aplica a
 lugares).
