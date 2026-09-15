@@ -81,6 +81,20 @@ RSS_FEEDS = [feed.strip() for feed in os.environ.get("RSS_FEEDS", _DEFAULT_RSS_F
 
 PIPELINE_INTERVAL_SECONDS = int(os.environ.get("PIPELINE_INTERVAL_SECONDS", 60 * 60 * 12))
 NEWS_LANGUAGE_HINT = os.environ.get("NEWS_LANGUAGE_HINT", "castellano, España")
+# Which kind of channel this is.
+#
+# "news": stories arrive from RSS feeds, a picker chooses the best one, and the
+#   script is written as same-day news. This is what the channel ran as first.
+# "topics": subjects come from a curated catalogue of engineering and disaster
+#   cases and the facts come from their Wikipedia article. Evergreen, which is
+#   the point - a news video is dead in a week and never accumulates the watch
+#   hours the channel needs, while a case from 1912 still earns views in three
+#   years.
+#
+# Everything downstream - script, voice, pictures, subtitles, upload - is shared;
+# only where the subject and its facts come from differs.
+CONTENT_MODE = os.environ.get("CONTENT_MODE", "news").strip().lower()
+
 CHANNEL_NAME = os.environ.get("CHANNEL_NAME", "ActualiDark")
 CHANNEL_LOGO_URL = os.environ.get(
     "CHANNEL_LOGO_URL",

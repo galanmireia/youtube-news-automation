@@ -10,6 +10,7 @@ from . import llm_usage, storage
 from .branding import INTRO_NARRATION
 from .config import (
     BURN_SUBTITLES,
+    CONTENT_MODE,
     DATA_DIR,
     LONG_VIDEO_HEIGHT,
     LONG_VIDEO_WIDTH,
@@ -21,6 +22,7 @@ from .config import (
 from .entity_extraction import extract_entities
 from .news_picker import pick_best_story
 from .news_source import fetch_candidate_news
+from .topic_source import fetch_candidate_topics
 from .script_generator import generate_script
 from .subtitles import generate_subtitles
 from .thumbnail import generate_thumbnail
@@ -301,21 +303,33 @@ def run_once(
     _stop_requested.clear()
     cleanup_finished_video_files()
 
-    candidates = fetch_candidate_news(limit=6)
+    if CONTENT_MODE == "topics":
+        candidates = fetch_candidate_topics(limit=3)
+    else:
+        candidates = fetch_candidate_news(limit=6)
     if not candidates:
-        logger.info("No hay noticias nuevas que procesar.")
+        logger.info("No hay temas nuevos que procesar.")
         return []
 
     # Which story gets made matters more than how well it is made: a
     # procedural court filing and a story with a person in it are not worth
     # the same 60 seconds, and taking whichever headline came first made that
     # choice at random.
-    news_item = pick_best_story(candidates)
-    if news_item is None:
-        # The picker also enforces which stories the channel must not make, so
-        # there is no safe default to fall back on here.
-        logger.info("No se ha podido elegir noticia con garantias; no se genera nada.")
-        return []
+    if CONTENT_MODE == "topics":
+        # No picker here. The picker exists to judge which of six headlines the
+        # feed happened to push is worth making, and to refuse the ones the
+        # channel must not touch. The catalogue is already curated and ordered,
+        # so that judgement was made when it was written - and asking the model
+        # to re-make it over three nine-thousand-character articles would cost
+        # more than the script itself.
+        news_item = candidates[0]
+    else:
+        news_item = pick_best_story(candidates)
+        if news_item is None:
+            # The picker also enforces which stories the channel must not make,
+            # so there is no safe default to fall back on here.
+            logger.info("No se ha podido elegir noticia con garantias; no se genera nada.")
+            return []
     logger.info("Procesando noticia: %s", news_item["title"])
 
     work_dir = Path(DATA_DIR) / f"job_{int(time.time())}"

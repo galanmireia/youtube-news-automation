@@ -6,7 +6,7 @@ import unicodedata
 import anthropic
 
 from . import llm_usage
-from .config import ANTHROPIC_API_KEY, CHANNEL_NAME, CHANNEL_TONE_HINT, CLAUDE_MODEL, NEWS_LANGUAGE_HINT
+from .config import CONTENT_MODE, ANTHROPIC_API_KEY, CHANNEL_NAME, CHANNEL_TONE_HINT, CLAUDE_MODEL, NEWS_LANGUAGE_HINT
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,90 @@ _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # Where the instructions end and the day's story begins. Everything before it
 # is identical on every call and is what gets cached.
-_STORY_MARKER = "Noticia de partida (usala solo como disparador de hechos"
+_STORY_MARKER = "===== MATERIAL DE PARTIDA ====="
+
+# The two genres the channel can be in. Everything else in the prompt - photos,
+# subtitles, spelling, figures on screen, SEO - is the same for both; only the
+# shape of the story and what the source material is differ, so they are
+# variables rather than a second copy of a seventeen-thousand-character
+# template that would drift out of sync on the first edit.
+_GENRE_BLOCKS = {
+    "news": {
+        "sensitivity_block": """AVISO DE SENSIBILIDAD (evalua esto ANTES de escribir): si la noticia trata sobre una muerte,
+un crimen violento, una victima identificable, una tragedia o una desgracia personal real, O sobre
+una ACUSACION, INVESTIGACION O SOSPECHA todavia no probada que recae sobre una persona concreta e
+identificable (un detenido, un investigado, un imputado, un sospechoso, alguien "relacionado con" o
+"vinculado a" algo), YouTube puede desmonetizar el video si el tono es sensacionalista o
+"intrigante". En ese caso,
+DEJA DE LADO el angulo de "lado oculto" del canal y escribe en su lugar como un medio de noticias
+serio: tono neutral, respetuoso con las victimas y sus familias, sin especular sobre la
+investigacion mas alla de lo confirmado, sin dramatizar ni usar ganchos tipo clickbait. El
+"analisis" en estos casos debe centrarse en contexto social o estadistico legitimo (por ejemplo,
+cifras del fenomeno, respuesta institucional, precedentes similares), nunca en morbo sobre la
+victima concreta. Si la noticia NO es sensible (politica, tecnologia, economia, cultura, etc.),
+aplica con normalidad el tono intrigante del canal descrito arriba.""",
+        "structure_block": """Estructura obligatoria del guion ({duration_hint}, en este orden):
+1. Gancho: una frase que enganche (intrigante si la noticia lo permite, sobria si es sensible), con una pregunta o dato relacionado (no el titular tal cual).
+2. Contexto: que ha pasado antes, quien esta implicado, por que existe esta noticia ahora.
+3. El hecho: los datos concretos de la noticia, explicados con tus propias palabras.
+4. Analisis: en noticias normales, la parte de la historia que no suele contarse a simple vista,
+   las consecuencias reales o las preguntas que deja abiertas. En noticias sensibles, contexto
+   social o estadistico legitimo, tratado con seriedad. Esta es la parte que aporta valor real y
+   diferencia el canal de un simple agregador de titulares.
+5. Cierre: una reflexion o pregunta abierta al espectador, y llamada a suscribirse (en noticias
+   sensibles, sobria y sin banalizar).""",
+        "source_block": """===== MATERIAL DE PARTIDA =====
+Noticia de partida (usala solo como disparador de hechos, NO la copies ni parafrasees frase a
+frase):""",
+    },
+    "topics": {
+        "sensitivity_block": """AVISO DE SENSIBILIDAD (evalua esto ANTES de escribir): este canal cuenta catastrofes, asi que
+CASI TODOS los casos tienen victimas mortales. Eso por si solo NO los hace "sensibles" a efectos de
+este campo. Una catastrofe documentada, contada con tono documental, sin morbo y sin recrearse en
+el sufrimiento de nadie, monetiza con total normalidad - y ese tono ya te lo impone la estructura
+de mas abajo, no hace falta nada mas.
+
+Marca "is_sensitive" como true SOLO en estos dos casos:
+- El suceso es muy reciente (ultimos dos años) y hay victimas identificables cuyas familias siguen
+  en duelo publico.
+- El relato se apoya en una acusacion, investigacion o juicio TODAVIA NO RESUELTO contra una
+  persona concreta e identificable (un capitan, un maquinista, un ingeniero imputado).
+En esos dos casos: tono de medio serio, presuncion de inocencia, y nunca montes el gancho sobre la
+culpabilidad de nadie.
+
+En todo lo demas - que sera la inmensa mayoria de los casos del catalogo - "is_sensitive" es false.
+Un naufragio de 1912 o una central que exploto en 1986 NO son sensibles en este sentido: son
+historia documentada, y tratarlos como sensibles solo empeora el video sin proteger a nadie.""",
+        "structure_block": """Este video cuenta UN caso concreto: una catastrofe, un accidente o una obra de
+ingenieria. El espectador viene por entender COMO pasa algo asi, no por un resumen de enciclopedia.
+
+Estructura obligatoria del guion ({duration_hint}, en este orden):
+1. Gancho: el momento en que todo cambia, o la cifra que no encaja. Una frase. Nunca empieces por
+   "el 14 de abril de 1912..." - la fecha va despues; primero engancha.
+2. La escala: que era esto y por que era extraordinario. Aqui van las CIFRAS de construccion -
+   cuanto medio, cuanto peso, cuanto costo, cuanta gente iba dentro, cuantos años se tardo. Esta
+   parte existe para que el espectador entienda el tamaño de lo que luego se rompe.
+3. Lo que pasó: la cronologia de los hechos, en orden, con las horas y los datos concretos. Sobria,
+   sin dramatizar y sin recrearse en el sufrimiento de nadie.
+4. Por qué pasó: LA PARTE MAS IMPORTANTE DEL VIDEO. La causa tecnica explicada de forma que la
+   entienda cualquiera: que fallo exactamente, que decision lo provoco, que señal se ignoro. Si hubo
+   informe oficial o investigacion, citala. Esto es lo que diferencia el canal de quien solo cuenta
+   la tragedia: aqui se explica la ingenieria.
+5. Qué queda hoy: en que estado esta ahora, que se cambio a raiz de esto (normas, diseños, leyes),
+   que se puede visitar o ver todavia. Cierra con una reflexion o pregunta abierta y la llamada a
+   suscribirse.
+
+TONO: documental, sobrio y preciso. El drama lo ponen los hechos y las cifras, no los adjetivos.
+Si hubo victimas, se mencionan con respeto y sin detalles morbosos: nunca describas agonias,
+heridas ni el sufrimiento de personas concretas. No especules sobre causas que la investigacion no
+haya establecido - si algo esta en disputa, di que esta en disputa.""",
+        "source_block": """===== MATERIAL DE PARTIDA =====
+Articulo de Wikipedia sobre el caso. Es tu fuente de HECHOS: las cifras, fechas y nombres tienen
+que salir de aqui y no de tu memoria, y no debes añadir datos que no esten en el texto. Lo que si
+tienes que hacer es reordenarlo y contarlo como una historia - NO lo resumas parrafo a parrafo ni
+copies sus frases:""",
+    },
+}
 
 PROMPT_TEMPLATE = """Eres el guionista y analista del canal de YouTube "{channel_name}" en {language}.
 
@@ -28,19 +111,7 @@ una lectura plana de la fuente.
 
 Identidad del canal: {tone_hint}
 
-AVISO DE SENSIBILIDAD (evalua esto ANTES de escribir): si la noticia trata sobre una muerte,
-un crimen violento, una victima identificable, una tragedia o una desgracia personal real, O sobre
-una ACUSACION, INVESTIGACION O SOSPECHA todavia no probada que recae sobre una persona concreta e
-identificable (un detenido, un investigado, un imputado, un sospechoso, alguien "relacionado con" o
-"vinculado a" algo), YouTube puede desmonetizar el video si el tono es sensacionalista o
-"intrigante". En ese caso,
-DEJA DE LADO el angulo de "lado oculto" del canal y escribe en su lugar como un medio de noticias
-serio: tono neutral, respetuoso con las victimas y sus familias, sin especular sobre la
-investigacion mas alla de lo confirmado, sin dramatizar ni usar ganchos tipo clickbait. El
-"analisis" en estos casos debe centrarse en contexto social o estadistico legitimo (por ejemplo,
-cifras del fenomeno, respuesta institucional, precedentes similares), nunca en morbo sobre la
-victima concreta. Si la noticia NO es sensible (politica, tecnologia, economia, cultura, etc.),
-aplica con normalidad el tono intrigante del canal descrito arriba.
+{sensitivity_block}
 
 PRESUNCION DE INOCENCIA (obligatorio siempre que haya una acusacion no resuelta): nadie esta
 condenado hasta que lo diga una sentencia. Escribe "presunto"/"presunta", "segun la investigacion",
@@ -52,16 +123,7 @@ probado desmonetiza el video y ademas es un problema legal real para el canal.
 
 Formato de este video: {format_hint}
 
-Estructura obligatoria del guion ({duration_hint}, en este orden):
-1. Gancho: una frase que enganche (intrigante si la noticia lo permite, sobria si es sensible), con una pregunta o dato relacionado (no el titular tal cual).
-2. Contexto: que ha pasado antes, quien esta implicado, por que existe esta noticia ahora.
-3. El hecho: los datos concretos de la noticia, explicados con tus propias palabras.
-4. Analisis: en noticias normales, la parte de la historia que no suele contarse a simple vista,
-   las consecuencias reales o las preguntas que deja abiertas. En noticias sensibles, contexto
-   social o estadistico legitimo, tratado con seriedad. Esta es la parte que aporta valor real y
-   diferencia el canal de un simple agregador de titulares.
-5. Cierre: una reflexion o pregunta abierta al espectador, y llamada a suscribirse (en noticias
-   sensibles, sobria y sin banalizar).
+{structure_block}
 
 ORTOGRAFIA, MUY IMPORTANTE: el campo "narration" lo lee en voz alta un sintetizador de voz, y ese
 sintetizador pronuncia SEGUN COMO ESTE ESCRITA la palabra. Una palabra sin su tilde se pronuncia
@@ -240,8 +302,7 @@ cierre - el hecho y el analisis pueden ocupar varias escenas). {scene_length_hin
 datos que no esten en la noticia original: puedes analizar y contextualizar, pero los hechos deben
 ser reales.
 
-Noticia de partida (usala solo como disparador de hechos, NO la copies ni parafrasees frase a
-frase):
+{source_block}
 Titular: {title}
 Resumen: {summary}
 """
@@ -329,7 +390,16 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
         raise ValueError(f"variant desconocida: {variant!r}")
     variant_config = _VARIANT_CONFIG[variant]
 
+    # The genre blocks carry placeholders of their own ({duration_hint}), and
+    # str.format inserts what it substitutes literally - it does not look
+    # inside it. Without this pass the words "{duration_hint}" would reach the
+    # model verbatim instead of "unos 60 segundos".
+    genero = {
+        nombre: bloque.format(**variant_config)
+        for nombre, bloque in _GENRE_BLOCKS[CONTENT_MODE].items()
+    }
     prompt = PROMPT_TEMPLATE.format(
+        **genero,
         channel_name=CHANNEL_NAME,
         tone_hint=CHANNEL_TONE_HINT,
         language=NEWS_LANGUAGE_HINT,
