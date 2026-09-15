@@ -8,6 +8,7 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 from . import storage
 from .config import PIPELINE_INTERVAL_SECONDS, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from .pipeline import cleanup_finished_video_files, run_once
+from .video_builder import make_preview
 from .youtube_uploader import upload_captions, upload_video
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,10 @@ _VARIANT_LABELS = {"short": "🔹 SHORT (vertical)", "long": "🔸 VIDEO LARGO (
 # run in this executor instead, and this lock keeps two pipeline runs from
 # overlapping (e.g. the scheduled job and a manual /generar at the same time).
 _pipeline_lock = asyncio.Lock()
+
+# Telegram's own ceiling is 50MB; stay clear of it so a file that measures just
+# under does not fail on multipart overhead.
+_PREVIEW_THRESHOLD_BYTES = 45 * 1024 * 1024
 
 # A whole run (both variants) normally takes around three minutes. If it goes
 # far past that, something is stuck rather than slow, and waiting longer will
@@ -44,12 +49,24 @@ async def send_for_approval(bot, video_id: int) -> None:
     label = _VARIANT_LABELS.get(record["variant"], record["variant"])
     caption = f"{label}\n*{record['title']}*\n\n{record['description']}"
 
+    # Send something watchable, not just its thumbnail: a video approved
+    # without being seen is not approved at all, and that happened - a long
+    # video went to YouTube on the strength of its thumbnail alone because it
+    # was over Telegram's 50MB upload limit. Anything too big is re-encoded
+    # smaller first; only if even that fails does the thumbnail stand in.
+    video_path = Path(record["video_path"])
+    to_send = video_path
+    if video_path.stat().st_size > _PREVIEW_THRESHOLD_BYTES:
+        loop = asyncio.get_running_loop()
+        preview = await loop.run_in_executor(
+            None, make_preview, video_path, video_path.with_name("preview.mp4")
+        )
+        if preview is not None:
+            to_send = preview
+            caption += "\n\n(Vista previa comprimida; a YouTube sube la version completa)"
+
     try:
-        # Send the actual video (not just its thumbnail) so it can be watched
-        # in full before deciding - Telegram bots can only upload up to 50MB,
-        # so a long video that exceeds that falls back to a thumbnail-only
-        # message below instead of failing the whole approval flow.
-        with open(record["video_path"], "rb") as video_file, open(record["thumbnail_path"], "rb") as thumb_file:
+        with open(to_send, "rb") as video_file, open(record["thumbnail_path"], "rb") as thumb_file:
             message = await bot.send_video(
                 chat_id=TELEGRAM_CHAT_ID,
                 video=video_file,

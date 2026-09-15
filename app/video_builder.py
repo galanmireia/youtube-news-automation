@@ -541,6 +541,63 @@ def _join_without_transitions(
     return out_path
 
 
+
+# Telegram bots cannot upload more than 50MB, and a five-minute 1080p video is
+# several times that. The limit used to mean the approval message arrived as a
+# thumbnail with a note saying the video was too big - so a long video could
+# only be approved without being watched, which defeats the point of approving
+# it at all.
+_PREVIEW_MAX_BYTES = 45 * 1024 * 1024
+# Small enough to reach a phone, large enough to judge framing, captions and
+# whether the pictures match the words.
+_PREVIEW_MAX_SIDE = 1280
+_PREVIEW_AUDIO_BITRATE = 64_000
+
+
+def make_preview(video_path: Path, out_path: Path, max_bytes: int = _PREVIEW_MAX_BYTES) -> Path | None:
+    """A smaller copy of a video that fits inside Telegram's upload limit.
+
+    Only for reviewing: the file uploaded to YouTube is always the original.
+    Returns None if a preview cannot be made, leaving the caller to fall back
+    to whatever it did before."""
+    duration = _probe_duration(video_path)
+    if duration <= 0:
+        return None
+    # Aim slightly under the limit: the muxer adds overhead and the encoder
+    # only approximates the bitrate it is given.
+    budget_bits = max_bytes * 8 * 0.92
+    video_bitrate = int(budget_bits / duration) - _PREVIEW_AUDIO_BITRATE
+    if video_bitrate < 150_000:
+        logger.warning(
+            "El video dura %.0fs: no cabe en %.0f MB ni con calidad minima.", duration, max_bytes / 1e6
+        )
+        return None
+    try:
+        _run(
+            [
+                "ffmpeg", "-y",
+                "-i", str(video_path),
+                "-vf",
+                f"scale=w={_PREVIEW_MAX_SIDE}:h={_PREVIEW_MAX_SIDE}"
+                ":force_original_aspect_ratio=decrease:force_divisible_by=2",
+                "-b:v", str(video_bitrate),
+                "-maxrate", str(int(video_bitrate * 1.3)),
+                "-bufsize", str(video_bitrate * 2),
+                "-preset", "veryfast",
+                "-c:a", "aac", "-b:a", str(_PREVIEW_AUDIO_BITRATE),
+                "-movflags", "+faststart",
+                str(out_path),
+            ],
+            "vista previa",
+        )
+    except Exception:
+        logger.warning("No se pudo crear la vista previa de %s", video_path.name, exc_info=True)
+        return None
+    size = out_path.stat().st_size
+    logger.info("Vista previa: %.1f MB (original %.1f MB)", size / 1e6, video_path.stat().st_size / 1e6)
+    return out_path if size <= max_bytes else None
+
+
 def build_video(
     clip_entries: list[list[tuple[Path, dict | None]]],
     scene_durations: list[float],
