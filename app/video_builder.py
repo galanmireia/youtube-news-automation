@@ -1,7 +1,11 @@
+import logging
 import subprocess
+import time
 from pathlib import Path
 
 from . import branding
+
+logger = logging.getLogger(__name__)
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
 
@@ -34,14 +38,31 @@ _BLUR_SIGMA = 6
 _TRANSITION_SECONDS = 0.25
 
 
-def _run(cmd: list[str]) -> None:
-    result = subprocess.run(cmd, capture_output=True)
+# No single ffmpeg call here should come close to this: the slowest one
+# measured (crossfading seven 1080x1920 segments) runs in under a minute on
+# four cores. The limit exists because a generation stopped dead inside this
+# stage for 25 minutes at roughly zero CPU - blocked, not working - and with
+# no limit it would have waited for ever. Raising turns that into an ordinary
+# variant failure, which the pipeline already catches, cleans up and reports.
+_FFMPEG_TIMEOUT_SECONDS = 8 * 60
+
+
+def _run(cmd: list[str], step: str = "ffmpeg") -> None:
+    started = time.monotonic()
+    try:
+        result = subprocess.run(cmd, capture_output=True, timeout=_FFMPEG_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired as exc:
+        # subprocess.run kills the child before raising.
+        raise RuntimeError(
+            f"ffmpeg bloqueado en '{step}' mas de {_FFMPEG_TIMEOUT_SECONDS}s, proceso matado"
+        ) from exc
+    logger.info("  ffmpeg %s: %.1fs", step, time.monotonic() - started)
     if result.returncode != 0:
         # subprocess.run(check=True) alone would only report the exit code -
         # ffmpeg's actual error (bad filter syntax, missing font, etc.) is on
         # stderr, and without it a failure here is undebuggable from logs.
         stderr_tail = result.stderr.decode(errors="replace")[-2000:]
-        raise RuntimeError(f"ffmpeg fallo (codigo {result.returncode}): {stderr_tail}")
+        raise RuntimeError(f"ffmpeg fallo en '{step}' (codigo {result.returncode}): {stderr_tail}")
 
 
 def _photo_background_filter(width: int, height: int) -> str:
@@ -335,10 +356,14 @@ def build_video(
         extra = _TRANSITION_SECONDS if i < last_index else _TRANSITION_SECONDS / 2
         seg_seconds = seg_frames / _ZOOM_FPS + extra
         seg_path = normalized_dir / f"seg_{i:02d}.mp4"
+        logger.info(
+            "Renderizando escena %s/%s (%.1fs, %s clip(s))...", i + 1, len(clip_entries), seg_seconds, len(entries)
+        )
         _build_scene_segment(entries, seg_seconds, width, height, seg_path, normalized_dir, i)
         segment_paths.append(seg_path)
 
     silent_video_path = work_dir / "silent_video.mp4"
+    logger.info("Uniendo %s escenas con transiciones...", len(segment_paths))
     _join_segments(segment_paths, frame_marks, work_dir, silent_video_path)
 
     # intro_duration comes from the caller because only it knows whether this
