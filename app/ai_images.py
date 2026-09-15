@@ -69,6 +69,38 @@ def _get_client() -> genai.Client:
     return _client
 
 
+def _list_available_models() -> list[str]:
+    """Asks Vertex which image models this project can actually see.
+
+    Six names were tried by hand and all came back 404, which says the guess
+    list is the wrong tool: the answer should come from Google rather than from
+    a list written from memory."""
+    import google.auth
+    import google.auth.transport.requests
+    import requests
+
+    creds, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    creds.refresh(google.auth.transport.requests.Request())
+    url = (
+        f"https://{GOOGLE_CLOUD_LOCATION}-aiplatform.googleapis.com/v1beta1/"
+        f"publishers/google/models"
+    )
+    response = requests.get(
+        url,
+        headers={"Authorization": f"Bearer {creds.token}"},
+        params={"filter": "model_garden", "pageSize": 200},
+        timeout=30,
+    )
+    response.raise_for_status()
+    nombres = []
+    for model in response.json().get("publisherModels", []):
+        name = model.get("name", "")
+        corto = name.rsplit("/", 1)[-1]
+        if "imagen" in corto.lower() or "imagegeneration" in corto.lower():
+            nombres.append(corto)
+    return sorted(set(nombres))
+
+
 def check_access() -> tuple[bool, str]:
     """Asks Vertex AI for one small image and reports what happened.
 
@@ -116,11 +148,23 @@ def check_access() -> tuple[bool, str]:
         if "billing" in detail.lower():
             return False, "Google pide activar la facturacion del proyecto para usar Imagen."
         if _is_missing_model(exc):
+            # Rather than send someone to hunt through the console, ask Vertex
+            # what it does have.
+            try:
+                disponibles = _list_available_models()
+            except Exception:
+                logger.warning("No se pudo listar los modelos disponibles", exc_info=True)
+                disponibles = []
+            if disponibles:
+                return False, (
+                    f"Ninguno de los {len(intentados)} modelos probados existe aqui, pero tu "
+                    "proyecto SI ve estos: " + ", ".join(disponibles[:12]) + ". Dimelo y lo cambio."
+                )
             return False, (
-                "Ningun modelo de imagen esta disponible en tu proyecto. Probados: "
-                + ", ".join(intentados)
-                + ". Mira en console.cloud.google.com/vertex-ai/model-garden cual tienes "
-                "habilitado y dime el nombre."
+                f"Tu proyecto no ve NINGUN modelo de imagen (probados {len(intentados)}). "
+                "Eso suele significar que la cuenta sigue en prueba gratuita: Google reserva "
+                "Imagen para cuentas completas. Mira si en console.cloud.google.com sigue el "
+                "aviso de 'Activa tu cuenta completa'."
             )
         logger.warning("check_access: error inesperado", exc_info=True)
         return False, f"Error inesperado: {detail[:300]}"
