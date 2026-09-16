@@ -486,5 +486,19 @@ def build_application() -> Application:
         filters.AUDIO | filters.VOICE | filters.Document.AUDIO, handle_narration_audio))
     # Don't auto-generate on every restart/deploy - only at the regular interval.
     # Use /generar in the chat for an on-demand run (e.g. right after deploying).
-    application.job_queue.run_repeating(pipeline_job, interval=PIPELINE_INTERVAL_SECONDS, first=PIPELINE_INTERVAL_SECONDS)
+    # Nothing generates itself when the narration is read by a person. The
+    # scheduled run calls the ordinary pipeline, which synthesises the voice -
+    # so leaving it armed would quietly produce, every twelve hours, exactly
+    # the kind of video this mode exists to stop making, and drop it into the
+    # chat in the middle of whatever is being recorded. If a human has to read
+    # it, a human starts it.
+    if NARRATION_SOURCE == "voz":
+        logger.info(
+            "Narracion por voz propia: el generador automatico queda desactivado. "
+            "Los videos se lanzan a mano con /generar."
+        )
+    else:
+        application.job_queue.run_repeating(
+            pipeline_job, interval=PIPELINE_INTERVAL_SECONDS, first=PIPELINE_INTERVAL_SECONDS
+        )
     return application
