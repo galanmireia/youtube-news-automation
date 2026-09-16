@@ -586,8 +586,21 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
     # timebase and start time first and fixing the rate afterwards gives xfade
     # the constant rate it requires, which is most likely what was missing all
     # along: an input whose rate it cannot determine is what it was waiting on.
+    # Timestamps are REBUILT from the frame index, not merely rebased. The
+    # difference matters: setpts=PTS-STARTPTS fixes where a segment starts and
+    # carries everything inside it through untouched, so one bad timestamp in
+    # the middle of an input survives into the crossfade. Measured directly -
+    # a segment given a PTS jump makes ffmpeg write without stopping, the file
+    # growing past ten megabytes for ten seconds of video - and that is the
+    # production symptom exactly: a join reporting 10,700 seconds encoded for
+    # a group of 33, frozen, until the watchdog killed it.
+    #
+    # With fps forcing a constant rate first, a timebase of exactly one frame,
+    # and setpts=N, every frame's time is its own index. Nothing an input says
+    # about its timing can reach the crossfade, because none of it is read.
     steps = [
-        f"[{i}:v]settb=AVTB,setpts=PTS-STARTPTS,fps={_ZOOM_FPS},format=yuv420p,setsar=1[n{i}]"
+        f"[{i}:v]fps={_ZOOM_FPS},settb=1/{_ZOOM_FPS},setpts=N,"
+        f"format=yuv420p,setsar=1,trim=duration={durations[i]:.3f},setpts=N[n{i}]"
         for i in range(len(segment_paths))
     ]
     current = "[n0]"
@@ -626,6 +639,12 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
         [f"{o:.2f}" for o in offsets],
         esperado,
     )
+    # And a ceiling on the output, as the second half of the same defence. If
+    # anything still makes the graph run away, ffmpeg stops at a length that
+    # cannot be legitimate instead of encoding for ever: the join is asked for
+    # `esperado` seconds and is given a couple of seconds of slack for
+    # rounding, so a correct join never notices this and a runaway is bounded
+    # into an ordinary short result, which the check below already handles.
     _run(
         [
             "ffmpeg", "-y",
@@ -633,6 +652,7 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
             "-filter_complex", filter_complex,
             "-map", current,
             "-r", str(_ZOOM_FPS),
+            "-t", f"{esperado + _MAX_JOIN_SHORTFALL_SECONDS:.3f}",
             str(out_path),
         ],
         f"transiciones x{len(segment_paths)}",
