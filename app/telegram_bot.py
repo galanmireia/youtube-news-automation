@@ -8,7 +8,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
-from . import ai_images, storage, tts
+from . import ai_images, storage, tts, voice_align
+from .voice_align import AlignmentFailed
 from .config import (
     DATA_DIR,
     PIPELINE_INTERVAL_SECONDS,
@@ -287,7 +288,7 @@ async def _prepare_and_send_script(bot, variant: str, forced_topic: str | None) 
         await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="No hay temas nuevos que procesar.")
         return
 
-    minutos = job["palabras"] / 150  # a comfortable Spanish reading pace
+    minutos = job["palabras"] / voice_align._PALABRAS_POR_MINUTO
     # The script goes as a file rather than a message: Telegram splits a long
     # message at 4096 characters wherever it lands, and a narration cut in
     # half mid-sentence cannot be read from. reading_script already carries
@@ -304,9 +305,25 @@ async def _prepare_and_send_script(bot, variant: str, forced_topic: str | None) 
     )
 
 
+def _partes_grabadas(job_file: Path) -> list[Path]:
+    """The takes received so far, in the order they were sent."""
+    return sorted(job_file.parent.glob("narracion_*.audio"))
+
+
+def _resumen_partes(partes: list[Path]) -> str:
+    total = sum(voice_align._probe_duration(p) for p in partes)
+    # Integer division, not a rounded quotient: 36 seconds formatted with
+    # total/60 rounds to 1 and reads back as "1 min 36 s".
+    return (f"{len(partes)} parte{'s' if len(partes) != 1 else ''}, "
+            f"{int(total // 60)} min {int(total % 60):02d} s")
+
+
 async def handle_narration_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """An audio file arrives: if a script is waiting to be narrated, it is
-    this one's."""
+    """An audio file arrives: one more part of whatever script is waiting.
+
+    Nothing is built on arrival. Seventeen minutes is not read in one breath,
+    so the parts pile up until /listo says the reading is finished - which
+    also means a fluffed section costs that section and not the whole take."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
     job_file = pending_voice_job()
@@ -315,25 +332,78 @@ async def handle_narration_audio(update: Update, context: ContextTypes.DEFAULT_T
             "No hay ningun guion esperando narracion. Lanza /generar primero."
         )
         return
+
+    msg = update.message
+    fichero = msg.audio or msg.voice or msg.document
+    siguiente = len(_partes_grabadas(job_file)) + 1
+    destino = job_file.parent / f"narracion_{siguiente:02d}.audio"
+    tg_file = await context.bot.get_file(fichero.file_id)
+    await tg_file.download_to_drive(custom_path=str(destino))
+
+    partes = _partes_grabadas(job_file)
+    await msg.reply_text(
+        f"Parte {siguiente} guardada. Llevas {_resumen_partes(partes)}.\n\n"
+        "Manda la siguiente cuando quieras, /rehacer si esa ultima no te ha gustado, "
+        "o /listo cuando hayas terminado el guion."
+    )
+
+
+async def handle_redo_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/rehacer - throws away the last part, to be recorded again."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    job_file = pending_voice_job()
+    partes = _partes_grabadas(job_file) if job_file else []
+    if not partes:
+        await update.message.reply_text("No hay ninguna parte grabada que rehacer.")
+        return
+    partes[-1].unlink(missing_ok=True)
+    quedan = _partes_grabadas(job_file)
+    await update.message.reply_text(
+        f"Borrada la parte {len(partes)}. "
+        + (f"Quedan {_resumen_partes(quedan)}. Manda esa parte otra vez."
+           if quedan else "No queda ninguna: empieza por el principio del guion.")
+    )
+
+
+async def handle_done_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/listo - the reading is finished: join the parts and build the video."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    job_file = pending_voice_job()
+    if job_file is None:
+        await update.message.reply_text("No hay ningun guion esperando narracion.")
+        return
+    partes = _partes_grabadas(job_file)
+    if not partes:
+        await update.message.reply_text("No me has mandado ninguna grabacion todavia.")
+        return
     if _pipeline_lock.locked():
         await update.message.reply_text("Espera, que hay algo generandose ahora mismo.")
         return
 
-    msg = update.message
-    fichero = msg.audio or msg.voice or msg.document
-    await msg.reply_text("Recibido. Alineando tu voz con el guion y montando el video...")
-
+    await update.message.reply_text(
+        f"{_resumen_partes(partes)}. Uniendo, alineando con el guion y montando el video..."
+    )
     loop = asyncio.get_running_loop()
-    destino = job_file.parent / "narracion_voz.ogg"
-    tg_file = await context.bot.get_file(fichero.file_id)
-    await tg_file.download_to_drive(custom_path=str(destino))
 
     async def trabajo():
         async with _pipeline_lock:
             try:
-                video_id = await loop.run_in_executor(None, resume_voice_job, job_file, destino)
+                grabacion = await loop.run_in_executor(
+                    None, voice_align.join_parts, partes, job_file.parent / "narracion.m4a"
+                )
+                video_id = await loop.run_in_executor(
+                    None, resume_voice_job, job_file, grabacion
+                )
             except AlignmentFailed as exc:
-                await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"{exc}")
+                # The parts are kept: the script is still waiting, so the fix
+                # is to re-send whichever part went wrong, not to record the
+                # whole thing again.
+                await context.bot.send_message(
+                    chat_id=TELEGRAM_CHAT_ID,
+                    text=f"{exc}\n\nTus grabaciones siguen guardadas. Puedes /rehacer la ultima parte.",
+                )
                 return
             except Exception:
                 logger.exception("Error montando el video con la narracion grabada")
@@ -479,6 +549,8 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("voces", handle_voices_command))
     application.add_handler(CommandHandler("voz", handle_voice_sample_command))
     application.add_handler(CommandHandler("vertex", handle_vertex_command))
+    application.add_handler(CommandHandler("listo", handle_done_command))
+    application.add_handler(CommandHandler("rehacer", handle_redo_command))
     # Audio arriving with no command is a narration for whatever script is
     # waiting; a voice note, an audio file and a file sent "as document" are
     # three different Telegram types for the same thing.

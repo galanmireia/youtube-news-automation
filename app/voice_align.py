@@ -95,6 +95,44 @@ def _trim(audio_path: Path, entrada: float, salida: float) -> Path:
     return destino
 
 
+def join_parts(partes: list[Path], destino: Path) -> Path:
+    """The takes joined into the single recording the alignment expects.
+
+    Seventeen minutes in one breath is not a reasonable thing to ask of
+    anybody, and it is not how anyone records: one fluff near the end would
+    cost the whole read. So the take is split however the reader likes - by
+    section, by scene, by wherever they needed a glass of water - and the
+    parts are joined here.
+
+    Where the splits fall does not matter. The alignment is looking for the
+    words of the script in order, and a join is invisible to it as long as the
+    parts are in the order they were read.
+
+    Re-encoded through the concat FILTER rather than the concat demuxer: the
+    demuxer needs every input to share a codec and a sample rate, and these
+    arrive however the phone that recorded them felt like - a voice note as
+    ogg, a file as m4a, one of them in stereo and the next in mono."""
+    if len(partes) == 1:
+        return partes[0]
+    cmd = ["ffmpeg", "-y", "-v", "error"]
+    for parte in partes:
+        cmd += ["-i", str(parte)]
+    cmd += [
+        "-filter_complex",
+        "".join(f"[{i}:a]aformat=sample_rates=48000:channel_layouts=mono[a{i}];"
+                for i in range(len(partes)))
+        + "".join(f"[a{i}]" for i in range(len(partes)))
+        + f"concat=n={len(partes)}:v=0:a=1[out]",
+        "-map", "[out]", "-c:a", "aac", "-b:a", "192k", str(destino),
+    ]
+    subprocess.run(cmd, check=True, capture_output=True, timeout=600)
+    logger.info(
+        "Voz propia: %s partes unidas en %.1fs de grabacion.",
+        len(partes), _probe_duration(destino),
+    )
+    return destino
+
+
 def _probe_duration(path: Path) -> float:
     try:
         r = subprocess.run(
@@ -244,6 +282,18 @@ def align_recording(
 # acabara en el texto de referencia, ninguna palabra la diria en voz alta y
 # el emparejamiento tendria un hueco en cada frase.
 
+# How long a suggested recording batch runs. Short enough that a fluff costs
+# little to redo, long enough not to turn a script into a pile of files.
+_MINUTOS_POR_TANDA = 3
+
+# Reading speed, in words per minute. NOT the 150 that scripts were sized
+# against until now: that number was never checked against a person, and the
+# first real take came in at 85 counting pauses and 93 without - a script
+# written for 150 ran 78% long. Provisional at one measurement, on a first
+# read, by somebody with a cold, and every alignment logs the real figure so
+# it can be replaced by a range rather than a guess.
+_PALABRAS_POR_MINUTO = 90
+
 _PAUSA_ESCENA = "⏸"
 _BEAT = "|"
 _FIN_FRASE = re.compile(r"([.!?…])(\s+)(?=[¿¡A-ZÁÉÍÓÚÑ])")
@@ -270,14 +320,16 @@ def reading_script(scenes: list[dict], title: str = "", tema: str = "") -> str:
     cabecera = [
         title or "Guion",
         f"Tema: {tema}" if tema else "",
-        f"{len(textos)} escenas · {palabras} palabras · unos {palabras / 150:.0f} min de lectura",
+        f"{len(textos)} escenas · {palabras} palabras · unos "
+        f"{palabras / _PALABRAS_POR_MINUTO:.0f} min a tu ritmo de lectura",
         "",
         "COMO LEERLO",
         f"  {_BEAT}   respira, medio segundo. No bajes el tono, la frase sigue.",
         f"  {_PAUSA_ESCENA}   para de verdad, un segundo entero. Aqui cambia la imagen,",
         "      y el corte se monta dentro de tu silencio.",
         "",
-        "  · Graba del tiron, sin cortar el archivo entre escenas.",
+        "  · No hace falta grabarlo de una vez. Puedes partirlo en tandas y",
+        f"    mandarmelas seguidas: corta SOLO en un {_PAUSA_ESCENA}, nunca a mitad de escena.",
         "  · Si te equivocas, NO pares: repite la frase entera y sigue. Se apaña solo.",
         "  · Las cifras son lo que la gente recuerda: apoyate en ellas al decirlas.",
         "  · Si una frase te suena rara al decirla en alto, cambiala. Manda tu voz,",
@@ -286,7 +338,14 @@ def reading_script(scenes: list[dict], title: str = "", tema: str = "") -> str:
         "=" * 64,
     ]
 
+    # Where the recording may be split. Every scene boundary is a legal place
+    # to stop, but a long script needs them pointed out or the reader has no
+    # idea where to break seventeen minutes - and a suggestion every few
+    # minutes is easier to follow than "anywhere you like".
+    por_escena = max(1.0, palabras / max(1, len(textos)))
+    corte_cada = max(1, round(_MINUTOS_POR_TANDA * _PALABRAS_POR_MINUTO / por_escena))
     partes = []
+    corrido = 0
     for i, texto in enumerate(textos, start=1):
         if not texto:
             continue
@@ -294,4 +353,12 @@ def reading_script(scenes: list[dict], title: str = "", tema: str = "") -> str:
             f"\n── ESCENA {i} de {len(textos)} " + "─" * 34 + "\n\n"
             + _marcar_beats(texto) + f"  {_PAUSA_ESCENA}"
         )
+        corrido += 1
+        if corrido >= corte_cada and i < len(textos):
+            partes.append(
+                "\n" + "· " * 32 + "\n"
+                f"   AQUI PUEDES PARAR LA GRABACION Y MANDARME LA TANDA\n"
+                + "· " * 32
+            )
+            corrido = 0
     return "\n".join(l for l in cabecera if l is not None) + "\n" + "\n".join(partes) + "\n"
