@@ -1,6 +1,7 @@
 import logging
 import shutil
 import subprocess
+import threading
 import tempfile
 import time
 from pathlib import Path
@@ -56,43 +57,51 @@ _TRANSITION_SECONDS = 0.25
 # variant failure, which the pipeline already catches, cleans up and reports.
 _FFMPEG_TIMEOUT_SECONDS = 8 * 60
 
-# A call is stuck when its output file stops growing - not when it has been
-# running a while. Telling those apart by the clock alone is what killed the
-# crossfade on video 53: the join was capped at two minutes because the
-# slowest one ever measured took 52s, but that measurement was seven short
-# 1080x1920 segments, and a five-minute horizontal video is far more work. It
-# was killed at 120s having written 10, 41, 67 and finally 97 MB - plainly
-# working - and the video fell back to hard cuts for nothing.
+# A call is stuck when it stops making progress - not when it has been running
+# a while, and not when its output file stops growing. Both of those proxies
+# were tried and both killed healthy work: the clock took out the crossfade on
+# video 53, and the file size took out videos 59, 61 and 62, because the mp4
+# muxer writes in bursts and a plateau between two flushes is indistinguishable
+# from a hang if the file is all you look at. _run watches ffmpeg's own
+# out_time instead, which is why this threshold can stay tight.
 _FFMPEG_STALL_SECONDS = 90
 
-# How often the output file is checked while a call runs. Also how often a
-# still-running call reports that it is alive: ffmpeg buffers its own output
-# until it exits, so a long call looks identical to a hung one in the logs,
-# and the output file's size is what separates them.
+# How often a still-running call is checked and reports that it is alive.
+# ffmpeg buffers its logging until it exits, so without this a long call looks
+# identical to a hung one in the logs.
 _FFMPEG_POLL_SECONDS = 30
-
-
-# How often a still-running ffmpeg call reports that it is alive. Borrowed from
-# MoneyPrinterTurbo (MIT), which logs the same thing for the same reason: ffmpeg
-# buffers its output until it exits, so a long call looks identical to a hung
-# one in the logs. Reporting the output file's size alongside the elapsed time
-# is what separates the two - a growing file is work, a static one is a stall.
-# Yesterday that distinction had to be guessed at from CPU metrics.
-_FFMPEG_HEARTBEAT_SECONDS = 30
 
 
 def _run(cmd: list[str], step: str = "ffmpeg", timeout: float = _FFMPEG_TIMEOUT_SECONDS) -> None:
     """Runs one ffmpeg call, killing it if it stalls or runs past the ceiling.
 
     Two different failures are being guarded against. A stall - blocked at
-    roughly zero CPU, output frozen, never finishing on its own - is caught by
-    watching the output file: no growth for _FFMPEG_STALL_SECONDS means stuck,
-    whatever the elapsed time says. The timeout is only a backstop for a call
-    that keeps writing for ever.
+    roughly zero CPU, never finishing on its own - is caught by watching how
+    far into the output ffmpeg says it has encoded: no advance for
+    _FFMPEG_STALL_SECONDS means stuck, whatever the elapsed time says. The
+    timeout is only a backstop for a call that keeps working for ever.
+
+    Progress is read from ffmpeg's own -progress stream rather than from the
+    size of the output file, and that distinction is the whole point. The mp4
+    muxer buffers: measured on an idle machine, a three-way crossfade left the
+    output file at zero bytes for five seconds while it was demonstrably
+    encoding, then grew in quarter-megabyte steps with three-second plateaus
+    between them. On a loaded box - Railway's eight cores were pegged at their
+    limit the morning this was found - those plateaus stretch past any
+    threshold worth setting, and the watchdog kills ffmpeg for the crime of
+    being slow. The frozen sizes in the logs that looked like hangs, 16.0 MB
+    and 1.0 MB and 10.2 MB, are flush boundaries. out_time advances smoothly
+    whatever the muxer is doing, and stops dead on a real hang, which is
+    exactly the signal wanted.
 
     stderr goes to a temporary file rather than a pipe: a pipe can fill and
-    deadlock the child while nobody is reading it, and ffmpeg is talkative."""
+    deadlock the child while nobody is reading it, and ffmpeg is talkative.
+    stdout is a pipe, but it only ever carries the progress stream, which is
+    drained continuously by the reader thread below."""
     started = time.monotonic()
+    # Global options, so they go before the first input. -nostdin stops ffmpeg
+    # competing for the parent's stdin when it is run from a service.
+    cmd = [cmd[0], "-nostdin", "-progress", "pipe:1", *cmd[1:]]
     # The output file is always the last argument of every command built here.
     out_path = Path(cmd[-1])
 
@@ -103,8 +112,32 @@ def _run(cmd: list[str], step: str = "ffmpeg", timeout: float = _FFMPEG_TIMEOUT_
             return 0
 
     with tempfile.TemporaryFile() as err_file:
-        process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=err_file)
-        biggest, last_growth = out_size(), time.monotonic()
+        process = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=err_file, text=True, bufsize=1
+        )
+        # Written by the reader thread, read by the loop below. A plain dict is
+        # enough: one writer, one reader, and neither cares about a torn read
+        # of a pair it will see again a second later.
+        progress = {"encoded": -1.0, "since": time.monotonic()}
+
+        def drain_progress() -> None:
+            for line in process.stdout:
+                key, _, raw = line.strip().partition("=")
+                # ffmpeg reports microseconds as out_time_us and older builds
+                # milliseconds as out_time_ms; either can read "N/A" before the
+                # first frame is out.
+                if key not in ("out_time_us", "out_time_ms"):
+                    continue
+                try:
+                    encoded = int(raw) / (1e6 if key == "out_time_us" else 1e3)
+                except ValueError:
+                    continue
+                if encoded > progress["encoded"]:
+                    progress.update(encoded=encoded, since=time.monotonic())
+
+        reader = threading.Thread(target=drain_progress, daemon=True)
+        reader.start()
+
         while True:
             try:
                 returncode = process.wait(timeout=_FFMPEG_POLL_SECONDS)
@@ -112,21 +145,24 @@ def _run(cmd: list[str], step: str = "ffmpeg", timeout: float = _FFMPEG_TIMEOUT_
             except subprocess.TimeoutExpired:
                 pass
 
-            now, size = time.monotonic(), out_size()
-            logger.info("  ffmpeg %s sigue: %.0fs, salida %.1f MB", step, now - started, size / 1e6)
-            if size > biggest:
-                biggest, last_growth = size, now
-            elif now - last_growth >= _FFMPEG_STALL_SECONDS:
+            now = time.monotonic()
+            logger.info(
+                "  ffmpeg %s sigue: %.0fs, codificados %.1fs, salida %.1f MB",
+                step, now - started, max(0.0, progress["encoded"]), out_size() / 1e6,
+            )
+            if now - progress["since"] >= _FFMPEG_STALL_SECONDS:
                 process.kill()
                 process.wait()
                 raise RuntimeError(
-                    f"ffmpeg atascado en '{step}': la salida lleva {now - last_growth:.0f}s "
-                    f"sin crecer ({size / 1e6:.1f} MB). Proceso matado."
+                    f"ffmpeg atascado en '{step}': lleva {now - progress['since']:.0f}s "
+                    f"sin avanzar (codificados {max(0.0, progress['encoded']):.1f}s). Proceso matado."
                 )
             if now - started >= timeout:
                 process.kill()
                 process.wait()
                 raise RuntimeError(f"ffmpeg bloqueado en '{step}' mas de {timeout:.0f}s, proceso matado")
+
+        reader.join(timeout=5)
 
         logger.info("  ffmpeg %s: %.1fs", step, time.monotonic() - started)
         if returncode != 0:
