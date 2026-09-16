@@ -32,6 +32,13 @@ YOUTUBE_CLIENT_SECRETS_FILE = os.environ.get(
     "YOUTUBE_CLIENT_SECRETS_FILE", str(CREDENTIALS_DIR / "youtube_client_secret.json")
 )
 YOUTUBE_TOKEN_FILE = os.environ.get("YOUTUBE_TOKEN_FILE", str(CREDENTIALS_DIR / "youtube_token.json"))
+# Who reads the narration. "tts" synthesises it, which is what the channel
+# did while it was publishing several videos a day. "voz" writes the script,
+# sends it to be read aloud, and waits for the recording - slower by a whole
+# human, and the single biggest quality difference between this channel and
+# the ones that work.
+NARRATION_SOURCE = os.environ.get("NARRATION_SOURCE", "tts").strip().lower()
+
 YOUTUBE_PRIVACY_STATUS = os.environ.get("YOUTUBE_PRIVACY_STATUS", "public")
 
 # Minutes to hold a video back before it goes live. 0 publishes immediately.

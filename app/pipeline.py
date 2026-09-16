@@ -1,3 +1,4 @@
+import json
 import logging
 import random
 import shutil
@@ -28,6 +29,7 @@ from .script_generator import generate_script
 from .subtitles import generate_subtitles
 from .thumbnail import generate_thumbnail
 from .tts import synthesize_scenes
+from .voice_align import align_recording
 from .video_builder import build_video, burn_subtitles, mix_background_music
 from .visuals import fetch_clips_for_scenes
 
@@ -87,7 +89,32 @@ def _pick_music_track() -> Path | None:
     return random.choice(tracks)
 
 
-def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
+# The fixed bumper a long video opens on. Shared because a job paused to be
+# narrated by hand has to prepend exactly the same scene the ordinary path
+# would, or every timing after it is off by one scene.
+_INTRO_SCENE = {
+    "narration": INTRO_NARRATION,
+    "visual_keywords": "",
+    "photo_subject": "",
+    "photo_subject_role": "",
+    "ai_image_prompt": "",
+    "on_screen_highlight": "",
+    "is_intro": True,
+}
+
+
+def _generate_variant(
+    news_item: dict,
+    variant: str,
+    work_dir: Path,
+    script: dict | None = None,
+    is_sensitive: bool | None = None,
+    recording_path: Path | None = None,
+) -> int:
+    """Builds one video. With `script` given the writing stages are skipped -
+    that is how a job paused to be narrated by hand picks up where it left
+    off - and with `recording_path` given the timing comes from that recording
+    instead of from the synthesiser."""
     width, height = _VARIANT_DIMENSIONS[variant]
     variant_dir = work_dir / variant
     variant_dir.mkdir(parents=True, exist_ok=True)
@@ -96,30 +123,26 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     # froze with no error, the log simply stopped mid-run and there was no way
     # to tell from it which call was stuck - the stage had to be inferred from
     # whichever incidental line happened to be logged last.
-    _stage(variant, 1, "Escribiendo el guion...")
-    script = generate_script(news_item, variant=variant)
+    ya_escrito = script is not None
+    if not ya_escrito:
+        _stage(variant, 1, "Escribiendo el guion...")
+        script = generate_script(news_item, variant=variant)
     # Long videos open with a fixed bumper line over a branded title card, so
     # the channel has a consistent opening. Shorts don't: the first seconds
     # of a Short decide whether the viewer keeps watching or swipes, and a
     # logo card spends them on something that tells the viewer nothing. They
     # start on the hook instead.
-    has_intro = variant == "long"
-    if has_intro:
-        intro_scene = {
-            "narration": INTRO_NARRATION,
-            "visual_keywords": "",
-            "photo_subject": "",
-            "photo_subject_role": "",
-            "ai_image_prompt": "",
-            "on_screen_highlight": "",
-            "is_intro": True,
-        }
-        script["scenes"] = [intro_scene] + script["scenes"]
+    has_intro = bool(script["scenes"]) and bool(script["scenes"][0].get("is_intro"))
+    if not ya_escrito and variant == "long":
+        has_intro = True
+        script["scenes"] = [dict(_INTRO_SCENE)] + script["scenes"]
     # Default to treating the story as sensitive if the field is somehow
     # missing/unparseable - that only disables the extra narration-based
     # real-photo lookup below, never anything the model explicitly asked for.
-    raw_sensitive = script.get("is_sensitive", True)
-    is_sensitive = raw_sensitive.strip().lower() != "false" if isinstance(raw_sensitive, str) else bool(raw_sensitive)
+    if is_sensitive is None:
+        raw_sensitive = script.get("is_sensitive", True)
+        is_sensitive = (raw_sensitive.strip().lower() != "false"
+                        if isinstance(raw_sensitive, str) else bool(raw_sensitive))
 
     # A dedicated, isolated pass asking specifically "what named entities
     # appear in this text" is far more reliable than the model tagging
@@ -127,14 +150,18 @@ def _generate_variant(news_item: dict, variant: str, work_dir: Path) -> int:
     # script-generation prompt. Skipped for sensitive stories: it has no
     # way to guarantee it excludes a crime victim's name the way the
     # script prompt's own photo_subject rule does.
-    if not is_sensitive:
+    if not ya_escrito and not is_sensitive:
         _stage(variant, 2, "Extrayendo entidades del guion...")
         entities_by_scene = extract_entities(script["scenes"])
         for i, scene in enumerate(script["scenes"]):
             scene["detected_entities"] = entities_by_scene.get(i, [])
 
-    _stage(variant, 3, "Generando la narracion con TTS (%s escenas)...", len(script["scenes"]))
-    narration_path, scene_durations = synthesize_scenes(script["scenes"], variant_dir / "audio")
+    if recording_path is not None:
+        _stage(variant, 3, "Alineando tu grabacion con el guion (%s escenas)...", len(script["scenes"]))
+        narration_path, scene_durations = align_recording(script["scenes"], Path(recording_path))
+    else:
+        _stage(variant, 3, "Generando la narracion con TTS (%s escenas)...", len(script["scenes"]))
+        narration_path, scene_durations = synthesize_scenes(script["scenes"], variant_dir / "audio")
 
     _stage(variant, 4, "Buscando imagenes y videos para las escenas...")
     clip_entries = fetch_clips_for_scenes(
@@ -326,17 +353,84 @@ def cleanup_finished_video_files() -> int:
     return removed
 
 
-def run_once(
-    on_variant_done: Callable[[int], None] | None = None,
-    variants: tuple[str, ...] = ("short", "long"),
-    forced_topic: str | None = None,
-) -> list[int]:
-    """Picks the next unprocessed news item and generates the requested
-    variants for it (both a vertical Short and a longer horizontal video by
-    default), storing each as 'pending'. Calls on_variant_done(video_id)
-    right after each variant finishes, so callers can notify/send it
-    immediately instead of waiting for all of them to be done. Returns the
-    new videos' ids (empty if there was no fresh news)."""
+_TRABAJO_VOZ = "trabajo_voz.json"
+
+
+def prepare_voice_job(variant: str, forced_topic: str | None = None) -> dict | None:
+    """Writes the script and stops, so it can be read aloud before anything is
+    built.
+
+    Everything up to the narration is done here - choosing the case, the
+    dossier, the script, the entities - and then the job waits on disk. What
+    comes back is the text to read; what resumes it is resume_voice_job with
+    the recording."""
+    news_item, work_dir = _choose_and_prepare(forced_topic)
+    if news_item is None:
+        return None
+
+    width, height = _VARIANT_DIMENSIONS[variant]
+    _stage(variant, 1, "Escribiendo el guion para narrar a mano...")
+    script = generate_script(news_item, variant=variant)
+    if variant == "long":
+        script["scenes"] = [dict(_INTRO_SCENE)] + script["scenes"]
+
+    raw = script.get("is_sensitive", True)
+    is_sensitive = raw.strip().lower() != "false" if isinstance(raw, str) else bool(raw)
+    if not is_sensitive:
+        _stage(variant, 2, "Extrayendo entidades del guion...")
+        entities = extract_entities(script["scenes"])
+        for i, scene in enumerate(script["scenes"]):
+            scene["detected_entities"] = entities.get(i, [])
+
+    job_file = work_dir / _TRABAJO_VOZ
+    job_file.write_text(json.dumps({
+        "news_item": news_item, "variant": variant, "script": script,
+        "is_sensitive": is_sensitive, "work_dir": str(work_dir),
+    }, ensure_ascii=False))
+
+    resumen_coste = llm_usage.report_and_reset()
+    if resumen_coste:
+        logger.info("[%s] %s", variant, resumen_coste)
+    logger.info("Guion listo y esperando narracion: %s", job_file)
+
+    # The intro bumper is spoken by the channel too, so it is part of what
+    # gets read - leaving it out would desynchronise every scene after it.
+    texto = "\n\n".join((sc.get("narration") or "").strip() for sc in script["scenes"])
+    return {
+        "job_file": job_file, "title": script["title"], "variant": variant,
+        "narration": texto, "palabras": len(texto.split()),
+        "escenas": len(script["scenes"]), "tema": news_item["title"],
+    }
+
+
+def pending_voice_job() -> Path | None:
+    """The newest script still waiting to be narrated, if there is one."""
+    trabajos = sorted(Path(DATA_DIR).glob(f"job_*/{_TRABAJO_VOZ}"),
+                      key=lambda p: p.stat().st_mtime, reverse=True)
+    return trabajos[0] if trabajos else None
+
+
+def resume_voice_job(job_file: Path, recording_path: Path) -> int:
+    """Finishes a paused job using the recording as its narration."""
+    datos = json.loads(Path(job_file).read_text())
+    work_dir = Path(datos["work_dir"])
+    video_id = _generate_variant(
+        datos["news_item"], datos["variant"], work_dir,
+        script=datos["script"], is_sensitive=datos["is_sensitive"],
+        recording_path=Path(recording_path),
+    )
+    storage.mark_source_processed(datos["news_item"]["link"], datos["news_item"].get("title", ""))
+    Path(job_file).unlink(missing_ok=True)
+    resumen_coste = llm_usage.report_and_reset()
+    if resumen_coste:
+        logger.info("[%s] %s", datos["variant"], resumen_coste)
+    return video_id
+
+
+def _choose_and_prepare(forced_topic: str | None) -> tuple[dict | None, Path | None]:
+    """Picks the case to make, gathers its sources and opens a working
+    directory for it. Shared by the ordinary run and by a job that pauses to
+    be narrated, so both choose the same way."""
     _stop_requested.clear()
     cleanup_finished_video_files()
 
@@ -352,7 +446,7 @@ def run_once(
         candidates = fetch_candidate_news(limit=6)
     if not candidates:
         logger.info("No hay temas nuevos que procesar.")
-        return []
+        return None, None
 
     # Which story gets made matters more than how well it is made: a
     # procedural court filing and a story with a person in it are not worth
@@ -372,7 +466,7 @@ def run_once(
             # The picker also enforces which stories the channel must not make,
             # so there is no safe default to fall back on here.
             logger.info("No se ha podido elegir noticia con garantias; no se genera nada.")
-            return []
+            return None, None
     logger.info("Procesando noticia: %s", news_item["title"])
 
     # El dosier cuesta varias llamadas a Wikipedia, asi que se construye para
@@ -390,6 +484,27 @@ def run_once(
 
     work_dir = Path(DATA_DIR) / f"job_{int(time.time())}"
     work_dir.mkdir(parents=True, exist_ok=True)
+
+    return news_item, work_dir
+
+
+def run_once(
+    on_variant_done: Callable[[int], None] | None = None,
+    variants: tuple[str, ...] = ("short", "long"),
+    forced_topic: str | None = None,
+) -> list[int]:
+    """Picks the next unprocessed news item and generates the requested
+    variants for it (both a vertical Short and a longer horizontal video by
+    default), storing each as 'pending'. Calls on_variant_done(video_id)
+    right after each variant finishes, so callers can notify/send it
+    immediately instead of waiting for all of them to be done. Returns the
+    new videos' ids (empty if there was no fresh news)."""
+    _stop_requested.clear()
+    cleanup_finished_video_files()
+
+    news_item, work_dir = _choose_and_prepare(forced_topic)
+    if news_item is None:
+        return []
 
     video_ids = []
     for variant in variants:

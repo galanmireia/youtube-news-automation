@@ -1,10 +1,12 @@
 import asyncio
+from io import BytesIO
 import logging
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
+from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
+                          ContextTypes, MessageHandler, filters)
 
 from . import ai_images, storage, tts
 from .config import (
@@ -14,11 +16,15 @@ from .config import (
     TELEGRAM_CHAT_ID,
     TTS_LANGUAGE_CODE,
     TTS_VOICE_NAME,
+    NARRATION_SOURCE,
 )
 from .pipeline import (
     cleanup_finished_video_files,
     interrupted_run_evidence,
     request_stop,
+    prepare_voice_job,
+    pending_voice_job,
+    resume_voice_job,
     run_once,
     stop_requested as pipeline_stop_requested,
 )
@@ -247,6 +253,14 @@ async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_
         variants[0] if len(variants) == 1 else "", "el Short y el video largo"
     )
     sobre = f" sobre {forced_topic}" if forced_topic else ""
+    if NARRATION_SOURCE == "voz":
+        await update.message.reply_text(
+            f"Escribiendo el guion de {label}{sobre}. Cuando este te lo mando para que lo leas."
+        )
+        context.application.create_task(
+            _prepare_and_send_script(context.bot, variants[0], forced_topic)
+        )
+        return
     await update.message.reply_text(f"Generando {label}{sobre}, tardara unos minutos...")
     # Deliberately NOT awaited. python-telegram-bot handles updates one at a
     # time by default (max_concurrent_updates=1), so awaiting the generation
@@ -256,6 +270,85 @@ async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_
     # Running it as a task lets the handler return now and the bot keep
     # answering; _pipeline_lock still stops two generations overlapping.
     context.application.create_task(_run_pipeline_and_notify(context.bot, variants, forced_topic))
+
+
+async def _prepare_and_send_script(bot, variant: str, forced_topic: str | None) -> None:
+    """Writes the script and sends it to be read aloud."""
+    loop = asyncio.get_running_loop()
+    async with _pipeline_lock:
+        try:
+            job = await loop.run_in_executor(None, prepare_voice_job, variant, forced_topic)
+        except Exception:
+            logger.exception("Error preparando el guion para narrar")
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                                   text="Ha fallado la escritura del guion. Mira los logs.")
+            return
+    if job is None:
+        await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="No hay temas nuevos que procesar.")
+        return
+
+    minutos = job["palabras"] / 150  # a comfortable Spanish reading pace
+    # The script goes as a file rather than a message: Telegram splits a long
+    # message at 4096 characters wherever it lands, and a narration cut in
+    # half mid-sentence is unreadable to narrate from.
+    texto = (
+        f"{job['title']}\n\n"
+        f"Tema: {job['tema']}\n"
+        f"{job['escenas']} escenas · {job['palabras']} palabras · unos {minutos:.0f} minutos leidos\n\n"
+        "Leelo SEGUIDO, de una sola vez, sin parar entre escenas: los cortes se calculan solos\n"
+        "despues. Si te equivocas, repite la frase entera y sigue - se apaña.\n"
+        f"{'=' * 60}\n\n" + job["narration"]
+    )
+    await bot.send_document(
+        chat_id=TELEGRAM_CHAT_ID,
+        document=BytesIO(texto.encode("utf-8")),
+        filename=f"guion_{job['variant']}.txt",
+        caption=(f"Guion listo: *{job['title']}*\n\n"
+                 f"{job['palabras']} palabras, unos {minutos:.0f} minutos.\n"
+                 "Grabalo del tiron y mandame el audio por aqui."),
+        parse_mode="Markdown",
+    )
+
+
+async def handle_narration_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """An audio file arrives: if a script is waiting to be narrated, it is
+    this one's."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    job_file = pending_voice_job()
+    if job_file is None:
+        await update.message.reply_text(
+            "No hay ningun guion esperando narracion. Lanza /generar primero."
+        )
+        return
+    if _pipeline_lock.locked():
+        await update.message.reply_text("Espera, que hay algo generandose ahora mismo.")
+        return
+
+    msg = update.message
+    fichero = msg.audio or msg.voice or msg.document
+    await msg.reply_text("Recibido. Alineando tu voz con el guion y montando el video...")
+
+    loop = asyncio.get_running_loop()
+    destino = job_file.parent / "narracion_voz.ogg"
+    tg_file = await context.bot.get_file(fichero.file_id)
+    await tg_file.download_to_drive(custom_path=str(destino))
+
+    async def trabajo():
+        async with _pipeline_lock:
+            try:
+                video_id = await loop.run_in_executor(None, resume_voice_job, job_file, destino)
+            except AlignmentFailed as exc:
+                await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"{exc}")
+                return
+            except Exception:
+                logger.exception("Error montando el video con la narracion grabada")
+                await context.bot.send_message(
+                    chat_id=TELEGRAM_CHAT_ID, text="Ha fallado el montaje. Mira los logs.")
+                return
+        await send_for_approval(context.bot, video_id)
+
+    context.application.create_task(trabajo())
 
 
 async def handle_vertex_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -392,6 +485,11 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("voces", handle_voices_command))
     application.add_handler(CommandHandler("voz", handle_voice_sample_command))
     application.add_handler(CommandHandler("vertex", handle_vertex_command))
+    # Audio arriving with no command is a narration for whatever script is
+    # waiting; a voice note, an audio file and a file sent "as document" are
+    # three different Telegram types for the same thing.
+    application.add_handler(MessageHandler(
+        filters.AUDIO | filters.VOICE | filters.Document.AUDIO, handle_narration_audio))
     # Don't auto-generate on every restart/deploy - only at the regular interval.
     # Use /generar in the chat for an on-demand run (e.g. right after deploying).
     application.job_queue.run_repeating(pipeline_job, interval=PIPELINE_INTERVAL_SECONDS, first=PIPELINE_INTERVAL_SECONDS)
