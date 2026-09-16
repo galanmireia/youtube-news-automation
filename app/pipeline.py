@@ -22,7 +22,7 @@ from .config import (
 from .entity_extraction import extract_entities
 from .news_picker import pick_best_story
 from .news_source import fetch_candidate_news
-from .topic_source import fetch_candidate_topics
+from .topic_source import fetch_candidate_topics, fetch_topic_by_term
 from .script_generator import generate_script
 from .subtitles import generate_subtitles
 from .thumbnail import generate_thumbnail
@@ -328,6 +328,7 @@ def cleanup_finished_video_files() -> int:
 def run_once(
     on_variant_done: Callable[[int], None] | None = None,
     variants: tuple[str, ...] = ("short", "long"),
+    forced_topic: str | None = None,
 ) -> list[int]:
     """Picks the next unprocessed news item and generates the requested
     variants for it (both a vertical Short and a longer horizontal video by
@@ -338,7 +339,13 @@ def run_once(
     _stop_requested.clear()
     cleanup_finished_video_files()
 
-    if CONTENT_MODE == "topics":
+    if forced_topic:
+        # An explicitly named case skips both the catalogue and the picker: the
+        # caller has already decided, and the point of asking for one by name
+        # is usually to remake it.
+        chosen = fetch_topic_by_term(forced_topic)
+        candidates = [chosen] if chosen else []
+    elif CONTENT_MODE == "topics":
         candidates = fetch_candidate_topics(limit=3)
     else:
         candidates = fetch_candidate_news(limit=6)
@@ -350,7 +357,7 @@ def run_once(
     # procedural court filing and a story with a person in it are not worth
     # the same 60 seconds, and taking whichever headline came first made that
     # choice at random.
-    if CONTENT_MODE == "topics":
+    if forced_topic or CONTENT_MODE == "topics":
         # No picker here. The picker exists to judge which of six headlines the
         # feed happened to push is worth making, and to refuse the ones the
         # channel must not touch. The catalogue is already curated and ordered,

@@ -68,38 +68,54 @@ culpabilidad de nadie.
 En todo lo demas - que sera la inmensa mayoria de los casos del catalogo - "is_sensitive" es false.
 Un naufragio de 1912 o una central que exploto en 1986 NO son sensibles en este sentido: son
 historia documentada, y tratarlos como sensibles solo empeora el video sin proteger a nadie.""",
-        "structure_block": """Este video cuenta UN caso concreto: una catastrofe, un accidente o una obra de
-ingenieria. El espectador viene por entender COMO pasa algo asi, no por un resumen de enciclopedia.
+        "structure_block": """Este video cuenta UN caso concreto - una catastrofe, un accidente, una obra de
+ingenieria - A TRAVES DE UNA PERSONA.
 
-LO QUE DECIDE SI ALGUIEN SE QUEDA A VERLO: no le cuentes la historia en orden y completa, porque
-entonces no tiene ningun motivo para seguir viendola. Abre una pregunta al principio y NO la
-respondas hasta pasada la mitad. Esa tension es lo unico que sostiene el video.
+LO PRIMERO QUE DECIDES, antes de escribir una sola frase: quien es el protagonista. Busca en el
+material a la persona que tomo la decision que lo desencadeno todo, o la que tuvo que cargar con
+las consecuencias. El capitan que desvio el barco. El ingeniero que firmo el plano. El operario
+que apago la alarma. El inspector al que nadie escucho. Tiene nombre y apellidos en el articulo, y
+es el video entero: no aparece en una escena, esta en todas.
+
+POR QUE ESTO IMPORTA MAS QUE NINGUNA OTRA INSTRUCCION: "el hundimiento del Costa Concordia" es un
+tema; "el capitan que abandono el barco antes que sus pasajeros" es una historia. Un tema se
+explica y se olvida a los diez segundos. Una historia tiene a alguien que quiere algo, se
+equivoca, y paga - y saber como acaba esa persona es lo unico que hace que alguien se quede.
+
+CUANDO NO HAY PROTAGONISTA: si el material no da ninguna persona con nombre, o si la unica
+identificable esta acusada de algo TODAVIA NO RESUELTO, no fuerces uno y no lo inventes. Entonces
+el protagonista es la maquina: el barco, el puente, el reactor. Misma estructura, pero el "quien"
+es la obra y el "que queria" es aquello para lo que se construyo. Nunca montes el relato sobre la
+culpa de alguien cuyo caso siga abierto.
 
 Estructura obligatoria del guion ({duration_hint}, en este orden):
 
-1. ARRANQUE EN FRIO + LA PREGUNTA. Empieza DENTRO del suceso: el instante en que alguien toma la
-   decision, salta la alarma o algo se rompe. Nunca empieces situando ("el 13 de noviembre de 2002,
-   el Prestige navegaba frente a..."). Y en esa misma frase o la siguiente, deja planteada LA
-   PREGUNTA que el video va a responder.
-   Ejemplo: "El capitan del Prestige pidio entrar a puerto. España le dijo que no. Seis dias
-   despues habia ochenta mil toneladas de fuel en la costa gallega." -> la pregunta que queda
-   flotando es POR QUE le dijeron que no, y no se responde todavia.
+1. LA DECISION. Abre en el segundo exacto en que el protagonista hace lo que lo desencadena todo,
+   con su nombre en la primera frase. Y CORTA antes de decir en que acabo. Nunca empieces situando
+   ("el 13 de enero de 2012, el Costa Concordia navegaba...").
+   Ejemplo: "Francesco Schettino desvio un barco de cuatro mil personas para saludar a un amigo
+   que estaba en tierra. ¿Que creia que podia salir mal?" -> el espectador ya sabe que algo va a
+   pasar, y no sabe el que.
 
-2. POR QUE IMPORTABA. Corto. Solo las cifras que hacen entender lo que habia en juego - tamaño,
-   carga, cuanta gente, cuanto costaba. Dos o tres datos, no un inventario.
+2. QUIEN ERA Y QUE QUERIA. Muy corto. Su cargo, su experiencia, y las dos o tres cifras que dicen
+   lo que tenia entre manos: cuanta gente, cuanto pesaba, cuanto valia. Nada de inventario.
 
-3. LO QUE PASO. La cronologia, en orden, con horas y datos concretos. Sobria, sin dramatizar.
-   AQUI TODAVIA NO SE RESPONDE LA PREGUNTA DEL PRINCIPIO.
+3. LO QUE SE LE VINO ENCIMA. La cronologia, en orden, con horas y datos concretos. Sobria, sin
+   dramatizar. AQUI TODAVIA NO SE EXPLICA POR QUE FUE TAN GRAVE.
 
-4. LA RESPUESTA. La parte mas importante y el pago de todo lo anterior: la causa tecnica explicada
-   para cualquiera. Que fallo exactamente, que decision lo provoco, que señal se ignoro. Si hubo
-   informe oficial, citalo. Esto es lo que separa este canal de quien solo cuenta la tragedia:
-   aqui se explica la ingenieria. No puede llegar antes de la mitad del video.
+4. POR QUE AQUELLO FUE CATASTROFICO. El pago de todo lo anterior, y lo que separa este canal de
+   quien solo cuenta la tragedia: la causa tecnica explicada para cualquiera. Que fallo, por que
+   esa decision concreta tuvo ese efecto concreto, que margen no existia. Si hay informe oficial,
+   citalo. No puede llegar antes de la mitad del video.
 
-5. QUE QUEDA HOY. En que estado esta ahora, que normas o diseños cambiaron por esto, que se puede
-   ver todavia. Cierra con la llamada a suscribirse.
+5. QUE FUE DE EL. El desenlace de la PERSONA, no solo del sitio: juicio, condena y cuantos años,
+   absolucion, ruina, olvido, o que siguio trabajando como si nada. Esto no es un epilogo, es la
+   razon por la que alguien aguanta hasta el final. Si ademas cambiaron normas o diseños por el
+   caso, va aqui en una frase. Cierra con la llamada a suscribirse.
 
 TONO: documental, sobrio y preciso. El drama lo ponen los hechos y las cifras, no los adjetivos.
+Tener un protagonista NO es licencia para novelar: no le atribuyas pensamientos, miedos ni
+intenciones que no esten en la fuente. Puedes contar lo que hizo y lo que dijo; no lo que sentia.
 Si hubo victimas, se mencionan con respeto y sin detalles morbosos: nunca describas agonias,
 heridas ni el sufrimiento de personas concretas. No especules sobre causas que la investigacion no
 haya establecido - si algo esta en disputa, di que esta en disputa.""",
@@ -287,9 +303,21 @@ se retiene. Entre un dato con numero y uno sin el, elige siempre el que lleva nu
 
 Requisitos de SEO para YouTube (importante, esto determina si el video se encuentra en buscador y
 sugeridos):
-- "title": incluye la palabra clave principal (el tema/entidad de la noticia) cerca del inicio,
-  manera natural y sin relleno de palabras clave. Maximo 90 caracteres, no calcado del titular
-  original, con gancho pero sin exagerar (nada de MAYUSCULAS sostenidas ni "no vas a creer...").
+- "title": es LO QUE HIZO EL PROTAGONISTA, no el nombre del sitio ni la matricula del aparato.
+  Maximo 90 caracteres, con gancho pero sin exagerar (nada de MAYUSCULAS sostenidas ni "no vas a
+  creer..."). Tres reglas duras, porque los titulos de este canal venian saliendo mal:
+  * NUNCA empieces por un nombre propio seguido de dos puntos. "M/S Estonia: que fallo en el
+    naufragio" y "Prestige: el fallo tecnico que hundio..." no le dicen nada a nadie que no sepa
+    ya lo que es un M/S Estonia, y son literalmente encabezados de enciclopedia.
+  * Empieza por la PERSONA definida por su acto: "El capitan que abandono un barco con cuatro mil
+    personas dentro", "El hombre al que España dejo seis dias en el mar". Si el protagonista es la
+    obra y no una persona, entonces por lo que la obra hizo o le hicieron, nunca por su nombre a
+    secas.
+  * Si tienes una cifra o un superlativo que sostenga el titulo, usalo: "cuatro mil personas",
+    "el naufragio mas mortifero de la historia". Un numero concreto pesa mas que un adjetivo.
+  El nombre propio del caso NO se pierde: va en "tags" y en la primera frase de "description", que
+  es de donde YouTube saca las palabras clave para el buscador. El titulo esta para que alguien
+  haga clic, no para indexar.
 - "description": empieza con 1-2 frases que repitan de forma natural la palabra clave principal
   del titulo (esto es lo que se muestra en resultados de busqueda), sigue con 2-3 frases de
   contexto, y termina con 3 a 5 hashtags relevantes (formato #Palabra, sin espacios) mas una

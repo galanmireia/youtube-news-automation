@@ -162,6 +162,32 @@ def _article_url(title: str) -> str:
     return "https://es.wikipedia.org/wiki/" + title.replace(" ", "_")
 
 
+def fetch_topic_by_term(term: str) -> dict | None:
+    """One named case, whether or not it has been made before, in the same
+    shape the catalogue returns. This is what lets the same story be remade
+    after a change to the script prompt: comparing two tellings of the Costa
+    Concordia is the only way to tell whether a structural change to the
+    writing helped, and the ordinary path would skip it as already processed.
+    The term is resolved through Wikipedia's search like any catalogue entry,
+    so a rough name still finds its article."""
+    title = _resolve(term)
+    if title is None:
+        logger.warning("No encuentro ningun articulo de Wikipedia para %r.", term)
+        return None
+    texto = _extract(title)
+    if not texto:
+        logger.warning("El articulo %r no tiene texto utilizable.", title)
+        return None
+    logger.info("Tema forzado: %r -> articulo %r", term, title)
+    return {
+        "title": title,
+        "summary": texto,
+        "link": _article_url(title),
+        "published": "",
+        "source_name": "Wikipedia",
+    }
+
+
 def fetch_candidate_topics(limit: int = 5) -> list[dict]:
     """Up to `limit` unused cases, in the same shape the RSS source returned,
     so everything downstream is unchanged.

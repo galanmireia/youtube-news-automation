@@ -165,7 +165,9 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await query.edit_message_caption(caption=f"{label}\nError al subir: {record['title']}. Revisa los logs.")
 
 
-async def _run_pipeline_and_notify(bot, variants: tuple[str, ...] = ("short", "long")) -> None:
+async def _run_pipeline_and_notify(
+    bot, variants: tuple[str, ...] = ("short", "long"), forced_topic: str | None = None
+) -> None:
     loop = asyncio.get_running_loop()
 
     def on_variant_done(video_id: int) -> None:
@@ -182,7 +184,7 @@ async def _run_pipeline_and_notify(bot, variants: tuple[str, ...] = ("short", "l
     async with _pipeline_lock:
         try:
             video_ids = await asyncio.wait_for(
-                loop.run_in_executor(None, run_once, on_variant_done, variants),
+                loop.run_in_executor(None, run_once, on_variant_done, variants, forced_topic),
                 timeout=_PIPELINE_TIMEOUT_SECONDS,
             )
             if pipeline_stop_requested():
@@ -231,12 +233,21 @@ async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text("Ya hay una generacion en curso, espera a que termine.")
         return
 
-    arg = context.args[0].lower() if context.args else ""
-    variants = _GENERATE_ARG_VARIANTS.get(arg, ("short", "long"))
+    # "/generar s" picks the variant; anything after it names the case to make,
+    # e.g. "/generar s Costa Concordia". Naming one remakes it even if it has
+    # been made before, which is how two versions of the same story can be put
+    # side by side after a change to the writing.
+    args = list(context.args or [])
+    if args and args[0].lower() in _GENERATE_ARG_VARIANTS:
+        variants = _GENERATE_ARG_VARIANTS[args.pop(0).lower()]
+    else:
+        variants = ("short", "long")
+    forced_topic = " ".join(args).strip() or None
     label = {"short": "el Short", "long": "el video largo"}.get(
         variants[0] if len(variants) == 1 else "", "el Short y el video largo"
     )
-    await update.message.reply_text(f"Generando {label}, tardara unos minutos...")
+    sobre = f" sobre {forced_topic}" if forced_topic else ""
+    await update.message.reply_text(f"Generando {label}{sobre}, tardara unos minutos...")
     # Deliberately NOT awaited. python-telegram-bot handles updates one at a
     # time by default (max_concurrent_updates=1), so awaiting the generation
     # here froze the whole bot for as long as it ran: /vertex, /reset and -
@@ -244,7 +255,7 @@ async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_
     # sent all sat unprocessed in the queue until the long video finished.
     # Running it as a task lets the handler return now and the bot keep
     # answering; _pipeline_lock still stops two generations overlapping.
-    context.application.create_task(_run_pipeline_and_notify(context.bot, variants))
+    context.application.create_task(_run_pipeline_and_notify(context.bot, variants, forced_topic))
 
 
 async def handle_vertex_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
