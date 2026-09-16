@@ -61,41 +61,41 @@ Marca "is_sensitive" como true SOLO en estos dos casos:
 - El suceso es muy reciente (ultimos dos años) y hay victimas identificables cuyas familias siguen
   en duelo publico.
 - El relato se apoya en una acusacion, investigacion o juicio TODAVIA NO RESUELTO contra una
-  persona concreta e identificable (un capitan, un maquinista, un ingeniero imputado).
+  persona concreta e identificable (un acusado sin sentencia, un directivo imputado, un sospechoso).
 En esos dos casos: tono de medio serio, presuncion de inocencia, y nunca montes el gancho sobre la
 culpabilidad de nadie.
 
 En todo lo demas - que sera la inmensa mayoria de los casos del catalogo - "is_sensitive" es false.
-Un naufragio de 1912 o una central que exploto en 1986 NO son sensibles en este sentido: son
+Un gusano de 1988 o un fraude ya juzgado NO son sensibles en este sentido: son
 historia documentada, y tratarlos como sensibles solo empeora el video sin proteger a nadie.""",
-        "structure_block": """Este video cuenta UN caso concreto - una catastrofe, un accidente, una obra de
-ingenieria - A TRAVES DE UNA PERSONA.
+        "structure_block": """Este video cuenta UN caso real de informatica o tecnologia - una intrusion, un fraude,
+una filtracion, un software que fallo, una empresa que se cayo - A TRAVES DE UNA PERSONA.
 
 LO PRIMERO QUE DECIDES, antes de escribir una sola frase: quien es el protagonista. Busca en el
 material a la persona que tomo la decision que lo desencadeno todo, o la que tuvo que cargar con
-las consecuencias. El capitan que desvio el barco. El ingeniero que firmo el plano. El operario
-que apago la alarma. El inspector al que nadie escucho. Tiene nombre y apellidos en el articulo, y
+las consecuencias. El chaval que escribio el gusano. El ingeniero que aviso y al que no hicieron
+caso. El directivo que decidio que parchear salia caro. El investigador que lo destapo. Tiene nombre y apellidos en el articulo, y
 es el video entero: no aparece en una escena, esta en todas.
 
-POR QUE ESTO IMPORTA MAS QUE NINGUNA OTRA INSTRUCCION: "el hundimiento del Costa Concordia" es un
-tema; "el capitan que abandono el barco antes que sus pasajeros" es una historia. Un tema se
+POR QUE ESTO IMPORTA MAS QUE NINGUNA OTRA INSTRUCCION: "el ataque de Mirai" es un tema; "el
+universitario que tumbo media internet para hacer trampas en Minecraft" es una historia. Un tema se
 explica y se olvida a los diez segundos. Una historia tiene a alguien que quiere algo, se
 equivoca, y paga - y saber como acaba esa persona es lo unico que hace que alguien se quede.
 
 CUANDO NO HAY PROTAGONISTA: si el material no da ninguna persona con nombre, o si la unica
 identificable esta acusada de algo TODAVIA NO RESUELTO, no fuerces uno y no lo inventes. Entonces
-el protagonista es la maquina: el barco, el puente, el reactor. Misma estructura, pero el "quien"
-es la obra y el "que queria" es aquello para lo que se construyo. Nunca montes el relato sobre la
+el protagonista es el sistema: el gusano, la plataforma, la empresa. Misma estructura, pero
+el "quien" es eso y el "que queria" es para lo que se creo. Nunca montes el relato sobre la
 culpa de alguien cuyo caso siga abierto.
 
 Estructura obligatoria del guion ({duration_hint}, en este orden):
 
 1. LA DECISION. Abre en el segundo exacto en que el protagonista hace lo que lo desencadena todo,
    con su nombre en la primera frase. Y CORTA antes de decir en que acabo. Nunca empieces situando
-   ("el 13 de enero de 2012, el Costa Concordia navegaba...").
-   Ejemplo: "Francesco Schettino desvio un barco de cuatro mil personas para saludar a un amigo
-   que estaba en tierra. ¿Que creia que podia salir mal?" -> el espectador ya sabe que algo va a
-   pasar, y no sabe el que.
+   ("en septiembre de 2016, una red de camaras conectadas a internet...").
+   Ejemplo: "Paras Jha escribio un programa para que su servidor de Minecraft ganara jugadores.
+   Tres meses despues, medio internet estaba caido. ¿Que hacia exactamente ese programa?" -> el
+   espectador ya sabe que algo va a pasar, y no sabe el que.
 
 2. QUIEN ERA Y QUE QUERIA. Muy corto. Su cargo, su experiencia, y las dos o tres cifras que dicen
    lo que tenia entre manos: cuanta gente, cuanto pesaba, cuanto valia. Nada de inventario.
@@ -320,14 +320,15 @@ sugeridos):
   Maximo 90 caracteres, con gancho pero sin exagerar (nada de MAYUSCULAS sostenidas ni "no vas a
   creer..."). Tres reglas duras, porque los titulos de este canal venian saliendo mal:
   * NUNCA empieces por un nombre propio seguido de dos puntos. "M/S Estonia: que fallo en el
-    naufragio" y "Prestige: el fallo tecnico que hundio..." no le dicen nada a nadie que no sepa
+    ataque" y "Stuxnet: el fallo tecnico que permitio..." no le dicen nada a nadie que no sepa
     ya lo que es un M/S Estonia, y son literalmente encabezados de enciclopedia.
-  * Empieza por la PERSONA definida por su acto: "El capitan que abandono un barco con cuatro mil
-    personas dentro", "El hombre al que España dejo seis dias en el mar". Si el protagonista es la
+  * Empieza por la PERSONA definida por su acto: "El universitario que tumbo medio internet por
+    un servidor de Minecraft", "La mujer que estafo cuatro mil millones con una moneda que no
+    existia". Si el protagonista es la
     obra y no una persona, entonces por lo que la obra hizo o le hicieron, nunca por su nombre a
     secas.
   * Si tienes una cifra o un superlativo que sostenga el titulo, usalo: "cuatro mil personas",
-    "el naufragio mas mortifero de la historia". Un numero concreto pesa mas que un adjetivo.
+    "el mayor robo bancario de la historia". Un numero concreto pesa mas que un adjetivo.
   El nombre propio del caso NO se pierde: va en "tags" y en la primera frase de "description", que
   es de donde YouTube saca las palabras clave para el buscador. El titulo esta para que alguien
   haga clic, no para indexar.

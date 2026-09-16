@@ -119,9 +119,11 @@ _TONE_HINTS = {
         "propia noticia, nunca en especulacion sin fundamento ni teorias de conspiracion."
     ),
     "topics": (
-        "explica como se construyo y como fallo algo enorme: la decision que lo provoco, el fallo "
-        "tecnico exacto, la señal que alguien ignoro. No cuenta la tragedia, explica la ingenieria - "
-        "lo que el espectador se lleva es entender POR QUE paso, no solo QUE paso. El tono es "
+        "cuenta casos reales de informatica y tecnologia - intrusiones, fraudes, filtraciones, "
+        "software que fallo y empresas que se cayeron - explicando EL MECANISMO: que hizo esa "
+        "persona exactamente, por que funciono, que fallo tecnico lo permitio y que señal ignoro "
+        "alguien. No cuenta que hubo un hackeo, explica COMO se hizo, contado para que lo entienda "
+        "quien no sabe de esto pero sin simplificarlo hasta que deje de ser verdad. El tono es "
         "documental, preciso y sobrio: el drama lo ponen los hechos y las cifras, nunca los "
         "adjetivos ni el morbo. Todo anclado en lo documentado, jamas en especulacion."
     ),

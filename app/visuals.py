@@ -23,7 +23,7 @@ _TARGET_DIMENSIONS = {"9:16": (1080, 1920), "16:9": (1920, 1080)}
 # is exactly what two scenes of the first Titanic short got.
 _LAST_RESORT_QUERIES = {
     "news": "news broadcast studio",
-    "topics": "dark ocean waves slow motion",
+    "topics": "server room racks blinking lights dark",
 }
 _LAST_RESORT_FALLBACK = "news broadcast studio"
 # Showing more than 2 real photos in one shot would make already-short

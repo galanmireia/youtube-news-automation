@@ -39,76 +39,97 @@ _HEADERS = {
 _EXTRACT_CHARS = 9000
 
 
-# The catalogue. Mixed deliberately: failures are the hook, but a channel that
-# only ever shows things breaking gets monotonous, so feats of engineering are
-# in here too - the format is "how something huge was built or came apart".
+# The catalogue, ordered: the picker takes the first unused entry, so the
+# strongest cases come first.
+#
+# Every entry is a case with the three things the script structure needs. A
+# PERSON with a name, because "el hundimiento del Costa Concordia" is a
+# subject and "el capitan que abandono el barco" is a story. A TECHNICAL
+# CAUSE that can be explained, which is what separates this from a channel
+# that only tells you something bad happened. And a RESOLVED ending - a
+# sentence, a bankruptcy, a fugitive, a company that no longer exists -
+# because the ending is the reason anybody stays to the end, and because a
+# case still being argued in court is one the channel must not build a story
+# on.
+#
+# The subject is computing rather than engineering, and the reason is
+# measured. In Spanish, "naufragio documental" has a median of 74 views;
+# the same format on technology reaches a different order of magnitude -
+# 11.3M on Cambridge Analytica, 6.7M on Snowden, 4.2M on the boy who hacked
+# NASA - and technology pays better per view than history does. It is also
+# the one subject where this channel has an advantage that cannot be copied:
+# somebody who can tell whether the technical explanation is right.
+#
+# These are SEARCH TERMS, not exact article titles. They resolve through
+# Wikipedia's own search, so an entry phrased differently from the real
+# article still lands on it - written without being able to reach Wikipedia
+# to check them, which is exactly why nothing here assumes an exact match.
+# Entries that resolve to nothing are named in the log rather than counted.
 CATALOGUE = [
-    # Mar
-    "Hundimiento del RMS Titanic",
-    "Naufragio del Costa Concordia",
-    "Desastre del Prestige",
-    "MS Estonia naufragio",
-    "Hundimiento del Doña Paz",
-    "Hundimiento del ferry Sewol",
-    "Submarino K-141 Kursk",
-    "Sumergible Titan implosión",
-    "Desastre de Piper Alpha",
-    "Marea negra del Exxon Valdez",
-    "Explosión de la Deepwater Horizon",
-    # Aire
-    "Accidente aéreo de Los Rodeos",
-    "Vuelo 123 de Japan Airlines",
-    "Vuelo 5022 de Spanair",
-    "Vuelo 4590 de Air France Concorde",
-    "Vuelo 191 de American Airlines",
-    "Vuelo 592 de ValuJet",
-    "Accidentes del Boeing 737 MAX",
-    "Dirigible Hindenburg",
-    "Vuelo 143 de Air Canada planeador de Gimli",
-    # Espacio
-    "Accidente del transbordador espacial Challenger",
-    "Accidente del transbordador espacial Columbia",
-    "Incendio del Apolo 1",
-    "Apolo 13",
+    # Intrusiones con nombre y apellidos
+    "Jonathan James hacker NASA",
+    "Mirai botnet",
+    "WannaCry",
+    "Marcus Hutchins",
+    "Kevin Mitnick",
+    "Gusano Morris",
+    "Stuxnet",
+    "Gary McKinnon",
+    "Albert Gonzalez hacker",
+    "Grupo Lazarus",
+    "Robo al Banco de Bangladés",
+    "Carbanak",
+    "Hackeo a Sony Pictures Entertainment",
+    "Ciberataque a Colonial Pipeline",
+    "Ataque a SolarWinds",
+    "Operación Aurora",
+    "Ciberataque al SEPE",
+    "Ataque DDoS a Dyn",
+    # Fraudes tecnologicos
+    "Theranos",
+    "Elizabeth Holmes",
+    "OneCoin",
+    "Ruja Ignatova",
+    "Quiebra de FTX",
+    "Sam Bankman-Fried",
+    "Mt. Gox",
+    "Caso Wirecard",
+    "BitConnect",
+    "QuadrigaCX",
+    "Terra Luna criptomoneda",
+    "Nikola Corporation fraude",
+    # Filtraciones y vigilancia
+    "Edward Snowden",
+    "Escándalo de Cambridge Analytica",
+    "Cablegate",
+    "Chelsea Manning",
+    "Papeles de Panamá",
+    "Pegasus software espía",
+    "Filtración de Ashley Madison",
+    "Brecha de datos de Equifax",
+    "Filtración de datos de Yahoo",
+    # Software que fallo y costo caro
+    "Therac-25",
+    "Vuelo 501 del Ariane 5",
     "Mars Climate Orbiter",
-    # Nuclear e industrial
-    "Accidente de Chernóbil",
-    "Accidente nuclear de Fukushima I",
-    "Accidente de Three Mile Island",
-    "Desastre de Bhopal",
-    "Explosión de Texas City",
-    "Explosión del puerto de Beirut de 2020",
-    "Explosiones de Tianjin de 2015",
-    "Explosión de Halifax",
-    "Desastre de Seveso",
-    "Síndrome del aceite tóxico colza",
-    # Presas y agua
-    "Desastre de Vajont",
-    "Rotura de la presa de Banqiao",
-    "Rotura de la presa de Malpasset",
-    "Pantanada de Tous",
-    "Desastre de Ribadelago",
-    "Desastre de Aznalcóllar",
-    # Estructuras
-    "Puente Morandi de Génova",
-    "Puente de Tacoma Narrows",
-    "Colapso de las pasarelas del hotel Hyatt Regency",
-    "Incendio de la Torre Grenfell",
-    "Incendio del edificio Windsor",
-    "Derrumbe del Rana Plaza",
-    "Incendio del túnel del Mont Blanc",
-    "Torre inclinada de Pisa",
-    # Tierra y minas
-    "Desastre de Aberfan",
-    "Accidente de la mina San José rescate",
-    "Terremoto de Lisboa de 1755",
-    # Ingenieria que si salio bien
-    "Construcción del Canal de Panamá",
-    "Eurotúnel del Canal de la Mancha",
-    "Presa Hoover",
-    "Construcción de la Torre Eiffel",
-    "Traslado de los templos de Abu Simbel",
-    "Delta Works de los Países Bajos",
+    "Knight Capital",
+    "Boeing 737 MAX MCAS",
+    "Heartbleed",
+    "Log4Shell",
+    "Apagón informático de CrowdStrike",
+    "Efecto 2000",
+    "Apagón del noreste de 2003",
+    # Mercado negro digital
+    "Silk Road mercado negro",
+    "Ross Ulbricht",
+    "AlphaBay",
+    # Imperios que se cayeron
+    "Napster",
+    "Declive de Nokia",
+    "Quiebra de Blockbuster",
+    "Quiebra de Kodak",
+    "Declive de BlackBerry",
+    "MySpace red social",
 ]
 
 
