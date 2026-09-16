@@ -120,10 +120,23 @@ Si hubo victimas, se mencionan con respeto y sin detalles morbosos: nunca descri
 heridas ni el sufrimiento de personas concretas. No especules sobre causas que la investigacion no
 haya establecido - si algo esta en disputa, di que esta en disputa.""",
         "source_block": """===== MATERIAL DE PARTIDA =====
-Articulo de Wikipedia sobre el caso. Es tu fuente de HECHOS: las cifras, fechas y nombres tienen
-que salir de aqui y no de tu memoria, y no debes añadir datos que no esten en el texto. Lo que si
-tienes que hacer es reordenarlo y contarlo como una historia - NO lo resumas parrafo a parrafo ni
-copies sus frases:""",
+VARIAS fuentes sobre el mismo caso, cada una con su cabecera: el articulo principal, el mismo
+articulo en otros idiomas - escritos por separado, no son traducciones - y los articulos de las
+personas, los sitios y las maquinas que salen en la historia.
+
+Como usarlo, porque de esto depende que el video tenga algo que contar:
+- CRUZALAS. El dato bueno casi nunca esta en la fuente principal. La version inglesa suele traer
+  el detalle tecnico; la del pais donde paso, el juicio y las consecuencias; el articulo de una
+  persona, que fue de ella despues. Ahi es donde estan las cifras y los nombres que hacen que un
+  video no parezca un resumen de enciclopedia.
+- Si dos fuentes se contradicen en una cifra, di la horquilla o quedate con la mas conservadora, y
+  nunca presentes como cierto un dato que solo aparece en una y la otra desmiente.
+- PROHIBIDO rellenar. Si el material no da para la duracion pedida, haz el video mas corto. Un
+  video corto y denso se ve entero; uno largo con paja se abandona a los dos minutos, y eso es
+  exactamente lo que hay que evitar.
+- Los HECHOS salen de aqui y no de tu memoria: cifras, fechas y nombres tienen que estar en el
+  texto. Lo que si tienes que hacer es reordenarlo y contarlo como una historia - NO lo resumas
+  fuente a fuente ni copies sus frases:""",
     },
 }
 

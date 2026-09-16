@@ -20,6 +20,7 @@ from .config import (
     SHORT_VIDEO_WIDTH,
 )
 from .entity_extraction import extract_entities
+from . import research
 from .news_picker import pick_best_story
 from .news_source import fetch_candidate_news
 from .topic_source import fetch_candidate_topics, fetch_topic_by_term
@@ -373,6 +374,19 @@ def run_once(
             logger.info("No se ha podido elegir noticia con garantias; no se genera nada.")
             return []
     logger.info("Procesando noticia: %s", news_item["title"])
+
+    # El dosier cuesta varias llamadas a Wikipedia, asi que se construye para
+    # el tema ELEGIDO y no para los candidatos que solo habia que ojear. Si
+    # falla, se sigue con el extracto corto que ya traia el candidato: un
+    # video con menos material es peor, pero es mejor que ninguno.
+    if CONTENT_MODE == "topics":
+        try:
+            dosier = research.build_dossier(news_item["title"])
+        except Exception:
+            logger.exception("No se pudo montar el dosier; se sigue con el extracto corto.")
+            dosier = ""
+        if len(dosier) > len(news_item.get("summary") or ""):
+            news_item = {**news_item, "summary": dosier}
 
     work_dir = Path(DATA_DIR) / f"job_{int(time.time())}"
     work_dir.mkdir(parents=True, exist_ok=True)
