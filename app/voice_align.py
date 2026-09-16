@@ -145,3 +145,63 @@ def align_recording(
         len(duraciones), fin_audio, min(duraciones), max(duraciones),
     )
     return audio_path, duraciones
+
+
+# --- El guion tal como se lee, que no es el guion tal como se alinea -------
+#
+# Estas marcas existen solo en el .txt que se manda a leer. El guion guardado
+# conserva la narracion limpia, y es esa la que se alinea: si una marca
+# acabara en el texto de referencia, ninguna palabra la diria en voz alta y
+# el emparejamiento tendria un hueco en cada frase.
+
+_PAUSA_ESCENA = "⏸"
+_BEAT = "|"
+_FIN_FRASE = re.compile(r"([.!?…])(\s+)(?=[¿¡A-ZÁÉÍÓÚÑ])")
+
+
+def _marcar_beats(texto: str) -> str:
+    """Un palo despues de cada punto: ahi se respira, no se para."""
+    return _FIN_FRASE.sub(rf"\1 {_BEAT}\2", texto.strip())
+
+
+def reading_script(scenes: list[dict], title: str = "", tema: str = "") -> str:
+    """El guion preparado para leerlo en voz alta.
+
+    Dos marcas y nada mas, porque esto se lee en un movil y cada simbolo de
+    adorno es una cosa menos que se mira: el palo es una respiracion dentro de
+    la escena, y el simbolo de pausa es el cambio de imagen.
+
+    La pausa entre escenas no es un permiso, es lo que se quiere: el corte se
+    monta dentro de ese silencio, asi que la imagen nueva entra mientras no
+    hablas en vez de cortarte a media palabra."""
+    textos = [(sc.get("narration") or "").strip() for sc in scenes]
+    palabras = sum(len(t.split()) for t in textos)
+
+    cabecera = [
+        title or "Guion",
+        f"Tema: {tema}" if tema else "",
+        f"{len(textos)} escenas · {palabras} palabras · unos {palabras / 150:.0f} min de lectura",
+        "",
+        "COMO LEERLO",
+        f"  {_BEAT}   respira, medio segundo. No bajes el tono, la frase sigue.",
+        f"  {_PAUSA_ESCENA}   para de verdad, un segundo entero. Aqui cambia la imagen,",
+        "      y el corte se monta dentro de tu silencio.",
+        "",
+        "  · Graba del tiron, sin cortar el archivo entre escenas.",
+        "  · Si te equivocas, NO pares: repite la frase entera y sigue. Se apaña solo.",
+        "  · Las cifras son lo que la gente recuerda: apoyate en ellas al decirlas.",
+        "  · Si una frase te suena rara al decirla en alto, cambiala. Manda tu voz,",
+        "    no el papel.",
+        "",
+        "=" * 64,
+    ]
+
+    partes = []
+    for i, texto in enumerate(textos, start=1):
+        if not texto:
+            continue
+        partes.append(
+            f"\n── ESCENA {i} de {len(textos)} " + "─" * 34 + "\n\n"
+            + _marcar_beats(texto) + f"  {_PAUSA_ESCENA}"
+        )
+    return "\n".join(l for l in cabecera if l is not None) + "\n" + "\n".join(partes) + "\n"

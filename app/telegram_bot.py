@@ -290,15 +290,9 @@ async def _prepare_and_send_script(bot, variant: str, forced_topic: str | None) 
     minutos = job["palabras"] / 150  # a comfortable Spanish reading pace
     # The script goes as a file rather than a message: Telegram splits a long
     # message at 4096 characters wherever it lands, and a narration cut in
-    # half mid-sentence is unreadable to narrate from.
-    texto = (
-        f"{job['title']}\n\n"
-        f"Tema: {job['tema']}\n"
-        f"{job['escenas']} escenas · {job['palabras']} palabras · unos {minutos:.0f} minutos leidos\n\n"
-        "Leelo SEGUIDO, de una sola vez, sin parar entre escenas: los cortes se calculan solos\n"
-        "despues. Si te equivocas, repite la frase entera y sigue - se apaña.\n"
-        f"{'=' * 60}\n\n" + job["narration"]
-    )
+    # half mid-sentence cannot be read from. reading_script already carries
+    # its own heading and its legend of marks, so nothing is prepended here.
+    texto = job["narration"]
     await bot.send_document(
         chat_id=TELEGRAM_CHAT_ID,
         document=BytesIO(texto.encode("utf-8")),

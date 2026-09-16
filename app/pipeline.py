@@ -29,7 +29,7 @@ from .script_generator import generate_script
 from .subtitles import generate_subtitles
 from .thumbnail import generate_thumbnail
 from .tts import synthesize_scenes
-from .voice_align import align_recording
+from .voice_align import align_recording, reading_script
 from .video_builder import build_video, burn_subtitles, mix_background_music
 from .visuals import fetch_clips_for_scenes
 
@@ -395,10 +395,11 @@ def prepare_voice_job(variant: str, forced_topic: str | None = None) -> dict | N
 
     # The intro bumper is spoken by the channel too, so it is part of what
     # gets read - leaving it out would desynchronise every scene after it.
-    texto = "\n\n".join((sc.get("narration") or "").strip() for sc in script["scenes"])
+    texto = reading_script(script["scenes"], script["title"], news_item["title"])
+    limpio = " ".join((sc.get("narration") or "") for sc in script["scenes"])
     return {
         "job_file": job_file, "title": script["title"], "variant": variant,
-        "narration": texto, "palabras": len(texto.split()),
+        "narration": texto, "palabras": len(limpio.split()),
         "escenas": len(script["scenes"]), "tema": news_item["title"],
     }
 
