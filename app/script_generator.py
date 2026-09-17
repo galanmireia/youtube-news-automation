@@ -425,12 +425,73 @@ def _strip_markdown_fence(text: str) -> str:
 # (This was NOT what broke the CIS story - that one failed at ~800 tokens,
 # on an unescaped quote inside a string. See the prompt's quoting rule.)
 # Headroom for the model to reason before writing, not a target length: the
-# reply itself is a few hundred tokens. The Short's ceiling was 8000 and a
-# harder prompt walked straight into it - three attempts in a row spent the
-# entire budget thinking and returned no text at all, which reads as a broken
-# API rather than as "give me more room".
-_MAX_TOKENS = {"short": 12000, "long": 20000}
+# reply itself is a few hundred tokens, and an unused ceiling costs nothing.
+# It was 8000 for a Short, and a harder prompt walked straight into it - three
+# attempts in a row spent the entire budget thinking and returned no text at
+# all, which reads as a broken API rather than as "give me more room". Raised
+# to 12000, and a Short over a full dossier hit that too. There is no reason
+# for the Short to have the smaller ceiling: the harder the story is to
+# compress, the more room the model needs, so a sixty-second video can need
+# MORE thinking than a five-minute one, not less. One number for both.
+_MAX_TOKENS = 20000
 _MAX_ATTEMPTS = 3
+
+# How much of the dossier each variant is allowed to read.
+#
+# research.build_dossier is sized for a long narration: thirty thousand
+# characters and up, across several sources. A Short is five or six sentences.
+# Measured on "Presa de Tous": a 31,566-character dossier sent to the Short
+# spent the whole ceiling reasoning on the first attempt and returned nothing,
+# then succeeded on the second - $0.33 for a video that costs $0.10. Raising
+# the ceiling stops it failing; this stops it paying to read what it cannot
+# use.
+#
+# The trim keeps whole sources instead of cutting at a character count. The
+# sources are labelled so the model can cross them, and a source that stops
+# mid-sentence is worse than an absent one: it reads as a document that
+# contradicts itself rather than as one that ends.
+_SOURCE_BUDGET = {"short": 9000, "long": None}
+
+# The header build_dossier writes in front of each source.
+_FUENTE = re.compile(r"(?m)^===== FUENTE \d+ · .*? =====$")
+
+
+def _trim_sources(summary: str, budget: int | None) -> str:
+    """The head of the dossier, cut on a source boundary where there is one."""
+    if budget is None or len(summary) <= budget:
+        return summary
+    # Kept for the log: below, `summary` may be narrowed to the main source
+    # before it is cut, and reporting that as the original would understate
+    # how much was dropped.
+    entero = len(summary)
+    marcas = [m.start() for m in _FUENTE.finditer(summary)]
+    if marcas:
+        # Where each source ends: the next one's header, or the end of the text.
+        finales = marcas[1:] + [len(summary)]
+        caben = [fin for fin in finales if fin <= budget]
+        if caben:
+            recortado = summary[: max(caben)].rstrip()
+            logger.info(
+                "Dosier recortado para la variante corta: %s de %s caracteres, "
+                "%s fuentes de %s.",
+                len(recortado), entero, len(caben), len(marcas),
+            )
+            return recortado
+        # Not even the main article fits. Everything else goes, and the main
+        # one is cut below - its opening paragraphs are where a sixty-second
+        # story is anyway.
+        summary = summary[: finales[0]].rstrip()
+        if len(summary) <= budget:
+            return summary
+    # A single block longer than the budget: cut it between paragraphs, and
+    # fall back to the raw count only if that would throw away most of it.
+    corte = summary.rfind("\n\n", 0, budget)
+    recortado = summary[: corte if corte > budget // 2 else budget].rstrip()
+    logger.info(
+        "Dosier recortado para la variante corta: %s de %s caracteres (una sola fuente).",
+        len(recortado), entero,
+    )
+    return recortado
 
 
 
@@ -484,7 +545,7 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
         tone_hint=CHANNEL_TONE_HINT,
         language=NEWS_LANGUAGE_HINT,
         title=news_item["title"],
-        summary=news_item["summary"],
+        summary=_trim_sources(news_item["summary"], _SOURCE_BUDGET[variant]),
         **variant_config,
     )
     # Split into the part that never changes and the story of the day, so the
@@ -502,7 +563,7 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         message = _client.messages.create(
             model=CLAUDE_MODEL,
-            max_tokens=_MAX_TOKENS[variant],
+            max_tokens=_MAX_TOKENS,
             system=[
                 {
                     "type": "text",
