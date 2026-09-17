@@ -596,6 +596,34 @@ async def handle_clone_command(update: Update, context: ContextTypes.DEFAULT_TYP
     context.application.create_task(trabajo())
 
 
+async def handle_account_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/cuenta - what the ElevenLabs subscription actually allows.
+
+    Worth a command rather than a one-off look: the two numbers that decide
+    whether a cloned voice can carry this channel - credits left and whether
+    the professional clone is available - are both on the account, and getting
+    either wrong costs either money or half an hour of recording for nothing."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    loop = asyncio.get_running_loop()
+
+    async def trabajo():
+        try:
+            datos = await loop.run_in_executor(None, voice_clone.cuenta)
+        except voice_clone.CloneError as exc:
+            await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=str(exc))
+            return
+        except Exception:
+            logger.exception("Error leyendo la cuenta de ElevenLabs")
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID, text="No he podido leer la cuenta. Mira los logs.")
+            return
+        await context.bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID, text=voice_clone.resumen_cuenta(datos))
+
+    context.application.create_task(trabajo())
+
+
 async def handle_vertex_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/vertex - says whether AI illustration is working, and if not, what to fix."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
@@ -733,6 +761,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("listo", handle_done_command))
     application.add_handler(CommandHandler("rehacer", handle_redo_command))
     application.add_handler(CommandHandler("clon", handle_clone_command))
+    application.add_handler(CommandHandler("cuenta", handle_account_command))
     # Audio arriving with no command is a narration for whatever script is
     # waiting; a voice note, an audio file and a file sent "as document" are
     # three different Telegram types for the same thing.

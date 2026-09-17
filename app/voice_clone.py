@@ -211,3 +211,98 @@ def voces() -> list[dict]:
     except ValueError:
         raise CloneError("Respuesta inesperada al listar las voces.")
     return sorted(todas, key=lambda v: v.get("category") != "cloned")
+
+# What a character costs, by model. This is the difference between "9,000
+# credits is a video and a half" and "9,000 credits is most of one", so it is
+# not a detail: the fast models bill at half rate, and on an account with a
+# fixed monthly allowance that doubles the reach for a quality difference
+# nobody has listened to yet.
+#
+# Rates as published; the account's own figures are what /cuenta reports, and
+# if these ever disagree with the invoice, the invoice is right.
+_CREDITOS_POR_CARACTER = {
+    "eleven_multilingual_v2": 1.0,
+    "eleven_turbo_v2_5": 0.5,
+    "eleven_flash_v2_5": 0.5,
+}
+
+
+def creditos_estimados(texto: str, model: str | None = None) -> float:
+    """Roughly what speaking this will cost, before spending it."""
+    return len(texto) * _CREDITOS_POR_CARACTER.get(model or _MODEL, 1.0)
+
+
+def cuenta() -> dict:
+    """The subscription's own numbers: credits, voice slots, what is allowed.
+
+    Asked rather than inferred from the plan's name. Which tier allows the
+    professional clone, how many voice slots there are and how many credits
+    are really left are all decisions this account has already made, and
+    guessing them wrong sends somebody off to record thirty minutes of audio
+    for a feature they cannot use."""
+    response = requests.get(f"{_BASE}/user/subscription", headers=_headers(), timeout=60)
+    if response.status_code >= 400:
+        if response.status_code == 401:
+            # A restricted key is the likely cause here rather than a bad key:
+            # this endpoint needs the user permission, which a key created for
+            # voices and speech alone does not carry.
+            raise CloneError(
+                "La clave no tiene permiso para leer la cuenta, asi que no puedo "
+                "ver los creditos desde aqui. Miralos en elevenlabs.io o dame una "
+                "clave con permiso de lectura de usuario."
+            )
+        raise CloneError(_explica(response))
+    try:
+        return response.json()
+    except ValueError:
+        raise CloneError("Respuesta inesperada al leer la cuenta.")
+
+
+def resumen_cuenta(datos: dict) -> str:
+    """The subscription, phrased as what it lets the channel do.
+
+    Credits are reported as minutes of narration as well as as a number,
+    because "9,000 credits" does not say whether that is one video or twenty -
+    and at the channel's measured reading pace it is not even one long one."""
+    usados = datos.get("character_count")
+    tope = datos.get("character_limit")
+    lineas = [f"Plan: {datos.get('tier') or '?'}"]
+    if isinstance(usados, int) and isinstance(tope, int):
+        quedan = max(tope - usados, 0)
+        lineas.append(f"Creditos: {quedan:,} libres de {tope:,}".replace(",", "."))
+        # Credits are billed per CHARACTER, so the useful conversion is
+        # characters to minutes of finished narration, and the pace that
+        # matters is the model's, not hers: 90 words a minute is what she
+        # reads at, but the clone speaks at around 150, so using her pace
+        # would overstate what a credit buys by two thirds.
+        #
+        # 5.5 characters per Spanish word, measured on the channel's own
+        # scripts. A long video is fifteen minutes, which is where the market
+        # study put the cliff.
+        _CHARS_POR_MINUTO = 150 * 5.5
+        minutos = quedan / _CHARS_POR_MINUTO
+        lineas.append(
+            f"Eso da para unos {minutos:.0f} min de narracion sintetizada "
+            f"({minutos / 15:.0f} videos de 15 min), o el doble con los modelos "
+            f"rapidos, que cuestan la mitad por caracter."
+        )
+    reinicio = datos.get("next_character_count_reset_unix")
+    if reinicio:
+        import datetime
+        fecha = datetime.datetime.fromtimestamp(reinicio).strftime("%d/%m")
+        lineas.append(f"Se renuevan el {fecha}.")
+    huecos = datos.get("voice_limit")
+    if huecos is not None:
+        lineas.append(f"Huecos de voz: {huecos}.")
+    pvc = datos.get("can_use_professional_voice_cloning")
+    limite_pvc = datos.get("professional_voice_limit")
+    if pvc is True or (limite_pvc or 0) > 0:
+        lineas.append(
+            f"Clonacion PROFESIONAL: disponible"
+            + (f" ({limite_pvc} {'voz' if limite_pvc == 1 else 'voces'})."
+               if limite_pvc else ".")
+            + " Necesita unos 30 min de audio tuyo y suena mucho mejor que la instantanea."
+        )
+    elif pvc is False:
+        lineas.append("Clonacion profesional: NO en este plan (solo la instantanea).")
+    return "\n".join(lineas)
