@@ -271,9 +271,18 @@ def sintetizar(
     if response.status_code >= 400:
         raise CloneError(_explica(response))
     out_path.write_bytes(response.content)
+    # The SETTINGS go in the log, not just the model. Without them two
+    # different sweeps of four takes each look identical afterwards - same
+    # model, same character count - and I read one as the other and told her
+    # the log said something it could not say. A log that cannot tell two runs
+    # apart is not evidence about which one happened.
+    ajustes_usados = cuerpo["voice_settings"]
     logger.info(
-        "Voz clonada con %s: %s caracteres, %.1f KB.",
-        cuerpo["model_id"], len(texto), len(response.content) / 1024,
+        "Voz clonada con %s (estabilidad %.2f, parecido %.2f, estilo %.2f): "
+        "%s caracteres, %.1f KB.",
+        cuerpo["model_id"], ajustes_usados.get("stability", -1),
+        ajustes_usados.get("similarity_boost", -1), ajustes_usados.get("style", -1),
+        len(texto), len(response.content) / 1024,
     )
     return out_path
 
