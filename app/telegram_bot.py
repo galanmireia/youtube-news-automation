@@ -233,12 +233,18 @@ async def pipeline_job(context: ContextTypes.DEFAULT_TYPE) -> None:
 
 _GENERATE_ARG_VARIANTS = {"s": ("short",), "v": ("long",)}
 
-# What each variant costs to narrate with the clone, in credits, at the
-# full rate of one credit per character. From the scene counts the script
-# prompt asks for: a Short is 5-6 sentences of about 20 words, a long video
-# 16-24 scenes of 2-3 sentences. Rounded, and stated before the run rather
-# than discovered in the invoice.
-_CREDITOS_POR_VARIANTE = {"short": 700, "long": 11000}
+# What each variant costs to narrate with the clone, in credits, at one
+# credit per character.
+#
+# Taken from the length the prompt actually ASKS FOR, which is where the
+# first version of this went wrong: it quoted eleven thousand, the figure for
+# the fifteen-minute video the market study argues for. The prompt still asks
+# for three to five minutes, so the real bill is a quarter of that, and the
+# warning was overstating the cost of every run by four times.
+#
+# If the long variant is ever lengthened to fifteen minutes, this moves to
+# about 10,900 with it. The two numbers have to change together.
+_CREDITOS_POR_VARIANTE = {"short": 700, "long": 2900}
 
 
 async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
