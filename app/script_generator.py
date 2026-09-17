@@ -1,11 +1,11 @@
 import json
 import logging
 import re
-import unicodedata
 
 import anthropic
 
 from . import llm_usage
+from .spanish import MIN_TASA_ACENTOS, tasa_de_acentos
 from .config import CONTENT_MODE, ANTHROPIC_API_KEY, CHANNEL_NAME, CHANNEL_TONE_HINT, CLAUDE_MODEL, NEWS_LANGUAGE_HINT
 
 logger = logging.getLogger(__name__)
@@ -495,10 +495,6 @@ def _trim_sources(summary: str, budget: int | None) -> str:
 
 
 
-# Written Spanish carries an accent or an ene on roughly one word in twenty.
-# Well under that means the narration came back effectively unaccented, which
-# the voice then mispronounces - it stresses whatever the spelling says.
-_MIN_ACCENT_RATE = 0.02
 
 
 def _log_accent_rate(script: dict, variant: str) -> None:
@@ -509,21 +505,17 @@ def _log_accent_rate(script: dict, variant: str) -> None:
     stress on the wrong syllable. Whether the model actually complied is not
     otherwise visible until the video is listened to."""
     text = " ".join(scene.get("narration", "") for scene in script.get("scenes", []))
-    words = re.findall(r"[^\W\d_]{3,}", text, re.UNICODE)
-    if not words:
+    acentuadas, palabras, tasa = tasa_de_acentos(text)
+    if not palabras:
         return
-    accented = sum(
-        1 for w in words if any(unicodedata.combining(c) for c in unicodedata.normalize("NFD", w)) or "ñ" in w.lower()
-    )
-    rate = accented / len(words)
     message = "Guion: %.1f%% de palabras acentuadas (%s de %s)"
-    if rate < _MIN_ACCENT_RATE:
+    if tasa < MIN_TASA_ACENTOS:
         logger.warning(
             message + " - demasiado pocas, la voz pronunciara mal. Variante '%s'.",
-            rate * 100, accented, len(words), variant,
+            tasa * 100, acentuadas, palabras, variant,
         )
     else:
-        logger.info(message, rate * 100, accented, len(words))
+        logger.info(message, tasa * 100, acentuadas, palabras)
 
 
 def generate_script(news_item: dict, variant: str = "long") -> dict:

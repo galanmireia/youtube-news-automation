@@ -22,6 +22,7 @@ from pathlib import Path
 import requests
 
 from .config import ELEVENLABS_API_KEY
+from .spanish import MIN_TASA_ACENTOS, tasa_de_acentos
 
 logger = logging.getLogger(__name__)
 
@@ -94,16 +95,21 @@ AJUSTES_PRESETS: dict[str, dict] = {
 }
 
 # Written to be read aloud badly: a long spoken figure, an awkward proper
-# noun, a question, a subordinate clause and a list - the five places a
-# synthetic voice puts the stress in the wrong spot. Longer than the cloning
-# test phrase because phrasing is what is being judged here, and phrasing
-# needs somewhere to go wrong.
+# noun, a question, a subordinate clause and a colon - the places a synthetic
+# voice puts the stress in the wrong spot. Longer than the cloning test phrase
+# because phrasing is what is being judged here, and phrasing needs somewhere
+# to go wrong.
+#
+# ACCENTED, which the first version of this was not. It scored zero on
+# spanish.tasa_de_acentos and said "anos" out loud - the exact failure this
+# project already had a rule about for generated narration, walked into by
+# hand in a phrase whose whole job is to be pronounced.
 FRASE_DE_ENTONACION = (
-    "El once de septiembre de mil novecientos ochenta y ocho, Robert Morris hijo tenia "
-    "veintitres anos y estudiaba en Cornell. ¿Que hizo exactamente? Escribio noventa y nueve "
-    "lineas de codigo que se copiaban solas de un ordenador a otro, y en cuestion de horas "
-    "habia tumbado el diez por ciento de internet. No queria romper nada: queria contar "
-    "cuantas maquinas habia."
+    "El dos de noviembre de mil novecientos ochenta y ocho, Robert Tappan Morris tenía "
+    "veintitrés años y estudiaba en Cornell. ¿Qué hizo exactamente? Escribió noventa y nueve "
+    "líneas de código que se copiaban solas de un ordenador a otro, y en cuestión de horas "
+    "había tumbado el diez por ciento de internet. No quería romper nada: quería contar "
+    "cuántas máquinas había."
 )
 
 # Long enough to judge, short enough to cost almost nothing. Chosen to break
@@ -194,6 +200,20 @@ def sintetizar(
     ajustes: dict | None = None,
 ) -> Path:
     """Speaks `texto` in the cloned voice."""
+    # Warned here rather than trusted upstream, because this is the last point
+    # before the characters are paid for and spoken. Any text reaches this
+    # function - a generated script, a hand-written test phrase, something
+    # typed into a Telegram command - and the voice reads the spelling, so
+    # unaccented Spanish comes out as different words, not as sloppy ones.
+    acentuadas, palabras, tasa = tasa_de_acentos(texto)
+    if palabras and tasa < MIN_TASA_ACENTOS:
+        logger.warning(
+            "El texto a sintetizar va practicamente sin acentos (%s de %s palabras, %.1f%%). "
+            "La voz lee la ortografia tal cual, asi que una palabra sin tilde o sin ene suena "
+            "como OTRA palabra, no como una version descuidada de la suya. Texto: %.80s",
+            acentuadas, palabras, tasa * 100, texto,
+        )
+
     cuerpo = {
         "text": texto,
         "model_id": model or _MODEL,
