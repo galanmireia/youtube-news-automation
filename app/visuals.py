@@ -6,7 +6,7 @@ from pathlib import Path
 
 import requests
 
-from . import ai_images, branding, real_photos
+from . import ai_images, branding, real_photos, slides
 from .config import CONTENT_MODE, CHANNEL_NAME, PEXELS_API_KEY, PIXABAY_API_KEY
 
 logger = logging.getLogger(__name__)
@@ -287,6 +287,36 @@ def fetch_clips_for_scenes(
         # loose match would put some unrelated image on screen captioned with
         # the channel name.
         candidates = [name for name in candidates if name.strip().lower() != CHANNEL_NAME.strip().lower()]
+
+        # A slide the script asked for, before the photo lookup rather than
+        # after it - so a scene that has a chronology to draw does not spend
+        # two Wikipedia requests finding a picture of a campus first.
+        #
+        # A face beats a slide: if any entity in this scene is a person, their
+        # photograph is what the viewer wants and the slide waits. Anything
+        # else loses to it. That is the whole point - measured on the first
+        # computing video, the "real photos" it found were five university
+        # buildings and three corporate logos, and a chronology says more than
+        # any of them. When entities were not extracted at all, which is what
+        # happens on a sensitive story, the slide wins too: it cannot put a
+        # victim on screen, which no photo lookup can promise.
+        slide_spec = scene.get("slide")
+        if isinstance(slide_spec, dict) and not any(
+            e.get("type") == "person" for e in detected_entities
+        ):
+            width, height = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
+            frames = slides.render(slide_spec, width, height)
+            if frames:
+                clip = slides.construir_clip(
+                    frames, out_dir / f"slide_{i:02d}.mp4", duration
+                )
+                if clip is not None:
+                    logger.info(
+                        "Escena %s: diapositiva %r con %s revelados en %.1fs.",
+                        i, slide_spec.get("tipo"), len(frames), duration,
+                    )
+                    clip_entries.append([(clip, None)])
+                    continue
 
         max_photos = _MAX_PHOTOS_PER_SCENE if duration >= _MIN_SCENE_SECONDS_FOR_MULTI_PHOTO else 1
         found: list[tuple[str, Path, str]] = []

@@ -293,6 +293,50 @@ esos terminos, y eso queda visualmente incorrecto y confunde al espectador en un
 pais. Si la noticia es de España usa "spain"/"spanish"/"madrid"/etc.; si es de otro pais, usa ese
 pais en su lugar.
 
+DIAPOSITIVAS DE DATOS ("slide"): son graficos del canal, dibujados con su tipografia y sus
+colores, que se CONSTRUYEN punto por punto mientras hablas. Existen porque hay escenas que no
+tienen nada que fotografiar - no hay una foto de un programa copiandose entre ordenadores, ni de
+una cifra - y sin diapositiva esas escenas acaban con video de stock generico (un teclado, una
+sala de servidores) que no dice nada y aburre.
+
+Usa una diapositiva cuando la escena tenga DATOS o SECUENCIA: cifras, fechas, una enumeracion de
+causas, un antes y un despues. NO la uses para ambiente ni para emocion, y NUNCA en una escena
+que ya tenga "photo_subject" con una persona: la cara real de alguien siempre gana.
+
+Pon entre 3 y 6 en todo el video, no en todas las escenas: si todo es diapositiva, ninguna
+destaca. Reparte los datos entre ellas en lugar de acumularlos en una - una diapositiva cuenta
+UNA idea. Y escribe los puntos cortos, de una linea: son para leerse de un vistazo mientras
+hablas, no para leerse en voz alta.
+
+Cuatro tipos, cada uno con su forma exacta:
+
+  "slide": {{"tipo": "cifra", "valor": "6.000", "unidad": "ordenadores infectados",
+             "pie": "una frase corta que le da sentido a la cifra"}}
+      Para UNA cifra que importe. "valor" va solo con el numero y su separador de miles;
+      la unidad y el pie van aparte. Es el tipo que mas se usa.
+
+  "slide": {{"tipo": "cronologia", "titulo": "Tres días de noviembre",
+             "puntos": ["2 nov 1988, 20:30 - se suelta el gusano",
+                        "3 nov, madrugada - cae Berkeley"]}}
+      Para lo que pasa en orden. Entre 3 y 5 puntos, cada uno "fecha - qué pasó" con un guion
+      separando las dos partes. Las fechas cortas.
+
+  "slide": {{"tipo": "lista", "titulo": "Por dónde entraba",
+             "puntos": ["un fallo en sendmail", "contraseñas débiles"]}}
+      Para causas, errores, consecuencias. Entre 2 y 5 puntos.
+
+  "slide": {{"tipo": "comparacion", "titulo": "Lo que quería y lo que hizo",
+             "izquierda": "contar cuántas máquinas había",
+             "derecha": "tumbar el diez por ciento de la red"}}
+      Para dos cosas enfrentadas: lo previsto contra lo ocurrido, lo declarado contra lo probado,
+      el antes contra el despues.
+
+Todo el texto de la diapositiva va en español con SUS TILDES: se lee en pantalla, y una
+palabra sin tilde ahi es una falta de ortografia a pantalla completa.
+
+En las escenas que no lleven diapositiva, pon "slide": null. No inventes cifras ni fechas para
+poder poner una: si la escena no tiene datos en la noticia, no lleva diapositiva.
+
 Texto destacado en pantalla ("on_screen_highlight"): para cada escena, un texto corto EN ESPAÑOL
 (3 a 6 palabras) con el dato o hecho mas concreto y verificable de esa narracion, para reforzar
 visualmente el mensaje cuando la escena termine usando un video generico de stock (sin foto real
@@ -362,7 +406,8 @@ Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni ma
       "photo_subject": "nombre de una persona publica o de un lugar/institucion con nombre propio si aplica, si no, cadena vacia",
       "photo_subject_role": "cargo de la persona o descriptor corto del lugar si photo_subject no esta vacio, si no, cadena vacia",
       "ai_image_prompt": "descripcion en ingles para ilustracion por IA si aplica, si no, cadena vacia",
-      "on_screen_highlight": "texto corto en español (3-6 palabras) con el dato clave de esta escena, con CIFRA si la escena tiene alguna, ver instrucciones arriba"
+      "on_screen_highlight": "texto corto en español (3-6 palabras) con el dato clave de esta escena, con CIFRA si la escena tiene alguna, ver instrucciones arriba",
+      "slide": "objeto con la diapositiva de datos si esta escena la necesita, o null - ver DIAPOSITIVAS DE DATOS arriba"
     }}
   ]
 }}
