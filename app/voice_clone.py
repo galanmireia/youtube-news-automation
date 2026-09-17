@@ -523,6 +523,58 @@ def ajustes_elegidos() -> tuple[str | None, str, dict]:
 _MAX_CHUNK_CHARS = 1500
 
 
+# Models that reject the continuity context outright. eleven_v3 answers a
+# request carrying previous_text or next_text with a 400 and no audio - so the
+# feature that exists to make the seams between takes sound natural stopped the
+# chosen model from speaking at all, on both the timestamped path and the
+# fallback, and killed a video that had already been written and paid for.
+#
+# The set is seeded with what is known and added to at runtime, because the
+# API says "not yet supported": a hardcoded list would be wrong in the other
+# direction the day it starts working, and the retry below finds out for
+# itself either way.
+_SIN_CONTEXTO: set[str] = {"eleven_v3"}
+
+
+def _cuerpo_tts(texto: str, model: str, ajustes: dict, antes: str, despues: str) -> dict:
+    cuerpo = {"text": texto, "model_id": model, "voice_settings": ajustes}
+    if model not in _SIN_CONTEXTO:
+        # Not spoken and not billed: it tells the model what it is in the
+        # middle of, so a take does not begin as if from silence.
+        if antes:
+            cuerpo["previous_text"] = antes[-500:]
+        if despues:
+            cuerpo["next_text"] = despues[:500]
+    return cuerpo
+
+
+def _rechaza_el_contexto(response: requests.Response) -> bool:
+    """Is this the model refusing previous_text/next_text, specifically?"""
+    if response.status_code != 400:
+        return False
+    return "previous_text" in response.text or "next_text" in response.text
+
+
+def _post_tts(url: str, cabeceras: dict, cuerpo: dict) -> requests.Response:
+    """One synthesis call, retried once without the continuity context.
+
+    A model that rejects the context is not a model that cannot speak, and
+    losing a whole narration over a hint about the seams is the wrong trade by
+    a wide margin. What it learns, it remembers for the rest of the run, so a
+    twenty-five scene video pays for the discovery once."""
+    response = requests.post(url, headers=cabeceras, json=cuerpo, timeout=300)
+    if not _rechaza_el_contexto(response):
+        return response
+    modelo = cuerpo.get("model_id", "")
+    logger.warning(
+        "%s no admite el contexto entre tomas; se reintenta sin el y no se le vuelve a mandar.",
+        modelo,
+    )
+    _SIN_CONTEXTO.add(modelo)
+    sin = {k: v for k, v in cuerpo.items() if k not in ("previous_text", "next_text")}
+    return requests.post(url, headers=cabeceras, json=sin, timeout=300)
+
+
 def _trozos(scenes: list[dict]) -> list[list[dict]]:
     grupos: list[list[dict]] = []
     actual: list[dict] = []
@@ -553,21 +605,10 @@ def _hablar_con_marcas(
     `antes` and `despues` are the surrounding narration. They are not spoken
     and not billed; they tell the model what it is in the middle of, so the
     seams between chunks do not land on a sentence that starts from nothing."""
-    cuerpo = {
-        "text": texto,
-        "model_id": model,
-        "voice_settings": ajustes,
-    }
-    if antes:
-        cuerpo["previous_text"] = antes[-500:]
-    if despues:
-        cuerpo["next_text"] = despues[:500]
-
-    response = requests.post(
+    response = _post_tts(
         f"{_BASE}/text-to-speech/{voice_id}/with-timestamps",
-        headers={**_headers(), "Content-Type": "application/json"},
-        json=cuerpo,
-        timeout=300,
+        {**_headers(), "Content-Type": "application/json"},
+        _cuerpo_tts(texto, model, ajustes, antes, despues),
     )
     if response.status_code >= 400:
         # Not every model serves timestamps. Falling back to plain synthesis
@@ -603,16 +644,10 @@ def _hablar_con_marcas(
 def _hablar_sin_marcas(
     voice_id: str, texto: str, model: str, ajustes: dict, antes: str, despues: str
 ) -> bytes:
-    cuerpo = {"text": texto, "model_id": model, "voice_settings": ajustes}
-    if antes:
-        cuerpo["previous_text"] = antes[-500:]
-    if despues:
-        cuerpo["next_text"] = despues[:500]
-    response = requests.post(
+    response = _post_tts(
         f"{_BASE}/text-to-speech/{voice_id}",
-        headers={**_headers(), "Accept": "audio/mpeg", "Content-Type": "application/json"},
-        json=cuerpo,
-        timeout=300,
+        {**_headers(), "Accept": "audio/mpeg", "Content-Type": "application/json"},
+        _cuerpo_tts(texto, model, ajustes, antes, despues),
     )
     if response.status_code >= 400:
         raise CloneError(_explica(response))
