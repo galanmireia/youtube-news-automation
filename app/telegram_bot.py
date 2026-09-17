@@ -596,6 +596,95 @@ async def handle_clone_command(update: Update, context: ContextTypes.DEFAULT_TYP
     context.application.create_task(trabajo())
 
 
+# Short names, because these get typed on a phone.
+_ALIAS_MODELO = {
+    "v2": "eleven_multilingual_v2",
+    "v3": "eleven_v3",
+    "turbo": "eleven_turbo_v2_5",
+    "flash": "eleven_flash_v2_5",
+}
+
+
+async def handle_tone_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/tono [v2|v3|turbo] - same voice, same model, four different settings.
+
+    The model comparison split the problem instead of solving it: the version
+    that sounded most like her was the flattest, and the one that phrased best
+    sounded least like her. Timbre and phrasing are separate sliders, so the
+    question is no longer which model but whether the model that already has
+    her timbre can be pushed into phrasing properly - and whether the one that
+    phrases properly can be pushed into her timbre. Same experiment either
+    way, run on whichever model is named."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    estado = _estado_voz()
+    voice_id = estado.get("voice_id")
+    if not voice_id:
+        await update.message.reply_text(
+            "Todavia no hay voz clonada. Manda /clon primero."
+        )
+        return
+
+    args = list(context.args)
+    modelo = voice_clone._MODEL
+    if args and (args[0] in _ALIAS_MODELO or args[0].startswith("eleven_")):
+        modelo = _ALIAS_MODELO.get(args[0], args[0])
+        args = args[1:]
+    texto = " ".join(args).strip() or voice_clone.FRASE_DE_ENTONACION
+
+    presets = voice_clone.AJUSTES_PRESETS
+    coste = int(voice_clone.creditos_estimados(texto, modelo) * len(presets))
+    await update.message.reply_text(
+        f"{len(presets)} versiones con `{modelo}`, la misma voz, distintos ajustes.\n"
+        f"Unos {coste} creditos en total. Tarda un rato...",
+        parse_mode="Markdown",
+    )
+
+    loop = asyncio.get_running_loop()
+
+    async def trabajo():
+        enviados = 0
+        for nombre, ajustes in presets.items():
+            destino = Path(DATA_DIR) / f"tono_{modelo}_{nombre}.mp3"
+            try:
+                await loop.run_in_executor(
+                    None, voice_clone.sintetizar, voice_id, texto, destino, modelo, ajustes
+                )
+            except voice_clone.CloneError as exc:
+                await context.bot.send_message(
+                    chat_id=TELEGRAM_CHAT_ID, text=f"{nombre}: {exc}")
+                continue
+            except Exception:
+                logger.exception("Error sintetizando el preset %s", nombre)
+                continue
+            with open(destino, "rb") as audio:
+                await context.bot.send_audio(
+                    chat_id=TELEGRAM_CHAT_ID, audio=audio, title=nombre,
+                    caption=(f"*{nombre}*\n"
+                             f"soltura {1 - ajustes['stability']:.0%} · "
+                             f"parecido {ajustes['similarity_boost']:.0%} · "
+                             f"expresividad {ajustes['style']:.0%}"),
+                    parse_mode="Markdown",
+                )
+            enviados += 1
+
+        if not enviados:
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID,
+                text="Ningun ajuste ha devuelto audio. Los mensajes de arriba dicen por que.")
+            return
+        await context.bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID,
+            text=("Dime cual entona mejor Y si alguno pierde parecido contigo. "
+                  "Si el de *parecido-al-maximo* suena bien, la expresividad estaba "
+                  "trabajando en contra y la respuesta es mas simple de lo que parecia.\n\n"
+                  "Prueba tambien el otro modelo: /tono v2 o /tono v3."),
+            parse_mode="Markdown",
+        )
+
+    context.application.create_task(trabajo())
+
+
 async def handle_account_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/cuenta - what the ElevenLabs subscription actually allows.
 
@@ -762,6 +851,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("rehacer", handle_redo_command))
     application.add_handler(CommandHandler("clon", handle_clone_command))
     application.add_handler(CommandHandler("cuenta", handle_account_command))
+    application.add_handler(CommandHandler("tono", handle_tone_command))
     # Audio arriving with no command is a narration for whatever script is
     # waiting; a voice note, an audio file and a file sent "as document" are
     # three different Telegram types for the same thing.

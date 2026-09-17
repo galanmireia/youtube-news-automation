@@ -55,6 +55,57 @@ AJUSTES_PARECIDO = {
     "use_speaker_boost": True,
 }
 
+# Presets for the second question, which the model comparison could not
+# answer: the voice that came closest to hers was also the flattest of the
+# three, so the model that wins on timbre is not the one that wins on
+# phrasing. Timbre and phrasing have separate controls, so the fix is to keep
+# the model that sounds like her and move the sliders, not to trade one fault
+# for the other.
+#
+# What each slider does, as published and as far as it can be trusted:
+# stability flattens delivery towards a monotone as it rises (the name is
+# backwards for this purpose); style exaggerates the delivery of the original
+# samples and is documented to cost stability and, on a clone, some
+# similarity; similarity_boost pushes towards the samples and can drag any
+# artefacts in them along with it.
+#
+# None of that is measured on THIS voice, which is the point of sending four
+# versions instead of arguing about it.
+AJUSTES_PRESETS: dict[str, dict] = {
+    "igual-que-antes": {
+        "stability": 0.35, "similarity_boost": 0.9, "style": 0.4,
+        "use_speaker_boost": True,
+    },
+    "mas-suelto": {
+        "stability": 0.20, "similarity_boost": 0.9, "style": 0.6,
+        "use_speaker_boost": True,
+    },
+    "muy-suelto": {
+        "stability": 0.10, "similarity_boost": 0.85, "style": 0.75,
+        "use_speaker_boost": True,
+    },
+    # The control: maximum similarity and no style exaggeration at all. If
+    # this one is both the closest AND acceptably phrased, the style slider
+    # was working against us and the answer is simpler than it looked.
+    "parecido-al-maximo": {
+        "stability": 0.30, "similarity_boost": 1.0, "style": 0.0,
+        "use_speaker_boost": True,
+    },
+}
+
+# Written to be read aloud badly: a long spoken figure, an awkward proper
+# noun, a question, a subordinate clause and a list - the five places a
+# synthetic voice puts the stress in the wrong spot. Longer than the cloning
+# test phrase because phrasing is what is being judged here, and phrasing
+# needs somewhere to go wrong.
+FRASE_DE_ENTONACION = (
+    "El once de septiembre de mil novecientos ochenta y ocho, Robert Morris hijo tenia "
+    "veintitres anos y estudiaba en Cornell. ¿Que hizo exactamente? Escribio noventa y nueve "
+    "lineas de codigo que se copiaban solas de un ordenador a otro, y en cuestion de horas "
+    "habia tumbado el diez por ciento de internet. No queria romper nada: queria contar "
+    "cuantas maquinas habia."
+)
+
 # Long enough to judge, short enough to cost almost nothing. Chosen to break
 # what usually breaks: long spoken figures, an awkward proper noun, and a real
 # question, which is where a synthetic voice goes flat.
