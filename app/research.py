@@ -74,7 +74,17 @@ _HEADERS = {
 _GENERIC_LINK = re.compile(
     r"^(\d{1,4}|siglo\s|anexo:|categor|wikiproyecto|portal:|plantilla:|"
     r"lista de|idioma |lengua |metro|kilómetro|tonelada|milla|nudo \(|"
-    r"océano|mar |continente|europa$|asia$|áfrica$|américa|oceanía$)",
+    r"océano|mar |continente|europa$|asia$|áfrica$|américa|oceanía$|"
+    # The computing equivalents. Measured on the Morris worm dossier, where
+    # frequency scoring returned "Unix", "Correo electrónico", "Universidad de
+    # Berkeley" and "Gusano informático" - four generic articles, 4,166 words,
+    # more than half the dossier, none of them about the case. They score
+    # highly for the same reason they are useless: the article says "Unix" and
+    # "correo" constantly, because that is what the worm travelled through.
+    r"unix$|linux$|internet$|correo electr|ordenador|computadora|software$|"
+    r"hardware$|programa \(|lenguaje de programaci|sistema operativo$|"
+    r"universidad de |instituto de |red de computadoras$|servidor$|"
+    r"protocolo$|algoritmo$|criptograf|contrase|informática$|programador$)",
     re.IGNORECASE,
 )
 
@@ -160,6 +170,28 @@ def _related_titles(lang: str, title: str, cuerpo: str) -> list[str]:
     return [enlace for _, _, enlace in puntuados[:_MAX_RELATED]]
 
 
+def _menciona(cuerpo: str, caso: str) -> bool:
+    """Does this article talk about the case, or merely get mentioned by it?
+
+    Frequency scoring cannot tell those apart, and they are opposites. The
+    Morris worm article says "correo" constantly, because that is what the
+    worm travelled through - but Wikipedia's article on email does not mention
+    Morris at all. It is background, and background sent to a script prompt
+    comes back as a paragraph explaining what email is.
+
+    Reciprocity separates them, and costs nothing: the text has already been
+    fetched. An article that names the case back is writing about it. One that
+    never does is a definition the reader did not ask for."""
+    desnudo = re.sub(r"\s*\([^)]*\)\s*$", "", caso)
+    plegado = _fold(cuerpo)
+    if _fold(desnudo) in plegado:
+        return True
+    # Same rule as the scoring: an article names somebody in full once and by
+    # surname after that, so the distinctive last word counts as the name.
+    ultimo = desnudo.rsplit(" ", 1)[-1]
+    return len(ultimo) >= 5 and _fold(ultimo) in plegado
+
+
 _IDIOMA = {
     "es": "español", "en": "inglés", "it": "italiano", "fr": "francés",
     "de": "alemán", "pt": "portugués", "nl": "neerlandés", "ru": "ruso",
@@ -196,9 +228,13 @@ def build_dossier(title: str, lang: str = "es") -> str:
             f"puede traer datos que el otro no tiene.)\n{texto}"
         )
 
+    descartados = []
     for relacionado in _related_titles(lang, title, principal):
         texto = _extract(lang, relacionado, _RELATED_CHARS)
         if not texto:
+            continue
+        if not _menciona(texto, title):
+            descartados.append(relacionado)
             continue
         partes.append(
             f"===== FUENTE {len(partes) + 1} · articulo relacionado · «{relacionado}» =====\n{texto}"
@@ -211,4 +247,9 @@ def build_dossier(title: str, lang: str = "es") -> str:
         ", ".join([lang] + [l for l, _ in elegidos]),
         len(partes) - 1 - len(elegidos),
     )
+    if descartados:
+        logger.info(
+            "Descartados por no mencionar %r (son contexto, no fuente): %s.",
+            title, ", ".join(descartados),
+        )
     return dosier
