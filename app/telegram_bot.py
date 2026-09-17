@@ -1,5 +1,6 @@
 import asyncio
 from io import BytesIO
+import json
 import logging
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -332,15 +333,26 @@ async def handle_narration_audio(update: Update, context: ContextTypes.DEFAULT_T
     job_file = pending_voice_job()
     if job_file is None:
         # No script is waiting, so this audio is not narration. Rather than
-        # rejecting it, it is kept as the reference a clone would be built
-        # from - which is the other thing audio gets sent here for.
-        destino = Path(DATA_DIR) / "referencia_voz.audio"
+        # rejecting it, it is kept as a reference a clone can be built from -
+        # which is the other thing audio gets sent here for.
+        #
+        # Kept ALONGSIDE the previous ones, not over them. A clone that came
+        # back wrong is answered by sending more voice, and a single fixed
+        # filename turned that into replacing one sample with another: the
+        # clone would look unchanged and the extra recording would have been
+        # wasted without anything saying so.
+        ya_tenia = len(_referencias())
+        destino = Path(DATA_DIR) / f"referencia_{ya_tenia + 1:02d}.audio"
         tg_file = await context.bot.get_file(fichero.file_id)
         await tg_file.download_to_drive(custom_path=str(destino))
+        muestras = _referencias()
+        total = sum(voice_align._probe_duration(m) for m in muestras)
         await msg.reply_text(
-            f"No hay ningun guion esperando narracion, asi que guardo este audio "
+            f"No hay ningun guion esperando, asi que guardo este audio "
             f"({voice_align._probe_duration(destino):.0f}s) como referencia de tu voz.\n\n"
-            "Manda /clon para oir como suena clonada, o /generar para hacer un video."
+            f"Llevas {len(muestras)} muestra{'s' if len(muestras) != 1 else ''}, "
+            f"{int(total // 60)} min {int(total % 60):02d} s en total.\n\n"
+            "Manda /clon y rehago la voz con todas."
         )
         return
     siguiente = len(_partes_grabadas(job_file)) + 1
@@ -423,39 +435,118 @@ async def handle_done_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.application.create_task(trabajo())
 
 
-async def handle_clone_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/clon - clones the reference recording and speaks the test phrase with it.
+_ESTADO_VOZ = "voz_clonada.json"
 
-    One command for the whole question, because the question is one thing:
-    does this sound like her. It creates the voice if there is not one yet and
-    reuses it afterwards - cloning again on every try would burn a voice slot
-    each time for no reason."""
+# Instant cloning does not keep improving with more audio - a couple of
+# minutes is where it lands, and past that the upload is slow for nothing. The
+# cap exists so that sending a whole seventeen-minute narration as reference
+# does not turn /clon into a ten-minute upload, and what it leaves out is said
+# out loud rather than dropped quietly.
+_MAX_SEGUNDOS_MUESTRA = 300
+
+
+def _referencias() -> list[Path]:
+    """Every reference recording sent so far, oldest first."""
+    carpeta = Path(DATA_DIR)
+    antigua = carpeta / "referencia_voz.audio"
+    if antigua.exists():
+        # The first version of this kept one sample under a fixed name. It is
+        # renamed into the numbered series rather than ignored: it is a real
+        # recording, and it was the reference the first clone was made from.
+        primera = carpeta / "referencia_01.audio"
+        if not primera.exists():
+            antigua.rename(primera)
+        else:
+            antigua.unlink()
+    return sorted(carpeta.glob("referencia_[0-9]*.audio"))
+
+
+def _muestras_para_clonar(muestras: list[Path]) -> tuple[list[Path], float]:
+    """The samples the clone is built from, newest first until the cap."""
+    elegidas: list[Path] = []
+    total = 0.0
+    for muestra in reversed(muestras):
+        duracion = voice_align._probe_duration(muestra)
+        if elegidas and total + duracion > _MAX_SEGUNDOS_MUESTRA:
+            continue
+        elegidas.append(muestra)
+        total += duracion
+    return sorted(elegidas), total
+
+
+def _estado_voz() -> dict:
+    """The cloned voice on the account, and what it was built from."""
+    fichero = Path(DATA_DIR) / _ESTADO_VOZ
+    if fichero.exists():
+        try:
+            return json.loads(fichero.read_text())
+        except ValueError:
+            pass
+    # Migration from the version that stored a bare voice id: the number of
+    # samples is unknown, and 1 is right - that version could only use one.
+    viejo = Path(DATA_DIR) / "voz_clonada.txt"
+    if viejo.exists():
+        return {"voice_id": viejo.read_text().strip(), "muestras": 1}
+    return {}
+
+
+def _guardar_estado_voz(voice_id: str, muestras: int) -> None:
+    (Path(DATA_DIR) / _ESTADO_VOZ).write_text(
+        json.dumps({"voice_id": voice_id, "muestras": muestras})
+    )
+    viejo = Path(DATA_DIR) / "voz_clonada.txt"
+    if viejo.exists():
+        viejo.unlink()
+
+
+async def handle_clone_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/clon - rebuilds the voice from every sample and compares the models.
+
+    The first clone came back sounding nothing like her and phrasing badly,
+    which is two separate faults: timbre comes from the samples, intonation
+    comes from the model. So this does both at once - the voice is rebuilt
+    whenever new samples have arrived, and the test phrase comes back once per
+    candidate model, because no amount of reasoning decides which one sounds
+    right and listening to three takes a minute."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
-    referencia = Path(DATA_DIR) / "referencia_voz.audio"
-    if not referencia.exists():
+    muestras = _referencias()
+    if not muestras:
         await update.message.reply_text(
-            "Primero mandame un audio tuyo (20-30 segundos limpios valen) y lo guardo "
+            "Primero mandame un audio tuyo (1-2 minutos limpios es lo ideal) y lo guardo "
             "como referencia. Luego vuelve a mandar /clon."
         )
         return
 
     texto = " ".join(context.args).strip() or voice_clone.FRASE_DE_PRUEBA
-    await update.message.reply_text("Clonando tu voz y sintetizando. Tarda un momento...")
+    usadas, segundos = _muestras_para_clonar(muestras)
+    estado = _estado_voz()
+    rehacer = estado.get("muestras") != len(usadas)
+    aviso = (
+        f"{'Rehaciendo' if rehacer else 'Usando'} la voz con "
+        f"{len(usadas)} muestra{'s' if len(usadas) != 1 else ''} "
+        f"({int(segundos // 60)} min {int(segundos % 60):02d} s)"
+    )
+    if len(usadas) < len(muestras):
+        aviso += f", de las {len(muestras)} que tengo (el resto sobra para clonar)"
+    await update.message.reply_text(aviso + ".\nProbando cada modelo. Tarda un rato...")
+
     loop = asyncio.get_running_loop()
-    guardada = Path(DATA_DIR) / "voz_clonada.txt"
 
     async def trabajo():
         try:
-            if guardada.exists():
-                voice_id = guardada.read_text().strip()
-            else:
+            voice_id = estado.get("voice_id")
+            if rehacer:
+                if voice_id:
+                    # The slot is freed first: instant cloning spends a voice
+                    # slot rather than credits, and rebuilding without this
+                    # leaks one slot per attempt until the account is full.
+                    await loop.run_in_executor(None, voice_clone.borrar_voz, voice_id)
                 voice_id = await loop.run_in_executor(
-                    None, voice_clone.crear_voz, f"{CHANNEL_NAME} (voz propia)", [referencia]
+                    None, voice_clone.crear_voz, f"{CHANNEL_NAME} (voz propia)", usadas
                 )
-                guardada.write_text(voice_id)
-            destino = Path(DATA_DIR) / "prueba_clon.mp3"
-            await loop.run_in_executor(None, voice_clone.sintetizar, voice_id, texto, destino)
+                _guardar_estado_voz(voice_id, len(usadas))
+            modelos = await loop.run_in_executor(None, voice_clone.modelos_para_probar)
         except voice_clone.CloneError as exc:
             await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=str(exc))
             return
@@ -464,14 +555,43 @@ async def handle_clone_command(update: Update, context: ContextTypes.DEFAULT_TYP
             await context.bot.send_message(
                 chat_id=TELEGRAM_CHAT_ID, text="Ha fallado la clonacion. Mira los logs.")
             return
-        with open(destino, "rb") as audio:
-            await context.bot.send_audio(
-                chat_id=TELEGRAM_CHAT_ID, audio=audio, title="Tu voz clonada",
-                caption=("Compara con tu grabacion original y mira tres cosas:\n"
-                         "1. ¿Suena a ti hablando, o solo a tu timbre?\n"
-                         "2. ¿Sube el tono en la pregunta del final?\n"
-                         "3. ¿Dice bien «Júcar» y «mil novecientos ochenta y dos»?"),
-            )
+
+        enviados = 0
+        for modelo in modelos:
+            destino = Path(DATA_DIR) / f"prueba_clon_{modelo}.mp3"
+            try:
+                await loop.run_in_executor(
+                    None, voice_clone.sintetizar, voice_id, texto, destino, modelo
+                )
+            except voice_clone.CloneError as exc:
+                # One model refusing is not the others failing: a model can be
+                # off this plan, and saying which is more useful than stopping.
+                await context.bot.send_message(
+                    chat_id=TELEGRAM_CHAT_ID, text=f"{modelo}: {exc}")
+                continue
+            except Exception:
+                logger.exception("Error sintetizando con %s", modelo)
+                continue
+            with open(destino, "rb") as audio:
+                await context.bot.send_audio(
+                    chat_id=TELEGRAM_CHAT_ID, audio=audio, title=modelo,
+                    caption=f"Modelo: `{modelo}`", parse_mode="Markdown",
+                )
+            enviados += 1
+
+        if not enviados:
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID,
+                text="Ningun modelo ha devuelto audio. Los mensajes de arriba dicen por que.")
+            return
+        await context.bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID,
+            text=(f"{enviados} version{'es' if enviados != 1 else ''} de la misma frase, "
+                  "misma voz, distinto modelo.\n\n"
+                  "Dime cual se acerca mas y si alguna entona bien. Si ninguna te vale, "
+                  "el clon instantaneo no da para mas y hay que decidir otra cosa - "
+                  "te lo explico cuando me lo digas."),
+        )
 
     context.application.create_task(trabajo())
 
