@@ -94,6 +94,38 @@ AJUSTES_PRESETS: dict[str, dict] = {
     },
 }
 
+# A second, finer sweep, aimed at the corner the first one left empty.
+#
+# The coarse sweep was built on a guess - that expressiveness was pulling the
+# clone away from her samples - and the guess was wrong: on eleven_v3 the
+# LOOSEST, most expressive preset was the one she picked, so style is working
+# for this voice, not against it. What that preset does not have is her
+# timbre at full strength: it sits at 85% similarity, and 100% with the style
+# left high is a combination nobody has heard.
+#
+# So these hold the delivery she chose and move only the similarity, plus one
+# that pushes both further. The first entry is her pick, unchanged and
+# deliberately re-sent: judging audio against a memory of yesterday's audio is
+# not a comparison, and the control costs one more file.
+AJUSTES_FINOS: dict[str, dict] = {
+    "el-que-elegiste": {
+        "stability": 0.10, "similarity_boost": 0.85, "style": 0.75,
+        "use_speaker_boost": True,
+    },
+    "mismo-tono-mas-parecido": {
+        "stability": 0.10, "similarity_boost": 0.95, "style": 0.75,
+        "use_speaker_boost": True,
+    },
+    "mismo-tono-parecido-total": {
+        "stability": 0.10, "similarity_boost": 1.0, "style": 0.75,
+        "use_speaker_boost": True,
+    },
+    "al-limite": {
+        "stability": 0.05, "similarity_boost": 1.0, "style": 0.9,
+        "use_speaker_boost": True,
+    },
+}
+
 # Written to be read aloud badly: a long spoken figure, an awkward proper
 # noun, a question, a subordinate clause and a colon - the places a synthetic
 # voice puts the stress in the wrong spot. Longer than the cloning test phrase

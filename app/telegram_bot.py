@@ -632,7 +632,12 @@ async def handle_tone_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         args = args[1:]
     texto = " ".join(args).strip() or voice_clone.FRASE_DE_ENTONACION
 
+    # A second word picks the finer sweep around the preset she already chose,
+    # rather than the coarse one that found it.
     presets = voice_clone.AJUSTES_PRESETS
+    if args and args[0] in ("fino", "afinar"):
+        presets = voice_clone.AJUSTES_FINOS
+        args = args[1:]
     coste = int(voice_clone.creditos_estimados(texto, modelo) * len(presets))
     await update.message.reply_text(
         f"{len(presets)} versiones con `{modelo}`, la misma voz, distintos ajustes.\n"
