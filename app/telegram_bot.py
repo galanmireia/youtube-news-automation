@@ -8,9 +8,10 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
-from . import ai_images, storage, tts, voice_align
+from . import ai_images, storage, tts, voice_align, voice_clone
 from .voice_align import AlignmentFailed
 from .config import (
+    CHANNEL_NAME,
     DATA_DIR,
     PIPELINE_INTERVAL_SECONDS,
     TELEGRAM_BOT_TOKEN,
@@ -326,15 +327,22 @@ async def handle_narration_audio(update: Update, context: ContextTypes.DEFAULT_T
     also means a fluffed section costs that section and not the whole take."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
-    job_file = pending_voice_job()
-    if job_file is None:
-        await update.message.reply_text(
-            "No hay ningun guion esperando narracion. Lanza /generar primero."
-        )
-        return
-
     msg = update.message
     fichero = msg.audio or msg.voice or msg.document
+    job_file = pending_voice_job()
+    if job_file is None:
+        # No script is waiting, so this audio is not narration. Rather than
+        # rejecting it, it is kept as the reference a clone would be built
+        # from - which is the other thing audio gets sent here for.
+        destino = Path(DATA_DIR) / "referencia_voz.audio"
+        tg_file = await context.bot.get_file(fichero.file_id)
+        await tg_file.download_to_drive(custom_path=str(destino))
+        await msg.reply_text(
+            f"No hay ningun guion esperando narracion, asi que guardo este audio "
+            f"({voice_align._probe_duration(destino):.0f}s) como referencia de tu voz.\n\n"
+            "Manda /clon para oir como suena clonada, o /generar para hacer un video."
+        )
+        return
     siguiente = len(_partes_grabadas(job_file)) + 1
     destino = job_file.parent / f"narracion_{siguiente:02d}.audio"
     tg_file = await context.bot.get_file(fichero.file_id)
@@ -411,6 +419,59 @@ async def handle_done_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                     chat_id=TELEGRAM_CHAT_ID, text="Ha fallado el montaje. Mira los logs.")
                 return
         await send_for_approval(context.bot, video_id)
+
+    context.application.create_task(trabajo())
+
+
+async def handle_clone_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/clon - clones the reference recording and speaks the test phrase with it.
+
+    One command for the whole question, because the question is one thing:
+    does this sound like her. It creates the voice if there is not one yet and
+    reuses it afterwards - cloning again on every try would burn a voice slot
+    each time for no reason."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    referencia = Path(DATA_DIR) / "referencia_voz.audio"
+    if not referencia.exists():
+        await update.message.reply_text(
+            "Primero mandame un audio tuyo (20-30 segundos limpios valen) y lo guardo "
+            "como referencia. Luego vuelve a mandar /clon."
+        )
+        return
+
+    texto = " ".join(context.args).strip() or voice_clone.FRASE_DE_PRUEBA
+    await update.message.reply_text("Clonando tu voz y sintetizando. Tarda un momento...")
+    loop = asyncio.get_running_loop()
+    guardada = Path(DATA_DIR) / "voz_clonada.txt"
+
+    async def trabajo():
+        try:
+            if guardada.exists():
+                voice_id = guardada.read_text().strip()
+            else:
+                voice_id = await loop.run_in_executor(
+                    None, voice_clone.crear_voz, f"{CHANNEL_NAME} (voz propia)", [referencia]
+                )
+                guardada.write_text(voice_id)
+            destino = Path(DATA_DIR) / "prueba_clon.mp3"
+            await loop.run_in_executor(None, voice_clone.sintetizar, voice_id, texto, destino)
+        except voice_clone.CloneError as exc:
+            await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=str(exc))
+            return
+        except Exception:
+            logger.exception("Error clonando la voz")
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID, text="Ha fallado la clonacion. Mira los logs.")
+            return
+        with open(destino, "rb") as audio:
+            await context.bot.send_audio(
+                chat_id=TELEGRAM_CHAT_ID, audio=audio, title="Tu voz clonada",
+                caption=("Compara con tu grabacion original y mira tres cosas:\n"
+                         "1. ¿Suena a ti hablando, o solo a tu timbre?\n"
+                         "2. ¿Sube el tono en la pregunta del final?\n"
+                         "3. ¿Dice bien «Júcar» y «mil novecientos ochenta y dos»?"),
+            )
 
     context.application.create_task(trabajo())
 
@@ -551,6 +612,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("vertex", handle_vertex_command))
     application.add_handler(CommandHandler("listo", handle_done_command))
     application.add_handler(CommandHandler("rehacer", handle_redo_command))
+    application.add_handler(CommandHandler("clon", handle_clone_command))
     # Audio arriving with no command is a narration for whatever script is
     # waiting; a voice note, an audio file and a file sent "as document" are
     # three different Telegram types for the same thing.

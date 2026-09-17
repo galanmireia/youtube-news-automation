@@ -37,6 +37,11 @@ YOUTUBE_TOKEN_FILE = os.environ.get("YOUTUBE_TOKEN_FILE", str(CREDENTIALS_DIR / 
 # sends it to be read aloud, and waits for the recording - slower by a whole
 # human, and the single biggest quality difference between this channel and
 # the ones that work.
+# Voice cloning, used to answer one question cheaply: does a clone of the
+# channel's own voice sound like her, or like a synthesiser wearing her
+# timbre. Absent by default - nothing calls ElevenLabs unless this is set.
+ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "").strip()
+
 NARRATION_SOURCE = os.environ.get("NARRATION_SOURCE", "tts").strip().lower()
 
 YOUTUBE_PRIVACY_STATUS = os.environ.get("YOUTUBE_PRIVACY_STATUS", "public")
