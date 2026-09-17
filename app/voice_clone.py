@@ -44,15 +44,26 @@ _BASE = "https://api.elevenlabs.io/v1"
 # one of those gets rejected for the model's Spanish accent, not its own
 # quality.
 _MODELOS_CANDIDATOS = ("eleven_v3", "eleven_multilingual_v2", "eleven_turbo_v2_5")
-_MODEL = "eleven_multilingual_v2"
 
-# Tuned for the complaint, not left at the defaults (stability 0.5,
-# similarity 0.75). Similarity high because "it does not sound like me" is
-# the first thing to fix, and stability LOW because stability is misnamed:
-# it flattens delivery towards a monotone, which is exactly the second
-# complaint. Low stability with an imperfect clone wanders more - that is the
-# trade, and it is the right way round when the flat version has already been
-# rejected.
+# Decided by listening, not by caution: eleven_v3 phrases better than the
+# other two on this voice, and multilingual_v2 was only ever the default
+# because it was the safe guess before anybody had heard anything.
+_MODEL = "eleven_v3"
+
+# Chosen by ear, over two sweeps, and these are the numbers she picked: on
+# eleven_v3 the most CONTAINED of the four won.
+#
+# That is the opposite of what I predicted twice. The reasoning was that
+# stability flattens delivery and this voice needed loosening - which held on
+# multilingual_v2, where she picked the loosest preset. It does not hold on
+# v3, because v3 already phrases expressively on its own: pushing style on top
+# of it made it worse, not better. What a slider does depends on the model it
+# is attached to, and no amount of reading the documentation was going to say
+# which way round it fell here.
+#
+# It also happens to be the safer end for a long narration. A clone at ninety
+# percent looseness wanders over fifteen minutes; at sixty-five it has much
+# less room to.
 AJUSTES_PARECIDO = {
     "stability": 0.35,
     "similarity_boost": 0.9,
