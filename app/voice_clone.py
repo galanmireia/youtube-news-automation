@@ -77,7 +77,14 @@ AJUSTES_PARECIDO = {
 # None of that is measured on THIS voice, which is the point of sending four
 # versions instead of arguing about it.
 AJUSTES_PRESETS: dict[str, dict] = {
-    "igual-que-antes": {
+    # Named for where it sits in the sweep, not for what it was. It used to be
+    # called "igual-que-antes", which is also an ordinary Spanish phrase
+    # meaning "the same as before" - so asking for the preset she had already
+    # chosen, in the words anyone would use, silently selected the flat
+    # starting point she had rejected. It set the wrong voice and said so
+    # clearly enough that she caught it, which is the only reason this is a
+    # rename and not a video.
+    "punto-de-partida": {
         "stability": 0.35, "similarity_boost": 0.9, "style": 0.4,
         "use_speaker_boost": True,
     },
@@ -112,7 +119,7 @@ AJUSTES_PRESETS: dict[str, dict] = {
 # deliberately re-sent: judging audio against a memory of yesterday's audio is
 # not a comparison, and the control costs one more file.
 AJUSTES_FINOS: dict[str, dict] = {
-    "el-que-elegiste": {
+    "el-que-elegiste": {  # el control: exactamente lo que ya eligio
         "stability": 0.10, "similarity_boost": 0.85, "style": 0.75,
         "use_speaker_boost": True,
     },

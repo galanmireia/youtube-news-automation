@@ -711,6 +711,9 @@ async def handle_use_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
     presets = {**voice_clone.AJUSTES_PRESETS, **voice_clone.AJUSTES_FINOS}
+    # No two presets may share a name across the two sweeps: they carry
+    # different numbers, and picking by name would then be picking at random.
+    assert len(presets) == len(voice_clone.AJUSTES_PRESETS) + len(voice_clone.AJUSTES_FINOS)
     args = [a.strip().lower() for a in context.args]
     modelo = next((_ALIAS_MODELO.get(a, a) for a in args
                    if a in _ALIAS_MODELO or a.startswith("eleven_")), None)
