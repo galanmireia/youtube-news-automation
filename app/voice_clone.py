@@ -354,7 +354,19 @@ def voces() -> list[dict]:
 #
 # Rates as published; the account's own figures are what /cuenta reports, and
 # if these ever disagree with the invoice, the invoice is right.
+# Read off the account's own pricing table rather than assumed. v3 is listed
+# at the same price as multilingual v2 - $0.10 per thousand characters - and
+# Flash and Turbo at half that. Worth checking rather than guessing: the
+# spend was running 1,460 credits over what these rates predicted, and the
+# obvious explanation was that v3 billed at nearly twice the rate, which
+# would have doubled every long video's cost and halved how many the plan
+# could carry. It does not. The gap was spending outside this bot.
+#
+# The table is quoted for the Free tier; the absolute prices differ by plan,
+# but what these numbers are used for is the RATIO between models, which does
+# not.
 _CREDITOS_POR_CARACTER = {
+    "eleven_v3": 1.0,
     "eleven_multilingual_v2": 1.0,
     "eleven_turbo_v2_5": 0.5,
     "eleven_flash_v2_5": 0.5,
