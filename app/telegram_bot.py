@@ -1,6 +1,5 @@
 import asyncio
 from io import BytesIO
-import json
 import logging
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -234,6 +233,13 @@ async def pipeline_job(context: ContextTypes.DEFAULT_TYPE) -> None:
 
 _GENERATE_ARG_VARIANTS = {"s": ("short",), "v": ("long",)}
 
+# What each variant costs to narrate with the clone, in credits, at the
+# full rate of one credit per character. From the scene counts the script
+# prompt asks for: a Short is 5-6 sentences of about 20 words, a long video
+# 16-24 scenes of 2-3 sentences. Rounded, and stated before the run rather
+# than discovered in the invoice.
+_CREDITOS_POR_VARIANTE = {"short": 700, "long": 11000}
+
 
 async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
@@ -256,6 +262,37 @@ async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_
         variants[0] if len(variants) == 1 else "", "el Short y el video largo"
     )
     sobre = f" sobre {forced_topic}" if forced_topic else ""
+    if NARRATION_SOURCE == "clon":
+        # Checked before anything is written. Without it the failure lands
+        # after the script has been paid for and the images fetched, which
+        # wastes the expensive half of the run to discover something knowable
+        # in advance.
+        voice_id, modelo, _ = voice_clone.ajustes_elegidos()
+        if not voice_id:
+            await update.message.reply_text(
+                "Esta puesto NARRATION_SOURCE=clon pero no hay ninguna voz clonada. "
+                "Manda /clon primero, o quita la variable para volver al TTS."
+            )
+            return
+        # Costed per variant rather than with one number: a Short is five or
+        # six sentences and quoting a long video's bill at it reads as though
+        # every run costs the same, which is the figure somebody would budget
+        # with.
+        coste = " + ".join(
+            f"{'el Short' if v == 'short' else 'el largo'} ~{_CREDITOS_POR_VARIANTE[v]:,}"
+            .replace(",", ".")
+            for v in variants
+        )
+        await update.message.reply_text(
+            f"Generando {label}{sobre} con tu voz clonada (`{modelo}`).\n"
+            f"Creditos estimados: {coste}. Tardara unos minutos...",
+            parse_mode="Markdown",
+        )
+        # Same reasoning as the ordinary path below: not awaited, so the bot
+        # keeps answering while the video builds.
+        context.application.create_task(
+            _run_pipeline_and_notify(context.bot, variants, forced_topic))
+        return
     if NARRATION_SOURCE == "voz":
         await update.message.reply_text(
             f"Escribiendo el guion de {label}{sobre}. Cuando este te lo mando para que lo leas."
@@ -435,8 +472,6 @@ async def handle_done_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.application.create_task(trabajo())
 
 
-_ESTADO_VOZ = "voz_clonada.json"
-
 # Instant cloning does not keep improving with more audio - a couple of
 # minutes is where it lands, and past that the upload is slow for nothing. The
 # cap exists so that sending a whole seventeen-minute narration as reference
@@ -474,31 +509,6 @@ def _muestras_para_clonar(muestras: list[Path]) -> tuple[list[Path], float]:
     return sorted(elegidas), total
 
 
-def _estado_voz() -> dict:
-    """The cloned voice on the account, and what it was built from."""
-    fichero = Path(DATA_DIR) / _ESTADO_VOZ
-    if fichero.exists():
-        try:
-            return json.loads(fichero.read_text())
-        except ValueError:
-            pass
-    # Migration from the version that stored a bare voice id: the number of
-    # samples is unknown, and 1 is right - that version could only use one.
-    viejo = Path(DATA_DIR) / "voz_clonada.txt"
-    if viejo.exists():
-        return {"voice_id": viejo.read_text().strip(), "muestras": 1}
-    return {}
-
-
-def _guardar_estado_voz(voice_id: str, muestras: int) -> None:
-    (Path(DATA_DIR) / _ESTADO_VOZ).write_text(
-        json.dumps({"voice_id": voice_id, "muestras": muestras})
-    )
-    viejo = Path(DATA_DIR) / "voz_clonada.txt"
-    if viejo.exists():
-        viejo.unlink()
-
-
 async def handle_clone_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/clon - rebuilds the voice from every sample and compares the models.
 
@@ -520,7 +530,7 @@ async def handle_clone_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
     texto = " ".join(context.args).strip() or voice_clone.FRASE_DE_PRUEBA
     usadas, segundos = _muestras_para_clonar(muestras)
-    estado = _estado_voz()
+    estado = voice_clone.estado_voz()
     rehacer = estado.get("muestras") != len(usadas)
     aviso = (
         f"{'Rehaciendo' if rehacer else 'Usando'} la voz con "
@@ -545,7 +555,7 @@ async def handle_clone_command(update: Update, context: ContextTypes.DEFAULT_TYP
                 voice_id = await loop.run_in_executor(
                     None, voice_clone.crear_voz, f"{CHANNEL_NAME} (voz propia)", usadas
                 )
-                _guardar_estado_voz(voice_id, len(usadas))
+                voice_clone.guardar_estado_voz(voice_id=voice_id, muestras=len(usadas))
             modelos = await loop.run_in_executor(None, voice_clone.modelos_para_probar)
         except voice_clone.CloneError as exc:
             await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=str(exc))
@@ -617,7 +627,7 @@ async def handle_tone_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     way, run on whichever model is named."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
-    estado = _estado_voz()
+    estado = voice_clone.estado_voz()
     voice_id = estado.get("voice_id")
     if not voice_id:
         await update.message.reply_text(
@@ -688,6 +698,52 @@ async def handle_tone_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
     context.application.create_task(trabajo())
+
+
+async def handle_use_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/usar <modelo> <preset> - records which combination won the listening.
+
+    The comparison happens in Telegram, on one day, by ear. The videos get
+    built somewhere else, on another day, by the pipeline. Without somewhere
+    to write the answer down, every video would go out at whatever the code's
+    default happened to be and the whole afternoon of listening would decide
+    nothing."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    presets = {**voice_clone.AJUSTES_PRESETS, **voice_clone.AJUSTES_FINOS}
+    args = [a.strip().lower() for a in context.args]
+    modelo = next((_ALIAS_MODELO.get(a, a) for a in args
+                   if a in _ALIAS_MODELO or a.startswith("eleven_")), None)
+    preset = next((a for a in args if a in presets), None)
+
+    if not modelo and not preset:
+        voice_id, actual_modelo, actual_ajustes = voice_clone.ajustes_elegidos()
+        await update.message.reply_text(
+            f"Ahora mismo los videos se narrarian con `{actual_modelo}`:\n"
+            f"soltura {1 - actual_ajustes['stability']:.0%} · "
+            f"parecido {actual_ajustes['similarity_boost']:.0%} · "
+            f"expresividad {actual_ajustes['style']:.0%}\n\n"
+            "Para cambiarlo: /usar v3 muy-suelto\n"
+            f"Presets: {', '.join(presets)}",
+            parse_mode="Markdown",
+        )
+        return
+
+    cambios = {}
+    if modelo:
+        cambios["model"] = modelo
+    if preset:
+        cambios["preset"] = preset
+    voice_clone.guardar_estado_voz(**cambios)
+    _, modelo_final, ajustes = voice_clone.ajustes_elegidos()
+    await update.message.reply_text(
+        f"Hecho. Los videos se narraran con `{modelo_final}`:\n"
+        f"soltura {1 - ajustes['stability']:.0%} · "
+        f"parecido {ajustes['similarity_boost']:.0%} · "
+        f"expresividad {ajustes['style']:.0%}\n\n"
+        "Pon NARRATION_SOURCE=clon en Railway y /generar usara esta voz.",
+        parse_mode="Markdown",
+    )
 
 
 async def handle_account_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -857,6 +913,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("clon", handle_clone_command))
     application.add_handler(CommandHandler("cuenta", handle_account_command))
     application.add_handler(CommandHandler("tono", handle_tone_command))
+    application.add_handler(CommandHandler("usar", handle_use_command))
     # Audio arriving with no command is a narration for whatever script is
     # waiting; a voice note, an audio file and a file sent "as document" are
     # three different Telegram types for the same thing.
@@ -864,16 +921,25 @@ def build_application() -> Application:
         filters.AUDIO | filters.VOICE | filters.Document.AUDIO, handle_narration_audio))
     # Don't auto-generate on every restart/deploy - only at the regular interval.
     # Use /generar in the chat for an on-demand run (e.g. right after deploying).
-    # Nothing generates itself when the narration is read by a person. The
-    # scheduled run calls the ordinary pipeline, which synthesises the voice -
-    # so leaving it armed would quietly produce, every twelve hours, exactly
-    # the kind of video this mode exists to stop making, and drop it into the
-    # chat in the middle of whatever is being recorded. If a human has to read
-    # it, a human starts it.
-    if NARRATION_SOURCE == "voz":
+    # Nothing generates itself in either of the two voice modes, for two
+    # different reasons.
+    #
+    # Read by a person: the scheduled run calls the ordinary pipeline, which
+    # synthesises the voice, so leaving it armed would quietly produce every
+    # twelve hours exactly the kind of video this mode exists to stop making,
+    # and drop it into the chat in the middle of whatever is being recorded.
+    # If a human has to read it, a human starts it.
+    #
+    # Cloned: nothing stops it working, which is the problem. A long video is
+    # around eleven thousand credits, so an unattended run twice a day would
+    # spend the month's allowance in under a week, on topics nobody chose,
+    # while she is asleep. Automating that is a decision worth making on
+    # purpose rather than inheriting from a default.
+    if NARRATION_SOURCE in ("voz", "clon"):
         logger.info(
-            "Narracion por voz propia: el generador automatico queda desactivado. "
-            "Los videos se lanzan a mano con /generar."
+            "Narracion por %s: el generador automatico queda desactivado. "
+            "Los videos se lanzan a mano con /generar.",
+            "voz propia" if NARRATION_SOURCE == "voz" else "voz clonada",
         )
     else:
         application.job_queue.run_repeating(

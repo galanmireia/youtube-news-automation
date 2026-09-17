@@ -29,7 +29,9 @@ from .script_generator import generate_script
 from .subtitles import generate_subtitles
 from .thumbnail import generate_thumbnail
 from .tts import synthesize_scenes
+from .voice_clone import sintetizar_escenas
 from .voice_align import align_recording, reading_script
+from .config import NARRATION_SOURCE
 from .video_builder import build_video, burn_subtitles, mix_background_music
 from .visuals import fetch_clips_for_scenes
 
@@ -159,6 +161,9 @@ def _generate_variant(
     if recording_path is not None:
         _stage(variant, 3, "Alineando tu grabacion con el guion (%s escenas)...", len(script["scenes"]))
         narration_path, scene_durations = align_recording(script["scenes"], Path(recording_path))
+    elif NARRATION_SOURCE == "clon":
+        _stage(variant, 3, "Narrando con tu voz clonada (%s escenas)...", len(script["scenes"]))
+        narration_path, scene_durations = sintetizar_escenas(script["scenes"], variant_dir / "audio")
     else:
         _stage(variant, 3, "Generando la narracion con TTS (%s escenas)...", len(script["scenes"]))
         narration_path, scene_durations = synthesize_scenes(script["scenes"], variant_dir / "audio")

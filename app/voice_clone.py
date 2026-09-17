@@ -16,12 +16,16 @@ The API is reached from the server, never from a developer machine: the key
 lives in the environment and the audio it produces comes back through the same
 chat the scripts go out on.
 """
+import base64
+import io
+import json
 import logging
 from pathlib import Path
 
 import requests
+from pydub import AudioSegment
 
-from .config import ELEVENLABS_API_KEY
+from .config import DATA_DIR, ELEVENLABS_API_KEY
 from .spanish import MIN_TASA_ACENTOS, tasa_de_acentos
 
 logger = logging.getLogger(__name__)
@@ -409,3 +413,255 @@ def resumen_cuenta(datos: dict) -> str:
     elif pvc is False:
         lineas.append("Clonacion profesional: NO en este plan (solo la instantanea).")
     return "\n".join(lineas)
+
+
+# ---------------------------------------------------------------------------
+# Which voice, which model, which settings - kept where every caller can read
+# it.
+#
+# The choice is made by listening, in Telegram, and then used by the pipeline
+# when it builds a video, which are two different processes on two different
+# days. Holding it in one file next to the audio is what lets the second one
+# honour a decision the first one made.
+
+_ESTADO = "voz_clonada.json"
+
+
+def estado_voz() -> dict:
+    """The cloned voice on the account, and what was decided about it."""
+    fichero = Path(DATA_DIR) / _ESTADO
+    if fichero.exists():
+        try:
+            return json.loads(fichero.read_text())
+        except ValueError:
+            logger.warning("El estado de la voz esta corrupto; se ignora.")
+    # Migration from the version that stored a bare voice id. The number of
+    # samples is unknown and 1 is right: that version could only use one.
+    viejo = Path(DATA_DIR) / "voz_clonada.txt"
+    if viejo.exists():
+        return {"voice_id": viejo.read_text().strip(), "muestras": 1}
+    return {}
+
+
+def guardar_estado_voz(**cambios) -> dict:
+    """Updates the stored decision without losing the parts not being changed.
+
+    A merge rather than a write, because the voice id is set when the voice is
+    rebuilt and the model and settings are set later, when somebody has
+    listened - and a plain write from either side would erase the other."""
+    estado = {**estado_voz(), **cambios}
+    (Path(DATA_DIR) / _ESTADO).write_text(json.dumps(estado))
+    viejo = Path(DATA_DIR) / "voz_clonada.txt"
+    if viejo.exists():
+        viejo.unlink()
+    return estado
+
+
+def ajustes_elegidos() -> tuple[str | None, str, dict]:
+    """(voice id, model, settings) as last chosen, with defaults where not.
+
+    Defaults matter here: a video must not fail to build because nobody has
+    run the comparison yet. Without a choice it falls back to the conservative
+    model and the settings the first clone used."""
+    estado = estado_voz()
+    modelo = estado.get("model") or _MODEL
+    preset = estado.get("preset")
+    ajustes = AJUSTES_PRESETS.get(preset) or AJUSTES_FINOS.get(preset) or AJUSTES_PARECIDO
+    return estado.get("voice_id"), modelo, dict(ajustes)
+
+
+# ---------------------------------------------------------------------------
+# Narrating a whole script in the cloned voice.
+#
+# Same contract as tts.synthesize_scenes - (audio file, one duration per
+# scene) - so the pipeline can swap one for the other without knowing which
+# it got.
+
+# Bigger chunks than the Google path uses, and for the opposite reason: there
+# the limit is the API's, here it is drift. A clone at low stability wanders
+# over a long request, and short requests break the prosody at every seam.
+# Fifteen hundred characters is roughly a minute of speech.
+_MAX_CHUNK_CHARS = 1500
+
+
+def _trozos(scenes: list[dict]) -> list[list[dict]]:
+    grupos: list[list[dict]] = []
+    actual: list[dict] = []
+    largo = 0
+    for scene in scenes:
+        texto = len(scene.get("narration", ""))
+        if actual and largo + texto > _MAX_CHUNK_CHARS:
+            grupos.append(actual)
+            actual, largo = [], 0
+        actual.append(scene)
+        largo += texto
+    if actual:
+        grupos.append(actual)
+    return grupos
+
+
+def _hablar_con_marcas(
+    voice_id: str, texto: str, model: str, ajustes: dict, antes: str, despues: str
+) -> tuple[bytes, list[float] | None]:
+    """One chunk of narration, with per-character timings when they are given.
+
+    The timings are what make this cheap. The Google path synthesises every
+    scene twice - once alone to measure it and once in its group to sound
+    continuous - which here would mean paying for every character twice. This
+    endpoint returns the audio AND where each character falls inside it, so
+    the scene boundaries come out exact for the price of one take.
+
+    `antes` and `despues` are the surrounding narration. They are not spoken
+    and not billed; they tell the model what it is in the middle of, so the
+    seams between chunks do not land on a sentence that starts from nothing."""
+    cuerpo = {
+        "text": texto,
+        "model_id": model,
+        "voice_settings": ajustes,
+    }
+    if antes:
+        cuerpo["previous_text"] = antes[-500:]
+    if despues:
+        cuerpo["next_text"] = despues[:500]
+
+    response = requests.post(
+        f"{_BASE}/text-to-speech/{voice_id}/with-timestamps",
+        headers={**_headers(), "Content-Type": "application/json"},
+        json=cuerpo,
+        timeout=300,
+    )
+    if response.status_code >= 400:
+        # Not every model serves timestamps. Falling back to plain synthesis
+        # loses the exact boundaries, not the narration - so it is a warning
+        # and a cruder split, not a failed video.
+        logger.warning(
+            "Sin marcas de tiempo (%s); se reparte la duracion por longitud.",
+            _explica(response),
+        )
+        return _hablar_sin_marcas(voice_id, texto, model, ajustes, antes, despues), None
+
+    try:
+        datos = response.json()
+        audio = base64.b64decode(datos["audio_base64"])
+        alineacion = datos.get("alignment") or {}
+        caracteres = alineacion.get("characters") or []
+        finales = alineacion.get("character_end_times_seconds") or []
+    except (ValueError, KeyError, TypeError):
+        raise CloneError("Respuesta inesperada al sintetizar con marcas de tiempo.")
+
+    # The alignment is only usable if it lines up with the text that was sent.
+    # If the model normalised the text on the way in, the indices mean
+    # something else and using them would cut the scenes in the wrong places.
+    if len(caracteres) != len(texto) or len(finales) != len(texto):
+        logger.warning(
+            "Las marcas no cuadran con el texto (%s marcas para %s caracteres); "
+            "se reparte por longitud.", len(finales), len(texto),
+        )
+        return audio, None
+    return audio, list(finales)
+
+
+def _hablar_sin_marcas(
+    voice_id: str, texto: str, model: str, ajustes: dict, antes: str, despues: str
+) -> bytes:
+    cuerpo = {"text": texto, "model_id": model, "voice_settings": ajustes}
+    if antes:
+        cuerpo["previous_text"] = antes[-500:]
+    if despues:
+        cuerpo["next_text"] = despues[:500]
+    response = requests.post(
+        f"{_BASE}/text-to-speech/{voice_id}",
+        headers={**_headers(), "Accept": "audio/mpeg", "Content-Type": "application/json"},
+        json=cuerpo,
+        timeout=300,
+    )
+    if response.status_code >= 400:
+        raise CloneError(_explica(response))
+    return response.content
+
+
+def sintetizar_escenas(scenes: list[dict], out_dir: Path) -> tuple[Path, list[float]]:
+    """The whole script in the cloned voice, and how long each scene runs.
+
+    Interchangeable with tts.synthesize_scenes: same arguments, same return,
+    so the pipeline picks one and the rest of the build does not care."""
+    voice_id, modelo, ajustes = ajustes_elegidos()
+    if not voice_id:
+        raise CloneError(
+            "No hay ninguna voz clonada todavia. Manda /clon antes de generar con ella."
+        )
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    narraciones = [s.get("narration", "") for s in scenes]
+    grupos = _trozos(scenes)
+    completo = AudioSegment.empty()
+    pausa = AudioSegment.silent(duration=250)
+    duraciones: list[float] = []
+    caracteres_totales = 0
+
+    hablado = 0
+    for indice, grupo in enumerate(grupos):
+        texto = " ".join(s.get("narration", "") for s in grupo)
+        antes = " ".join(narraciones[max(0, hablado - 3):hablado])
+        despues = " ".join(narraciones[hablado + len(grupo):hablado + len(grupo) + 3])
+        audio_bytes, finales = _hablar_con_marcas(
+            voice_id, texto, modelo, ajustes, antes, despues
+        )
+        caracteres_totales += len(texto)
+        trozo = AudioSegment.from_file(io.BytesIO(audio_bytes))
+        real = len(trozo) / 1000.0
+
+        if finales:
+            # Exact: each scene ends where its last character was spoken.
+            duraciones += _por_marcas(grupo, finales, real)
+        else:
+            # Crude but safe: split the take in proportion to how much text
+            # each scene contributed. Wrong on a scene that happens to be
+            # spoken faster than its neighbours, and never wrong by enough to
+            # desynchronise the video, because the parts still sum to the take.
+            duraciones += _por_longitud(grupo, real)
+
+        completo += trozo
+        if indice < len(grupos) - 1:
+            completo += pausa
+            duraciones[-1] += len(pausa) / 1000.0
+        hablado += len(grupo)
+
+    destino = out_dir / "narracion.mp3"
+    completo.export(destino, format="mp3")
+    logger.info(
+        "Narracion clonada: %s escenas en %s tomas, %.1fs, %s caracteres "
+        "(~%.0f creditos con %s).",
+        len(scenes), len(grupos), len(completo) / 1000.0, caracteres_totales,
+        creditos_estimados("x" * caracteres_totales, modelo), modelo,
+    )
+    return destino, duraciones
+
+
+def _por_marcas(grupo: list[dict], finales: list[float], real: float) -> list[float]:
+    """Scene durations read off the character timings."""
+    duraciones = []
+    anterior = 0.0
+    posicion = 0
+    for numero, scene in enumerate(grupo):
+        posicion += len(scene.get("narration", ""))
+        # The last scene of the take owns the tail, so the parts always sum to
+        # the audio: a rounding gap here would drift the video out of sync.
+        if numero == len(grupo) - 1:
+            fin = real
+        else:
+            fin = min(finales[min(posicion, len(finales)) - 1], real)
+            posicion += 1  # el espacio que une las escenas
+        duraciones.append(max(fin - anterior, 0.05))
+        anterior = fin
+    return duraciones
+
+
+def _por_longitud(grupo: list[dict], real: float) -> list[float]:
+    largos = [max(len(s.get("narration", "")), 1) for s in grupo]
+    total = sum(largos)
+    duraciones = [real * largo / total for largo in largos]
+    # Same rule as above: give the remainder to the last scene rather than
+    # letting rounding lose it.
+    duraciones[-1] = real - sum(duraciones[:-1])
+    return duraciones
