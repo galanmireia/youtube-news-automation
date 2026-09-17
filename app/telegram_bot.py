@@ -1,6 +1,7 @@
 import asyncio
 from io import BytesIO
 import logging
+import re
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -8,7 +9,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
-from . import ai_images, storage, tts, voice_align, voice_clone
+from . import ai_images, research, storage, tts, voice_align, voice_clone
 from .voice_align import AlignmentFailed
 from .config import (
     CHANNEL_NAME,
@@ -755,6 +756,75 @@ async def handle_use_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 
+# Roughly what a minute of narration costs in words, at synthesis pace with
+# the pauses taken out. Used to turn a dossier's size into the only question
+# worth asking about it: is there enough here to talk for fifteen minutes.
+_PALABRAS_POR_MINUTO_SINTESIS = 132
+
+
+async def handle_dossier_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/dosier <tema> - builds the research for a case and measures it.
+
+    Costs nothing and generates nothing. The question it answers is whether
+    there is enough material for a long video, which up to now has only been
+    answerable by writing one and seeing whether it padded. A dossier that is
+    thin says so before the script does."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    tema = " ".join(context.args).strip()
+    if not tema:
+        await update.message.reply_text("Dime de que caso: /dosier Gusano Morris")
+        return
+    await update.message.reply_text(f"Montando el dosier de *{tema}*...", parse_mode="Markdown")
+    loop = asyncio.get_running_loop()
+
+    async def trabajo():
+        try:
+            dosier = await loop.run_in_executor(None, research.build_dossier, tema)
+        except Exception:
+            logger.exception("Error montando el dosier de %r", tema)
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID, text="No he podido montar el dosier. Mira los logs.")
+            return
+        if not dosier:
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID,
+                text=f"Wikipedia no tiene articulo para «{tema}», asi que no hay dosier. "
+                     "Prueba con el nombre exacto del articulo.")
+            return
+
+        # Sources are labelled, so they can be counted and sized separately -
+        # a dossier that is one huge article and nine scraps is a different
+        # thing from ten solid ones, and the total hides which it is.
+        trozos = re.split(r"(?m)^===== (FUENTE \d+ · .*?) =====$", dosier)
+        cabeceras = trozos[1::2]
+        cuerpos = [t.strip() for t in trozos[2::2]]
+        palabras = len(dosier.split())
+        minutos = palabras / _PALABRAS_POR_MINUTO_SINTESIS
+
+        lineas = [f"*{tema}*", f"{len(cabeceras)} fuentes · {len(dosier):,} caracteres · "
+                  f"{palabras:,} palabras".replace(",", ".")]
+        for cabecera, cuerpo in zip(cabeceras, cuerpos):
+            nombre = cabecera.split(" · ", 1)[-1]
+            lineas.append(f"  · {nombre[:60]} — {len(cuerpo.split()):,} palabras".replace(",", "."))
+        lineas.append("")
+        # The comparison that matters. Material is not narration: a script
+        # keeps a fraction of what it reads, because a dossier repeats itself
+        # across languages and carries a lot that is not story.
+        lineas.append(
+            f"Da para hablar {minutos:.0f} min SI se narrara entero, que no se narra: "
+            f"un guion se queda con una parte de lo que lee."
+        )
+        lineas.append(
+            f"Para 15 min hacen falta ~{15 * _PALABRAS_POR_MINUTO_SINTESIS:,} palabras "
+            f"de guion.".replace(",", ".")
+        )
+        await context.bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID, text="\n".join(lineas), parse_mode="Markdown")
+
+    context.application.create_task(trabajo())
+
+
 async def handle_account_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/cuenta - what the ElevenLabs subscription actually allows.
 
@@ -923,6 +993,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("cuenta", handle_account_command))
     application.add_handler(CommandHandler("tono", handle_tone_command))
     application.add_handler(CommandHandler("usar", handle_use_command))
+    application.add_handler(CommandHandler("dosier", handle_dossier_command))
     # Audio arriving with no command is a narration for whatever script is
     # waiting; a voice note, an audio file and a file sent "as document" are
     # three different Telegram types for the same thing.
