@@ -517,10 +517,24 @@ def ajustes_elegidos() -> tuple[str | None, str, dict]:
 # it got.
 
 # Bigger chunks than the Google path uses, and for the opposite reason: there
-# the limit is the API's, here it is drift. A clone at low stability wanders
-# over a long request, and short requests break the prosody at every seam.
-# Fifteen hundred characters is roughly a minute of speech.
-_MAX_CHUNK_CHARS = 1500
+# the limit is the API's, here it is the SEAMS.
+#
+# She heard the voice change during a video, and the cause is that every chunk
+# is an independent generation - the model is not continuing a take, it is
+# starting a new one. Fifteen hundred characters put four of those joins in a
+# six-minute narration. Twenty-five hundred puts two.
+#
+# The usual remedy, telling each request what came before, is not available:
+# eleven_v3 refuses previous_text outright, which is a decision the model makes
+# and not one I can work around. So the remedies that are left are fewer seams
+# and a fixed seed, and both are applied here.
+_MAX_CHUNK_CHARS = 2500
+
+# The same seed for every take of one video, so the takes are draws from the
+# same point rather than independent rolls. It does not make them identical -
+# different text gives different audio - but it removes one source of
+# variation between them, and it costs nothing to ask for.
+_SEMILLA = 20261988
 
 
 # Models that reject the continuity context outright. eleven_v3 answers a
@@ -534,10 +548,13 @@ _MAX_CHUNK_CHARS = 1500
 # direction the day it starts working, and the retry below finds out for
 # itself either way.
 _SIN_CONTEXTO: set[str] = {"eleven_v3"}
+_SIN_SEMILLA: set[str] = set()
 
 
 def _cuerpo_tts(texto: str, model: str, ajustes: dict, antes: str, despues: str) -> dict:
     cuerpo = {"text": texto, "model_id": model, "voice_settings": ajustes}
+    if model not in _SIN_SEMILLA:
+        cuerpo["seed"] = _SEMILLA
     if model not in _SIN_CONTEXTO:
         # Not spoken and not billed: it tells the model what it is in the
         # middle of, so a take does not begin as if from silence.
@@ -548,31 +565,50 @@ def _cuerpo_tts(texto: str, model: str, ajustes: dict, antes: str, despues: str)
     return cuerpo
 
 
-def _rechaza_el_contexto(response: requests.Response) -> bool:
-    """Is this the model refusing previous_text/next_text, specifically?"""
+# Optional fields, in the order a request gives them up. Each is an
+# improvement rather than a requirement, so a model that refuses one should
+# lose that field and still speak - losing a whole narration over a hint about
+# seams, or over a seed, is the wrong trade by a wide margin.
+_CAMPOS_OPCIONALES = ("previous_text", "next_text", "seed")
+
+
+def _campo_rechazado(response: requests.Response) -> str | None:
+    """Which optional field the API is complaining about, if any."""
     if response.status_code != 400:
-        return False
-    return "previous_text" in response.text or "next_text" in response.text
+        return None
+    for campo in _CAMPOS_OPCIONALES:
+        if campo in response.text:
+            return campo
+    return None
 
 
 def _post_tts(url: str, cabeceras: dict, cuerpo: dict) -> requests.Response:
-    """One synthesis call, retried once without the continuity context.
+    """One synthesis call, dropping whichever optional field the API refuses.
 
-    A model that rejects the context is not a model that cannot speak, and
-    losing a whole narration over a hint about the seams is the wrong trade by
-    a wide margin. What it learns, it remembers for the rest of the run, so a
-    twenty-five scene video pays for the discovery once."""
-    response = requests.post(url, headers=cabeceras, json=cuerpo, timeout=300)
-    if not _rechaza_el_contexto(response):
-        return response
-    modelo = cuerpo.get("model_id", "")
-    logger.warning(
-        "%s no admite el contexto entre tomas; se reintenta sin el y no se le vuelve a mandar.",
-        modelo,
-    )
-    _SIN_CONTEXTO.add(modelo)
-    sin = {k: v for k, v in cuerpo.items() if k not in ("previous_text", "next_text")}
-    return requests.post(url, headers=cabeceras, json=sin, timeout=300)
+    What it learns, it remembers for the rest of the run, so a twenty-four
+    scene video pays for each discovery once rather than per take."""
+    for _ in range(len(_CAMPOS_OPCIONALES) + 1):
+        response = requests.post(url, headers=cabeceras, json=cuerpo, timeout=300)
+        campo = _campo_rechazado(response)
+        if campo is None:
+            return response
+        # The field the API NAMES is not always the field the request sent.
+        # The first chunk of a narration has nothing before it, so it carries
+        # next_text and no previous_text - and the complaint still says
+        # "previous_text". Matching the exact name found nothing to remove and
+        # gave up with the offending sibling still in the body. They are one
+        # capability, so they are dropped as one.
+        aquitar = {"previous_text", "next_text"} if campo in ("previous_text", "next_text") else {campo}
+        if not aquitar & set(cuerpo):
+            return response
+        modelo = cuerpo.get("model_id", "")
+        logger.warning(
+            "%s no admite %s; se reintenta sin ese campo y no se le vuelve a mandar.",
+            modelo, " ni ".join(sorted(aquitar)),
+        )
+        (_SIN_CONTEXTO if "previous_text" in aquitar else _SIN_SEMILLA).add(modelo)
+        cuerpo = {k: v for k, v in cuerpo.items() if k not in aquitar}
+    return response
 
 
 def _trozos(scenes: list[dict]) -> list[list[dict]]:
