@@ -666,7 +666,14 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
 
     last_error: Exception | None = None
     for attempt in range(1, _MAX_ATTEMPTS + 1):
-        message = _client.messages.create(
+        # STREAMED, and not for the progress: the SDK refuses a plain request
+        # whose max_tokens is high enough that it might run past ten minutes,
+        # and raises before sending anything. Raising the ceiling for a
+        # fifty-scene script crossed that line and every generation failed
+        # instantly. Streaming removes the limit; get_final_message gives back
+        # the same Message the non-streaming call returned, so nothing
+        # downstream changes.
+        with _client.messages.stream(
             model=CLAUDE_MODEL,
             max_tokens=_MAX_TOKENS,
             system=[
@@ -677,7 +684,8 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
                 }
             ],
             messages=[{"role": "user", "content": _STORY_MARKER + noticia}],
-        )
+        ) as stream:
+            message = stream.get_final_message()
         llm_usage.record(f"guion-{variant}", CLAUDE_MODEL, message)
         text_blocks = [block.text for block in message.content if block.type == "text"]
         if not text_blocks:
