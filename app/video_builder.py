@@ -538,6 +538,20 @@ _JOIN_MARGIN_SECONDS = 0.2
 _MAX_JOIN_SHORTFALL_SECONDS = 2.0
 
 
+def _dimensiones(path: Path) -> tuple[int, int] | None:
+    """The exact pixel size of a rendered segment."""
+    try:
+        salida = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", str(path)],
+            capture_output=True, text=True, timeout=30, check=True,
+        ).stdout.strip()
+        ancho, alto = salida.split("x")[:2]
+        return int(ancho), int(alto)
+    except Exception:
+        return None
+
+
 def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: Path, out_path: Path) -> Path:
     """Joins the scene segments with a short crossfade between them instead
     of hard cuts. Each transition is centred on the scene boundary, so the
@@ -598,9 +612,32 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
     # With fps forcing a constant rate first, a timebase of exactly one frame,
     # and setpts=N, every frame's time is its own index. Nothing an input says
     # about its timing can reach the crossfade, because none of it is read.
+    # Every input is forced to the SAME SIZE, and this is the one that was
+    # missing. xfade will not accept inputs of different dimensions - it fails
+    # with "Error reinitializing filters" and an invalid-argument error, which
+    # is exactly what five videos in a row produced. Reproduced deliberately:
+    # two segments differing by two pixels of width give that message and no
+    # other. Frame rate, timebase, pixel format and aspect were already being
+    # normalised here; size never was, and size is the only one xfade refuses
+    # to reconcile itself.
+    #
+    # The first segment sets the canvas rather than a number passed in, so the
+    # join cannot disagree with what was actually rendered.
+    lienzo = _dimensiones(segment_paths[0])
+    escala = f"scale={lienzo[0]}:{lienzo[1]}," if lienzo else ""
+    if lienzo:
+        distintos = [
+            (p.name, d) for p in segment_paths[1:]
+            if (d := _dimensiones(p)) is not None and d != lienzo
+        ]
+        if distintos:
+            logger.warning(
+                "Segmentos con tamaño distinto de %sx%s, se reescalan: %s",
+                lienzo[0], lienzo[1], distintos,
+            )
     steps = [
         f"[{i}:v]fps={_ZOOM_FPS},settb=1/{_ZOOM_FPS},setpts=N,"
-        f"format=yuv420p,setsar=1,trim=duration={durations[i]:.3f},setpts=N[n{i}]"
+        f"{escala}format=yuv420p,setsar=1,trim=duration={durations[i]:.3f},setpts=N[n{i}]"
         for i in range(len(segment_paths))
     ]
     current = "[n0]"
