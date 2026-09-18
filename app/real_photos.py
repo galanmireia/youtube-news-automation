@@ -384,3 +384,100 @@ def fetch_portrait(person_name: str, out_path: Path, exclude_urls: set[str] | No
             )
             return result
     return _commons_search_photo(person_name, out_path, exclude)
+
+
+# ---------------------------------------------------------------------------
+# Image credits.
+#
+# "FUENTE: WIKIPEDIA" burned into the corner of every frame was doing the
+# worst of both jobs: it looked like a watermark and it is not attribution.
+# Wikimedia images carry licences, and most of them require the AUTHOR and the
+# LICENCE by name - which a one-word tag naming the website does not give. For
+# a channel whose first requirement is that it stays monetisable, an invalid
+# credit is a risk carried for nothing.
+#
+# So the credit leaves the picture and goes where video credits belong, in the
+# description, with the author and licence the licence actually asks for.
+
+_COMMONS_API = "https://commons.wikimedia.org/w/api.php"
+
+
+def _fichero_de_url(url: str) -> str:
+    """The Commons file name inside an image URL, thumbnail or original."""
+    partes = url.split("/")
+    if "thumb" in partes:
+        # .../thumb/a/ab/Foo.jpg/330px-Foo.jpg -> Foo.jpg
+        i = partes.index("thumb")
+        if len(partes) > i + 3:
+            return unquote(partes[i + 3])
+    return unquote(partes[-1]) if partes else ""
+
+
+def _limpia(html: str) -> str:
+    """Wikimedia returns the author as a fragment of HTML."""
+    texto = re.sub(r"<[^>]+>", " ", html or "")
+    return " ".join(texto.split()).strip()
+
+
+def creditos_de(urls: list[str]) -> list[str]:
+    """One credit line per image, in the order they were used.
+
+    Asked at Commons rather than assumed: the author and the licence are
+    per-file, and there is no way to know either from the URL. When the lookup
+    fails the file name still goes in the list - naming the file is a weaker
+    credit than naming its author, and far better than dropping it."""
+    vistos: list[str] = []
+    for url in urls:
+        fichero = _fichero_de_url(url)
+        if fichero and fichero not in vistos:
+            vistos.append(fichero)
+    if not vistos:
+        return []
+
+    metadatos: dict[str, tuple[str, str]] = {}
+    # Fifty titles per request is the API's own limit, and one request for a
+    # whole video beats one per image.
+    for i in range(0, len(vistos), 50):
+        lote = vistos[i:i + 50]
+        try:
+            r = requests.get(
+                _COMMONS_API,
+                params={
+                    "action": "query", "format": "json", "prop": "imageinfo",
+                    "iiprop": "extmetadata", "titles": "|".join(f"File:{f}" for f in lote),
+                },
+                headers=_HEADERS, timeout=25,
+            )
+            r.raise_for_status()
+            paginas = r.json().get("query", {}).get("pages", {})
+        except Exception:
+            # Deliberately every exception, not just the network's. What is
+            # being protected here is the ATTRIBUTION, and the fallback below
+            # still names every file - so a failure in this lookup must cost
+            # the author's name, never the credit itself. A credit that
+            # vanishes because a request raised something unexpected is the
+            # one outcome that carries a licensing risk.
+            logger.warning(
+                "No se han podido leer los creditos de %s imagenes; se acreditan por nombre de fichero.",
+                len(lote), exc_info=True,
+            )
+            continue
+        for pagina in paginas.values():
+            titulo = (pagina.get("title") or "").removeprefix("File:")
+            info = (pagina.get("imageinfo") or [{}])[0].get("extmetadata") or {}
+            autor = _limpia(info.get("Artist", {}).get("value", ""))
+            licencia = _limpia(info.get("LicenseShortName", {}).get("value", ""))
+            if titulo:
+                metadatos[titulo] = (autor, licencia)
+
+    lineas = []
+    for fichero in vistos:
+        autor, licencia = metadatos.get(fichero, ("", ""))
+        partes = [fichero.replace("_", " ")]
+        if autor:
+            partes.append(autor)
+        if licencia:
+            partes.append(licencia)
+        lineas.append(" · ".join(partes) + " (Wikimedia Commons)")
+    logger.info("Creditos de imagen resueltos: %s de %s.", len(metadatos), len(vistos))
+    return lineas

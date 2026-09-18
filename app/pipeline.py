@@ -28,6 +28,7 @@ from .topic_source import fetch_candidate_topics, fetch_topic_by_term
 from .script_generator import generate_script
 from .subtitles import generate_subtitles
 from .thumbnail import generate_thumbnail
+from . import real_photos
 from .tts import synthesize_scenes
 from .voice_clone import sintetizar_escenas
 from .voice_align import align_recording, reading_script
@@ -105,6 +106,32 @@ _INTRO_SCENE = {
 }
 
 
+def _con_creditos(descripcion: str, urls: list[str]) -> str:
+    """The description, with the image credits the licences require.
+
+    Appended here rather than asked of the script model, for the same reason
+    the facts are: a credit is a record of what was actually used, and the
+    model writing the description does not know which photographs the visual
+    stage ended up finding."""
+    if not urls:
+        return descripcion
+    try:
+        lineas = real_photos.creditos_de(urls)
+    except Exception:
+        logger.exception("No se han podido montar los creditos de imagen.")
+        return descripcion
+    if not lineas:
+        return descripcion
+    bloque = "\n".join(f"· {linea}" for linea in lineas)
+    return (
+        f"{descripcion.rstrip()}\n\n"
+        "―――\n"
+        "IMÁGENES\n"
+        f"{bloque}\n\n"
+        "Textos de consulta: Wikipedia, bajo licencia CC BY-SA."
+    )
+
+
 def _generate_variant(
     news_item: dict,
     variant: str,
@@ -169,12 +196,14 @@ def _generate_variant(
         narration_path, scene_durations = synthesize_scenes(script["scenes"], variant_dir / "audio")
 
     _stage(variant, 4, "Buscando imagenes y videos para las escenas...")
+    urls_de_fotos: list[str] = []
     clip_entries = fetch_clips_for_scenes(
         script["scenes"],
         variant_dir / "clips",
         _VARIANT_ASPECT_RATIO[variant],
         scene_durations,
         is_sensitive=is_sensitive,
+        creditos=urls_de_fotos,
     )
 
     _stage(variant, 5, "Montando el video con ffmpeg...")
@@ -186,7 +215,12 @@ def _generate_variant(
         variant_dir / "final_video.mp4",
         width,
         height,
-        source_name=news_item.get("source_name", ""),
+        # No "FUENTE: X" burned into the corner any more. It looked like a
+        # watermark and it was not attribution: Wikimedia licences ask for the
+        # author and the licence of each image by name, which a single word
+        # naming the website never gave. The credit now goes where video
+        # credits belong - the description - with what the licence asks for.
+        source_name="",
         intro_duration=scene_durations[0] if has_intro and scene_durations else 0.0,
     )
 
@@ -236,7 +270,7 @@ def _generate_variant(
         source_url=news_item["link"],
         variant=variant,
         title=script["title"],
-        description=script["description"],
+        description=_con_creditos(script["description"], urls_de_fotos),
         tags=script["tags"],
         video_path=str(final_video_path),
         thumbnail_path=str(thumbnail_path),

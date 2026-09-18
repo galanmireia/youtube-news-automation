@@ -243,7 +243,8 @@ def _download_to_file(url: str, out_path: Path) -> None:
 
 
 def fetch_clips_for_scenes(
-    scenes: list[dict], out_dir: Path, aspect_ratio: str, scene_durations: list[float], is_sensitive: bool = False
+    scenes: list[dict], out_dir: Path, aspect_ratio: str, scene_durations: list[float], is_sensitive: bool = False,
+    creditos: list[str] | None = None
 ) -> list[list[tuple[Path, dict | None]]]:
     """Returns, per scene, a list of (clip_path, name_tag) entries - normally
     just one, but up to _MAX_PHOTOS_PER_SCENE when a scene names several
@@ -328,6 +329,8 @@ def fetch_clips_for_scenes(
             if result is not None:
                 photo_path, photo_url = result
                 used_photo_urls.add(photo_url)
+                if creditos is not None:
+                    creditos.append(photo_url)
                 role = (
                     (scene.get("photo_subject_role") or "").strip()
                     if candidate == photo_subject
@@ -344,7 +347,20 @@ def fetch_clips_for_scenes(
             )
 
         if found:
-            clip_entries.append([(path, {"name": name, "role": role}) for name, path, role in found])
+            # The lower-third caption is for FACES. A name and a role under a
+            # photograph of somebody reads as a documentary; the same bar under
+            # a building, a logo or a flag reads as a caption explaining the
+            # obvious - "BANDERA DE ESPAÑA · bandera" - and looks amateurish.
+            # The viewer can see it is a flag. Only a person needs introducing.
+            personas = {
+                e.get("name", "").strip()
+                for e in detected_entities
+                if e.get("type") == "person" and e.get("name", "").strip()
+            }
+            clip_entries.append([
+                (path, {"name": name, "role": role} if name in personas else None)
+                for name, path, role in found
+            ])
             continue
 
         highlight = (scene.get("on_screen_highlight") or "").strip()
