@@ -588,10 +588,53 @@ def _log_accent_rate(script: dict, variant: str) -> None:
         logger.info(message, tasa * 100, acentuadas, palabras)
 
 
+# What a script may take from its dossier without padding.
+#
+# Measured: today's six-and-a-half-minute video used 15% of a 5,629-word
+# dossier and did not pad. Fifteen minutes from the same source would need
+# 35%. Thirty is the line between them - enough to make a long video where
+# the material is there, short of the point where the model starts saying
+# the same thing twice because it has been asked for words it does not have.
+_FRACCION_APROVECHABLE = 0.30
+
+# The floor is not a target, it is an admission: below this there is not
+# enough for a long video at all, and the honest output is a shorter one.
+_MINUTOS_MINIMO, _MINUTOS_MAXIMO = 6, 15
+_PALABRAS_POR_MINUTO_HABLADO = 132
+_PALABRAS_POR_ESCENA = 40
+
+
+def _tamano_por_material(summary: str) -> tuple[str, str, float]:
+    """How long this case can actually hold, from how much was found on it.
+
+    Fixing the length at fifteen minutes was a mistake I made and caught by
+    doing the arithmetic: the market study says fifteen minutes is where the
+    audience is, but a case with two thousand words behind it cannot fill
+    fifteen minutes with anything but repetition - and a padded fifteen is
+    worse than an honest eight, for the viewer and for the channel.
+
+    So the study sets the ceiling and the dossier sets the length."""
+    palabras = len(summary.split())
+    minutos = palabras * _FRACCION_APROVECHABLE / _PALABRAS_POR_MINUTO_HABLADO
+    minutos = max(_MINUTOS_MINIMO, min(_MINUTOS_MAXIMO, minutos))
+    escenas = round(minutos * _PALABRAS_POR_MINUTO_HABLADO / _PALABRAS_POR_ESCENA)
+    logger.info(
+        "Material: %s palabras de dosier -> video de ~%.0f min (%s escenas).",
+        palabras, minutos, escenas,
+    )
+    return (f"unos {minutos:.0f} minutos",
+            f"entre {escenas - 3} y {escenas + 3} escenas",
+            minutos)
+
+
 def generate_script(news_item: dict, variant: str = "long") -> dict:
     if variant not in _VARIANT_CONFIG:
         raise ValueError(f"variant desconocida: {variant!r}")
-    variant_config = _VARIANT_CONFIG[variant]
+    variant_config = dict(_VARIANT_CONFIG[variant])
+    if variant == "long":
+        duracion, escenas, _ = _tamano_por_material(news_item.get("summary", ""))
+        variant_config["duration_hint"] = duracion
+        variant_config["scene_count_hint"] = escenas
 
     # The genre blocks carry placeholders of their own ({duration_hint}), and
     # str.format inserts what it substitutes literally - it does not look

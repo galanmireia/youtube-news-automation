@@ -251,6 +251,9 @@ _GENERATE_ARG_VARIANTS = {"s": ("short",), "v": ("long",)}
 #
 # If the long variant is ever lengthened to fifteen minutes, this moves to
 # about 10,900 with it. The two numbers have to change together.
+# The long video is no longer a fixed length - it is sized to how much
+# material the case has - so this is a CEILING and says so, rather than
+# a figure that would be wrong for every video that came in shorter.
 _CREDITOS_POR_VARIANTE = {"short": 700, "long": 10300}
 
 
@@ -292,7 +295,8 @@ async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_
         # every run costs the same, which is the figure somebody would budget
         # with.
         coste = " + ".join(
-            f"{'el Short' if v == 'short' else 'el largo'} ~{_CREDITOS_POR_VARIANTE[v]:,}"
+            f"{'el Short' if v == 'short' else 'el largo'} "
+            f"{'hasta ' if v == 'long' else '~'}{_CREDITOS_POR_VARIANTE[v]:,}"
             .replace(",", ".")
             for v in variants
         )
