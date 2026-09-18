@@ -690,7 +690,9 @@ def _hablar_sin_marcas(
     return response.content
 
 
-def sintetizar_escenas(scenes: list[dict], out_dir: Path) -> tuple[Path, list[float]]:
+def sintetizar_escenas(
+    scenes: list[dict], out_dir: Path, marcas: list | None = None
+) -> tuple[Path, list[float]]:
     """The whole script in the cloned voice, and how long each scene runs.
 
     Interchangeable with tts.synthesize_scenes: same arguments, same return,
@@ -723,8 +725,10 @@ def sintetizar_escenas(scenes: list[dict], out_dir: Path) -> tuple[Path, list[fl
 
         if finales:
             # Exact: each scene ends where its last character was spoken.
-            duraciones += _por_marcas(grupo, finales, real)
+            duraciones += _por_marcas(grupo, finales, real, marcas)
         else:
+            if marcas is not None:
+                marcas += [None] * len(grupo)
             # Crude but safe: split the take in proportion to how much text
             # each scene contributed. Wrong on a scene that happens to be
             # spoken faster than its neighbours, and never wrong by enough to
@@ -748,19 +752,33 @@ def sintetizar_escenas(scenes: list[dict], out_dir: Path) -> tuple[Path, list[fl
     return destino, duraciones
 
 
-def _por_marcas(grupo: list[dict], finales: list[float], real: float) -> list[float]:
-    """Scene durations read off the character timings."""
+def _por_marcas(
+    grupo: list[dict], finales: list[float], real: float, marcas: list | None = None
+) -> list[float]:
+    """Scene durations read off the character timings.
+
+    When `marcas` is given it also collects, per scene, that scene's own
+    narration and the time of each of its characters REBASED to the scene's
+    start - which is what lets a slide place its reveals where the narration
+    says them instead of spreading them evenly and drifting."""
     duraciones = []
     anterior = 0.0
     posicion = 0
     for numero, scene in enumerate(grupo):
-        posicion += len(scene.get("narration", ""))
+        narracion = scene.get("narration", "")
+        inicio_texto = posicion
+        posicion += len(narracion)
         # The last scene of the take owns the tail, so the parts always sum to
         # the audio: a rounding gap here would drift the video out of sync.
         if numero == len(grupo) - 1:
             fin = real
         else:
             fin = min(finales[min(posicion, len(finales)) - 1], real)
+        if marcas is not None:
+            trozo = finales[inicio_texto:inicio_texto + len(narracion)]
+            marcas.append((narracion, [max(0.0, t - anterior) for t in trozo])
+                          if len(trozo) == len(narracion) else None)
+        if numero != len(grupo) - 1:
             posicion += 1  # el espacio que une las escenas
         duraciones.append(max(fin - anterior, 0.05))
         anterior = fin

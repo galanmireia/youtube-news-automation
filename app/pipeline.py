@@ -185,12 +185,17 @@ def _generate_variant(
         for i, scene in enumerate(script["scenes"]):
             scene["detected_entities"] = entities_by_scene.get(i, [])
 
+    marcas_narracion: list = []
     if recording_path is not None:
         _stage(variant, 3, "Alineando tu grabacion con el guion (%s escenas)...", len(script["scenes"]))
         narration_path, scene_durations = align_recording(script["scenes"], Path(recording_path))
     elif NARRATION_SOURCE == "clon":
         _stage(variant, 3, "Narrando con tu voz clonada (%s escenas)...", len(script["scenes"]))
-        narration_path, scene_durations = sintetizar_escenas(script["scenes"], variant_dir / "audio")
+        # The per-character timings come back too: a slide uses them to put
+        # each of its reveals where the narration actually says it.
+        narration_path, scene_durations = sintetizar_escenas(
+            script["scenes"], variant_dir / "audio", marcas=marcas_narracion
+        )
     else:
         _stage(variant, 3, "Generando la narracion con TTS (%s escenas)...", len(script["scenes"]))
         narration_path, scene_durations = synthesize_scenes(script["scenes"], variant_dir / "audio")
@@ -204,6 +209,7 @@ def _generate_variant(
         scene_durations,
         is_sensitive=is_sensitive,
         creditos=urls_de_fotos,
+        marcas=marcas_narracion,
     )
 
     _stage(variant, 5, "Montando el video con ffmpeg...")

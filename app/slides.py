@@ -27,7 +27,9 @@ Design rules, so these look like one channel and not four:
   - nothing decorative: every mark on the frame carries information
 """
 import logging
+import re
 import subprocess
+import unicodedata
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -551,6 +553,128 @@ def render(spec: dict, width: int, height: int) -> list[Image.Image]:
     return []
 
 
+# Words that appear in every sentence and identify nothing. Anchoring a
+# reveal on "para" would place it at the first preposition in the scene.
+_VACIAS = frozenset("""
+para pero como cuando donde porque aunque desde hasta sobre entre sin con los las una unos unas
+que del por más muy fue era son han hay este esta esto ese esa eso sus nos les ya solo tras
+""".split())
+
+
+def _palabras_ancla(texto: str) -> list[str]:
+    """The words in a slide point worth looking for in the narration.
+
+    Longest first: a long word is a rarer word, and a rarer word lands where
+    the point is actually said rather than at the first "que" in the scene."""
+    palabras = re.findall(r"[^\W\d_]{4,}", texto, re.UNICODE)
+    utiles = [p for p in palabras if _fold(p) not in _VACIAS]
+    return sorted(utiles, key=len, reverse=True)
+
+
+def _fold(texto: str) -> str:
+    plano = unicodedata.normalize("NFKD", texto.lower())
+    return "".join(c for c in plano if not unicodedata.combining(c))
+
+
+def _anclas_del_spec(spec: dict, revelados: int) -> list[str]:
+    """What each reveal after the first is 'about', as text to look for."""
+    tipo = (spec.get("tipo") or "").strip().lower()
+    if tipo in ("cronologia", "lista"):
+        puntos = [str(p) for p in (spec.get("puntos") or [])][:revelados]
+        return puntos + [""] * (revelados - len(puntos))
+    if tipo == "barras":
+        puntos = spec.get("puntos") or []
+        return [str(p.get("etiqueta", "")) if isinstance(p, dict) else ""
+                for p in puntos][:revelados]
+    if tipo == "comparacion":
+        return [str(spec.get("izquierda") or ""), str(spec.get("derecha") or "")][:revelados]
+    if tipo == "cifra":
+        return [str(spec.get("valor") or ""), str(spec.get("unidad") or ""),
+                str(spec.get("pie") or "")][:revelados]
+    if tipo == "proporcion":
+        return [str(spec.get("parte") or ""), str(spec.get("de_cada") or ""),
+                str(spec.get("pie") or "")][:revelados]
+    return [""] * revelados
+
+
+def momentos_de(
+    spec: dict, revelados: int, narracion: str, tiempos: list[float], duracion: float
+) -> list[float] | None:
+    """When each reveal should appear, read off the narration's own timing.
+
+    The slide and the narration say the same things in different words, but
+    they share the rare ones - a name, a program, a place - and the API
+    returns the time of every character it spoke. So each point is placed at
+    the moment its rarest word is said, and a point whose words never appear
+    keeps its share of what is left.
+
+    Returns None when nothing could be matched at all, and the caller shares
+    the scene out evenly as before: a slide built on one lucky match and four
+    guesses is worse than one that is honestly even."""
+    if revelados < 2 or not narracion or len(tiempos) != len(narracion) or duracion <= 0:
+        return None
+
+    plano = _fold(narracion)
+    anclas = _anclas_del_spec(spec, revelados)
+    # Never before the scene starts; the first reveal is the slide appearing.
+    momentos: list[float | None] = [0.0] + [None] * (revelados - 1)
+    # Searched left to right and never backwards: the points are in the order
+    # the script wrote them, and a later point matching an earlier word would
+    # put the reveals out of sequence.
+    desde = 0
+    encontrados = 0
+    for i in range(1, revelados):
+        for palabra in _palabras_ancla(anclas[i]):
+            pos = plano.find(_fold(palabra), desde)
+            if pos == -1:
+                continue
+            fin = min(pos + len(palabra), len(tiempos)) - 1
+            momentos[i] = float(tiempos[fin])
+            desde = pos + len(palabra)
+            encontrados += 1
+            break
+
+    if not encontrados:
+        return None
+
+    # Points nobody said are spread evenly between the two that were, so an
+    # unmatched point still arrives in its place in the run rather than all
+    # of them piling up at one end.
+    definitivos: list[float] = [0.0] * revelados
+    i = 0
+    while i < revelados:
+        if momentos[i] is not None:
+            definitivos[i] = momentos[i]
+            i += 1
+            continue
+        # How many in a row have no moment, and what brackets them.
+        j = i
+        while j < revelados and momentos[j] is None:
+            j += 1
+        antes = definitivos[i - 1] if i > 0 else 0.0
+        despues = momentos[j] if j < revelados else duracion
+        paso = (max(despues, antes) - antes) / (j - i + 1)
+        for k in range(i, j):
+            definitivos[k] = antes + paso * (k - i + 1)
+        i = j
+    # Monotonic: a matched point can still fall before one that was filled in.
+    for i in range(1, revelados):
+        definitivos[i] = max(definitivos[i], definitivos[i - 1])
+
+    # A reveal that lands with no time to be read is worse than one slightly
+    # early, so each gets a floor and the last must still be seen.
+    minimo = min(0.6, duracion / (revelados * 2))
+    for i in range(1, revelados):
+        definitivos[i] = max(definitivos[i], definitivos[i - 1] + minimo)
+    tope = duracion - minimo
+    if definitivos[-1] > tope:
+        # Squeezed back from the end, keeping the order.
+        for i in range(revelados - 1, 0, -1):
+            definitivos[i] = min(definitivos[i], tope - minimo * (revelados - 1 - i))
+            definitivos[i] = max(definitivos[i], definitivos[i - 1] + 0.05)
+    return definitivos
+
+
 # How long the finished slide holds after its last point has arrived. A build
 # that lands its final line and cuts immediately reads as an accident; the
 # viewer needs a moment with the whole thing.
@@ -558,7 +682,8 @@ _REMATE = 0.30
 
 
 def construir_clip(
-    frames: list[Image.Image], out_path: Path, duracion: float, fps: int = 30
+    frames: list[Image.Image], out_path: Path, duracion: float, fps: int = 30,
+    momentos: list[float] | None = None,
 ) -> Path | None:
     """Turns the reveal into a video clip of exactly `duracion` seconds.
 
@@ -579,10 +704,21 @@ def construir_clip(
         frame.save(ruta)
         rutas.append(ruta)
 
-    remate = min(_REMATE, duracion / (len(frames) + 1))
-    por_frame = (duracion - remate) / len(frames)
-    duraciones = [por_frame] * len(frames)
-    duraciones[-1] += remate
+    if momentos and len(momentos) == len(frames):
+        # Each reveal lasts until the next one is due. The moments come from
+        # where the narration actually says each point, so a slide whose first
+        # item is dwelt on and whose last three arrive in a rush is built that
+        # way too.
+        limites = list(momentos) + [duracion]
+        duraciones = [max(0.15, limites[i + 1] - limites[i]) for i in range(len(frames))]
+    else:
+        # No moments: share the scene out evenly. This was the only behaviour,
+        # and it is a guess - "each reveal answers to roughly a clause" was
+        # something I assumed rather than measured, and she heard it drift.
+        remate = min(_REMATE, duracion / (len(frames) + 1))
+        por_frame = (duracion - remate) / len(frames)
+        duraciones = [por_frame] * len(frames)
+        duraciones[-1] += remate
 
     # A second of slack on the final image, so the frame count below always
     # has material to reach. It is trimmed off, and it lands on the frame that

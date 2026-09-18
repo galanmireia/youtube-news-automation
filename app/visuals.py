@@ -244,7 +244,8 @@ def _download_to_file(url: str, out_path: Path) -> None:
 
 def fetch_clips_for_scenes(
     scenes: list[dict], out_dir: Path, aspect_ratio: str, scene_durations: list[float], is_sensitive: bool = False,
-    creditos: list[str] | None = None
+    creditos: list[str] | None = None,
+    marcas: list | None = None
 ) -> list[list[tuple[Path, dict | None]]]:
     """Returns, per scene, a list of (clip_path, name_tag) entries - normally
     just one, but up to _MAX_PHOTOS_PER_SCENE when a scene names several
@@ -308,13 +309,22 @@ def fetch_clips_for_scenes(
             width, height = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
             frames = slides.render(slide_spec, width, height)
             if frames:
+                # Where the narration says each point, when that is known.
+                momentos = None
+                marca = marcas[i] if marcas and i < len(marcas) else None
+                if marca:
+                    narracion, tiempos = marca
+                    momentos = slides.momentos_de(
+                        slide_spec, len(frames), narracion, tiempos, duration
+                    )
                 clip = slides.construir_clip(
-                    frames, out_dir / f"slide_{i:02d}.mp4", duration
+                    frames, out_dir / f"slide_{i:02d}.mp4", duration, momentos=momentos
                 )
                 if clip is not None:
                     logger.info(
-                        "Escena %s: diapositiva %r con %s revelados en %.1fs.",
+                        "Escena %s: diapositiva %r con %s revelados en %.1fs (%s).",
                         i, slide_spec.get("tipo"), len(frames), duration,
+                        "sincronizados con la narracion" if momentos else "repartidos por igual",
                     )
                     clip_entries.append([(clip, None)])
                     continue
