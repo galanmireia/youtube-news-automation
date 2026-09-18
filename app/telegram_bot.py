@@ -56,7 +56,13 @@ _PREVIEW_THRESHOLD_BYTES = 45 * 1024 * 1024
 # later /generar was answered with "ya hay una generacion en curso" until the
 # container was restarted. The stuck thread can't be killed from here, but
 # giving up on it releases the lock so the bot stays usable.
-_PIPELINE_TIMEOUT_SECONDS = 25 * 60
+# A six-minute video took sixteen minutes to build, most of it ffmpeg.
+# Fifteen minutes of video is fifty scenes to render and a much longer
+# join, so the old ceiling would have killed the run with the script and
+# the narration already paid for - the most expensive possible moment to
+# give up. The watchdogs inside video_builder are what catch a genuine
+# hang; this is only the outer limit.
+_PIPELINE_TIMEOUT_SECONDS = 50 * 60
 
 
 async def send_for_approval(bot, video_id: int) -> None:
@@ -245,7 +251,7 @@ _GENERATE_ARG_VARIANTS = {"s": ("short",), "v": ("long",)}
 #
 # If the long variant is ever lengthened to fifteen minutes, this moves to
 # about 10,900 with it. The two numbers have to change together.
-_CREDITOS_POR_VARIANTE = {"short": 700, "long": 2900}
+_CREDITOS_POR_VARIANTE = {"short": 700, "long": 10300}
 
 
 async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

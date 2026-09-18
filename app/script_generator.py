@@ -303,8 +303,8 @@ Usa una diapositiva cuando la escena tenga DATOS o SECUENCIA: cifras, fechas, un
 causas, un antes y un despues. NO la uses para ambiente ni para emocion, y NUNCA en una escena
 que ya tenga "photo_subject" con una persona: la cara real de alguien siempre gana.
 
-Pon entre 3 y 6 en todo el video, no en todas las escenas: si todo es diapositiva, ninguna
-destaca. Reparte los datos entre ellas en lugar de acumularlos en una - una diapositiva cuenta
+Pon una diapositiva cada 5 o 6 escenas, no en todas: si todo es diapositiva, ninguna destaca.
+En un video largo eso son entre 8 y 11; en un Short, una o ninguna. Reparte los datos entre ellas en lugar de acumularlos en una - una diapositiva cuenta
 UNA idea. Y escribe los puntos cortos, de una linea: son para leerse de un vistazo mientras
 hablas, no para leerse en voz alta.
 
@@ -459,8 +459,13 @@ _VARIANT_CONFIG = {
     },
     "long": {
         "format_hint": "Video horizontal (16:9) extendido para YouTube, no es un Short.",
-        "duration_hint": "3 a 5 minutos",
-        "scene_count_hint": "entre 16 y 24 escenas",
+        # Fifteen minutes because that is where the market study put the
+        # cliff, not because longer is better: the channels that clear it have
+        # enough material to hold it. Fifteen minutes of narration is about two
+        # thousand words, which at forty words a scene is fifty scenes of
+        # eighteen seconds - a documentary's pace, not a montage's.
+        "duration_hint": "unos 15 minutos",
+        "scene_count_hint": "entre 45 y 55 escenas",
         "scene_length_hint": (
             "Cada narracion puede tener hasta 2-3 frases; profundiza mas que en un Short: añade "
             "ejemplos concretos, cifras adicionales, comparaciones, cronologia mas detallada y "
@@ -494,7 +499,11 @@ def _strip_markdown_fence(text: str) -> str:
 # for the Short to have the smaller ceiling: the harder the story is to
 # compress, the more room the model needs, so a sixty-second video can need
 # MORE thinking than a five-minute one, not less. One number for both.
-_MAX_TOKENS = 20000
+# Raised with the long video's length: fifty scenes of six fields each is
+# several thousand tokens of JSON before the model has thought about
+# anything, and a reply cut off mid-object does not parse at all. An
+# unused ceiling costs nothing.
+_MAX_TOKENS = 32000
 _MAX_ATTEMPTS = 3
 
 # How much of the dossier each variant is allowed to read.

@@ -690,6 +690,37 @@ def _hablar_sin_marcas(
     return response.content
 
 
+_SENALES_DE_LARGO = ("too long", "maximum", "exceeds", "max_length", "character limit",
+                     "is longer than")
+
+
+def _demasiado_largo(response) -> bool:
+    texto = (getattr(response, "text", "") or "").lower()
+    return response.status_code in (400, 413, 422) and any(s in texto for s in _SENALES_DE_LARGO)
+
+
+def _partir_los_que_no_quepan(
+    voice_id: str, grupos: list[list[dict]], model: str, ajustes: dict
+) -> list[list[dict]]:
+    """Splits any group the model refuses for length, once, before spending.
+
+    Checked with the shortest possible request against the real endpoint would
+    cost a synthesis per group, so this only acts on groups big enough to be
+    worth doubting and splits them in half on a scene boundary - never
+    mid-sentence, which is where a seam is most audible."""
+    salida: list[list[dict]] = []
+    for grupo in grupos:
+        largo = sum(len(s.get("narration", "")) for s in grupo)
+        if largo <= _MAX_CHUNK_CHARS or len(grupo) < 2:
+            salida.append(grupo)
+            continue
+        mitad = len(grupo) // 2
+        logger.info("Toma de %s caracteres partida en dos por precaucion.", largo)
+        salida.append(grupo[:mitad])
+        salida.append(grupo[mitad:])
+    return salida
+
+
 def sintetizar_escenas(
     scenes: list[dict], out_dir: Path, marcas: list | None = None
 ) -> tuple[Path, list[float]]:
@@ -711,14 +742,34 @@ def sintetizar_escenas(
     duraciones: list[float] = []
     caracteres_totales = 0
 
+    # A take the model refuses for being too long is split and spoken in two,
+    # rather than losing the narration. It matters more now than it did: a
+    # fifteen-minute script is four times the text, so the chance of meeting
+    # whatever per-request limit this model has is four times higher, and the
+    # run it would throw away has a script and most of a narration already
+    # paid for.
+    grupos = _partir_los_que_no_quepan(voice_id, grupos, modelo, ajustes)
+
     hablado = 0
     for indice, grupo in enumerate(grupos):
         texto = " ".join(s.get("narration", "") for s in grupo)
         antes = " ".join(narraciones[max(0, hablado - 3):hablado])
         despues = " ".join(narraciones[hablado + len(grupo):hablado + len(grupo) + 3])
-        audio_bytes, finales = _hablar_con_marcas(
-            voice_id, texto, modelo, ajustes, antes, despues
-        )
+        try:
+            audio_bytes, finales = _hablar_con_marcas(
+                voice_id, texto, modelo, ajustes, antes, despues
+            )
+        except CloneError as exc:
+            if "largo" not in str(exc).lower() and "long" not in str(exc).lower():
+                raise
+            # Refused for length after all: speak it in halves and stitch them.
+            logger.warning("Toma rechazada por longitud; se habla en dos mitades.")
+            corte = texto.rfind(". ", 0, len(texto) // 2 + len(texto) // 4) + 1 or len(texto) // 2
+            partes = []
+            for trozo in (texto[:corte].strip(), texto[corte:].strip()):
+                if trozo:
+                    partes.append(_hablar_sin_marcas(voice_id, trozo, modelo, ajustes, "", ""))
+            audio_bytes, finales = b"".join(partes), None
         caracteres_totales += len(texto)
         trozo = AudioSegment.from_file(io.BytesIO(audio_bytes))
         real = len(trozo) / 1000.0
