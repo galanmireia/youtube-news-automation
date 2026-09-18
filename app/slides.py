@@ -57,7 +57,7 @@ _FONT_LIGHT = "DejaVuSans.ttf"
 # The slide kinds the script may ask for. Anything else is ignored rather than
 # guessed at - a misspelled kind should fall through to the ordinary imagery,
 # not render as an empty frame.
-TIPOS = ("cifra", "cronologia", "lista", "comparacion")
+TIPOS = ("cifra", "cronologia", "lista", "comparacion", "barras", "proporcion")
 
 
 def _alto_linea(fuente) -> int:
@@ -123,15 +123,25 @@ def cifra(valor: str, unidad: str, pie: str, width: int, height: int) -> list[Im
     and it lands last because that is the order the narration says it in."""
     margen = int(width * 0.08)
     ancho_util = width - margen * 2
-    frames = []
 
+    # Said the way it is spoken, not written out in full. "1.400.000.000" is
+    # thirteen glyphs; at the size a hero number wants, on a vertical frame,
+    # it did not fit at the smallest size the fitter would go to and ran off
+    # both edges. It is also not how anybody reads it aloud.
+    try:
+        valor = _valor_corto(float(valor.replace(".", "").replace(",", ".")))
+    except (AttributeError, ValueError):
+        pass
+
+    frames = []
     for paso in range(3):
         imagen, draw = _lienzo(width, height)
         # The figure is sized to the frame, not to a constant: a long number
-        # like "1.400.000" and a short one like "99" should both fill the
-        # space they are given rather than one overflowing and one looking lost.
+        # and a short one like "99" should both fill the space they are given
+        # rather than one overflowing and one looking lost. The floor is low
+        # enough that something always fits.
         fuente_valor = _fit_single_line_font(
-            draw, valor, ancho_util, int(height * 0.42), int(height * 0.10)
+            draw, valor, ancho_util, int(height * 0.42), int(height * 0.05)
         )
         caja = draw.textbbox((0, 0), valor, font=fuente_valor)
         alto_valor = caja[3] - caja[1]
@@ -333,6 +343,180 @@ def comparacion(
     return frames
 
 
+def _valor_legible(valor: float) -> str:
+    """A number as Spanish writes it, without trailing noise."""
+    if valor == int(valor):
+        return f"{int(valor):,}".replace(",", ".")
+    return f"{valor:,.1f}".replace(",", "@").replace(".", ",").replace("@", ".")
+
+
+def _valor_corto(valor: float) -> str:
+    """The same number, short enough not to outweigh the bar it labels.
+
+    "10.000.000.000" is thirteen glyphs and reads as a row of zeros rather
+    than as a quantity; rendered on a bar it was wider than the bar. Spanish
+    says it in two words, and two words is what a viewer with four seconds
+    actually reads."""
+    if valor >= 1_000_000:
+        millones = valor / 1_000_000
+        texto = _valor_legible(round(millones, 1) if millones < 10 else round(millones))
+        return f"{texto} millones"
+    return _valor_legible(valor)
+
+
+def barras(
+    puntos: list[dict], titulo: str, width: int, height: int
+) -> list[Image.Image]:
+    """Magnitudes compared, one bar arriving at a time.
+
+    One series, so one colour and no legend - the heading says what is being
+    measured, and a legend box with a single swatch would only restate it. The
+    UNIT belongs in that heading too, for the same reason: repeating "$" on
+    every bar is the legend problem again, one row down.
+
+    No gridlines either. With five bars or fewer the value sits on each bar's
+    tip, and a direct label is worth more than the axis it replaces; drawing
+    both would be ink that is not data. The bar is capped well inside its band
+    so the leftover is air rather than a filled slot, its end is rounded and
+    its base is square, and the label moves outside the bar when it will not
+    fit inside with room to breathe - a clipped number is worse than one
+    standing beside the bar.
+    """
+    limpios = []
+    for punto in puntos[:5]:
+        if not isinstance(punto, dict):
+            continue
+        etiqueta = str(punto.get("etiqueta") or "").strip()
+        try:
+            valor = float(str(punto.get("valor")).replace(".", "").replace(",", "."))
+        except (TypeError, ValueError):
+            continue
+        if etiqueta and valor > 0:
+            limpios.append((etiqueta, valor))
+    if len(limpios) < 2:
+        # One bar is not a comparison; that is a figure, and `cifra` draws it
+        # better than a chart with nothing to compare against would.
+        return []
+
+    margen = int(width * 0.08)
+    medidor = ImageDraw.Draw(Image.new("RGB", (width, height)))
+    fuente_etq = _load_font(_FONT, max(20, width // 46))
+    fuente_val = _load_font(_FONT, max(22, width // 40))
+
+    mayor = max(v for _, v in limpios)
+    ancho_etq = max(_text_width(medidor, e, fuente_etq) for e, _ in limpios)
+    x0 = margen + ancho_etq + max(20, width // 60)
+    ancho_max = width - x0 - margen - max(90, width // 12)
+
+    y0 = _titulo(medidor, titulo, width, int(height * 0.13))
+    banda = int((height * 0.88 - y0) / len(limpios))
+    # Capped inside the band: the leftover is air, not a filled slot.
+    grosor = min(int(banda * 0.5), max(28, height // 18))
+    radio = max(4, grosor // 6)
+
+    frames = []
+    for revelados in range(1, len(limpios) + 1):
+        imagen, draw = _lienzo(width, height)
+        _titulo(draw, titulo, width, int(height * 0.13))
+        for i, (etiqueta, valor) in enumerate(limpios):
+            visible = i < revelados
+            actual = i == revelados - 1
+            cy = y0 + banda * i + banda // 2
+            arriba, abajo = cy - grosor // 2, cy + grosor // 2
+
+            color_texto = TEXT_COLOR if actual else (_MUTED_COLOR if visible else _PENDING_COLOR)
+            draw.text(
+                (x0 - max(20, width // 60) - _text_width(draw, etiqueta, fuente_etq),
+                 cy - _alto_linea(fuente_etq) // 2),
+                etiqueta, font=fuente_etq, fill=color_texto,
+            )
+            if not visible:
+                continue
+            largo = max(radio * 2, int(ancho_max * valor / mayor))
+            # Square at the baseline, rounded at the data end.
+            draw.rectangle([x0, arriba, x0 + largo - radio, abajo], fill=ACCENT_COLOR)
+            draw.rounded_rectangle(
+                [x0 + largo - radio * 2, arriba, x0 + largo, abajo],
+                radius=radio, fill=ACCENT_COLOR,
+            )
+            texto_val = _valor_corto(valor)
+            ancho_val = _text_width(draw, texto_val, fuente_val)
+            # Measured, not assumed: inside only when it fits with padding.
+            hueco = max(14, width // 90)
+            if ancho_val + hueco * 2 <= largo:
+                # Set INSIDE the fill, so the colour is chosen against the
+                # fill and not against the surface. Computed rather than
+                # eyeballed: the surface colour on this red is 3.03:1, which
+                # fails for anything but large text; the ink colour is 4.94:1.
+                vx, color_val = x0 + largo - hueco - ancho_val, TEXT_COLOR
+            else:
+                vx, color_val = x0 + largo + hueco, color_texto
+            draw.text((vx, cy - _alto_linea(fuente_val) // 2), texto_val,
+                      font=fuente_val, fill=color_val)
+        frames.append(imagen)
+    return frames
+
+
+def proporcion(
+    parte: str, de_cada: str, titulo: str, pie: str, width: int, height: int
+) -> list[Image.Image]:
+    """One share of a whole: the number, then the share filling its track.
+
+    A single percentage is a figure before it is a chart, so the number leads
+    and the bar follows to say how much of the whole that is. The remainder is
+    a step off the surface rather than a second colour - there is one measure
+    here, and a second hue would invent a second series."""
+    try:
+        porcentaje = float(str(parte).replace("%", "").replace(",", ".").strip())
+    except (TypeError, ValueError):
+        return []
+    if not 0 < porcentaje <= 100:
+        return []
+
+    margen = int(width * 0.08)
+    ancho_util = width - margen * 2
+    medidor = ImageDraw.Draw(Image.new("RGB", (width, height)))
+    fuente_cifra = _fit_single_line_font(
+        medidor, f"{_valor_legible(porcentaje)}%", ancho_util,
+        int(height * 0.30), int(height * 0.12),
+    )
+    # Fitted to the frame, not set at a nominal size. "de todos los ordenadores
+    # conectados en 1988" at a fixed size ran off the right edge and the last
+    # word was cut in half - a label that does not fit is measured, never
+    # clipped. Shrunk to a floor first, then allowed to wrap below it.
+    fuente_de = _fit_single_line_font(
+        medidor, (de_cada or "").upper(), ancho_util, max(22, width // 30), max(15, width // 52)
+    )
+    fuente_pie = _load_font(_FONT_LIGHT, max(20, width // 36))
+
+    frames = []
+    for paso in range(3):
+        imagen, draw = _lienzo(width, height)
+        y = _titulo(draw, titulo, width, int(height * 0.12)) if titulo else int(height * 0.18)
+
+        texto_cifra = f"{_valor_legible(porcentaje)}%"
+        draw.text((margen, y), texto_cifra, font=fuente_cifra, fill=TEXT_COLOR)
+        y += _alto_linea(fuente_cifra) + int(height * 0.04)
+
+        alto_pista = max(18, height // 34)
+        radio = alto_pista // 2
+        draw.rounded_rectangle([margen, y, margen + ancho_util, y + alto_pista],
+                               radius=radio, fill=(46, 41, 38))
+        if paso >= 1:
+            largo = max(alto_pista, int(ancho_util * porcentaje / 100))
+            draw.rounded_rectangle([margen, y, margen + largo, y + alto_pista],
+                                   radius=radio, fill=ACCENT_COLOR)
+        y += alto_pista + int(height * 0.035)
+
+        if paso >= 1 and de_cada:
+            y = _parrafo(draw, de_cada.upper(), fuente_de, margen, y, ancho_util, _MUTED_COLOR)
+            y += int(height * 0.025)
+        if paso >= 2 and pie:
+            _parrafo(draw, pie, fuente_pie, margen, y, ancho_util, _MUTED_COLOR)
+        frames.append(imagen)
+    return frames
+
+
 def render(spec: dict, width: int, height: int) -> list[Image.Image]:
     """Draws whatever slide the script asked for, or nothing.
 
@@ -352,6 +536,11 @@ def render(spec: dict, width: int, height: int) -> list[Image.Image]:
             return cronologia(spec.get("puntos") or [], titulo, width, height)
         if tipo == "lista":
             return lista(spec.get("puntos") or [], titulo, width, height)
+        if tipo == "barras":
+            return barras(spec.get("puntos") or [], titulo, width, height)
+        if tipo == "proporcion":
+            return proporcion(spec.get("parte") or "", (spec.get("de_cada") or "").strip(),
+                              titulo, (spec.get("pie") or "").strip(), width, height)
         if tipo == "comparacion":
             return comparacion((spec.get("izquierda") or ""), (spec.get("derecha") or ""),
                                titulo, width, height)

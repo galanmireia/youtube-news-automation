@@ -325,6 +325,19 @@ Cuatro tipos, cada uno con su forma exacta:
              "puntos": ["un fallo en sendmail", "contraseñas débiles"]}}
       Para causas, errores, consecuencias. Entre 2 y 5 puntos.
 
+  "slide": {{"tipo": "barras", "titulo": "Coste de la limpieza, en dólares",
+             "puntos": [{{"etiqueta": "Gusano Morris (1988)", "valor": "10000000"}},
+                        {{"etiqueta": "WannaCry (2017)", "valor": "4000000000"}}]}}
+      Un GRAFICO DE BARRAS, para comparar magnitudes: costes, numero de afectados, duracion.
+      Entre 2 y 5 barras (con una sola no hay nada que comparar). "valor" va solo con el numero,
+      sin puntos, sin comas y sin simbolos - la UNIDAD va en el titulo, no en cada barra.
+
+  "slide": {{"tipo": "proporcion", "titulo": "Cuanto internet cayo", "parte": "10",
+             "de_cada": "de todos los ordenadores conectados en 1988",
+             "pie": "Unas 6.000 maquinas de las 60.000 que existian."}}
+      Para UNA parte de un todo. "parte" es el porcentaje, solo el numero. Usalo cuando la
+      noticia diga "el X% de" algo; si solo tienes la cifra absoluta, usa "cifra".
+
   "slide": {{"tipo": "comparacion", "titulo": "Lo que quería y lo que hizo",
              "izquierda": "contar cuántas máquinas había",
              "derecha": "tumbar el diez por ciento de la red"}}
@@ -335,7 +348,10 @@ Todo el texto de la diapositiva va en español con SUS TILDES: se lee en pantall
 palabra sin tilde ahi es una falta de ortografia a pantalla completa.
 
 En las escenas que no lleven diapositiva, pon "slide": null. No inventes cifras ni fechas para
-poder poner una: si la escena no tiene datos en la noticia, no lleva diapositiva.
+poder poner una: si la escena no tiene datos en la noticia, no lleva diapositiva. Esto vale
+DOBLE para "barras" y "proporcion": un grafico con un numero inventado miente con mucha mas
+autoridad que una frase, porque parece medido. Si solo tienes una de las dos cifras que hacen
+falta para comparar, usa "cifra" y no un grafico.
 
 Texto destacado en pantalla ("on_screen_highlight"): para cada escena, un texto corto EN ESPAÑOL
 (3 a 6 palabras) con el dato o hecho mas concreto y verificable de esa narracion, para reforzar
