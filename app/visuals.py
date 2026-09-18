@@ -61,6 +61,13 @@ _MIN_SCENES_BETWEEN_CARDS = 3
 # corner badge over the image.
 _FIRST_SCENE_ELIGIBLE_FOR_CARD = 2
 
+# How long before a face may appear again, and how often in total. Three
+# scenes is far enough apart that it reads as returning to somebody rather
+# than as a loop; four appearances across a twenty-five scene video is roughly
+# how often a documentary cuts back to its subject.
+_ESCENAS_ENTRE_REPETICIONES = 3
+_MAX_VECES_MISMA_FOTO = 4
+
 # Longest a card may stay on screen. A card holds one still frame for the
 # whole scene, so an 8-second scene became 8 seconds of black with four words
 # on it - an accent turned into a dead stop. Past this the scene gets imagery
@@ -81,6 +88,26 @@ _MAX_CARD_SECONDS = 4.0
 # wanted: the AI image is for what cannot be filmed, not for everything.
 _MAX_AI_IMAGES = {"9:16": 3, "16:9": 4}
 _MAX_AI_IMAGES_DEFAULT = 2
+
+# A FIXED quota does not survive the video getting longer. Four was sized for
+# a twenty-scene video and ran out at scene eight of twenty-four - the sixteen
+# scenes after it asked for an illustration and got stock footage of a
+# keyboard. One image per four scenes keeps the ratio the number was chosen
+# for, and keeps it when the long video grows to fifteen minutes.
+#
+# The floor is there for a Short, the ceiling because at four cents an image
+# this is the largest cash cost in a video and it should stay bounded no
+# matter how long a script runs.
+_ESCENAS_POR_ILUSTRACION = 4
+_MIN_ILUSTRACIONES = 3
+_MAX_ILUSTRACIONES = 14
+
+
+def _cupo_de_ilustraciones(escenas: int, aspect_ratio: str) -> int:
+    if aspect_ratio == "9:16":
+        return _MAX_AI_IMAGES["9:16"]
+    return max(_MIN_ILUSTRACIONES,
+               min(_MAX_ILUSTRACIONES, escenas // _ESCENAS_POR_ILUSTRACION))
 
 # requests' `timeout` only limits the wait between two chunks of data, so a
 # download that trickles in forever never trips it. These cap the whole
@@ -259,9 +286,14 @@ def fetch_clips_for_scenes(
     # entity named in several scenes (e.g. "Junta Electoral Central") showed
     # the identical picture every time, which read as the video looping.
     used_photo_urls: set[str] = set()
+    # When each photo was last shown, so a face can come back.
+    ultima_aparicion: dict[str, int] = {}
+    veces_usada: dict[str, int] = {}
     # Far enough back that the first eligible scene can use one.
     last_card_index = -_MIN_SCENES_BETWEEN_CARDS - 1
-    ai_images_left = _MAX_AI_IMAGES.get(aspect_ratio, _MAX_AI_IMAGES_DEFAULT)
+    ai_images_left = _cupo_de_ilustraciones(len(scenes), aspect_ratio)
+    logger.info("Cupo de ilustraciones por IA para este video: %s (%s escenas).",
+                ai_images_left, len(scenes))
     for i, scene in enumerate(scenes):
         duration = scene_durations[i] if i < len(scene_durations) else 0.0
 
@@ -335,10 +367,37 @@ def fetch_clips_for_scenes(
             if len(found) >= max_photos:
                 break
             candidate_path = out_dir / f"clip_{i:02d}_{len(found)}.jpg"
-            result = real_photos.fetch_portrait(candidate, candidate_path, exclude_urls=used_photo_urls)
+            # A PERSON'S photograph may come back; a building may not.
+            #
+            # The protagonist of a story is named in half its scenes, and there
+            # is usually exactly one free photograph of him. Refusing to repeat
+            # it meant that after two scenes, six more that were about Robert
+            # Morris fell through to stock footage of a courtroom gavel - a
+            # stranger's gavel is not a better picture of him than his own face
+            # shown again. A campus is different: it carries no story, so a
+            # second look at it is just padding.
+            #
+            # The gap keeps it from reading as a loop, and the builder's pan
+            # alternates direction on each use, so a return is not an identical
+            # shot.
+            es_persona = candidate in {
+                e.get("name", "").strip() for e in detected_entities
+                if e.get("type") == "person"
+            }
+            reutilizables = {
+                url for url, cuando in ultima_aparicion.items()
+                if es_persona
+                and i - cuando >= _ESCENAS_ENTRE_REPETICIONES
+                and veces_usada.get(url, 0) < _MAX_VECES_MISMA_FOTO
+            }
+            result = real_photos.fetch_portrait(
+                candidate, candidate_path, exclude_urls=used_photo_urls - reutilizables
+            )
             if result is not None:
                 photo_path, photo_url = result
                 used_photo_urls.add(photo_url)
+                ultima_aparicion[photo_url] = i
+                veces_usada[photo_url] = veces_usada.get(photo_url, 0) + 1
                 if creditos is not None:
                     creditos.append(photo_url)
                 role = (
@@ -398,7 +457,7 @@ def fetch_clips_for_scenes(
             logger.info(
                 "Escena %s: pedia ilustracion por IA, pero este video ya ha gastado su cupo de %s.",
                 i,
-                _MAX_AI_IMAGES.get(aspect_ratio, _MAX_AI_IMAGES_DEFAULT),
+                _cupo_de_ilustraciones(len(scenes), aspect_ratio),
             )
             ai_image_prompt = ""
         if ai_image_prompt:
