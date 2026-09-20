@@ -25,7 +25,7 @@ from . import research
 from .news_picker import pick_best_story
 from .news_source import fetch_candidate_news
 from .topic_source import fetch_candidate_topics, fetch_topic_by_term
-from .script_generator import generate_script
+from .script_generator import generate_script, _trim_sources
 from .subtitles import generate_subtitles
 from .thumbnail import generate_thumbnail
 from . import real_photos
@@ -480,7 +480,21 @@ def resume_voice_job(job_file: Path, recording_path: Path) -> int:
 # minutes - long enough for a story with a turn in it, short enough that a
 # viewer who finds one case dull is a minute from the next.
 CASOS_POR_VIDEO = 5
-_CHARS_POR_CASO = 9000
+# How much of each case's dossier reaches the script.
+#
+# Nine thousand was sized when a dossier meant Wikipedia and nothing else.
+# Measured on Cicada 3301 with the open-web reader working: 8,210 words of
+# first-hand material on top of the article - four of the six sources
+# rescued from the archive. Nine thousand characters is about 1,400 words,
+# so the cut was throwing away roughly four fifths of what had just been
+# fetched, including every reference, because they sit at the END of the
+# dossier where the cut lands.
+#
+# Five cases at twenty-five thousand is 125,000 characters, about 31,000
+# tokens of input - a few cents, and the story sits after the prompt-cache
+# marker so it does not invalidate the cached instructions. Reading it is
+# far cheaper than fetching it was.
+_CHARS_POR_CASO = 25000
 
 
 def _recopilatorio(casos: list[dict]) -> dict:
@@ -571,7 +585,13 @@ def _choose_and_prepare(forced_topic: str | None) -> tuple[dict | None, Path | N
                 logger.exception("No se pudo montar el dosier de %r.", caso)
                 continue
             if d:
-                partes.append(f"########## CASO: {caso} ##########\n{d[:_CHARS_POR_CASO]}")
+                # Cut on a source boundary, never mid-sentence: the sources
+                # are labelled so the script can cross them, and one that
+                # stops halfway reads as a document contradicting itself
+                # rather than as one that ended.
+                partes.append(
+                    f"########## CASO: {caso} ##########\n"
+                    f"{_trim_sources(d, _CHARS_POR_CASO)}")
         dosier = "\n\n".join(partes)
         if len(dosier) > len(news_item.get("summary") or ""):
             news_item = {**news_item, "summary": dosier}

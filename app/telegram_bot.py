@@ -935,8 +935,9 @@ async def handle_sources_command(update: Update, context: ContextTypes.DEFAULT_T
 
     async def trabajo():
         def medir(tema):
-            if not research.existe(WIKI_LANG, tema):
-                return None
+            hay = research.existe(WIKI_LANG, tema)
+            if hay is not True:
+                return hay  # False = no existe; None = Wikipedia no contesto
             # The same articles build_dossier reads, so what this reports is
             # what a real run would get, not a different question.
             idiomas = [(WIKI_LANG, tema)]
@@ -959,9 +960,16 @@ async def handle_sources_command(update: Update, context: ContextTypes.DEFAULT_T
             if medido is None:
                 await context.bot.send_message(
                     chat_id=TELEGRAM_CHAT_ID,
-                    text=f"«{tema}»: NO existe ese articulo en Wikipedia en espanol. "
-                         "No es que no tenga fuentes: es que no existe. "
-                         "Comprueba el nombre exacto.")
+                    text=f"«{tema}»: Wikipedia ({WIKI_LANG}) no ha contestado a la "
+                         "comprobacion. NO quiere decir que el articulo no exista. "
+                         "Vuelve a lanzarlo.")
+                continue
+            if medido is False:
+                await context.bot.send_message(
+                    chat_id=TELEGRAM_CHAT_ID,
+                    text=f"«{tema}»: NO existe ese articulo en la Wikipedia en "
+                         f"{WIKI_LANG}. No es que no tenga fuentes: es que no "
+                         "existe con ese nombre exacto.")
                 continue
 
             idiomas, candidatas, leidas = medido

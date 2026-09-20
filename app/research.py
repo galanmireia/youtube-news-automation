@@ -233,17 +233,24 @@ def _menciona(cuerpo: str, caso: str) -> bool:
     return len(ultimo) >= 5 and _fold(ultimo) in plegado
 
 
-def existe(lang: str, title: str) -> bool:
-    """Is there an article under this exact name?
+def existe(lang: str, title: str) -> bool | None:
+    """Is there an article under this exact name? None when Wikipedia did not
+    answer at all.
 
-    Worth its own call because the two ways a probe comes back empty look
-    identical from the outside and mean opposite things. "The article exists
-    and cites nothing we can read" is a finding about the case. "There is no
-    such article" is a typo. Reporting the second as the first is how you
-    conclude a feature does not work without ever having tested it."""
+    Three outcomes, not two, and the third is the one that keeps getting
+    lost. "The article exists and cites nothing we can read" is a finding
+    about the case. "There is no such article" is a typo in the catalogue.
+    "The request failed" is neither, and answering it with False tells
+    somebody their article does not exist when what happened is that a
+    request timed out. That is not a wording problem: it sends them off to
+    fix a title that was correct. existen() below already had this right;
+    this one did not, and it said Webdriver Torso - which is on the English
+    Wikipedia - did not exist."""
     data = _get(lang, action="query", titles=title)
-    paginas = data.get("query", {}).get("pages", {})
-    return any("missing" not in p for p in paginas.values()) if paginas else False
+    paginas = data.get("query", {}).get("pages")
+    if not paginas:
+        return None
+    return any("missing" not in p for p in paginas.values())
 
 
 def existen(lang: str, titulos: list[str], lote: int = 50) -> dict[str, bool]:
