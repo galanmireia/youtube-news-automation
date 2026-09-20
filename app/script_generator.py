@@ -641,7 +641,19 @@ _FRACCION_APROVECHABLE = 0.30
 
 # The floor is not a target, it is an admission: below this there is not
 # enough for a long video at all, and the honest output is a shorter one.
-_MINUTOS_MINIMO, _MINUTOS_MAXIMO = 6, 15
+#
+# The ceiling came down from fifteen to ten when the compilation format and
+# the open-web sources landed together, for two reasons. With five cases at
+# twenty-five thousand characters each there is always more material than
+# fifteen minutes can hold, so the adaptive sizing was pinned at the ceiling
+# and had stopped adapting - every video would come out the same length
+# whatever was found. And ten minutes is two minutes a case instead of
+# three, which is where this niche's compilations actually sit.
+#
+# It also costs about 7,500 credits to narrate instead of 11,300, and that
+# matters while the chain is still being proved: the first run of something
+# new is better discovered cheap.
+_MINUTOS_MINIMO, _MINUTOS_MAXIMO = 6, 10
 _PALABRAS_POR_MINUTO_HABLADO = 132
 _PALABRAS_POR_ESCENA = 40
 

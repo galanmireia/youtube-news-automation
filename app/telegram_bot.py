@@ -255,7 +255,7 @@ _GENERATE_ARG_VARIANTS = {"s": ("short",), "v": ("long",)}
 # The long video is no longer a fixed length - it is sized to how much
 # material the case has - so this is a CEILING and says so, rather than
 # a figure that would be wrong for every video that came in shorter.
-_CREDITOS_POR_VARIANTE = {"short": 700, "long": 10300}
+_CREDITOS_POR_VARIANTE = {"short": 700, "long": 7500}
 
 
 async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
