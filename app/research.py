@@ -28,19 +28,27 @@ give back per line of code here:
      article's own outgoing links and keeping the ones the article itself
      keeps coming back to.
 
-What this module deliberately does not do is follow citations out to the open
-web. Wikipedia's references are where the real reports live, but they are
-arbitrary third-party pages - paywalls, PDFs, dead links, unknown licences,
-unknown reliability - and fetching them at generation time would be slow,
-fragile and legally murky. Everything here stays inside Wikimedia, which is
-free-licensed, fast, and consistent in shape.
+  4. Read the sources Wikipedia read. This module used to refuse to, and the
+     refusal is now wrong for this catalogue. A Wikipedia article is a
+     summary written to be short: it gives the sequence of a case and almost
+     none of the texture, and every channel covering these cases is reading
+     that same summary. The references under it are where somebody actually
+     went and looked - the indictment with the figures in it, the ten
+     thousand word reportage with the people in it, the archived copy of the
+     page that no longer exists. What made this risky was fetching arbitrary
+     pages; open_web.py does not do that. It reads only a reference the
+     article itself cites, only from a list of domains, and only for facts,
+     which is what a journalist does with a source and is not a licence
+     question. See that module for the rest of the reasoning.
 """
+import concurrent.futures
 import logging
 import re
 import unicodedata
 
 import requests
 
+from . import open_web
 from .config import CHANNEL_NAME
 
 logger = logging.getLogger(__name__)
@@ -61,6 +69,17 @@ _RELATED_CHARS = 7000
 _LANG_PRIORITY = ("es", "en", "it", "fr", "de", "pt", "nl", "ru", "ja", "no", "sv")
 _MAX_LANGS = 3
 _MAX_RELATED = 7
+
+# References are the slowest part of the dossier by far - a dead domain costs
+# a full timeout - and in compilation mode this runs once per case, so the
+# budget is small and the reads happen at the same time rather than one after
+# another. Four good references is already more first-hand material than the
+# Wikipedia article itself carries.
+_MAX_REFERENCIAS = 4
+_REF_CHARS = 14000
+# One per domain. Six BBC pages about the same case are one source that has
+# been fetched six times, and they crowd out the indictment.
+_MAX_POR_DOMINIO = 1
 
 _HEADERS = {
     "User-Agent": f"{CHANNEL_NAME}NewsBot/1.0 "
@@ -192,6 +211,95 @@ def _menciona(cuerpo: str, caso: str) -> bool:
     return len(ultimo) >= 5 and _fold(ultimo) in plegado
 
 
+def _enlaces_externos(lang: str, title: str) -> list[str]:
+    """Every external URL the article cites."""
+    data = _get(lang, action="query", prop="extlinks", ellimit=500, titles=title)
+    urls = []
+    for page in data.get("query", {}).get("pages", {}).values():
+        for enlace in page.get("extlinks") or []:
+            url = enlace.get("*") or ""
+            if url.startswith("//"):
+                url = "https:" + url
+            if url.startswith("http"):
+                urls.append(url)
+    return urls
+
+
+def referencias_de(articulos: list[tuple[str, str]]) -> list[tuple[int, str, str]]:
+    """The references worth reading, best first, as (rank, group name, url).
+
+    Pooled across every language article being read, because which sources an
+    article cites depends on who wrote it: the Spanish article cites Spanish
+    press, the English one cites the reporting that the Spanish one is
+    summarising. Ranking is by group, so one court document outranks any
+    amount of general press, and no domain appears twice.
+    """
+    candidatas: list[tuple[int, str, str, str]] = []
+    vistas: set[str] = set()
+    for lang, titulo in articulos:
+        for url in _enlaces_externos(lang, titulo):
+            limpia = url.split("#")[0]
+            if limpia in vistas:
+                continue
+            vistas.add(limpia)
+            nivel = open_web.nivel_de(limpia)
+            if nivel:
+                rango, nombre, dominio = nivel
+                candidatas.append((rango, nombre, limpia, dominio))
+
+    candidatas.sort(key=lambda c: c[0])
+    por_emisor: dict[str, int] = {}
+    elegidas: list[tuple[int, str, str]] = []
+    for rango, nombre, url, dominio in candidatas:
+        emisor = open_web.emisor_de(url, dominio)
+        if por_emisor.get(emisor, 0) >= _MAX_POR_DOMINIO:
+            continue
+        por_emisor[emisor] = por_emisor.get(emisor, 0) + 1
+        elegidas.append((rango, nombre, url))
+    return elegidas
+
+
+def leer_referencias(candidatas: list[tuple[int, str, str]],
+                     cuantas: int = _MAX_REFERENCIAS) -> list[tuple[str, str, str, str]]:
+    """Read the top candidates at the same time.
+
+    Returns (group, url asked for, url actually read, text). The two URLs are
+    both reported because they differ exactly when it matters: a page rescued
+    from the archive comes back under a web.archive.org address, and a caller
+    that only had that one could not tell which reference it belonged to - it
+    would look like a reference that failed plus one that appeared from
+    nowhere.
+
+    More candidates are attempted than are wanted, because a good share of
+    them come back empty - paywalled, parked, or gone without an archived
+    copy - and finding that out costs a timeout either way. Reading them in
+    parallel means the whole set costs one timeout rather than eight.
+    """
+    intentos = candidatas[: cuantas * 2]
+    if not intentos:
+        return []
+    leidas: list[tuple[str, str, str, str]] = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        futuros = {pool.submit(open_web.leer, url): (nombre, url)
+                   for _, nombre, url in intentos}
+        resultados = {}
+        for futuro in concurrent.futures.as_completed(futuros):
+            nombre, url = futuros[futuro]
+            try:
+                texto, url_real = futuro.result()
+            except Exception:  # noqa: BLE001 - one bad page never stops a dossier
+                logger.warning("Fallo leyendo la referencia %s", url, exc_info=True)
+                continue
+            if texto:
+                resultados[url] = (nombre, url, url_real, texto)
+    # Back into ranked order: as_completed returns them by who answered first,
+    # which is the opposite of the order that matters.
+    for _, _, url in intentos:
+        if url in resultados and len(leidas) < cuantas:
+            leidas.append(resultados[url])
+    return leidas
+
+
 _IDIOMA = {
     "es": "español", "en": "inglés", "it": "italiano", "fr": "francés",
     "de": "alemán", "pt": "portugués", "nl": "neerlandés", "ru": "ruso",
@@ -240,13 +348,29 @@ def build_dossier(title: str, lang: str = "es") -> str:
             f"===== FUENTE {len(partes) + 1} · articulo relacionado · «{relacionado}» =====\n{texto}"
         )
 
+    articulos = [(lang, title)] + elegidos
+    candidatas = referencias_de(articulos)
+    referencias = leer_referencias(candidatas)
+    for nombre, _pedida, url, texto in referencias:
+        partes.append(
+            f"===== FUENTE {len(partes) + 1} · {nombre} · {url} =====\n"
+            f"(Fuente citada por Wikipedia, leida directamente. Es material de "
+            f"primera mano: usalo para el detalle, las cifras y las fechas. "
+            f"NO reproduzcas su redaccion.)\n{texto[:_REF_CHARS]}"
+        )
+
     dosier = "\n\n".join(partes)
     logger.info(
-        "Dosier de %r: %s fuentes, %s caracteres (idiomas: %s; relacionados: %s).",
+        "Dosier de %r: %s fuentes, %s caracteres (idiomas: %s; relacionados: %s; "
+        "referencias: %s de %s candidatas).",
         title, len(partes), len(dosier),
         ", ".join([lang] + [l for l, _ in elegidos]),
-        len(partes) - 1 - len(elegidos),
+        len(partes) - 1 - len(elegidos) - len(referencias),
+        len(referencias), len(candidatas),
     )
+    if referencias:
+        logger.info("Referencias leidas: %s.",
+                    "; ".join(f"{n} · {u}" for n, _p, u, _t in referencias))
     if descartados:
         logger.info(
             "Descartados por no mencionar %r (son contexto, no fuente): %s.",

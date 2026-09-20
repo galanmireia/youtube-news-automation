@@ -835,6 +835,93 @@ async def handle_dossier_command(update: Update, context: ContextTypes.DEFAULT_T
     context.application.create_task(trabajo())
 
 
+async def handle_sources_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/fuentes <caso> - which sources outside Wikipedia this case actually has.
+
+    The reason this exists: from where the code is written, every one of these
+    domains is blocked by the network, so whether the open-web layer returns
+    anything cannot be checked there - only guessed at. Guessing is exactly
+    how a feature gets shipped that quietly returns nothing, and the dossier
+    would still look fine, because it would still have Wikipedia in it.
+
+    This runs where the bot runs, which does reach them, and reports the
+    outcome per reference: the ones read, how much they gave, the ones that
+    came back dead or paywalled, and the ones rescued from the archive. It
+    generates nothing and costs nothing - no model is called - so it can be
+    run on a case before deciding to make a video about it."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    tema = " ".join(context.args).strip()
+    if not tema:
+        await update.message.reply_text("Dime de que caso: /fuentes Silk Road")
+        return
+    await update.message.reply_text(
+        f"Buscando fuentes de *{tema}* fuera de Wikipedia...", parse_mode="Markdown")
+    loop = asyncio.get_running_loop()
+
+    async def trabajo():
+        def medir():
+            # The same articles build_dossier reads, so what this reports is
+            # what a real run would get, not a different question.
+            idiomas = [("es", tema)]
+            otros = research._translations("es", tema)
+            idiomas += [(l, otros[l]) for l in research._LANG_PRIORITY
+                        if l in otros and l != "es"][: research._MAX_LANGS - 1]
+            candidatas = research.referencias_de(idiomas)
+            leidas = research.leer_referencias(candidatas)
+            return idiomas, candidatas, leidas
+
+        try:
+            idiomas, candidatas, leidas = await loop.run_in_executor(None, medir)
+        except Exception:
+            logger.exception("Error sondeando las fuentes de %r", tema)
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID, text="No he podido sondear las fuentes. Mira los logs.")
+            return
+
+        if not candidatas:
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID,
+                text=f"«{tema}»: Wikipedia no cita ninguna fuente de la lista. "
+                     "El video saldria solo de Wikipedia. Si el nombre del "
+                     "articulo no es exacto, prueba con el exacto.")
+            return
+
+        lineas = [f"*{tema}*",
+                  f"Wikipedia en: {', '.join(l for l, _ in idiomas)}",
+                  f"{len(candidatas)} referencias en la lista · {len(leidas)} leidas", ""]
+        palabras_extra = 0
+        for nombre, _pedida, url, texto in leidas:
+            palabras = len(texto.split())
+            palabras_extra += palabras
+            marca = " (del archivo)" if "web.archive.org" in url else ""
+            dominio = url.split("/")[2] if "//" in url else url
+            lineas.append(f"  ✓ {nombre} · {dominio}{marca} — {palabras:,} palabras".replace(",", "."))
+
+        # Only the ones that were actually attempted can be called failures.
+        # The rest were never tried: the budget ran out first, and reporting
+        # them as dead would be inventing a result.
+        intentadas = candidatas[: research._MAX_REFERENCIAS * 2]
+        conseguidas = {pedida for _n, pedida, _u, _t in leidas}
+        for _rango, nombre, url in intentadas:
+            if url in conseguidas:
+                continue
+            dominio = url.split("/")[2] if "//" in url else url
+            lineas.append(f"  ✗ {nombre} · {dominio} — muerta, de pago o vacia")
+
+        lineas.append("")
+        lineas.append(
+            f"{palabras_extra:,} palabras que Wikipedia NO tiene.".replace(",", "."))
+        if not leidas:
+            lineas.append(
+                "Ninguna respondio: este caso saldria solo de Wikipedia, "
+                "igual que el de cualquier otro canal.")
+        await context.bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID, text="\n".join(lineas), parse_mode="Markdown")
+
+    context.application.create_task(trabajo())
+
+
 async def handle_account_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/cuenta - what the ElevenLabs subscription actually allows.
 
@@ -1004,6 +1091,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("tono", handle_tone_command))
     application.add_handler(CommandHandler("usar", handle_use_command))
     application.add_handler(CommandHandler("dosier", handle_dossier_command))
+    application.add_handler(CommandHandler("fuentes", handle_sources_command))
     # Audio arriving with no command is a narration for whatever script is
     # waiting; a voice note, an audio file and a file sent "as document" are
     # three different Telegram types for the same thing.

@@ -121,8 +121,25 @@ heridas ni el sufrimiento de personas concretas. No especules sobre causas que l
 haya establecido - si algo esta en disputa, di que esta en disputa.""",
         "source_block": """===== MATERIAL DE PARTIDA =====
 VARIAS fuentes sobre el mismo caso, cada una con su cabecera: el articulo principal, el mismo
-articulo en otros idiomas - escritos por separado, no son traducciones - y los articulos de las
-personas, los sitios y las maquinas que salen en la historia.
+articulo en otros idiomas - escritos por separado, no son traducciones -, los articulos de las
+personas, los sitios y las maquinas que salen en la historia, y ademas FUENTES DE PRIMERA MANO:
+las que cita la enciclopedia, leidas directamente. Vienen etiquetadas por lo que son.
+
+- "registro publico" es un documento oficial: una acusacion, una sentencia, un informe, una
+  alerta. Es la unica fuente del dosier con cifras y fechas exactas. Cuando una cifra aparezca
+  ahi, esa es la cifra: gana a la enciclopedia y gana a la prensa.
+- "reportaje largo" es alguien que fue y lo miro durante meses. De ahi salen las personas, las
+  escenas y los detalles que no estan en ningun resumen.
+- "prensa" sirve para confirmar una fecha.
+- "del archivo" es una pagina que ya no existe, rescatada. En casos de internet suele ser el
+  material original: lo que se publico entonces, tal y como se publico.
+
+Estas fuentes son el motivo de que este video pueda contar algo que no cuenta el de al lado: el
+resto de canales leen la enciclopedia y ya esta. Usalas.
+
+REGLA ABSOLUTA con ellas: se leen para saber QUE PASO, nunca para copiar COMO se cuenta. Ni una
+frase, ni media. Los hechos no son de nadie; la redaccion si, y reproducirla es plagio y ademas
+tumba la monetizacion. Cuenta lo que averiguaste con tus palabras.
 
 Como usarlo, porque de esto depende que el video tenga algo que contar:
 - CRUZALAS. El dato bueno casi nunca esta en la fuente principal. La version inglesa suele traer
