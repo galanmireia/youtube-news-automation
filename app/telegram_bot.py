@@ -1,4 +1,5 @@
 import asyncio
+import time
 from io import BytesIO
 import logging
 import re
@@ -1029,15 +1030,54 @@ async def handle_trending_command(update: Update, context: ContextTypes.DEFAULT_
     context.application.create_task(trabajo())
 
 
+# Un nombre abierto, y las fotos que lleguen detras van a el sin tener que
+# escribirlo cada vez. Existe por dos motivos: cargar las cuatro caras de un
+# caso de una sentada, y porque cuando se mandan varias fotos juntas Telegram
+# solo le pone pie a LA PRIMERA - las demas llegan sin nada y se perdian.
+_FOTOS_PARA: dict[str, object] = {"nombre": "", "hasta": 0.0}
+_MINUTOS_ABIERTO = 15
+
+
+def _nombre_abierto() -> str:
+    if _FOTOS_PARA["nombre"] and time.time() < float(_FOTOS_PARA["hasta"]):
+        return str(_FOTOS_PARA["nombre"])
+    return ""
+
+
+def _abrir_para(nombre: str) -> None:
+    _FOTOS_PARA["nombre"] = nombre
+    _FOTOS_PARA["hasta"] = time.time() + _MINUTOS_ABIERTO * 60
+
+
 async def handle_photos_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/fotos - las imagenes que has puesto tu, y como quitarlas.
 
     /fotos                 las lista
+    /fotos de <nombre>     abre ese nombre: las fotos que mandes van ahi
+    /fotos fin             lo cierra
     /fotos borrar <nombre> quita las de esa persona
-    Para añadir: mandame la foto con el nombre en el pie."""
+    Para añadir una suelta: mandamela con el nombre en el pie."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
     args = list(context.args or [])
+    if args and args[0].lower() in ("de", "para"):
+        nombre = " ".join(args[1:]).strip()
+        if not nombre:
+            await update.message.reply_text("Dime de quien: /fotos de Rosario Porto")
+            return
+        _abrir_para(nombre)
+        await update.message.reply_text(
+            f"Venga, mandame las de *{nombre}*. Todas las fotos que llegue"
+            f"n ahora van a ese nombre, sin pie ni nada.\n\n"
+            f"Cuando cambies de persona: /fotos de <otro nombre>. Para cerrar: "
+            f"/fotos fin.", parse_mode="Markdown")
+        return
+    if args and args[0].lower() in ("fin", "basta", "cerrar"):
+        abierto = _nombre_abierto()
+        _FOTOS_PARA["nombre"] = ""
+        await update.message.reply_text(
+            f"Cerrado «{abierto}»." if abierto else "No habia ningun nombre abierto.")
+        return
     if args and args[0].lower() in ("borrar", "quitar"):
         nombre = " ".join(args[1:]).strip()
         if not nombre:
@@ -1068,12 +1108,17 @@ async def handle_incoming_photo(update: Update, context: ContextTypes.DEFAULT_TY
     """Una foto con un nombre en el pie se guarda para ese nombre."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
-    nombre = (update.message.caption or "").strip()
+    nombre = (update.message.caption or "").strip() or _nombre_abierto()
     if not nombre:
         await update.message.reply_text(
             "Ponle el nombre en el pie de la foto y te la guardo, por ejemplo "
-            "«Rosario Porto». Asi la uso en todos los videos donde se la nombre.")
+            "«Rosario Porto». Asi la uso en todos los videos donde se la nombre.\n\n"
+            "Si vas a mandar varias de la misma persona, dime antes "
+            "/fotos de <nombre> y me las mandas seguidas.")
         return
+    # El pie manda, y ademas deja el nombre abierto: cuando se mandan varias
+    # juntas solo la primera trae pie, asi que el resto del album cae aqui.
+    _abrir_para(nombre)
 
     fichero = update.message.photo[-1] if update.message.photo else update.message.document
     try:
