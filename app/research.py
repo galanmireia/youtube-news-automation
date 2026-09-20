@@ -45,6 +45,7 @@ import concurrent.futures
 import logging
 import re
 import unicodedata
+from urllib.parse import quote
 
 import requests
 
@@ -135,25 +136,79 @@ def _api(lang: str) -> str:
 
 
 def _get(lang: str, **params) -> dict:
+    """One API call. Says out loud why it failed instead of returning {}.
+
+    It used to swallow everything, and that cost a whole generation: five
+    articles came back empty, the pipeline wrote a script off nothing, and
+    the only thing in the log was "no tiene texto" - which says the article
+    has no text, not that the request never worked. A silent except is a
+    fault that gets diagnosed twice: once wrongly, and once for real."""
     params.setdefault("format", "json")
     params.setdefault("redirects", 1)
     try:
         r = requests.get(_api(lang), params=params, headers=_HEADERS, timeout=25)
-        r.raise_for_status()
-        return r.json()
-    except (requests.RequestException, ValueError):
+    except requests.RequestException as exc:
+        logger.warning("Wikipedia (%s) no responde a %s: %s",
+                       lang, params.get("prop") or params.get("list") or params.get("action"), exc)
         return {}
+    if r.status_code != 200:
+        logger.warning("Wikipedia (%s) contesta %s a %s: %s", lang, r.status_code,
+                       params.get("prop") or params.get("list") or params.get("action"),
+                       r.text[:300])
+        return {}
+    try:
+        data = r.json()
+    except ValueError:
+        logger.warning("Wikipedia (%s) devuelve algo que no es JSON: %s", lang, r.text[:300])
+        return {}
+    if "error" in data:
+        logger.warning("Wikipedia (%s) rechaza la peticion: %s", lang, data["error"])
+        return {}
+    if "warnings" in data:
+        logger.info("Wikipedia (%s) avisa: %s", lang, data["warnings"])
+    return data
 
 
 def _extract(lang: str, title: str, limit: int) -> str:
-    """One article's plain text. Empty when the page has none."""
+    """One article's plain text, by either of two independent routes.
+
+    TextExtracts is the good route and stays first: it returns clean prose
+    with no markup. But it is an extension, it is rate-limited separately,
+    and when it gives nothing back the whole dossier is empty and the
+    pipeline has no material at all - which is how a generation ended up
+    writing six minutes of video off zero sources.
+
+    So there is a second route that shares none of its machinery: the REST
+    endpoint, which serves the rendered article as HTML, read with the same
+    extractor the open web uses. If both fail, the article really is the
+    problem."""
     data = _get(lang, action="query", prop="extracts", explaintext=1,
                 exsectionformat="plain", titles=title)
     for page in data.get("query", {}).get("pages", {}).values():
         texto = (page.get("extract") or "").strip()
         if texto:
             return texto[:limit]
+
+    texto = _extract_rest(lang, title)
+    if texto:
+        logger.info("«%s»: extracts no dio nada, leido por REST (%s palabras).",
+                    title, len(texto.split()))
+        return texto[:limit]
     return ""
+
+
+def _extract_rest(lang: str, title: str) -> str:
+    """The article as rendered HTML, turned into text. The backup route."""
+    url = f"https://{lang}.wikipedia.org/api/rest_v1/page/html/{quote(title.replace(' ', '_'), safe='')}"
+    try:
+        r = requests.get(url, headers=_HEADERS, timeout=30)
+    except requests.RequestException as exc:
+        logger.warning("REST de Wikipedia (%s) no responde para «%s»: %s", lang, title, exc)
+        return ""
+    if r.status_code != 200:
+        logger.warning("REST de Wikipedia (%s) contesta %s para «%s».", lang, r.status_code, title)
+        return ""
+    return open_web._texto_de_html(r.text)
 
 
 def _translations(lang: str, title: str) -> dict[str, str]:

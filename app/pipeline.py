@@ -496,6 +496,10 @@ CASOS_POR_VIDEO = 5
 # far cheaper than fetching it was.
 _CHARS_POR_CASO = 25000
 
+# Por debajo de esto no hay video, hay relleno. Dos mil caracteres son unas
+# trescientas palabras: menos que la entradilla de un solo caso.
+_MINIMO_DOSIER = 2000
+
 
 def _recopilatorio(casos: list[dict]) -> dict:
     """Several catalogue entries as one video.
@@ -596,6 +600,30 @@ def _choose_and_prepare(forced_topic: str | None) -> tuple[dict | None, Path | N
         if len(dosier) > len(news_item.get("summary") or ""):
             news_item = {**news_item, "summary": dosier}
         logger.info("Dosier del video: %s casos, %s caracteres.", len(partes), len(dosier))
+
+        # El guardia que faltaba, y su ausencia costo una generacion entera.
+        #
+        # Wikipedia devolvio vacio para los cinco casos, el dosier quedo en
+        # cero caracteres, y esto siguio adelante y mando a escribir un video
+        # de seis minutos SIN UNA SOLA FUENTE. Un guion sin material no sale
+        # corto ni falla: sale completo y entero inventado, porque es lo unico
+        # que puede hacer el modelo cuando no le das nada. Y despues se paga
+        # la narracion de eso.
+        #
+        # Un fallo de red no puede convertirse en un video falso. Si no hay
+        # material, esto para aqui, antes de gastar un credito.
+        if not partes:
+            raise RuntimeError(
+                "No he podido montar el dosier de NINGUNO de los casos, asi que "
+                "el guion se lo inventaria entero. Paro aqui sin gastar nada. "
+                "Mira los logs: ahora dicen por que falla Wikipedia."
+            )
+        if len(dosier) < _MINIMO_DOSIER:
+            raise RuntimeError(
+                f"Solo he reunido {len(dosier):,} caracteres de material en "
+                f"{len(partes)} caso(s), que no da para un video sin rellenar. "
+                "Paro aqui sin gastar nada.".replace(",", ".")
+            )
 
     work_dir = Path(DATA_DIR) / f"job_{int(time.time())}"
     work_dir.mkdir(parents=True, exist_ok=True)
