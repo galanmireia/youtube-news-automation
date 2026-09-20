@@ -332,6 +332,15 @@ def _commons_search_photo(name: str, out_path: Path, exclude_urls: set[str]) -> 
         pages = response.json().get("query", {}).get("pages", {})
         for page in sorted(pages.values(), key=lambda p: p.get("index", 0)):
             title = page.get("title", "?")
+            # Commons busca por texto libre, asi que devuelve cualquier fichero
+            # que mencione las palabras sueltas: pidiendo "Rosario Porto"
+            # saco «Colegio do Rosario, Porto Alegre, Brasil» y pidiendo
+            # "Alfonso Basterra" unos diputados argentinos. El nombre tiene
+            # que estar entero y seguido en el nombre del fichero.
+            if not _nombre_seguido(name, title):
+                logger.info("fetch_portrait(%r): descarto de Commons %r, "
+                            "el nombre no aparece seguido.", name, title)
+                continue
             imageinfo = page.get("imageinfo") or [{}]
             source = imageinfo[0].get("thumburl") or imageinfo[0].get("url")
             if not source or source in exclude_urls:
@@ -352,6 +361,27 @@ _RELLENO = frozenset("""
 de del la el los las y e en al un una caso de-la
 of the and in at a an
 """.split())
+
+
+def _nombre_seguido(nombre: str, texto: str) -> bool:
+    """¿Aparece este nombre ENTERO y SEGUIDO en ese texto?
+
+    Para los nombres de fichero, donde la comprobacion por palabras sueltas no
+    vale. Buscando "Rosario Porto" en Commons salio «Colegio do Rosario,
+    Porto Alegre, Brasil»: estan las dos palabras, pero una es la advocacion
+    del colegio y la otra la ciudad brasileña, con media frase en medio. Y
+    "Alfonso Basterra" saco a unos diputados argentinos del ARA San Juan.
+
+    Entre las palabras del nombre solo puede haber espacios, guiones o
+    subrayados - lo que separa un nombre en un fichero de Wikipedia. Una coma
+    o cualquier otra palabra en medio significa que son dos cosas distintas
+    que casualmente aparecen juntas.
+    """
+    partes = [re.escape(p) for p in _fold(nombre).split() if p]
+    if not partes:
+        return False
+    patron = r"[\s_\-]+".join(partes)
+    return re.search(patron, _fold(texto)) is not None
 
 
 def _titulo_corresponde(nombre: str, titulo: str) -> bool:
@@ -464,8 +494,7 @@ def retrato_en_el_caso(nombre: str, imagenes: list[tuple[str, str]],
     for url, fichero in imagenes:
         if url in exclude:
             continue
-        plano = _fold(fichero)
-        if sum(1 for p in partes if p in plano) >= min(2, len(partes)):
+        if _nombre_seguido(nombre, fichero):
             if _download(url, out_path):
                 logger.info("«%s»: foto encontrada dentro del articulo del caso (%s).",
                             nombre, fichero)
