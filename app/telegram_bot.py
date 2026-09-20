@@ -66,6 +66,27 @@ _PREVIEW_THRESHOLD_BYTES = 45 * 1024 * 1024
 _PIPELINE_TIMEOUT_SECONDS = 50 * 60
 
 
+# Telegram corta el pie de una foto o un video en 1024 caracteres, y no lo
+# recorta el: rechaza el mensaje entero con "Message caption is too long".
+#
+# Paso de verdad, con un video ya hecho y pagado: la descripcion en ingles
+# mas el bloque de creditos de las imagenes se paso del limite, el envio
+# fallo, y el plan B - mandar solo la miniatura - fallo identicamente porque
+# reutilizaba el mismo pie. El video existia entero en el disco y desde
+# fuera parecia que la generacion se habia parado sin mas.
+_PIE_MAXIMO = 1000
+
+
+def _recorta_pie(texto: str) -> str:
+    """El pie, recortado por un salto de linea si hace falta."""
+    if len(texto) <= _PIE_MAXIMO:
+        return texto
+    corte = texto.rfind("\n", 0, _PIE_MAXIMO - 20)
+    if corte < _PIE_MAXIMO // 2:
+        corte = _PIE_MAXIMO - 20
+    return texto[:corte].rstrip() + "\n\n[...]"
+
+
 async def send_for_approval(bot, video_id: int) -> None:
     record = storage.get_video(video_id)
     keyboard = InlineKeyboardMarkup(
@@ -77,7 +98,8 @@ async def send_for_approval(bot, video_id: int) -> None:
         ]
     )
     label = _VARIANT_LABELS.get(record["variant"], record["variant"])
-    caption = f"{label}\n*{record['title']}*\n\n{record['description']}"
+    caption_completo = f"{label}\n*{record['title']}*\n\n{record['description']}"
+    caption = _recorta_pie(caption_completo)
 
     # Send something watchable, not just its thumbnail: a video approved
     # without being seen is not approved at all, and that happened - a long
@@ -119,6 +141,18 @@ async def send_for_approval(bot, video_id: int) -> None:
             )
 
     storage.set_telegram_message(video_id, str(TELEGRAM_CHAT_ID), str(message.message_id))
+
+    # Si el pie se recorto, la descripcion entera va aparte: es lo que se sube
+    # a YouTube y hay que poder leerla antes de aprobar.
+    if len(caption_completo) > len(caption):
+        try:
+            await bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID,
+                text=f"Descripcion completa del video {video_id}:\n\n{record['description']}"[:4000],
+            )
+        except Exception:
+            logger.warning("No se pudo enviar la descripcion completa del video %s",
+                           video_id, exc_info=True)
 
 
 async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -901,6 +935,39 @@ async def handle_catalogue_command(update: Update, context: ContextTypes.DEFAULT
     context.application.create_task(trabajo())
 
 
+async def handle_resend_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/enviar [id] - vuelve a mandar un video ya hecho.
+
+    Existe porque un video terminado puede quedarse en el disco sin llegar
+    nunca: paso con el 68, que se monto entero, se narro entero - unos siete
+    mil quinientos creditos - y no se envio porque el pie de Telegram se
+    pasaba del limite. Desde el chat parecia que la generacion se habia
+    parado. Volver a generarlo habria costado los creditos otra vez para
+    hacer exactamente el mismo video que ya estaba hecho."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    args = [a for a in (context.args or []) if a.isdigit()]
+    if args:
+        video_id = int(args[0])
+    else:
+        video_id = storage.ultimo_video_id()
+        if video_id is None:
+            await update.message.reply_text("Todavia no hay ningun video que mandar.")
+            return
+
+    if storage.get_video(video_id) is None:
+        await update.message.reply_text(f"No tengo ningun video con el id {video_id}.")
+        return
+
+    await update.message.reply_text(f"Mandando otra vez el video {video_id}...")
+    try:
+        await send_for_approval(context.bot, video_id)
+    except Exception:
+        logger.exception("Error reenviando el video %s", video_id)
+        await update.message.reply_text(
+            f"No he podido mandar el video {video_id}. Mira los logs.")
+
+
 async def handle_sources_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/fuentes <caso> - which sources outside Wikipedia this case actually has.
 
@@ -1184,6 +1251,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("usar", handle_use_command))
     application.add_handler(CommandHandler("dosier", handle_dossier_command))
     application.add_handler(CommandHandler("fuentes", handle_sources_command))
+    application.add_handler(CommandHandler("enviar", handle_resend_command))
     application.add_handler(CommandHandler("catalogo", handle_catalogue_command))
     # Audio arriving with no command is a narration for whatever script is
     # waiting; a voice note, an audio file and a file sent "as document" are

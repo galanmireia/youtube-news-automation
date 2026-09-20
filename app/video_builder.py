@@ -636,8 +636,15 @@ def _join_segments(segment_paths: list[Path], frame_marks: list[int], work_dir: 
                 lienzo[0], lienzo[1], distintos,
             )
     steps = [
-        f"[{i}:v]fps={_ZOOM_FPS},settb=1/{_ZOOM_FPS},setpts=N,"
-        f"{escala}format=yuv420p,setsar=1,trim=duration={durations[i]:.3f},setpts=N[n{i}]"
+        # fps AL FINAL, que es lo que dice el comentario de arriba y lo que el
+        # codigo no hacia. Un setpts=N como ultimo filtro deja el enlace sin
+        # tasa declarada, y xfade se planta con "the inputs needs to be a
+        # constant frame rate; current rate of 1/0 is invalid" - que es
+        # literalmente lo que fallo en el video 68. Poner fps detras del
+        # ultimo setpts declara la tasa justo antes de entrar en xfade.
+        f"[{i}:v]settb=1/{_ZOOM_FPS},setpts=N,"
+        f"{escala}format=yuv420p,setsar=1,trim=duration={durations[i]:.3f},setpts=N,"
+        f"fps={_ZOOM_FPS}[n{i}]"
         for i in range(len(segment_paths))
     ]
     current = "[n0]"
@@ -1012,6 +1019,25 @@ def build_video(
         logger.exception(
             "Fallaron las transiciones; se une sin ellas para no perder el video entero."
         )
+        # Que propiedad no casaba. Esto ha fallado tres veces esta semana y las
+        # tres se diagnostico por deduccion - primero el tamaño, luego el
+        # formato de pixel - sin un solo dato delante. ffmpeg solo dice
+        # "constant frame rate ... 1/0", que es el sintoma, no la causa. Con
+        # esto la proxima vez se sabe: cada segmento con todo lo que xfade
+        # mira, y el que se sale canta a la vista.
+        for p_seg in segment_paths:
+            try:
+                datos = subprocess.run(
+                    ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                     "-show_entries",
+                     "stream=width,height,pix_fmt,r_frame_rate,avg_frame_rate,"
+                     "time_base,sample_aspect_ratio,nb_frames,color_range",
+                     "-of", "default=noprint_wrappers=1:nokey=0", str(p_seg)],
+                    capture_output=True, text=True, timeout=30,
+                ).stdout.strip().replace("\n", " · ")
+            except Exception:
+                datos = "(no se ha podido leer)"
+            logger.error("  segmento %s: %s", Path(p_seg).name, datos)
         _join_without_transitions(segment_paths, frame_marks, work_dir, silent_video_path)
 
     # intro_duration comes from the caller because only it knows whether this

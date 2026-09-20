@@ -175,6 +175,17 @@ def set_status(video_id: int, status: str, youtube_video_id: str | None = None) 
 _FINISHED_STATUSES = ("uploaded", "rejected")
 
 
+def ultimo_video_id() -> int | None:
+    """El id del ultimo video creado, en el estado que sea.
+
+    list_finished_videos solo devuelve los ya subidos o rechazados, que es
+    justo lo contrario de lo que hace falta para reenviar: un video que no se
+    ha podido mandar esta pendiente de revision, no terminado."""
+    with get_conn() as conn:
+        fila = conn.execute("SELECT MAX(id) AS id FROM videos").fetchone()
+    return int(fila["id"]) if fila and fila["id"] is not None else None
+
+
 def list_finished_videos() -> list[sqlite3.Row]:
     with get_conn() as conn:
         placeholders = ",".join("?" for _ in _FINISHED_STATUSES)
