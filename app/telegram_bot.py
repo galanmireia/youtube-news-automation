@@ -9,8 +9,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
-from . import (ai_images, demanda, news_source, research, storage, tendencias,
-               topic_source, tts, voice_align, voice_clone)
+from . import (ai_images, demanda, efemerides, news_source, research, storage,
+               tendencias, topic_source, tts, voice_align, voice_clone)
 from .voice_align import AlignmentFailed
 from .config import (
     CHANNEL_NAME,
@@ -937,6 +937,34 @@ async def handle_catalogue_command(update: Update, context: ContextTypes.DEFAULT
     context.application.create_task(trabajo())
 
 
+async def handle_calendar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/calendario [dias] - que aniversarios vienen y cuando publicarlos.
+
+    No gasta cuota ni creditos: es una lista con fechas. Existe porque la
+    ventaja de este canal frente a uno de noticias no es la velocidad, es que
+    puede saber con un año de antelacion lo que la gente va a buscar."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    dias = next((int(a) for a in (context.args or []) if a.isdigit()), efemerides.VENTANA)
+    proximas = efemerides.proximas(dias=dias)
+    if not proximas:
+        await update.message.reply_text(
+            f"No hay ningun aniversario en los proximos {dias} dias.\n"
+            "Prueba con mas margen: /calendario 60")
+        return
+
+    lineas = [f"*Aniversarios en {dias} dias*", ""]
+    for e in proximas:
+        cuando = "HOY o ya pasado" if e["urgente"] else f"publicar el {e['publicar']:%d/%m}"
+        lineas.append(
+            f"  *{e['titulo']}*\n"
+            f"     {e['aniversario']:%d/%m} · {e['cumple']} aniversario · "
+            f"faltan {e['faltan']} dias · {cuando}")
+    lineas += ["", "El calendario propone; la demanda decide. Antes de lanzar:",
+               f"/demanda {proximas[0]['titulo']}"]
+    await update.message.reply_text("\n".join(lineas[:60]), parse_mode="Markdown")
+
+
 async def handle_trending_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/tendencias - que se esta viendo hoy en YouTube España, noticias.
 
@@ -1378,6 +1406,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("enviar", handle_resend_command))
     application.add_handler(CommandHandler("demanda", handle_demand_command))
     application.add_handler(CommandHandler("tendencias", handle_trending_command))
+    application.add_handler(CommandHandler("calendario", handle_calendar_command))
     application.add_handler(CommandHandler("catalogo", handle_catalogue_command))
     # Audio arriving with no command is a narration for whatever script is
     # waiting; a voice note, an audio file and a file sent "as document" are

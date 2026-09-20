@@ -65,101 +65,49 @@ _EXTRACT_CHARS = 9000
 # article still lands on it - written without being able to reach Wikipedia
 # to check them, which is exactly why nothing here assumes an exact match.
 # Entries that resolve to nothing are named in the log rather than counted.
-CATALOGUE = [
-    # Misterios de internet, que es donde estan los numeros.
-    #
-    # Medido sobre 1.494 videos y 1.278 canales: de cuarenta y dos nichos, el
-    # que sostiene canales jovenes en ingles con mas visitas por video es este
-    # - veinte canales con menos de dieciocho meses y una mediana de 72.522
-    # visitas por video, con varios por encima del millon. La informatica pura
-    # NO lo hace: su mediana es 3.321, y el unico video que revento (5,6
-    # millones sobre virus) tiene debajo a otro canal con el mismo tema, el
-    # mismo formato y 43 visitas.
-    #
-    # Los titulos son los de la Wikipedia EN INGLES, que es la que se lee: la
-    # mitad de estos casos no tiene articulo en espanol y los que lo tienen son
-    # mucho mas cortos. Comprobables con /catalogo, que es de donde salieron -
-    # escritos de memoria fallan en silencio, resolviendo a otro articulo.
-    #
-    # Criterio para entrar aqui, y es duro: el caso tiene que estar DOCUMENTADO
-    # EN WIKIPEDIA. Los misterios de internet abundan en foros y en videos de
-    # otros, y de ahi no se puede sacar nada - ni por derechos ni por fiabilidad.
-    # Un caso sin articulo solido es un guion que se inventa el relleno.
+# El catalogo ya no es una lista escrita a mano: es el calendario de
+# efemerides, ordenado por lo cerca que esta cada aniversario. Asi el tema que
+# toca sale solo, sin que nadie tenga que acordarse de que el 26 de abril es
+# Chernobil.
+#
+# De donde viene el cambio: los temas que no conocia nadie - Doña Paz, el
+# Estonia, el Prestige - dieron 2, 17 y 9 visitas, y el documental del 11-S
+# que estaba en tendencias hoy tenia 3.454.779. Mismo formato. Lo que cambia
+# es cuanta gente conoce el suceso Y si hay algo que les recuerde buscarlo
+# ahora, que casi siempre es el aniversario.
+#
+# El calendario PROPONE, no decide: un aniversario sin nadie buscandolo sigue
+# siendo un mal video. Quien decide es la medicion de demanda del picker. Ella
+# lo dijo mejor que yo con el festival de San Sebastian, que esta esta semana
+# y no lo ve nadie.
+#
+# Se comprueba con /catalogo, que mira si cada titulo existe de verdad en
+# Wikipedia. Esta escrito de memoria y hoy ya se demostro que eso falla.
+from .efemerides import por_cercania
 
-    # Criptogramas y acertijos sin resolver
-    "Cicada 3301",
-    "Kryptos",
-    "Voynich manuscript",
-    "Beale ciphers",
-    "Tamam Shud case",
-    "Phaistos Disc",
-    "Publius Enigma",
-    "Zodiac Killer",
 
-    # Emisiones y señales que nadie explica
-    "Webdriver Torso",
-    "Wow! signal",
-    "UVB-76",
-    "Max Headroom signal hijacking",
-    "Numbers station",
-    "Bloop",
-    "Lincolnshire Poacher (numbers station)",
+def _catalogo() -> list[str]:
+    return por_cercania()
 
-    # Leyendas que salieron de internet y tuvieron consecuencias reales
-    "Slender Man",
-    "Slender Man stabbing",
-    "Momo Challenge hoax",
-    "Blue Whale Challenge",
-    "Creepypasta",
-    "Polybius (urban legend)",
-    "Pizzagate conspiracy theory",
 
-    # Identidades ocultas
-    "Satoshi Nakamoto",
-    "Banksy",
-    "D. B. Cooper",
-    "QAnon",
+class _CatalogoPorFecha(list):
+    """Se comporta como la lista de siempre, pero se reordena cada dia.
 
-    # Desapariciones y casos con rastro digital
-    "Death of Elisa Lam",
-    "Disappearance of Maura Murray",
-    "Disappearance of Lars Mittank",
-    "Malaysia Airlines Flight 370",
+    Hereda de list para que todo lo que ya la usaba - len(), iterar, /catalogo
+    - siga funcionando sin tocar nada."""
 
-    # Rincones oscuros de la red
-    "Silk Road (marketplace)",
-    "Ross Ulbricht",
-    "Dark web",
-    "Tor (network)",
-    "Anonymous (hacker group)",
-    "LulzSec",
-    "4chan",
-    "Ashley Madison data breach",
+    def __iter__(self):
+        return iter(_catalogo())
 
-    # Fraudes y enganos nacidos en la red
-    "Dead Internet theory",
-    "Fyre Festival",
-    "OneCoin",
-    "Theranos",
-    "Elizabeth Holmes",
-    "Advance-fee scam",
+    def __len__(self):
+        return len(_catalogo())
 
-    # Desastres informaticos que el publico conoce
-    "Morris worm",
-    "WannaCry ransomware attack",
-    "Stuxnet",
-    "Mirai (malware)",
-    "ILOVEYOU",
-    "Kevin Mitnick",
-    "2024 CrowdStrike-related IT outages",
+    def __getitem__(self, i):
+        return _catalogo()[i]
 
-    # Vigilancia y filtraciones
-    "Edward Snowden",
-    "Cambridge Analytica",
-    "WikiLeaks",
-    "Room 641A",
-    "PRISM",
-]
+
+CATALOGUE = _CatalogoPorFecha()
+
 
 
 
