@@ -247,9 +247,20 @@ siempre hay foto. Y al reves, NUNCA pongas "photo_subject" para algo que no es u
 articulo propio - "the deep web", "a server room", "an imageboard" no son sujetos de foto: esos
 van en "visual_keywords".
 
-REGLA INNEGOCIABLE con las personas: si el caso trata de una victima, de alguien desaparecido o
-muerto, o de alguien acusado de algo todavia sin resolver, NO pongas su foto. Nunca. Ni con
-"photo_subject" ni con una ilustracion. El caso se cuenta con respeto y sin cara.
+LAS PERSONAS DE UN CASO DE SUCESOS, que es donde hay que afinar:
+
+- La foto de una victima SI se puede usar, una vez y con respeto, cuando el caso va de ella y la
+  imagen viene de las fuentes libres de siempre (Wikipedia, Commons). Contar un caso sin poner
+  nunca cara a quien le paso lo deja en un expediente. Ponla en la escena donde se la nombra, no
+  repetida por todo el video, y NUNCA junto a la narracion de como murio.
+- NUNCA imagenes de violencia, del cuerpo, del lugar con restos, ni nada que reconstruya el daño.
+  Lo que descarta YouTube no es que aparezca una cara, es lo grafico y lo morboso.
+- NUNCA la cara de alguien acusado de algo TODAVIA SIN RESOLVER. Ahi no hay matiz: presuncion de
+  inocencia. Condenado por sentencia firme si, con la condena dicha.
+- NUNCA generes con IA la imagen de una persona real identificable, ni victima ni condenada. Una
+  cara inventada de alguien que existe es un invento presentado como documento.
+- Si no hay imagen libre de esa persona, no pasa nada y NO la sustituyas por una parecida: van el
+  lugar, el juzgado, los documentos y la cronologia, que es donde este canal es bueno.
 
 Cuando rellenes "photo_subject", rellena tambien "photo_subject_role" en 2-4 palabras: para una
 persona, su cargo o titulo actual (ej. "Ministro de Transportes"); para un lugar/institucion, un
