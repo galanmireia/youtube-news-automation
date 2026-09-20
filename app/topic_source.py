@@ -195,7 +195,16 @@ def _extract(title: str) -> str:
     return research._extract(WIKI_LANG, title, _EXTRACT_CHARS)
 
 def _article_url(title: str) -> str:
-    return "https://es.wikipedia.org/wiki/" + title.replace(" ", "_")
+    """The article's public URL, which is also the key for "already made".
+
+    It was nailed to es.wikipedia.org, and that is worse than it looks.
+    Plenty of these titles are spelled the same in both languages - Cicada
+    3301, Kryptos, Stuxnet, WikiLeaks, 4chan, Theranos - so an English case
+    produced the same URL as the Spanish one already made, and the catalogue
+    reported itself exhausted. The same URL is also the source link in the
+    description, pointing at a Spanish article that for half of this
+    catalogue does not exist."""
+    return f"https://{WIKI_LANG}.wikipedia.org/wiki/" + title.replace(" ", "_")
 
 
 def fetch_topic_by_term(term: str) -> dict | None:

@@ -446,7 +446,13 @@ entrecomillar algo (el nombre de una ley, una cita, un termino), usa comillas si
 angulares (<<asi>>). Tampoco metas saltos de linea dentro de un valor: cada narracion va en una sola
 linea.
 
-Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni markdown:
+Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni markdown.
+
+Y esto literalmente: el PRIMER caracter de tu respuesta tiene que ser "{". Nada antes. Ni
+"Voy a seleccionar los casos...", ni "Escribiendo el guion para...", ni un resumen de lo que
+has decidido. Las decisiones que tomas - que casos entran, en que orden - se ven en el JSON,
+que para eso esta. Un solo parrafo tuyo por delante y el guion entero se tira a la basura
+despues de haberse escrito y pagado.
 {{
   "title": "titulo optimizado para SEO, ver requisitos arriba",
   "description": "descripcion con hashtags, ver requisitos arriba",
@@ -511,6 +517,31 @@ _VARIANT_CONFIG = {
         "shorts_seo_hint": "",
     },
 }
+
+
+def _solo_el_json(texto: str) -> str:
+    """The JSON object out of a reply that may have prose around it.
+
+    The compilation format made the model start thinking out loud before the
+    JSON - "Voy a seleccionar 4 casos de este material..." - and json.loads
+    fails on the first character. Three attempts died that way, each one
+    paying for a full script, and the scripts themselves were fine.
+
+    The usual fix for this is an assistant prefill, which the current models
+    reject with a 400, so the parser gives instead: the object runs from the
+    first brace to the last, and anything outside it is the model clearing
+    its throat. This cannot rescue genuinely broken JSON - a bad quote inside
+    a string still fails, as it should - it only stops a preamble from
+    throwing away work that was already done and already paid for.
+    """
+    inicio = texto.find("{")
+    final = texto.rfind("}")
+    if inicio == -1 or final <= inicio:
+        return texto
+    if inicio > 0:
+        logger.info("La respuesta traia %s caracteres de prologo antes del JSON; recortados.",
+                    inicio)
+    return texto[inicio:final + 1]
 
 
 def _strip_markdown_fence(text: str) -> str:
@@ -727,26 +758,43 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
         # instantly. Streaming removes the limit; get_final_message gives back
         # the same Message the non-streaming call returned, so nothing
         # downstream changes.
-        with _client.messages.stream(
-            model=CLAUDE_MODEL,
-            max_tokens=_MAX_TOKENS,
-            system=[
-                {
-                    "type": "text",
-                    "text": instrucciones,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            messages=[{"role": "user", "content": _STORY_MARKER + noticia}],
-        ) as stream:
-            message = stream.get_final_message()
+        try:
+            with _client.messages.stream(
+                model=CLAUDE_MODEL,
+                max_tokens=_MAX_TOKENS,
+                system=[
+                    {
+                        "type": "text",
+                        "text": instrucciones,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+                messages=[{"role": "user", "content": _STORY_MARKER + noticia}],
+            ) as stream:
+                message = stream.get_final_message()
+        except anthropic.APIStatusError as exc:
+            # El filtro de contenido de la API es un fallo distinto de todos
+            # los demas y merece decirse con sus palabras: no es un error de
+            # red ni un JSON roto, es que la respuesta se ha bloqueado. Salia
+            # como un traceback de doscientas lineas en el que no se entendia
+            # nada, y el pipeline moria sin explicar por que.
+            if "content filtering" in str(exc).lower():
+                logger.warning(
+                    "generate_script (%s): la API ha bloqueado la respuesta por su "
+                    "filtro de contenido en el intento %s.", variant, attempt)
+                last_error = RuntimeError(
+                    "La API ha bloqueado la respuesta por su filtro de contenido. "
+                    "Suele pasar con casos que mezclan una muerte sin resolver y "
+                    "material de primera mano; prueba a generar con otros casos.")
+                continue
+            raise
         llm_usage.record(f"guion-{variant}", CLAUDE_MODEL, message)
         text_blocks = [block.text for block in message.content if block.type == "text"]
         if not text_blocks:
             last_error = ValueError("Claude no devolvio ningun bloque de texto en la respuesta")
             continue
 
-        raw_text = _strip_markdown_fence(text_blocks[0])
+        raw_text = _solo_el_json(_strip_markdown_fence(text_blocks[0]))
         try:
             script = json.loads(raw_text)
         except json.JSONDecodeError as exc:

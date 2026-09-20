@@ -14,6 +14,7 @@ from .config import (
     YOUTUBE_PRIVACY_STATUS,
     YOUTUBE_PUBLISH_DELAY_MINUTES,
     YOUTUBE_TOKEN_FILE,
+    NARRATION_LANG,
 )
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
@@ -105,8 +106,15 @@ def upload_video(
             "description": description,
             "tags": _fit_tags(tags),
             "categoryId": "25",  # News & Politics
-            "defaultLanguage": "es",
-            "defaultAudioLanguage": "es",
+            # These two are not cosmetic. defaultAudioLanguage is the field
+            # YouTube uses to decide who gets recommended the video, and it
+            # is the same field the niche study filtered on to find English
+            # channels in the first place. An English video tagged "es" is
+            # served to a Spanish-speaking audience: the whole point of
+            # writing it in English fails at distribution rather than at
+            # content, which is the hardest kind of failure to notice.
+            "defaultLanguage": NARRATION_LANG,
+            "defaultAudioLanguage": NARRATION_LANG,
         },
         "status": status,
     }
@@ -128,7 +136,7 @@ def upload_video(
     return video_id, publish_at
 
 
-def upload_captions(video_id: str, srt_path: Path, language: str = "es") -> None:
+def upload_captions(video_id: str, srt_path: Path, language: str = NARRATION_LANG) -> None:
     youtube = build("youtube", "v3", credentials=get_credentials())
     body = {"snippet": {"videoId": video_id, "language": language, "name": "Español", "isDraft": False}}
     media = MediaFileUpload(str(srt_path), mimetype="application/octet-stream")
