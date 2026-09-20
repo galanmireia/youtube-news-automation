@@ -1142,6 +1142,39 @@ async def handle_incoming_photo(update: Update, context: ContextTypes.DEFAULT_TY
         "que encuentre yo por mi cuenta.")
 
 
+_OTRO_COMANDO = re.compile(r"\s*/([a-zA-Z_]+)\s*")
+
+
+def _varios_temas(args, comando: str) -> tuple[list[str], list[str]]:
+    """Separa "A /oficial B /oficial C" en tres temas. Devuelve (temas, ajenos).
+
+    Telegram solo ejecuta el comando que va al PRINCIPIO del mensaje. Si se
+    escriben dos seguidos, el segundo llega como texto y se buscaba la frase
+    entera - o sea que "Rosario Porto /oficial Alfonso Basterra" preguntaba
+    por una persona imaginaria de cuatro nombres, y contestaba que no existe,
+    que es verdad y no sirve de nada.
+
+    Los que llevan OTRO comando dentro se devuelven aparte: ahi no se puede
+    adivinar que queria, asi que se le dice en vez de hacer algo raro.
+    """
+    junto = " ".join(args or []).strip()
+    if not junto:
+        return [], []
+    temas, ajenos, resto = [], [], junto
+    while True:
+        m = _OTRO_COMANDO.search(resto)
+        if not m:
+            break
+        antes, nombre, resto = resto[:m.start()].strip(), m.group(1).lower(), resto[m.end():]
+        if antes:
+            (temas if not ajenos else ajenos).append(antes)
+        if nombre != comando:
+            ajenos.append("/" + nombre)
+    if resto.strip():
+        (ajenos if ajenos and ajenos[-1].startswith("/") else temas).append(resto.strip())
+    return temas[:5], ajenos
+
+
 async def handle_oficial_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/oficial <nombre o caso> - ¿hay material oficial que se pueda usar?
 
@@ -1150,29 +1183,34 @@ async def handle_oficial_command(update: Update, context: ContextTypes.DEFAULT_T
     no."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
-    tema = " ".join(context.args).strip()
-    if not tema:
+    temas, ajenos = _varios_temas(context.args, "oficial")
+    if not temas:
         await update.message.reply_text("Dime de quien o de que caso: /oficial Rosario Porto")
         return
-    await update.message.reply_text(f"Mirando material oficial de *{tema}*...", parse_mode="Markdown")
+    if ajenos:
+        await update.message.reply_text(
+            "Ojo, esto lleva otro comando dentro (" + ", ".join(ajenos[:3]) +
+            "). Telegram solo ejecuta el primero, asi que mandalo en otro mensaje.")
+    await update.message.reply_text(
+        "Mirando material oficial de *" + "*, *".join(temas) + "*...", parse_mode="Markdown")
 
     loop = asyncio.get_running_loop()
-    try:
-        encontrado = await loop.run_in_executor(None, oficial.retrato, tema)
-    except Exception:
-        logger.exception("Error buscando material oficial de %r", tema)
-        await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID,
-                                       text="No he podido comprobarlo. Mira los logs.")
-        return
-
-    lineas = [f"*{tema}*", ""]
-    if encontrado:
-        _url, fichero = encontrado
-        lineas += [f"  ✓ FOTO LIBRE · Wikidata tiene ficha con retrato",
-                   f"      · {fichero[:52]}",
-                   "      Entra sola en el proximo video, no tienes que hacer nada.", ""]
-    else:
-        lineas += ["  ✗ FOTO LIBRE · Wikidata no tiene retrato fichado", ""]
+    lineas: list[str] = []
+    for tema in temas:
+        try:
+            encontrado = await loop.run_in_executor(None, oficial.retrato, tema)
+        except Exception:
+            logger.exception("Error buscando material oficial de %r", tema)
+            lineas += [f"*{tema}*", "  · no he podido comprobarlo, mira los logs", ""]
+            continue
+        lineas.append(f"*{tema}*")
+        if encontrado:
+            _url, fichero = encontrado
+            lineas += ["  ✓ FOTO LIBRE · Wikidata tiene ficha con retrato",
+                       f"      · {fichero[:52]}",
+                       "      Entra sola en el proximo video, no tienes que hacer nada.", ""]
+        else:
+            lineas += ["  ✗ FOTO LIBRE · Wikidata no tiene retrato fichado", ""]
 
     lineas += [
         "  ✓ SENTENCIA · libre, y es la mejor fuente que hay",
