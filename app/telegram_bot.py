@@ -9,7 +9,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
-from . import ai_images, research, storage, topic_source, tts, voice_align, voice_clone
+from . import ai_images, demanda, research, storage, topic_source, tts, voice_align, voice_clone
 from .voice_align import AlignmentFailed
 from .config import (
     CHANNEL_NAME,
@@ -21,6 +21,7 @@ from .config import (
     TTS_VOICE_NAME,
     NARRATION_SOURCE,
     WIKI_LANG,
+    DEMANDA_MINIMA,
 )
 from .pipeline import (
     cleanup_finished_video_files,
@@ -935,6 +936,65 @@ async def handle_catalogue_command(update: Update, context: ContextTypes.DEFAULT
     context.application.create_task(trabajo())
 
 
+async def handle_demand_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/demanda <tema> - cuanta gente esta buscando esto ahora mismo.
+
+    No genera nada y no gasta un credito. Existe porque la diferencia entre un
+    video de 479 visitas y uno de 2 en este canal no estuvo en como se conto:
+    estuvo en si habia alguien buscandolo, y eso se puede saber ANTES de
+    gastarse los creditos.
+
+    Se pueden pegar varios temas, uno por linea, para compararlos."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    bruto = " ".join(context.args).strip()
+    temas = [t.strip() for t in re.split(r"/demanda\b|\n", bruto) if t.strip()][:6]
+    if not temas:
+        await update.message.reply_text(
+            "Dime de que tema: /demanda claudia tacoronte\n"
+            "Puedes pegar varios, uno por linea.")
+        return
+    await update.message.reply_text("Midiendo la demanda en YouTube...")
+    loop = asyncio.get_running_loop()
+
+    async def trabajo():
+        try:
+            medidos = await loop.run_in_executor(
+                None, lambda: [demanda.medir(t) for t in temas])
+        except demanda.SinClave as exc:
+            await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=str(exc))
+            return
+        except Exception:
+            logger.exception("Error midiendo la demanda")
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID, text="No he podido medir. Mira los logs.")
+            return
+
+        medidos.sort(key=lambda m: m.get("vistas", 0), reverse=True)
+        lineas = [f"*Demanda en YouTube* (ultimos 7 dias)",
+                  f"Minimo para hacer video: {DEMANDA_MINIMA:,} vistas".replace(",", "."), ""]
+        for m in medidos:
+            if not m["medido"]:
+                lineas.append(f"  ? «{m['consulta']}» — no se ha podido medir")
+                continue
+            marca = "✓" if m["vistas"] >= DEMANDA_MINIMA else "✗"
+            lineas.append(
+                f"  {marca} «{m['consulta']}»\n"
+                f"      {m['vistas']:,} vistas · {m['videos']} videos · "
+                f"mediana {m['mediana']:,}".replace(",", "."))
+        lineas.append("")
+        mejor = medidos[0] if medidos else None
+        if mejor and mejor.get("vistas", 0) >= DEMANDA_MINIMA:
+            lineas.append(f"Yo haria «{mejor['consulta']}».")
+        else:
+            lineas.append("Ninguno tiene demanda suficiente hoy. Hacer video de "
+                          "cualquiera de estos es gastar creditos para 3 visitas.")
+        await context.bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID, text="\n".join(lineas), parse_mode="Markdown")
+
+    context.application.create_task(trabajo())
+
+
 async def handle_resend_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/enviar [id] - vuelve a mandar un video ya hecho.
 
@@ -1252,6 +1312,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("dosier", handle_dossier_command))
     application.add_handler(CommandHandler("fuentes", handle_sources_command))
     application.add_handler(CommandHandler("enviar", handle_resend_command))
+    application.add_handler(CommandHandler("demanda", handle_demand_command))
     application.add_handler(CommandHandler("catalogo", handle_catalogue_command))
     # Audio arriving with no command is a narration for whatever script is
     # waiting; a voice note, an audio file and a file sent "as document" are

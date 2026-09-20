@@ -104,6 +104,19 @@ NEWS_LANGUAGE_HINT = os.environ.get("NEWS_LANGUAGE_HINT", "ingles (Estados Unido
 # fraction of the size, and - the part that decides whether any of this was
 # worth building - a Spanish article cites Spanish press, while the domains
 # the open-web reader trusts are almost all English-language.
+# La clave de la Data API de YouTube, que es con la que se mide si alguien
+# esta buscando un tema antes de gastarse los creditos en contarlo. Es una
+# clave distinta de las credenciales de subida: aquella es OAuth y sirve para
+# publicar en su nombre; esta solo lee datos publicos.
+YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "")
+
+# Por debajo de esto no se hace el video. El numero sale de sus propios
+# resultados: los temas que le dieron 2, 3, 9, 17 y 31 visitas tenian todos
+# menos de diez mil vistas semanales en YouTube; el que le dio 479 tenia cinco
+# millones. Cincuenta mil deja fuera a los seis flojos y deja pasar al bueno,
+# con margen por los dos lados.
+DEMANDA_MINIMA = int(os.environ.get("DEMANDA_MINIMA", "50000"))
+
 WIKI_LANG = os.environ.get("WIKI_LANG", "en")
 
 # The language the narration is WRITTEN in, which is not automatically the

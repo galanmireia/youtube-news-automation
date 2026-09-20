@@ -4,8 +4,8 @@ import re
 
 import anthropic
 
-from . import llm_usage
-from .config import ANTHROPIC_API_KEY, CHANNEL_TONE_HINT, CLAUDE_MODEL
+from . import demanda, llm_usage
+from .config import ANTHROPIC_API_KEY, CHANNEL_TONE_HINT, CLAUDE_MODEL, DEMANDA_MINIMA
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +88,51 @@ def _strip_markdown_fence(text: str) -> str:
     return text.strip()
 
 
+def _filtrar_por_demanda(candidates: list[dict]) -> list[dict]:
+    """Deja solo los temas que alguien esta buscando, medido en YouTube.
+
+    El criterio editorial - que haya personas, que haya algo en juego - decide
+    bien entre temas que alguien quiere ver, y no sabe distinguir uno que nadie
+    busca. Medido sobre los videos ya publicados de este canal: los temas que
+    dieron 2, 3, 9, 17 y 31 visitas tenian todos menos de diez mil vistas
+    semanales en YouTube; el que dio 479 tenia cinco millones. La diferencia no
+    estaba en como se conto: estaba en si habia alguien buscandolo.
+
+    Si NINGUNO pasa el minimo no se descarta todo: se devuelven los originales
+    ordenados por demanda, y que el criterio editorial elija entre lo que hay.
+    Un dia flojo de noticias es un video flojo, no cero videos."""
+    medidos = []
+    for c in candidates:
+        try:
+            m = demanda.medir(c["title"])
+        except demanda.SinClave as exc:
+            logger.warning("%s Se elige sin medir, como antes.", exc)
+            return candidates
+        except Exception:
+            logger.warning("No se ha podido medir la demanda de %r", c.get("title"), exc_info=True)
+            m = {"medido": False, "vistas": 0}
+        medidos.append((m, c))
+        logger.info("Demanda · %s", demanda.resumen(m))
+
+    # Un fallo de medicion no descarta: no saber no es lo mismo que no haber.
+    pasan = [(m, c) for m, c in medidos
+             if not m.get("medido") or m["vistas"] >= DEMANDA_MINIMA]
+    descartados = [c["title"] for m, c in medidos if (m, c) not in pasan]
+    if descartados:
+        logger.info("Descartados por falta de demanda (<%s vistas en 7 dias): %s",
+                    f"{DEMANDA_MINIMA:,}".replace(",", "."), "; ".join(descartados))
+
+    if not pasan:
+        logger.warning(
+            "Ningun tema de hoy llega a %s vistas semanales. Se elige entre los "
+            "que hay, ordenados por demanda: un dia flojo es un video flojo, no "
+            "cero videos.", f"{DEMANDA_MINIMA:,}".replace(",", "."))
+        pasan = medidos
+
+    pasan.sort(key=lambda par: par[0].get("vistas", 0), reverse=True)
+    return [c for _m, c in pasan]
+
+
 def pick_best_story(candidates: list[dict]) -> dict | None:
     """Chooses which of the fetched headlines to actually make a video about,
     or None when it cannot choose safely.
@@ -95,6 +140,7 @@ def pick_best_story(candidates: list[dict]) -> dict | None:
     The pipeline used to take whichever story happened to come first in the
     feed, with no judgement about whether anyone would care - so a procedural
     court filing got the same treatment as a story with a person in it."""
+    candidates = _filtrar_por_demanda(candidates)
     if len(candidates) <= 1:
         return candidates[0] if candidates else None
 
