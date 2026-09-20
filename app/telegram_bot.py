@@ -9,7 +9,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
-from . import ai_images, demanda, research, storage, topic_source, tts, voice_align, voice_clone
+from . import (ai_images, demanda, news_source, research, storage, tendencias,
+               topic_source, tts, voice_align, voice_clone)
 from .voice_align import AlignmentFailed
 from .config import (
     CHANNEL_NAME,
@@ -936,6 +937,69 @@ async def handle_catalogue_command(update: Update, context: ContextTypes.DEFAULT
     context.application.create_task(trabajo())
 
 
+async def handle_trending_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/tendencias - que se esta viendo hoy en YouTube España, noticias.
+
+    Cuesta UNA unidad de cuota, no cien: es otra metrica distinta de las
+    busquedas, asi que funciona incluso los dias en que las busquedas se han
+    agotado. Y ya trae las visitas, o sea que es la forma barata de saber que
+    le importa hoy a alguien antes de decidir nada.
+
+    Marca ademas lo que esta en tendencias y no aparece en tus feeds: si lo
+    mas visto del dia nunca llega por RSS, el problema no es como se elige el
+    tema, es que no llega."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    await update.message.reply_text("Mirando que se ve hoy...")
+    loop = asyncio.get_running_loop()
+
+    async def trabajo():
+        try:
+            hoy = await loop.run_in_executor(None, tendencias.lo_que_se_ve_hoy)
+            candidatos = await loop.run_in_executor(None, news_source.fetch_candidate_news, 10)
+        except tendencias.SinClave as exc:
+            await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=str(exc))
+            return
+        except Exception:
+            logger.exception("Error leyendo las tendencias")
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID, text="No he podido leer las tendencias. Mira los logs.")
+            return
+
+        if not hoy:
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID, text="YouTube no me ha devuelto tendencias ahora mismo.")
+            return
+
+        lineas = ["*Lo mas visto hoy* · noticias, España", ""]
+        for v in hoy[:8]:
+            lineas.append(f"  {v['vistas']:,} · {v['titulo'][:58]}".replace(",", "."))
+
+        ordenados = tendencias.ordenar_por_tendencia(list(candidatos), hoy)
+        con_tiron = [c for c in ordenados if c.get("vistas_tendencia", 0) > 0]
+        lineas += ["", "*De tus noticias, las que tienen tiron hoy:*"]
+        if con_tiron:
+            for c in con_tiron[:5]:
+                lineas.append(
+                    f"  {c['vistas_tendencia']:,} · {c['title'][:56]}".replace(",", "."))
+        else:
+            lineas.append("  Ninguna. Hoy tus feeds no traen nada de lo que se esta viendo.")
+
+        huerfanos = tendencias.sin_cubrir(candidatos, hoy)
+        if huerfanos:
+            lineas += ["", "*En tendencias y NO en tus feeds:*"]
+            for h in huerfanos[:4]:
+                lineas.append(f"  {h['vistas']:,} · {h['titulo'][:56]}".replace(",", "."))
+            lineas.append("\nSi esto pasa siempre, el problema son las fuentes, no la eleccion.")
+
+        texto = "\n".join(lineas)
+        for i in range(0, len(texto), 3500):
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID, text=texto[i:i + 3500], parse_mode="Markdown")
+
+    context.application.create_task(trabajo())
+
+
 async def handle_demand_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/demanda <tema> - cuanta gente esta buscando esto ahora mismo.
 
@@ -1313,6 +1377,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("fuentes", handle_sources_command))
     application.add_handler(CommandHandler("enviar", handle_resend_command))
     application.add_handler(CommandHandler("demanda", handle_demand_command))
+    application.add_handler(CommandHandler("tendencias", handle_trending_command))
     application.add_handler(CommandHandler("catalogo", handle_catalogue_command))
     # Audio arriving with no command is a narration for whatever script is
     # waiting; a voice note, an audio file and a file sent "as document" are

@@ -4,7 +4,7 @@ import re
 
 import anthropic
 
-from . import demanda, llm_usage
+from . import demanda, llm_usage, tendencias
 from .config import ANTHROPIC_API_KEY, CHANNEL_TONE_HINT, CLAUDE_MODEL, DEMANDA_MINIMA
 
 logger = logging.getLogger(__name__)
@@ -14,6 +14,12 @@ _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 # Choosing is one cheap call, and the failures seen are transient (an empty
 # reply, malformed JSON). Retrying costs seconds; not retrying costs the run.
 _MAX_ATTEMPTS = 3
+
+# Cuantos candidatos se miden con busqueda (100 unidades cada una, cien al
+# dia). Las tendencias ya han puesto delante los que importan, asi que medir
+# los tres primeros da casi el mismo resultado que medirlos todos por una
+# fraccion de la cuota.
+_CUANTOS_SE_MIDEN = 3
 
 _PROMPT_TEMPLATE = """Eres el editor de un canal de noticias en video corto (formato Short vertical, unos 60
 segundos). Tienes que elegir CUAL de estas noticias merece la pena convertir en video hoy.
@@ -101,8 +107,30 @@ def _filtrar_por_demanda(candidates: list[dict]) -> list[dict]:
     Si NINGUNO pasa el minimo no se descarta todo: se devuelven los originales
     ordenados por demanda, y que el criterio editorial elija entre lo que hay.
     Un dia flojo de noticias es un video flojo, no cero videos."""
+    # Primero, gratis: ordenar por lo que se esta viendo HOY. La lista de
+    # tendencias cuesta 1 unidad de cuota y ya trae las visitas, asi que
+    # ordenar el dia entero sale por uno. Una busqueda cuesta 100 y solo hay
+    # cien al dia, o sea que medir los diez candidatos se come el diez por
+    # ciento del dia; medir solo los tres que las tendencias ponen arriba
+    # cuesta lo mismo que medir tres al azar y acierta mucho mas.
+    try:
+        hoy = tendencias.lo_que_se_ve_hoy()
+    except Exception:
+        logger.warning("No se han podido leer las tendencias; se sigue sin ellas.", exc_info=True)
+        hoy = []
+    if hoy:
+        candidates = tendencias.ordenar_por_tendencia(list(candidates), hoy)
+        huerfanos = tendencias.sin_cubrir(candidates, hoy)
+        if huerfanos:
+            logger.info(
+                "En tendencias hoy y SIN noticia en los feeds (el cuello de "
+                "botella son las fuentes, no la eleccion): %s",
+                "; ".join(f"{h['titulo'][:50]} ({h['vistas']:,})".replace(",", ".")
+                          for h in huerfanos),
+            )
+
     medidos = []
-    for c in candidates:
+    for c in candidates[:_CUANTOS_SE_MIDEN]:
         try:
             m = demanda.medir(c["title"])
         except (demanda.SinClave, demanda.SinCuota) as exc:
@@ -133,7 +161,11 @@ def _filtrar_por_demanda(candidates: list[dict]) -> list[dict]:
         pasan = medidos
 
     pasan.sort(key=lambda par: par[0].get("vistas", 0), reverse=True)
-    return [c for _m, c in pasan]
+    elegidos = [c for _m, c in pasan]
+    # Los que no se han llegado a medir por presupuesto de cuota no se tiran:
+    # van detras, por si los medidos no dan para nada.
+    elegidos += [c for c in candidates[_CUANTOS_SE_MIDEN:]]
+    return elegidos
 
 
 def pick_best_story(candidates: list[dict]) -> dict | None:
