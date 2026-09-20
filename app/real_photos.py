@@ -346,6 +346,82 @@ def _commons_search_photo(name: str, out_path: Path, exclude_urls: set[str]) -> 
         return None
 
 
+def imagenes_del_articulo(titulo: str, lang: str = WIKI_LANG) -> list[tuple[str, str]]:
+    """Todas las imagenes que contiene un articulo: [(url, nombre de fichero)].
+
+    Esto existe porque la busqueda por persona no sirve para un caso de
+    sucesos, y ese es justo el tipo de video que hace el canal. Asunta
+    Basterra, Rosario Porto y Alfonso Basterra no tienen articulo propio en
+    Wikipedia - casi nadie de un caso lo tiene - pero sus fotos estan DENTRO
+    del articulo del caso. Buscando "Asunta Basterra" no se encuentra nada;
+    mirando las imagenes de «Caso Asunta» aparecen.
+
+    Y son utilizables: la Wikipedia en español prohibe el uso legitimo, o sea
+    que lo que hay en un articulo suyo tiene licencia libre. La atribucion la
+    pone creditos_de() como con cualquier otra.
+    """
+    try:
+        r = requests.get(_api_url(lang), params={
+            "action": "query", "prop": "images", "titles": titulo,
+            "imlimit": 60, "format": "json", "redirects": 1,
+        }, headers=_HEADERS, timeout=25)
+        r.raise_for_status()
+        paginas = r.json().get("query", {}).get("pages", {})
+    except (requests.RequestException, ValueError):
+        logger.warning("No se han podido listar las imagenes de «%s».", titulo)
+        return []
+
+    ficheros = [im["title"] for p in paginas.values() for im in (p.get("images") or [])
+                if im.get("title")]
+    if not ficheros:
+        return []
+
+    salida: list[tuple[str, str]] = []
+    # imageinfo acepta cincuenta titulos por peticion.
+    for i in range(0, len(ficheros), 50):
+        try:
+            r = requests.get(_api_url(lang), params={
+                "action": "query", "prop": "imageinfo", "iiprop": "url",
+                "titles": "|".join(ficheros[i:i + 50]), "format": "json",
+            }, headers=_HEADERS, timeout=25)
+            r.raise_for_status()
+            paginas = r.json().get("query", {}).get("pages", {})
+        except (requests.RequestException, ValueError):
+            continue
+        for p in paginas.values():
+            info = (p.get("imageinfo") or [{}])[0]
+            url = info.get("url")
+            if url and not _is_symbol_not_photograph(url):
+                salida.append((url, p.get("title", "").removeprefix("File:").removeprefix("Archivo:")))
+    logger.info("«%s» tiene %s imagenes utilizables.", titulo, len(salida))
+    return salida
+
+
+def retrato_en_el_caso(nombre: str, imagenes: list[tuple[str, str]],
+                       out_path: Path, exclude_urls: set[str] | None = None
+                       ) -> tuple[Path, str] | None:
+    """La imagen de este articulo que corresponde a esta persona, si la hay.
+
+    Los ficheros de Wikipedia se llaman casi siempre por lo que retratan, asi
+    que el nombre del fichero es la pista. Se exige que aparezca el apellido
+    o el nombre completo: con una sola palabra corta, "Porto" casaria con
+    cualquier foto de un puerto."""
+    exclude = exclude_urls or set()
+    partes = [p for p in _fold(nombre).split() if len(p) >= 4]
+    if not partes:
+        return None
+    for url, fichero in imagenes:
+        if url in exclude:
+            continue
+        plano = _fold(fichero)
+        if sum(1 for p in partes if p in plano) >= min(2, len(partes)):
+            if _download(url, out_path):
+                logger.info("«%s»: foto encontrada dentro del articulo del caso (%s).",
+                            nombre, fichero)
+                return out_path, url
+    return None
+
+
 def fetch_portrait(person_name: str, out_path: Path, exclude_urls: set[str] | None = None) -> tuple[Path, str] | None:
     """Looks up a real public figure's (or a named place/institution's)
     photo, preferring Wikipedia (free-licensed infobox images, trying the

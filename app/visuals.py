@@ -300,7 +300,8 @@ def _clip_de_respaldo(out_path: Path, aspect_ratio: str, duracion: float) -> Non
 def fetch_clips_for_scenes(
     scenes: list[dict], out_dir: Path, aspect_ratio: str, scene_durations: list[float], is_sensitive: bool = False,
     creditos: list[str] | None = None,
-    marcas: list | None = None
+    marcas: list | None = None,
+    caso: str = ""
 ) -> list[list[tuple[Path, dict | None]]]:
     """Returns, per scene, a list of (clip_path, name_tag) entries - normally
     just one, but up to _MAX_PHOTOS_PER_SCENE when a scene names several
@@ -313,6 +314,9 @@ def fetch_clips_for_scenes(
     # Stock clips were already deduplicated, but real photos weren't: an
     # entity named in several scenes (e.g. "Junta Electoral Central") showed
     # the identical picture every time, which read as the video looping.
+    # Las imagenes del articulo del caso, cargadas la primera vez que
+    # hagan falta: si todas las personas tienen articulo propio no se pide.
+    imagenes_del_caso: list[tuple[str, str]] | None = None
     used_photo_urls: set[str] = set()
     # When each photo was last shown, so a face can come back.
     ultima_aparicion: dict[str, int] = {}
@@ -418,9 +422,20 @@ def fetch_clips_for_scenes(
                 and i - cuando >= _ESCENAS_ENTRE_REPETICIONES
                 and veces_usada.get(url, 0) < _MAX_VECES_MISMA_FOTO
             }
+            # Antes de rendirse: la gente de un caso de sucesos casi nunca
+            # tiene articulo propio, pero sus fotos estan dentro del articulo
+            # del caso. Buscando "Asunta Basterra" no sale nada; mirando las
+            # imagenes de «Caso Asunta», si.
             result = real_photos.fetch_portrait(
                 candidate, candidate_path, exclude_urls=used_photo_urls - reutilizables
             )
+            if result is None and caso:
+                if imagenes_del_caso is None:
+                    imagenes_del_caso = real_photos.imagenes_del_articulo(caso)
+                result = real_photos.retrato_en_el_caso(
+                    candidate, imagenes_del_caso, candidate_path,
+                    exclude_urls=used_photo_urls - reutilizables,
+                )
             if result is not None:
                 photo_path, photo_url = result
                 used_photo_urls.add(photo_url)

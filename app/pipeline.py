@@ -210,6 +210,12 @@ def _generate_variant(
         is_sensitive=is_sensitive,
         creditos=urls_de_fotos,
         marcas=marcas_narracion,
+        # El articulo del caso, como ultimo recurso para las caras. La gente
+        # de un suceso casi nunca tiene articulo propio - Asunta Basterra,
+        # Rosario Porto, Alfonso Basterra no lo tienen - pero sus fotos estan
+        # dentro del articulo del caso. Sin esto, un video de sucesos se queda
+        # sin una sola cara, que es justo lo que no puede pasar.
+        caso=news_item.get("title", ""),
     )
 
     _stage(variant, 5, "Montando el video con ffmpeg...")
