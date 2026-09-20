@@ -176,10 +176,15 @@ def _generate_variant(
     # A dedicated, isolated pass asking specifically "what named entities
     # appear in this text" is far more reliable than the model tagging
     # photo_subject correctly as one more field inside the much larger
-    # script-generation prompt. Skipped for sensitive stories: it has no
-    # way to guarantee it excludes a crime victim's name the way the
-    # script prompt's own photo_subject rule does.
-    if not ya_escrito and not is_sensitive:
+    # script-generation prompt.
+    #
+    # Esto se saltaba en los casos sensibles, para que el sistema no fuera a
+    # buscar por su cuenta la cara de una victima. El resultado fue el video
+    # de Asunta sin una sola persona: en un caso de sucesos TODOS los nombres
+    # son de gente sensible, asi que el guardia no filtraba, apagaba. Se
+    # quita. Lo que decide si una cara se puede enseñar es la licencia de la
+    # foto, no si el sistema o el guion pidio el nombre.
+    if not ya_escrito:
         _stage(variant, 2, "Extrayendo entidades del guion...")
         entities_by_scene = extract_entities(script["scenes"])
         for i, scene in enumerate(script["scenes"]):
