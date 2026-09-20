@@ -26,7 +26,7 @@ GOOGLE_APPLICATION_CREDENTIALS = os.environ.get(
     "GOOGLE_APPLICATION_CREDENTIALS", str(CREDENTIALS_DIR / "google-tts.json")
 )
 TTS_VOICE_NAME = os.environ.get("TTS_VOICE_NAME", "es-ES-Chirp3-HD-Callirrhoe")
-TTS_LANGUAGE_CODE = os.environ.get("TTS_LANGUAGE_CODE", "es-ES")
+TTS_LANGUAGE_CODE = os.environ.get("TTS_LANGUAGE_CODE", "en-US")
 
 YOUTUBE_CLIENT_SECRETS_FILE = os.environ.get(
     "YOUTUBE_CLIENT_SECRETS_FILE", str(CREDENTIALS_DIR / "youtube_client_secret.json")
@@ -92,7 +92,7 @@ _DEFAULT_RSS_FEEDS = ",".join(
 RSS_FEEDS = [feed.strip() for feed in os.environ.get("RSS_FEEDS", _DEFAULT_RSS_FEEDS).split(",") if feed.strip()]
 
 PIPELINE_INTERVAL_SECONDS = int(os.environ.get("PIPELINE_INTERVAL_SECONDS", 60 * 60 * 12))
-NEWS_LANGUAGE_HINT = os.environ.get("NEWS_LANGUAGE_HINT", "castellano, España")
+NEWS_LANGUAGE_HINT = os.environ.get("NEWS_LANGUAGE_HINT", "ingles (Estados Unidos)")
 
 # Which Wikipedia the research reads, and it is one knob on purpose: the
 # catalogue, the article search, the dossier and the image lookup were all
@@ -105,6 +105,15 @@ NEWS_LANGUAGE_HINT = os.environ.get("NEWS_LANGUAGE_HINT", "castellano, España")
 # worth building - a Spanish article cites Spanish press, while the domains
 # the open-web reader trusts are almost all English-language.
 WIKI_LANG = os.environ.get("WIKI_LANG", "en")
+
+# The language the narration is WRITTEN in, which is not automatically the
+# language it is researched in and has to be asked separately. It exists for
+# one concrete check: the script is measured for correct Spanish accents,
+# because the synthesiser stresses the wrong syllable on an unaccented word.
+# Against an English script that measure reads zero every single time, and a
+# warning that fires on every run is a warning nobody reads - it would bury
+# the real one the day the channel goes back to Spanish.
+NARRATION_LANG = os.environ.get("NARRATION_LANG", "en")
 # Which kind of channel this is.
 #
 # "news": stories arrive from RSS feeds, a picker chooses the best one, and the

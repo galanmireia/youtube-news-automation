@@ -6,7 +6,7 @@ import anthropic
 
 from . import llm_usage
 from .spanish import MIN_TASA_ACENTOS, tasa_de_acentos
-from .config import CONTENT_MODE, ANTHROPIC_API_KEY, CHANNEL_NAME, CHANNEL_TONE_HINT, CLAUDE_MODEL, NEWS_LANGUAGE_HINT
+from .config import CONTENT_MODE, ANTHROPIC_API_KEY, CHANNEL_NAME, CHANNEL_TONE_HINT, CLAUDE_MODEL, NEWS_LANGUAGE_HINT, NARRATION_LANG
 
 logger = logging.getLogger(__name__)
 
@@ -68,50 +68,62 @@ culpabilidad de nadie.
 En todo lo demas - que sera la inmensa mayoria de los casos del catalogo - "is_sensitive" es false.
 Un gusano de 1988 o un fraude ya juzgado NO son sensibles en este sentido: son
 historia documentada, y tratarlos como sensibles solo empeora el video sin proteger a nadie.""",
-        "structure_block": """Este video cuenta UN caso real de informatica o tecnologia - una intrusion, un fraude,
-una filtracion, un software que fallo, una empresa que se cayo - A TRAVES DE UNA PERSONA.
+        "structure_block": """Este video es un RECOPILATORIO. Cuentas UN caso por cada bloque
+"########## CASO:" que venga en el material, en un solo video. No es una historia larga: son
+varias cortas seguidas.
 
-LO PRIMERO QUE DECIDES, antes de escribir una sola frase: quien es el protagonista. Busca en el
-material a la persona que tomo la decision que lo desencadeno todo, o la que tuvo que cargar con
-las consecuencias. El chaval que escribio el gusano. El ingeniero que aviso y al que no hicieron
-caso. El directivo que decidio que parchear salia caro. El investigador que lo destapo. Tiene nombre y apellidos en el articulo, y
-es el video entero: no aparece en una escena, esta en todas.
+POR QUE ESO CAMBIA LA ESCRITURA ENTERA, y es lo mas importante de estas instrucciones: en una
+historia larga puedes tardar dos minutos en arrancar porque el espectador ya ha decidido
+quedarse. Aqui no. Cada caso dura entre noventa segundos y tres minutos y compite con el boton
+de saltar, asi que cada uno tiene que abrir con lo mas extraño que tenga, no con contexto.
 
-POR QUE ESTO IMPORTA MAS QUE NINGUNA OTRA INSTRUCCION: "el ataque de Mirai" es un tema; "el
-universitario que tumbo media internet para hacer trampas en Minecraft" es una historia. Un tema se
-explica y se olvida a los diez segundos. Una historia tiene a alguien que quiere algo, se
-equivoca, y paga - y saber como acaba esa persona es lo unico que hace que alguien se quede.
+EL ORDEN IMPORTA Y LO DECIDES TU: el caso mas fuerte va el PRIMERO, porque decide si alguien
+sigue viendo pasados treinta segundos. El segundo mas fuerte va el ULTIMO, porque es lo que
+sostiene hasta el final. Los flojos, en medio. No respetes el orden en que vienen en el
+material.
 
-CUANDO NO HAY PROTAGONISTA: si el material no da ninguna persona con nombre, o si la unica
-identificable esta acusada de algo TODAVIA NO RESUELTO, no fuerces uno y no lo inventes. Entonces
-el protagonista es el sistema: el gusano, la plataforma, la empresa. Misma estructura, pero
-el "quien" es eso y el "que queria" es para lo que se creo. Nunca montes el relato sobre la
-culpa de alguien cuyo caso siga abierto.
+ESTRUCTURA:
 
-Estructura obligatoria del guion ({duration_hint}, en este orden):
+0. ENTRADILLA, 15-25 segundos. La promesa del video, no un indice. NO enumeres los casos que
+   vienen ("hoy veremos Cicada 3301, Webdriver Torso y..."), eso es un menu y la gente se va al
+   que le suena. Abre con el detalle mas raro de TODOS los casos, sin decir de cual es, y
+   promete el resto. Ejemplo: "One of these videos was uploaded seventy seven thousand times by
+   a channel that has never said a word. Nobody has ever explained why." Di cuantos casos son.
 
-1. LA DECISION. Abre en el segundo exacto en que el protagonista hace lo que lo desencadena todo,
-   con su nombre en la primera frase. Y CORTA antes de decir en que acabo. Nunca empieces situando
-   ("en septiembre de 2016, una red de camaras conectadas a internet...").
-   Ejemplo: "Paras Jha escribio un programa para que su servidor de Minecraft ganara jugadores.
-   Tres meses despues, medio internet estaba caido. ¿Que hacia exactamente ese programa?" -> el
-   espectador ya sabe que algo va a pasar, y no sabe el que.
+Y despues, POR CADA CASO, en este orden:
 
-2. QUIEN ERA Y QUE QUERIA. Muy corto. Su cargo, su experiencia, y las dos o tres cifras que dicen
-   lo que tenia entre manos: cuanta gente, cuanto pesaba, cuanto valia. Nada de inventario.
+1. LA IMAGEN RARA. El dato concreto e incomprensible con el que abre el caso, en la primera
+   frase, sin situar nada antes. No "en 2013 aparecio en internet un acertijo"; si "A message
+   appeared on an imageboard at three in the morning, and solving it required a book that did
+   not exist yet." Anuncia el numero del caso ("Number four.") para que se note el avance:
+   saber cuanto queda es la mitad de por que estos videos se ven enteros.
 
-3. LO QUE SE LE VINO ENCIMA. La cronologia, en orden, con horas y datos concretos. Sobria, sin
-   dramatizar. AQUI TODAVIA NO SE EXPLICA POR QUE FUE TAN GRAVE.
+2. QUE ERA EN REALIDAD. Corto. Que es la cosa, cuando, donde, y las dos o tres cifras que dicen
+   el tamaño. Nada de inventario.
 
-4. POR QUE AQUELLO FUE CATASTROFICO. El pago de todo lo anterior, y lo que separa este canal de
-   quien solo cuenta la tragedia: la causa tecnica explicada para cualquiera. Que fallo, por que
-   esa decision concreta tuvo ese efecto concreto, que margen no existia. Si hay informe oficial,
-   citalo. No puede llegar antes de la mitad del video.
+3. EL GIRO. Lo que lo convirtio en un misterio: lo que alguien encontro, lo que no encajaba, lo
+   que se descubrio despues. Aqui van los datos que solo estan en las fuentes de primera mano.
+   Es el centro del caso y la razon por la que este video no es el de al lado.
 
-5. QUE FUE DE EL. El desenlace de la PERSONA, no solo del sitio: juicio, condena y cuantos años,
-   absolucion, ruina, olvido, o que siguio trabajando como si nada. Esto no es un epilogo, es la
-   razon por la que alguien aguanta hasta el final. Si ademas cambiaron normas o diseños por el
-   caso, va aqui en una frase. Cierra con la llamada a suscribirse.
+4. QUE SE SABE Y QUE NO. Cierra separando las dos cosas EXPLICITAMENTE: lo que esta
+   documentado y lo que sigue sin explicacion. Si el caso se resolvio, dilo - "resuelto" es un
+   final, no un fracaso. Si no, di exactamente que es lo que falta por saber.
+
+   ESTO NO ES OPCIONAL Y NO ES SOLO HONESTIDAD: un canal de misterios que insinua sin afirmar
+   es un canal que acaba desmonetizado por desinformacion. Nunca sugieras una explicacion que
+   las fuentes no sostengan, nunca uses "dicen que" ni "algunos creen", y nunca dejes
+   entender que hay algo sobrenatural o una conspiracion si el material no lo documenta.
+   Un misterio real contado con precision da mas miedo que uno inflado.
+
+Y AL FINAL, CIERRE de 10-15 segundos: una frase que una los casos - que es lo que tienen en
+comun - y la llamada a suscribirse. No resumas lo ya contado.
+
+CUANDO UN CASO TIENE PROTAGONISTA, USALO. Si en el material hay una persona con nombre que
+tomo la decision o que lo encontro, el caso se cuenta a traves de ella: "el universitario que
+tumbo medio internet" se recuerda y "el ataque de Mirai" no. Si no la hay, o si la unica
+identificable esta acusada de algo TODAVIA NO RESUELTO, no la fuerces y no la inventes:
+entonces el protagonista es la cosa - la señal, la emision, el puzle - y "que queria" es para
+lo que se hizo. Nunca montes un caso sobre la culpa de alguien cuyo proceso siga abierto.
 
 TONO: documental, sobrio y preciso. El drama lo ponen los hechos y las cifras, no los adjetivos.
 Tener un protagonista NO es licencia para novelar: no le atribuyas pensamientos, miedos ni
@@ -186,8 +198,8 @@ Formato de este video: {format_hint}
 PUNTUACION Y RITMO (la narracion la lee una voz sintetica): los signos son la UNICA forma que
 tienes de dirigir como suena. La voz no interpreta lo que quisiste decir, pronuncia lo que
 escribiste, y hace pausa donde hay coma o punto y en ningun otro sitio.
-- Punto para el golpe. Una frase corta y un punto pesan mas que una coma. "España le dijo que no."
-  suena; "España le dijo que no y seis dias despues..." se diluye.
+- Punto para el golpe. Una frase corta y un punto pesan mas que una coma. "Nobody ever
+  answered." suena; "Nobody ever answered and six days later..." se diluye.
 - Coma antes del dato que quieres que se oiga: "El casco se abrio, a treinta millas de la costa."
 - Si algo es una PREGUNTA, escribela como pregunta de verdad, con ¿ y ? - asi la voz sube al final
   y suena a pregunta. Una pregunta escrita como afirmacion se lee plana y pierde todo el efecto.
@@ -195,41 +207,50 @@ escribiste, y hace pausa donde hay coma o punto y en ningun otro sitio.
 - Nada de frases largas encadenadas con comas: la voz las lee de corrido, sin aire, y cansa.
 - Nunca uses puntos suspensivos ni guiones para marcar una pausa: no los respeta. Usa punto.
 
-ORTOGRAFIA, MUY IMPORTANTE: el campo "narration" lo lee en voz alta un sintetizador de voz, y ese
-sintetizador pronuncia SEGUN COMO ESTE ESCRITA la palabra. Una palabra sin su tilde se pronuncia
-con el acento en la silaba equivocada y suena a robot. Escribe la narracion en español
-PERFECTAMENTE acentuado, con todas las tildes, eñes y signos de apertura: "investigación" y no
-"investigacion", "según" y no "segun", "murió" y no "murio", "más" y no "mas", "año" y no "ano",
-"España" y no "Espana", "análisis", "policía", "también", "qué", "cómo", "aquí". Lo mismo para
-"title", "description" y "on_screen_highlight", que se leen en pantalla. Fijate en que estas
-instrucciones estan escritas sin tildes por motivos tecnicos: NO imites ese estilo, tu texto debe
-ir correctamente acentuado.
+COMO SE ESCRIBE LA NARRACION, MUY IMPORTANTE: el campo "narration" lo lee en voz alta un
+sintetizador, y lo lee SEGUN COMO ESTE ESCRITO. La narracion va EN INGLES, y en ingles los
+problemas no son las tildes sino estos:
+
+- NUMEROS: escribe con letra los que se leen mal en cifra. "seventy-seven thousand videos", no
+  "77,000 videos". Los años si van en cifra (1988, 2013). Una cifra enorme y exacta se escribe
+  con letra hasta donde se entienda: "four point two million dollars".
+- SIGLAS: la primera vez, el nombre completo y la sigla despues. "the Federal Bureau of
+  Investigation, the FBI". Si la sigla se deletrea al hablar (FBI, DOJ, URL), dejala en
+  mayusculas; si se lee como palabra (NASA, WannaCry), tambien.
+- NADA DE URLS NI DE RUTAS en la narracion: "a YouTube channel called Webdriver Torso", no
+  "youtube.com/user/webdrivertorso".
+- Nunca uses puntos suspensivos ni guiones para marcar una pausa: el sintetizador no los
+  respeta. Usa punto.
+- Frases cortas. Nada de frases largas encadenadas con comas: la voz las lee de corrido, sin
+  aire, y cansa.
+
+Estas instrucciones estan escritas en español porque son para ti; TODO lo que va al video -
+"narration", "title", "description", "on_screen_highlight", los titulos de las diapositivas y
+los "tags" - va EN INGLES.
 
 Recuerda: SIEMPRE anclado en los hechos de la noticia original. Nunca inventes conspiraciones ni
 afirmes cosas que no esten respaldadas por la fuente.
 
-Fotos reales de personas y lugares/instituciones concretas: para cada escena, si esa narracion
-concreta nombra directamente (a) una persona publica real identificable por su cargo o su nombre
-(un ministro, un politico, un CEO, un famoso), O (b) un lugar, edificio o institucion especifico y
-con nombre propio que casi seguro tenga su propio articulo en Wikipedia con foto (una universidad
-concreta, un ministerio, un monumento, la sede de una empresa conocida, un estadio, un hospital
-concreto, UN PARTIDO POLITICO por su nombre - PSOE, PP, Vox, Sumar, etc. -, un sindicato, una
-organizacion internacional como la ONU o la Union Europea, y TAMBIEN CUALQUIER PUEBLO, MUNICIPIO,
-CIUDAD, COMARCA, ISLA O PROVINCIA con nombre propio - Alozaina, Ronda, Teruel, El Hierro, etc.,
-por pequeño que sea, casi todos tienen articulo en Wikipedia con foto del sitio real), rellena
-"photo_subject" con su
-nombre completo tal cual aparece en Wikipedia, para mostrar su foto/logo REAL en vez de video
-generico o una ilustracion inventada. Nunca sustituyas un lugar, institucion o partido con nombre
-propio conocido por una escena generica ni por una ilustracion de IA - si tiene nombre propio y es
-real, casi siempre existe una foto real de el, usa "photo_subject" primero. Ejemplos concretos: si
-la narracion menciona "la Universidad de Las Palmas de Gran Canaria", el campo debe ser exactamente
-"photo_subject": "Universidad de Las Palmas de Gran Canaria"; si menciona "el PSOE" o "el partido
-socialista", debe ser "photo_subject": "Partido Socialista Obrero Español" - NUNCA lo dejes vacio
-ni uses "visual_keywords" o "ai_image_prompt" para estos casos, por muy comun o generico que
-parezca el nombre. Si el nombre es generico y existe igual en varios paises (ej. "Partido Popular"
-existe en España, Portugal y otros paises), añade el pais entre parentesis: "photo_subject":
-"Partido Popular (España)" - si no, la busqueda de la foto puede acabar cogiendo el articulo o la
-imagen equivocada de otro pais.
+Fotos reales de personas y sitios concretos: para cada escena, si esa narracion nombra
+directamente (a) una persona real identificable por su nombre o su cargo, O (b) un lugar,
+edificio, organismo o empresa con nombre propio que casi seguro tenga articulo en Wikipedia con
+foto, rellena "photo_subject" con su nombre EXACTO tal y como lo titula la Wikipedia EN INGLES,
+para enseñar su foto real en vez de un video generico o una ilustracion inventada.
+
+Ejemplos de este canal: "Ross Ulbricht", "Edward Snowden", "Elizabeth Holmes", "Kevin Mitnick",
+"Federal Bureau of Investigation", "National Security Agency", "4chan", "Tor Project",
+"Silk Road (marketplace)". Si el nombre existe igual en varios sitios, desambigualo como lo hace
+la Wikipedia: "Polybius (urban legend)", no "Polybius".
+
+NUNCA sustituyas por una escena generica algo que tiene nombre propio y es real: si existe, casi
+siempre hay foto. Y al reves, NUNCA pongas "photo_subject" para algo que no es una entidad con
+articulo propio - "the deep web", "a server room", "an imageboard" no son sujetos de foto: esos
+van en "visual_keywords".
+
+REGLA INNEGOCIABLE con las personas: si el caso trata de una victima, de alguien desaparecido o
+muerto, o de alguien acusado de algo todavia sin resolver, NO pongas su foto. Nunca. Ni con
+"photo_subject" ni con una ilustracion. El caso se cuenta con respeto y sin cara.
+
 Cuando rellenes "photo_subject", rellena tambien "photo_subject_role" en 2-4 palabras: para una
 persona, su cargo o titulo actual (ej. "Ministro de Transportes"); para un lugar/institucion, un
 descriptor corto (ej. "Universidad publica en Granada") o dejalo vacio si el nombre ya se explica
@@ -271,8 +292,9 @@ narrando?". Si la respuesta es no, esta mal.
   automated machine sorting human silhouettes into two separate groups"
 - MAL (vago, no dice nada): "technology concept", "economic uncertainty", "political tension"
 
-Nunca pidas personas reales reconocibles. Para representar partidos o bandos usa el COLOR, que en
-España se entiende solo (azul el PP, rojo el PSOE), nunca sus logos: estos modelos los dibujan
+Nunca pidas personas reales reconocibles, y en este canal eso es literal: nada de caras de
+victimas, de desaparecidos ni de acusados, ni siquiera dibujadas. Para representar una
+organizacion usa el COLOR o un objeto asociado, nunca su logo: estos modelos los dibujan
 deformados y canta muchisimo.
 
 Deja "ai_image_prompt" vacio ("") cuando la escena si tenga algo real que enseñar o cuando un clip
@@ -299,16 +321,13 @@ MUY IMPORTANTE - variedad: dos escenas del mismo guion NUNCA deben llevar las mi
 o describir la misma imagen generica, aunque el tema de fondo sea el mismo (ej. no repitas "press
 conference" en varias escenas de una noticia politica) - cada escena debe aportar una imagen
 distinta, o el video se siente repetitivo y aburrido.
-MUY IMPORTANTE - pais correcto: cuando la escena sea de gobierno, politica, justicia, policia,
-banca central, parlamento o cualquier otra imagen institucional generica, especifica SIEMPRE el
-pais/region real de la noticia dentro de las palabras clave (ej. para una noticia de España:
-"spanish parliament exterior", "madrid courthouse", "spain police officer", "european union flag
-brussels" - NUNCA dejes terminos ambiguos sin pais como "government building", "senate", "capitol",
-"courtroom" o "police car", porque los bancos de stock genericos devuelven mayoritariamente
-imagenes de Estados Unidos (banderas americanas, el Capitolio, coches de policia americanos) para
-esos terminos, y eso queda visualmente incorrecto y confunde al espectador en una noticia de otro
-pais. Si la noticia es de España usa "spain"/"spanish"/"madrid"/etc.; si es de otro pais, usa ese
-pais en su lugar.
+MUY IMPORTANTE - sitio correcto: cuando la escena sea de justicia, policia, gobierno o
+cualquier imagen institucional generica, di SIEMPRE el pais real del caso dentro de las palabras
+clave ("new york federal courthouse", "london police officer", "moscow radio tower"). NUNCA dejes
+terminos sin pais como "courthouse", "police car" o "government building": los bancos de stock
+devuelven casi siempre imagenes de Estados Unidos para esos terminos, y en un caso ruso o japones
+queda mal y confunde. La mayoria de estos casos son de Estados Unidos y ahi coincide, pero
+comprueba caso por caso en vez de darlo por hecho.
 
 DIAPOSITIVAS DE DATOS ("slide"): son graficos del canal, dibujados con su tipografia y sus
 colores, que se CONSTRUYEN punto por punto mientras hablas. Existen porque hay escenas que no
@@ -393,22 +412,22 @@ se retiene. Entre un dato con numero y uno sin el, elige siempre el que lleva nu
 
 Requisitos de SEO para YouTube (importante, esto determina si el video se encuentra en buscador y
 sugeridos):
-- "title": es LO QUE HIZO EL PROTAGONISTA, no el nombre del sitio ni la matricula del aparato.
-  Maximo 90 caracteres, con gancho pero sin exagerar (nada de MAYUSCULAS sostenidas ni "no vas a
-  creer..."). Tres reglas duras, porque los titulos de este canal venian saliendo mal:
-  * NUNCA empieces por un nombre propio seguido de dos puntos. "M/S Estonia: que fallo en el
-    ataque" y "Stuxnet: el fallo tecnico que permitio..." no le dicen nada a nadie que no sepa
-    ya lo que es un M/S Estonia, y son literalmente encabezados de enciclopedia.
-  * Empieza por la PERSONA definida por su acto: "El universitario que tumbo medio internet por
-    un servidor de Minecraft", "La mujer que estafo cuatro mil millones con una moneda que no
-    existia". Si el protagonista es la
-    obra y no una persona, entonces por lo que la obra hizo o le hicieron, nunca por su nombre a
-    secas.
-  * Si tienes una cifra o un superlativo que sostenga el titulo, usalo: "cuatro mil personas",
-    "el mayor robo bancario de la historia". Un numero concreto pesa mas que un adjetivo.
-  El nombre propio del caso NO se pierde: va en "tags" y en la primera frase de "description", que
-  es de donde YouTube saca las palabras clave para el buscador. El titulo esta para que alguien
-  haga clic, no para indexar.
+- "title": lleva SIEMPRE un numero o una promesa de tiempo. Es la forma del nicho, medida en
+  los canales que funcionan, y no es decorativa: el numero dice cuanto dura el compromiso
+  ("son cuatro cosas, no una clase") y la promesa de tiempo dice lo mismo de otra manera.
+  Maximo 90 caracteres, en ingles, con gancho pero sin exagerar (nada de MAYUSCULAS sostenidas
+  ni "you won't believe").
+  * CON NUMERO: "4 Internet Mysteries That Have Never Been Solved", "5 Broadcasts Nobody Can
+    Explain". El numero es el de casos que cuentas de verdad.
+  * CON PROMESA DE TIEMPO: "The Internet's Strangest Unsolved Cases, Explained In 9 Minutes".
+  * Mejor aun, las dos: "4 Unexplained Internet Mysteries, Explained In 8 Minutes".
+  * NUNCA empieces por un nombre propio seguido de dos puntos. "Cicada 3301: the puzzle that..."
+    es un encabezado de enciclopedia y no le dice nada a quien no sepa ya lo que es.
+  * Si una cifra concreta del material sostiene el titulo, pesa mas que cualquier adjetivo:
+    "77,000 Videos" dice mas que "Bizarre".
+  Los nombres propios de los casos NO se pierden: van en "tags" y en las primeras frases de
+  "description", que es de donde YouTube saca las palabras clave. El titulo esta para que
+  alguien haga clic, no para indexar.
 - "description": empieza con 1-2 frases que repitan de forma natural la palabra clave principal
   del titulo (esto es lo que se muestra en resultados de busqueda), sigue con 2-3 frases de
   contexto, y termina con 3 a 5 hashtags relevantes (formato #Palabra, sin espacios) mas una
@@ -416,7 +435,8 @@ sugeridos):
 - "tags": genera entre 10 y 15 palabras clave/frases de busqueda reales que la gente usaria en
   YouTube sobre este tema, mezclando: 2-3 amplias (el tema general, ej. "inteligencia artificial"),
   4-6 especificas (nombres, lugares, entidades concretas de la noticia), y 3-5 relacionadas con el
-  tipo de contenido (ej. "noticias de actualidad", "analisis noticias españa"). Sin duplicados,
+  tipo de contenido (ej. "unsolved mysteries", "internet mysteries explained"). EN INGLES, que
+  es donde busca esta audiencia. Sin duplicados,
   sin almohadillas aqui (van solo en la descripcion).
 {shorts_seo_hint}
 
@@ -591,6 +611,11 @@ def _log_accent_rate(script: dict, variant: str) -> None:
     synthesiser pronounces from the spelling, and an unaccented word lands its
     stress on the wrong syllable. Whether the model actually complied is not
     otherwise visible until the video is listened to."""
+    if NARRATION_LANG != "es":
+        # Not a Spanish script, so there is nothing to measure. Running it
+        # anyway would warn on every single generation and train everyone to
+        # ignore the one warning that matters.
+        return
     text = " ".join(scene.get("narration", "") for scene in script.get("scenes", []))
     acentuadas, palabras, tasa = tasa_de_acentos(text)
     if not palabras:
