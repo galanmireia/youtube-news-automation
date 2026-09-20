@@ -9,8 +9,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
-from . import (ai_images, demanda, efemerides, news_source, research, storage,
-               tendencias, topic_source, tts, voice_align, voice_clone)
+from . import (ai_images, demanda, efemerides, news_source, real_photos, research,
+               storage, tendencias, topic_source, tts, voice_align, voice_clone)
 from .voice_align import AlignmentFailed
 from .config import (
     CHANNEL_NAME,
@@ -1028,6 +1028,101 @@ async def handle_trending_command(update: Update, context: ContextTypes.DEFAULT_
     context.application.create_task(trabajo())
 
 
+async def handle_viable_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/viable <caso> - ¿merece la pena hacer este video? Antes de gastar nada.
+
+    Junta las dos preguntas que deciden un video y que hasta ahora se
+    contestaban DESPUES de pagarlo:
+
+      - ¿hay alguien buscando esto? La respuesta la da la demanda medida en
+        YouTube. Sus propios numeros: los temas que le dieron 2, 3, 9, 17 y 31
+        visitas tenian todos menos de diez mil vistas semanales; el que le dio
+        479 tenia cinco millones.
+
+      - ¿hay imagenes que podamos usar? Esto salio del caso Asunta. Se hizo el
+        video entero - guion, voz, montaje - para descubrir al final que no
+        existe ni una foto libre de la victima ni de sus padres, porque en un
+        caso de sucesos español las fotos que todos conocemos son de agencia.
+        Se puede mirar antes: basta con listar las imagenes del articulo.
+
+    No genera nada, no gasta creditos y cuesta unas cien unidades de cuota."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    tema = " ".join(context.args).strip()
+    if not tema:
+        await update.message.reply_text("Dime de que caso: /viable Caso Asunta Basterra")
+        return
+    await update.message.reply_text(f"Mirando si *{tema}* da para video...", parse_mode="Markdown")
+    loop = asyncio.get_running_loop()
+
+    async def trabajo():
+        def mirar():
+            existe = research.existe(WIKI_LANG, tema)
+            try:
+                dem = demanda.medir(tema)
+            except (demanda.SinClave, demanda.SinCuota) as exc:
+                dem = {"medido": False, "vistas": 0, "consulta": tema, "aviso": str(exc)}
+            imgs = real_photos.imagenes_del_articulo(tema) if existe else []
+            return existe, dem, imgs
+
+        try:
+            existe, dem, imgs = await loop.run_in_executor(None, mirar)
+        except Exception:
+            logger.exception("Error comprobando la viabilidad de %r", tema)
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID, text="No he podido comprobarlo. Mira los logs.")
+            return
+
+        if existe is None:
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID,
+                text=f"«{tema}»: Wikipedia no ha contestado. Vuelve a intentarlo.")
+            return
+        if existe is False:
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID,
+                text=f"«{tema}»: NO existe ese articulo. Sin articulo no hay dosier "
+                     "ni imagenes. Comprueba el nombre exacto.")
+            return
+
+        lineas = [f"*{tema}*", ""]
+
+        # 1. Demanda
+        if not dem.get("medido"):
+            lineas.append(f"  DEMANDA · no medida ({dem.get('aviso','')[:60]})")
+            dem_ok = None
+        else:
+            dem_ok = dem["vistas"] >= DEMANDA_MINIMA
+            lineas.append(
+                f"  {'✓' if dem_ok else '✗'} DEMANDA · {dem['vistas']:,} vistas en 7 dias "
+                f"({dem['videos']} videos, mediana {dem['mediana']:,})".replace(",", "."))
+
+        # 2. Imagenes
+        lineas.append(f"  {'✓' if imgs else '✗'} IMAGENES · {len(imgs)} utilizables en el articulo")
+        for _url, fichero in imgs[:6]:
+            lineas.append(f"      · {fichero[:52]}")
+        if not imgs:
+            lineas.append("      Ninguna. El video iria solo con video de archivo,")
+            lineas.append("      diapositivas y lugares genericos.")
+
+        # 3. Veredicto, que es para lo que existe el comando
+        lineas.append("")
+        if dem_ok is False:
+            lineas.append("NO lo haria: sin demanda, da igual lo bien que quede.")
+        elif dem_ok and imgs:
+            lineas.append("SI: hay quien lo busca y hay con que contarlo.")
+        elif dem_ok and not imgs:
+            lineas.append("SE PUEDE, sabiendo lo que compras: hay demanda pero no hay")
+            lineas.append("imagenes propias. Sale un video correcto y generico.")
+        else:
+            lineas.append("Sin la demanda no se puede decidir. Vuelve cuando haya cuota.")
+
+        await context.bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID, text="\n".join(lineas), parse_mode="Markdown")
+
+    context.application.create_task(trabajo())
+
+
 async def handle_demand_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/demanda <tema> - cuanta gente esta buscando esto ahora mismo.
 
@@ -1405,6 +1500,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("fuentes", handle_sources_command))
     application.add_handler(CommandHandler("enviar", handle_resend_command))
     application.add_handler(CommandHandler("demanda", handle_demand_command))
+    application.add_handler(CommandHandler("viable", handle_viable_command))
     application.add_handler(CommandHandler("tendencias", handle_trending_command))
     application.add_handler(CommandHandler("calendario", handle_calendar_command))
     application.add_handler(CommandHandler("catalogo", handle_catalogue_command))
