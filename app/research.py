@@ -43,6 +43,8 @@ give back per line of code here:
 """
 import concurrent.futures
 import logging
+import threading
+import time
 import re
 import unicodedata
 from urllib.parse import quote
@@ -92,10 +94,66 @@ _INTENTOS_POR_PLAZA = 3
 # been fetched six times, and they crowd out the indictment.
 _MAX_POR_DOMINIO = 1
 
+# Wikimedia asks every automated client to identify itself and to leave a way
+# of being contacted, and it treats clients that do not as traffic to be
+# throttled. "contact via YouTube channel" is not a contact: it named no
+# channel and gave no address. The repository is a real one.
 _HEADERS = {
-    "User-Agent": f"{CHANNEL_NAME}NewsBot/1.0 "
-                  "(automated video generation; contact via YouTube channel)"
+    "User-Agent": f"{CHANNEL_NAME}Bot/1.0 "
+                  "(https://github.com/galanmireia/youtube-news-automation) python-requests",
+    "Accept-Encoding": "gzip",
 }
+
+# Wikipedia answered 429 - "you are making too many requests" - to every call
+# in a dossier, and that is what emptied it. It was not the articles: it was
+# the pace. One dossier fires about fifteen calls, a five-case compilation
+# fires seventy-five, and they all went out at once because nothing here ever
+# waited. Anonymous API access is rate-limited and was tightened further
+# against scrapers; going flat out is how you get classified as one.
+#
+# A quarter of a second between calls costs about twenty seconds across a
+# whole video and removes the entire problem. It is shared by every module
+# that talks to Wikipedia, because the limit is per client, not per module -
+# two well-behaved callers pacing themselves separately are one caller going
+# twice as fast.
+_INTERVALO = 0.25
+_ultimo = 0.0
+_turno = threading.Lock()
+
+
+def _espera_turno() -> None:
+    global _ultimo
+    with _turno:
+        falta = _INTERVALO - (time.monotonic() - _ultimo)
+        if falta > 0:
+            time.sleep(falta)
+        _ultimo = time.monotonic()
+
+
+def peticion(url: str, params: dict | None = None, timeout: int = 25,
+             intentos: int = 3):
+    """A paced request that backs off when told to, or None.
+
+    A 429 is not a failure, it is an instruction: wait. Treating it as a
+    failure - which is what returning {} did - turns "come back in a second"
+    into "this article has no text", and then into a video with no sources."""
+    for intento in range(intentos):
+        _espera_turno()
+        try:
+            r = requests.get(url, params=params, headers=_HEADERS, timeout=timeout)
+        except requests.RequestException as exc:
+            logger.warning("Wikipedia no responde (%s): %s", url.split("/")[2], exc)
+            return None
+        if r.status_code != 429:
+            return r
+        cabecera = r.headers.get("Retry-After", "")
+        espera = float(cabecera) if cabecera.isdigit() else 2 ** intento
+        espera = min(espera, 30)
+        logger.warning("Wikipedia limita el ritmo (429); espero %.0f s y reintento "
+                       "(%s de %s).", espera, intento + 1, intentos)
+        time.sleep(espera)
+    logger.warning("Wikipedia sigue limitando despues de %s intentos.", intentos)
+    return None
 
 # Links that are never the subject of anything. A country, a century or a unit
 # of measurement is linked by every article and tells a script nothing, so they
@@ -145,11 +203,8 @@ def _get(lang: str, **params) -> dict:
     fault that gets diagnosed twice: once wrongly, and once for real."""
     params.setdefault("format", "json")
     params.setdefault("redirects", 1)
-    try:
-        r = requests.get(_api(lang), params=params, headers=_HEADERS, timeout=25)
-    except requests.RequestException as exc:
-        logger.warning("Wikipedia (%s) no responde a %s: %s",
-                       lang, params.get("prop") or params.get("list") or params.get("action"), exc)
+    r = peticion(_api(lang), params=params)
+    if r is None:
         return {}
     if r.status_code != 200:
         logger.warning("Wikipedia (%s) contesta %s a %s: %s", lang, r.status_code,
@@ -200,10 +255,8 @@ def _extract(lang: str, title: str, limit: int) -> str:
 def _extract_rest(lang: str, title: str) -> str:
     """The article as rendered HTML, turned into text. The backup route."""
     url = f"https://{lang}.wikipedia.org/api/rest_v1/page/html/{quote(title.replace(' ', '_'), safe='')}"
-    try:
-        r = requests.get(url, headers=_HEADERS, timeout=30)
-    except requests.RequestException as exc:
-        logger.warning("REST de Wikipedia (%s) no responde para «%s»: %s", lang, title, exc)
+    r = peticion(url, timeout=30)
+    if r is None:
         return ""
     if r.status_code != 200:
         logger.warning("REST de Wikipedia (%s) contesta %s para «%s».", lang, r.status_code, title)

@@ -168,13 +168,15 @@ def _resolve(term: str) -> str | None:
     article for it. Searching rather than assuming means an entry written from
     memory still finds its article."""
     try:
-        response = requests.get(
+        from . import research
+        response = research.peticion(
             WIKIPEDIA_API_URL,
-            params={"action": "query", "list": "search", "srsearch": term, "srlimit": 1, "format": "json"},
-            headers=_HEADERS,
+            {"action": "query", "list": "search", "srsearch": term, "srlimit": 1,
+             "format": "json"},
             timeout=20,
         )
-        response.raise_for_status()
+        if response is None or response.status_code != 200:
+            return None
         results = response.json().get("query", {}).get("search", [])
         return results[0]["title"] if results else None
     except (requests.RequestException, KeyError, ValueError, IndexError):
