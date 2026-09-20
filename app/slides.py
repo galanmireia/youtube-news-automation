@@ -62,6 +62,25 @@ _FONT_LIGHT = "DejaVuSans.ttf"
 TIPOS = ("cifra", "cronologia", "lista", "comparacion", "barras", "proporcion")
 
 
+# En vertical la letra salia casi la mitad de pequeña, y por un motivo tonto:
+# todos los tamaños se calculan sobre el ANCHO, y el ancho de un 9:16 es 1080
+# frente a los 1920 de un 16:9. O sea que el formato que se ve en un movil, de
+# lejos y en miniatura, era el que tenia el texto mas chico. Justo al reves.
+#
+# Se arregla midiendo la tipografia contra un ancho de referencia en vez de
+# contra el real: en vertical el texto ocupa asi un 4% del ancho en lugar de
+# un 2,5%, que es lo que se lee de verdad en un telefono.
+_FACTOR_VERTICAL = 1.65
+
+
+def _ancho_tipo(width: int, height: int) -> int:
+    return int(width * _FACTOR_VERTICAL) if height > width else width
+
+
+def _es_vertical(width: int, height: int) -> bool:
+    return height > width
+
+
 def _alto_linea(fuente) -> int:
     """One line's height, from the FONT rather than from the text in it.
 
@@ -162,7 +181,7 @@ def cifra(valor: str, unidad: str, pie: str, width: int, height: int) -> list[Im
             y += _alto_linea(fuente_unidad) + int(height * 0.03)
 
         if paso >= 2 and pie:
-            fuente_pie = _load_font(_FONT_LIGHT, max(20, width // 34))
+            fuente_pie = _load_font(_FONT_LIGHT, max(20, _ancho_tipo(width, height) // 34))
             _parrafo(draw, pie, fuente_pie, margen, y, ancho_util, _MUTED_COLOR)
 
         frames.append(imagen)
@@ -189,8 +208,8 @@ def cronologia(puntos: list[str], titulo: str, width: int, height: int) -> list[
 
     # Measured on a throwaway canvas so the layout is identical in every frame.
     medidor = ImageDraw.Draw(Image.new("RGB", (width, height)))
-    fuente = _load_font(_FONT, max(20, width // 40))
-    fuente_fecha = _load_font(_FONT, max(18, width // 48))
+    fuente = _load_font(_FONT, max(20, _ancho_tipo(width, height) // 40))
+    fuente_fecha = _load_font(_FONT, max(18, _ancho_tipo(width, height) // 48))
     radio_max = max(7, width // 140)
     espina_x = margen + radio_max
     texto_x = espina_x + radio_max * 3
@@ -215,11 +234,19 @@ def cronologia(puntos: list[str], titulo: str, width: int, height: int) -> list[
         altos.append(alto + separacion)
 
     y0 = _titulo(medidor, titulo, width, int(height * 0.11))
-    disponible = int(height * 0.92) - y0
+    # Hasta donde puede llegar el contenido. En vertical NO es el final del
+    # fotograma: los subtitulos incrustados y la interfaz de Shorts ocupan la
+    # franja de abajo, y centrar en todo el alto dejaba el titulo arriba del
+    # todo, un hueco enorme, y los puntos flotando en mitad de la nada.
+    fin = int(height * (0.72 if _es_vertical(width, height) else 0.92))
+    disponible = fin - y0
     total = sum(altos)
-    # Centred in what is left, so the block sits in the frame rather than
-    # hanging from the top with a dead third underneath.
-    y0 += max(0, (disponible - total) // 2)
+    # Centrado en lo que queda, pero sin alejarse del titulo: en vertical
+    # sobra tanto sitio que centrar de verdad lo despegaba media pantalla.
+    hueco = max(0, (disponible - total) // 2)
+    if _es_vertical(width, height):
+        hueco = min(hueco, int(height * 0.10))
+    y0 += hueco
 
     frames = []
     for revelados in range(1, len(puntos) + 1):
@@ -270,8 +297,8 @@ def lista(puntos: list[str], titulo: str, width: int, height: int) -> list[Image
         return []
     margen = int(width * 0.08)
     medidor = ImageDraw.Draw(Image.new("RGB", (width, height)))
-    fuente = _load_font(_FONT, max(22, width // 34))
-    fuente_num = _load_font(_FONT, max(26, width // 26))
+    fuente = _load_font(_FONT, max(22, _ancho_tipo(width, height) // 34))
+    fuente_num = _load_font(_FONT, max(26, _ancho_tipo(width, height) // 26))
 
     # The indent comes from the widest number, not from each one, so a list
     # that reaches double figures does not step sideways at the tenth point.
@@ -283,7 +310,13 @@ def lista(puntos: list[str], titulo: str, width: int, height: int) -> list[Image
     altos = [_alto_parrafo(medidor, punto, fuente, ancho_texto) + separacion for punto in puntos]
 
     y0 = _titulo(medidor, titulo, width, int(height * 0.13))
-    y0 += max(0, (int(height * 0.92) - y0 - sum(altos)) // 2)
+    # Mismo ajuste que la cronologia: en vertical la franja de abajo es de
+    # los subtitulos, y centrar en todo el alto deja el contenido flotando.
+    fin = int(height * (0.72 if _es_vertical(width, height) else 0.92))
+    hueco = max(0, (fin - y0 - sum(altos)) // 2)
+    if _es_vertical(width, height):
+        hueco = min(hueco, int(height * 0.10))
+    y0 += hueco
 
     frames = []
     for revelados in range(1, len(puntos) + 1):
@@ -317,12 +350,12 @@ def comparacion(
     margen = int(width * 0.07)
     separacion = int(width * 0.05)
     medidor = ImageDraw.Draw(Image.new("RGB", (width, height)))
-    fuente = _load_font(_FONT, max(22, width // 32))
+    fuente = _load_font(_FONT, max(22, _ancho_tipo(width, height) // 32))
 
     ancho_panel = (width - margen * 2 - separacion) // 2
     ancho_texto = ancho_panel - margen
     y0 = _titulo(medidor, titulo, width, int(height * 0.13))
-    alto_panel = int(height * 0.90) - y0
+    alto_panel = int(height * (0.74 if _es_vertical(width, height) else 0.90)) - y0
     grosor = max(4, width // 300)
 
     frames = []
@@ -402,8 +435,8 @@ def barras(
 
     margen = int(width * 0.08)
     medidor = ImageDraw.Draw(Image.new("RGB", (width, height)))
-    fuente_etq = _load_font(_FONT, max(20, width // 46))
-    fuente_val = _load_font(_FONT, max(22, width // 40))
+    fuente_etq = _load_font(_FONT, max(20, _ancho_tipo(width, height) // 46))
+    fuente_val = _load_font(_FONT, max(22, _ancho_tipo(width, height) // 40))
 
     mayor = max(v for _, v in limpios)
     ancho_etq = max(_text_width(medidor, e, fuente_etq) for e, _ in limpios)
@@ -489,7 +522,7 @@ def proporcion(
     fuente_de = _fit_single_line_font(
         medidor, (de_cada or "").upper(), ancho_util, max(22, width // 30), max(15, width // 52)
     )
-    fuente_pie = _load_font(_FONT_LIGHT, max(20, width // 36))
+    fuente_pie = _load_font(_FONT_LIGHT, max(20, _ancho_tipo(width, height) // 36))
 
     frames = []
     for paso in range(3):
