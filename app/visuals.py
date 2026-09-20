@@ -8,7 +8,7 @@ from pathlib import Path
 
 import requests
 
-from . import ai_images, branding, real_photos, slides, fotos_propias
+from . import ai_images, branding, oficial, real_photos, slides, fotos_propias
 from .branding import BACKGROUND_COLOR
 from .config import CONTENT_MODE, CHANNEL_NAME, PEXELS_API_KEY, PIXABAY_API_KEY
 
@@ -445,6 +445,19 @@ def fetch_clips_for_scenes(
                     candidate, imagenes_del_caso, candidate_path,
                     exclude_urls=used_photo_urls - reutilizables,
                 )
+            if result is None:
+                # Wikidata es la cuarta fuente y es distinta de las otras
+                # tres: guarda la foto de una persona aunque el articulo no la
+                # lleve dentro, y ficha a gente que no tiene articulo propio -
+                # que es lo normal en un caso de sucesos. Ademas dice si lo que
+                # ha encontrado es una PERSONA, asi que no puede colar una
+                # ciudad llamada Rosario.
+                encontrado = oficial.retrato(candidate)
+                if encontrado is not None:
+                    url_wd, _fichero = encontrado
+                    if url_wd not in (used_photo_urls - reutilizables):
+                        if real_photos._download(url_wd, candidate_path):
+                            result = (candidate_path, url_wd)
             if result is not None:
                 photo_path, photo_url = result
                 used_photo_urls.add(photo_url)

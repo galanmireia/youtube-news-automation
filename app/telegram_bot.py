@@ -10,7 +10,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
-from . import (ai_images, demanda, efemerides, fotos_propias, news_source,
+from . import (ai_images, demanda, efemerides, fotos_propias, news_source, oficial,
                real_photos, research, storage, tendencias, topic_source, tts,
                voice_align, voice_clone)
 from .voice_align import AlignmentFailed
@@ -1142,6 +1142,52 @@ async def handle_incoming_photo(update: Update, context: ContextTypes.DEFAULT_TY
         "que encuentre yo por mi cuenta.")
 
 
+async def handle_oficial_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/oficial <nombre o caso> - ¿hay material oficial que se pueda usar?
+
+    Sale de su pregunta, y la respuesta en España tiene dos mitades que no se
+    parecen en nada, asi que el comando las separa en vez de dar un si o un
+    no."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    tema = " ".join(context.args).strip()
+    if not tema:
+        await update.message.reply_text("Dime de quien o de que caso: /oficial Rosario Porto")
+        return
+    await update.message.reply_text(f"Mirando material oficial de *{tema}*...", parse_mode="Markdown")
+
+    loop = asyncio.get_running_loop()
+    try:
+        encontrado = await loop.run_in_executor(None, oficial.retrato, tema)
+    except Exception:
+        logger.exception("Error buscando material oficial de %r", tema)
+        await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                                       text="No he podido comprobarlo. Mira los logs.")
+        return
+
+    lineas = [f"*{tema}*", ""]
+    if encontrado:
+        _url, fichero = encontrado
+        lineas += [f"  ✓ FOTO LIBRE · Wikidata tiene ficha con retrato",
+                   f"      · {fichero[:52]}",
+                   "      Entra sola en el proximo video, no tienes que hacer nada.", ""]
+    else:
+        lineas += ["  ✗ FOTO LIBRE · Wikidata no tiene retrato fichado", ""]
+
+    lineas += [
+        "  ✓ SENTENCIA · libre, y es la mejor fuente que hay",
+        "      Las resoluciones judiciales no son de nadie (art. 13 LPI):",
+        "      se pueden citar enteras, leerlas y sacarlas en pantalla.",
+        f"      Buscador publico: {oficial.CENDOJ}",
+        "",
+        "  ✗ FOTOS DE POLICIA O JUZGADO · no son libres en España",
+        "      Aqui no es como en EEUU. Que la difundan para que salga en",
+        "      prensa no la convierte en libre: sigue teniendo dueño.",
+    ]
+    await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="\n".join(lineas),
+                                   parse_mode="Markdown", disable_web_page_preview=True)
+
+
 async def handle_viable_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/viable <caso> - ¿merece la pena hacer este video? Antes de gastar nada.
 
@@ -1619,6 +1665,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("demanda", handle_demand_command))
     application.add_handler(CommandHandler("viable", handle_viable_command))
     application.add_handler(CommandHandler("fotos", handle_photos_command))
+    application.add_handler(CommandHandler("oficial", handle_oficial_command))
     application.add_handler(CommandHandler("tendencias", handle_trending_command))
     application.add_handler(CommandHandler("calendario", handle_calendar_command))
     application.add_handler(CommandHandler("catalogo", handle_catalogue_command))
