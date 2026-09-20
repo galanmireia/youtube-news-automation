@@ -541,6 +541,19 @@ def _categoria_en_commons(titulo: str) -> list[tuple[str, str]]:
     return salida
 
 
+def _mismo_fichero(nombre: str) -> str:
+    """La identidad de una imagen de Wikimedia es su nombre, no su url.
+
+    El mismo fichero sale con direcciones distintas segun por donde se llegue:
+    subido a la Wikipedia en español va a /wikipedia/es/..., el de Commons a
+    /wikipedia/commons/..., y de una edicion a otra cambia tambien el prefijo.
+    Comparando urls, la misma foto contada tres veces parecen tres fotos - que
+    es justo lo que hizo /viable con «Caso Asunta»: dijo 6 y eran 3.
+    """
+    limpio = nombre.strip().removeprefix("File:").removeprefix("Archivo:")
+    return " ".join(limpio.replace("_", " ").lower().split())
+
+
 def imagenes_del_caso(titulo: str) -> list[tuple[str, str]]:
     """TODAS las imagenes libres que rodean a un caso, no solo las del articulo.
 
@@ -557,27 +570,30 @@ def imagenes_del_caso(titulo: str) -> list[tuple[str, str]]:
     """
     vistas: set[str] = set()
     todas: list[tuple[str, str]] = []
-    for url, fichero in imagenes_del_articulo(titulo, WIKI_LANG):
-        if url not in vistas:
-            vistas.add(url)
-            todas.append((url, fichero))
+
+    def anotar(pares):
+        nuevas = 0
+        for url, fichero in pares:
+            clave = _mismo_fichero(fichero) or url
+            if clave in vistas:
+                continue
+            vistas.add(clave)
+            todas.append((url, fichero.removeprefix("File:").removeprefix("Archivo:").strip()))
+            nuevas += 1
+        return nuevas
+
+    del_articulo = anotar(imagenes_del_articulo(titulo, WIKI_LANG))
 
     otro = "en" if WIKI_LANG != "en" else "es"
     titulo_otro = _titulo_en_otro_idioma(titulo, WIKI_LANG, otro)
-    if titulo_otro:
-        for url, fichero in imagenes_del_articulo(titulo_otro, otro):
-            if url not in vistas:
-                vistas.add(url)
-                todas.append((url, fichero))
+    de_la_otra = anotar(imagenes_del_articulo(titulo_otro, otro)) if titulo_otro else 0
 
+    de_commons = 0
     for titulo_cat in filter(None, (titulo, titulo_otro)):
-        for url, fichero in _categoria_en_commons(titulo_cat):
-            if url not in vistas:
-                vistas.add(url)
-                todas.append((url, fichero))
+        de_commons += anotar(_categoria_en_commons(titulo_cat))
 
-    logger.info("«%s»: %s imagenes libres en total (articulo, otra Wikipedia y Commons).",
-                titulo, len(todas))
+    logger.info("«%s»: %s imagenes libres distintas (articulo %s, otra Wikipedia +%s, "
+                "Commons +%s).", titulo, len(todas), del_articulo, de_la_otra, de_commons)
     return todas
 
 

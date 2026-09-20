@@ -1167,9 +1167,12 @@ async def handle_viable_command(update: Update, context: ContextTypes.DEFAULT_TY
                 f"({dem['videos']} videos, mediana {dem['mediana']:,})".replace(",", "."))
 
         # 2. Imagenes
-        lineas.append(f"  {'✓' if imgs else '✗'} IMAGENES · {len(imgs)} utilizables en el articulo")
-        for _url, fichero in imgs[:6]:
+        lineas.append(f"  {'✓' if imgs else '✗'} IMAGENES · {len(imgs)} libres "
+                      "(articulo, otra Wikipedia y Commons)")
+        for _url, fichero in imgs[:8]:
             lineas.append(f"      · {fichero[:52]}")
+        if len(imgs) > 8:
+            lineas.append(f"      · ...y {len(imgs) - 8} mas")
         if not imgs:
             lineas.append("      Ninguna. El video iria solo con video de archivo,")
             lineas.append("      diapositivas y lugares genericos.")
