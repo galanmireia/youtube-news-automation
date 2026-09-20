@@ -74,6 +74,18 @@ _PUBLICO = (
     ".gov", ".mil", "europa.eu", "courtlistener.com", "supremecourt.gov",
     "sec.gov", "justice.gov", "fbi.gov", "cisa.gov", "nist.gov", "gao.gov",
     "treasury.gov", "ftc.gov", "europol.europa.eu", "ncsc.gov.uk",
+    # España. Esta lista se escribio para un canal en ingles y se quedo asi
+    # cuando el canal paso a hacer casos españoles: el grupo de MAXIMA
+    # prioridad no tenia ni un registro publico de aqui, o sea que cuando la
+    # Wikipedia española citaba sus fuentes - que son casi todas de aqui - no
+    # se podia leer casi ninguna.
+    #
+    # ".gob.es" es el equivalente a ".gov": cubre los ministerios. Y
+    # poderjudicial.es es el CENDOJ, donde estan las sentencias, que por el
+    # art. 13 LPI no son de nadie y se pueden citar enteras.
+    ".gob.es", "poderjudicial.es", "boe.es", "congreso.es", "senado.es",
+    "policia.es", "guardiacivil.es", "fiscal.es", "tribunalconstitucional.es",
+    "ine.es", "defensordelpueblo.es", "administraciondejusticia.gob.es",
 )
 # 2. Long-form. Where somebody spent three months on the case and wrote ten
 #    thousand words about it. This is the group that turns a Wikipedia
@@ -84,6 +96,10 @@ _LARGO = (
     "krebsonsecurity.com", "schneier.com", "nytimes.com", "washingtonpost.com",
     "theguardian.com", "bbc.com", "bbc.co.uk", "latimes.com", "vanityfair.com",
     "wsj.com", "ft.com", "economist.com", "harpers.org", "theintercept.com",
+    # Reportaje largo en español, que es de donde sale el detalle que
+    # convierte un parrafo de Wikipedia en una historia con gente dentro.
+    "eldiario.es", "elconfidencial.com", "ctxt.es", "jotdown.es",
+    "infolibre.es", "revistavanityfair.es",
 )
 # 3. General press. Rarely adds detail the first two do not have, but it is
 #    what confirms a date, and a second source on a date is the difference
@@ -95,6 +111,14 @@ _PRENSA = (
     "gizmodo.com", "independent.co.uk", "telegraph.co.uk", "sky.com",
     "elpais.com", "elmundo.es", "lavanguardia.com", "spiegel.de",
     "lemonde.fr", "corriere.it", "repubblica.it", "smh.com.au",
+    # Prensa española. La de provincias importa mas de lo que parece en un
+    # caso de sucesos: quien siguio el caso Asunta dia a dia fue La Voz de
+    # Galicia, no un periodico de Madrid.
+    "abc.es", "larazon.es", "publico.es", "20minutos.es", "elperiodico.com",
+    "rtve.es", "efe.com", "europapress.es", "cadenaser.com", "ondacero.es",
+    "lavozdegalicia.es", "farodevigo.es", "elcorreo.com", "heraldo.es",
+    "levante-emv.com", "diariodesevilla.es", "lasprovincias.es",
+    "elcomercio.es", "eldiariomontanes.es", "naiz.eus", "elperiodicodearagon.com",
 )
 # 4. Academic and archival.
 _ACADEMICO = (".edu", ".ac.uk", "arxiv.org", "acm.org", "ieee.org",
