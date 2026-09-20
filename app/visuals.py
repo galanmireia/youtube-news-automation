@@ -1,12 +1,14 @@
 import logging
 import math
 import random
+import subprocess
 import time
 from pathlib import Path
 
 import requests
 
 from . import ai_images, branding, real_photos, slides
+from .branding import BACKGROUND_COLOR
 from .config import CONTENT_MODE, CHANNEL_NAME, PEXELS_API_KEY, PIXABAY_API_KEY
 
 logger = logging.getLogger(__name__)
@@ -269,6 +271,32 @@ def _download_to_file(url: str, out_path: Path) -> None:
                 fh.write(chunk)
 
 
+def _clip_de_respaldo(out_path: Path, aspect_ratio: str, duracion: float) -> None:
+    """Un fondo liso del color del canal, hecho aqui mismo sin pedirle nada a
+    nadie.
+
+    Existe por una razon de dinero. La narracion se paga en el paso 3 y las
+    imagenes se buscan en el 4, o sea que CUALQUIER cosa que reviente aqui
+    tira unos siete mil quinientos creditos ya gastados. Y habia tres formas
+    de reventar, ninguna protegida: que Pexels se caiga o nos limite, que una
+    busqueda no devuelva nada, y que una descarga se pase del tiempo.
+
+    Un fondo liso detras de una escena es peor que un clip de archivo. Perder
+    el video entero cuando ya esta pagada la voz es muchisimo peor, y encima
+    la mayoria de estas escenas llevan encima una foto real o una diapositiva,
+    asi que lo que se ve no es un rectangulo vacio.
+    """
+    ancho, alto = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
+    r, g, b = BACKGROUND_COLOR
+    subprocess.run(
+        ["ffmpeg", "-y", "-v", "error",
+         "-f", "lavfi", "-i",
+         f"color=c=0x{r:02x}{g:02x}{b:02x}:s={ancho}x{alto}:r=30:d={max(duracion, 1.0):.2f}",
+         "-c:v", "libx264", "-pix_fmt", "yuv420p", str(out_path)],
+        check=True,
+    )
+
+
 def fetch_clips_for_scenes(
     scenes: list[dict], out_dir: Path, aspect_ratio: str, scene_durations: list[float], is_sensitive: bool = False,
     creditos: list[str] | None = None,
@@ -488,7 +516,19 @@ def fetch_clips_for_scenes(
         for j in range(clip_count):
             out_path = out_dir / f"clip_{i:02d}_{j}.mp4"
             logger.info("Escena %s: buscando clip %s/%s en Pexels para %r...", i, j + 1, clip_count, query)
-            fetch_clip_for_scene(query, out_path, aspect_ratio, used_video_ids)
+            try:
+                fetch_clip_for_scene(query, out_path, aspect_ratio, used_video_ids)
+            except Exception:
+                # La red de seguridad: aqui la narracion YA esta pagada.
+                logger.warning(
+                    "Escena %s: no se ha podido traer clip para %r; fondo liso.",
+                    i, query, exc_info=True,
+                )
+                # El bucle es enumerate(scenes) desde cero, asi que el indice
+                # de la duracion es i, no i-1. Con i-1 la primera escena se
+                # llevaba la duracion de la ULTIMA.
+                duracion = scene_durations[i] if i < len(scene_durations) else 6.0
+                _clip_de_respaldo(out_path, aspect_ratio, duracion)
             tag = {"caption": highlight} if highlight and j == 0 else None
             scene_entries.append((out_path, tag))
         clip_entries.append(scene_entries)
