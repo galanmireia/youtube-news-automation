@@ -66,71 +66,98 @@ _EXTRACT_CHARS = 9000
 # to check them, which is exactly why nothing here assumes an exact match.
 # Entries that resolve to nothing are named in the log rather than counted.
 CATALOGUE = [
-    # Intrusiones con nombre y apellidos
-    "Jonathan James hacker NASA",
-    "Mirai botnet",
-    "WannaCry",
-    "Marcus Hutchins",
-    "Kevin Mitnick",
-    "Gusano Morris",
-    "Stuxnet",
-    "Gary McKinnon",
-    "Albert Gonzalez hacker",
-    "Grupo Lazarus",
-    "Robo al Banco de Bangladés",
-    "Carbanak",
-    "Hackeo a Sony Pictures Entertainment",
-    "Ciberataque a Colonial Pipeline",
-    "Ataque a SolarWinds",
-    "Operación Aurora",
-    "Ciberataque al SEPE",
-    "Ataque DDoS a Dyn",
-    # Fraudes tecnologicos
+    # Misterios de internet, que es donde estan los numeros.
+    #
+    # Medido sobre 1.494 videos y 1.278 canales: de cuarenta y dos nichos, el
+    # que sostiene canales jovenes en ingles con mas visitas por video es este
+    # - veinte canales con menos de dieciocho meses y una mediana de 72.522
+    # visitas por video, con varios por encima del millon. La informatica pura
+    # NO lo hace: su mediana es 3.321, y el unico video que revento (5,6
+    # millones sobre virus) tiene debajo a otro canal con el mismo tema, el
+    # mismo formato y 43 visitas.
+    #
+    # Criterio para entrar aqui, y es duro: el caso tiene que estar DOCUMENTADO
+    # EN WIKIPEDIA. Los misterios de internet abundan en foros y en videos de
+    # otros, y de ahi no se puede sacar nada - ni por derechos ni por fiabilidad.
+    # Un caso sin articulo solido es un guion que se inventa el relleno.
+
+    # Criptogramas y acertijos sin resolver
+    "Cicada 3301",
+    "Kryptos",
+    "Manuscrito Voynich",
+    "Codigo Beale",
+    "Taman Shud",
+    "Disco de Festos",
+    "Publius Enigma",
+    "Zodiac Killer cifrado",
+
+    # Emisiones y señales que nadie explica
+    "Webdriver Torso",
+    "Señal Wow!",
+    "UVB-76",
+    "Incidente de Max Headroom",
+    "Numbers station",
+    "Bloop",
+    "Lincolnshire Poacher",
+
+    # Leyendas que salieron de internet y tuvieron consecuencias reales
+    "Slender Man",
+    "Apuñalamiento de Slender Man",
+    "Momo Challenge",
+    "Reto de la ballena azul",
+    "Creepypasta",
+    "Polybius videojuego",
+    "Pizzagate",
+
+    # Identidades ocultas
+    "Satoshi Nakamoto",
+    "Banksy",
+    "D. B. Cooper",
+    "Q (QAnon)",
+    "Bitcoin creador",
+
+    # Desapariciones y casos con rastro digital
+    "Elisa Lam",
+    "Desaparicion de Maura Murray",
+    "Caso de Lars Mittank",
+    "Hombre de Somerton",
+    "Vuelo 370 de Malaysia Airlines",
+
+    # Rincones oscuros de la red
+    "Silk Road (mercado negro)",
+    "Ross Ulbricht",
+    "Deep web",
+    "Red Tor",
+    "Anonymous (colectivo)",
+    "LulzSec",
+    "4chan",
+    "Ashley Madison filtracion",
+
+    # Fraudes y engaños nacidos en la red
+    "Teoria del internet muerto",
+    "Fyre Festival",
+    "OneCoin",
     "Theranos",
     "Elizabeth Holmes",
-    "OneCoin",
-    "Ruja Ignatova",
-    "Quiebra de FTX",
-    "Sam Bankman-Fried",
-    "Mt. Gox",
-    "Caso Wirecard",
-    "BitConnect",
-    "QuadrigaCX",
-    "Terra Luna criptomoneda",
-    "Nikola Corporation fraude",
-    # Filtraciones y vigilancia
+    "Estafa nigeriana",
+
+    # Desastres informaticos que el publico conoce
+    "Gusano Morris",
+    "WannaCry",
+    "Stuxnet",
+    "Mirai botnet",
+    "ILOVEYOU",
+    "Kevin Mitnick",
+    "Caida de CrowdStrike de 2024",
+
+    # Vigilancia y filtraciones
     "Edward Snowden",
-    "Escándalo de Cambridge Analytica",
-    "Cablegate",
-    "Chelsea Manning",
-    "Papeles de Panamá",
-    "Pegasus software espía",
-    "Filtración de Ashley Madison",
-    "Brecha de datos de Equifax",
-    "Filtración de datos de Yahoo",
-    # Software que fallo y costo caro
-    "Therac-25",
-    "Vuelo 501 del Ariane 5",
-    "Mars Climate Orbiter",
-    "Knight Capital",
-    "Boeing 737 MAX MCAS",
-    "Heartbleed",
-    "Log4Shell",
-    "Apagón informático de CrowdStrike",
-    "Efecto 2000",
-    "Apagón del noreste de 2003",
-    # Mercado negro digital
-    "Silk Road mercado negro",
-    "Ross Ulbricht",
-    "AlphaBay",
-    # Imperios que se cayeron
-    "Napster",
-    "Declive de Nokia",
-    "Quiebra de Blockbuster",
-    "Quiebra de Kodak",
-    "Declive de BlackBerry",
-    "MySpace red social",
+    "Cambridge Analytica",
+    "WikiLeaks",
+    "Room 641A",
+    "PRISM (programa de vigilancia)",
 ]
+
 
 
 def _resolve(term: str) -> str | None:

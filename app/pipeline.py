@@ -473,6 +473,36 @@ def resume_voice_job(job_file: Path, recording_path: Path) -> int:
     return video_id
 
 
+# How many cases go in one video, and how much dossier each one gets.
+#
+# Five is what the titles in the niche promise most often ("4 Most...", "The 8
+# Strangest..."), and it divides a ten-minute video into pieces of about two
+# minutes - long enough for a story with a turn in it, short enough that a
+# viewer who finds one case dull is a minute from the next.
+CASOS_POR_VIDEO = 5
+_CHARS_POR_CASO = 9000
+
+
+def _recopilatorio(casos: list[dict]) -> dict:
+    """Several catalogue entries as one video.
+
+    The title here is a placeholder: the script model writes the real one, and
+    the niche's own titles say how - a COUNT and a superlative, never a list of
+    the cases. What this carries is the list of cases, which the dossier stage
+    reads to research each one separately."""
+    nombres = [c["title"] for c in casos]
+    return {
+        "title": f"{len(nombres)} misterios de internet",
+        "casos": nombres,
+        "summary": "",
+        # The first case's link is what marks the batch as processed, so a
+        # compilation is never rebuilt from the same opening case.
+        "link": casos[0]["link"],
+        "published": "",
+        "source_name": "Wikipedia",
+    }
+
+
 def _choose_and_prepare(forced_topic: str | None) -> tuple[dict | None, Path | None]:
     """Picks the case to make, gathers its sources and opens a working
     directory for it. Shared by the ordinary run and by a job that pauses to
@@ -487,7 +517,14 @@ def _choose_and_prepare(forced_topic: str | None) -> tuple[dict | None, Path | N
         chosen = fetch_topic_by_term(forced_topic)
         candidates = [chosen] if chosen else []
     elif CONTENT_MODE == "topics":
-        candidates = fetch_candidate_topics(limit=3)
+        # Enough cases for a compilation, not one for a documentary.
+        #
+        # Measured across 1,494 videos: what works in this niche is several
+        # cases in one video with the count in the title - "4 Most Disturbing
+        # Internet Mysteries", "The 8 Strangest Ancient Constructions" - not a
+        # single story told at length. One case is asked for when the caller
+        # names it, which is how a single subject still gets made on purpose.
+        candidates = fetch_candidate_topics(limit=CASOS_POR_VIDEO)
     else:
         candidates = fetch_candidate_news(limit=6)
     if not candidates:
@@ -506,6 +543,8 @@ def _choose_and_prepare(forced_topic: str | None) -> tuple[dict | None, Path | N
         # to re-make it over three nine-thousand-character articles would cost
         # more than the script itself.
         news_item = candidates[0]
+        if len(candidates) > 1:
+            news_item = _recopilatorio(candidates)
     else:
         news_item = pick_best_story(candidates)
         if news_item is None:
@@ -520,13 +559,23 @@ def _choose_and_prepare(forced_topic: str | None) -> tuple[dict | None, Path | N
     # falla, se sigue con el extracto corto que ya traia el candidato: un
     # video con menos material es peor, pero es mejor que ninguno.
     if CONTENT_MODE == "topics":
-        try:
-            dosier = research.build_dossier(news_item["title"])
-        except Exception:
-            logger.exception("No se pudo montar el dosier; se sigue con el extracto corto.")
-            dosier = ""
+        # One dossier per case. A compilation gives each case a couple of
+        # minutes, so it needs the shape of the story and its best two or
+        # three facts - not the forty thousand characters a single-subject
+        # documentary lived on.
+        partes = []
+        for caso in news_item.get("casos") or [news_item["title"]]:
+            try:
+                d = research.build_dossier(caso)
+            except Exception:
+                logger.exception("No se pudo montar el dosier de %r.", caso)
+                continue
+            if d:
+                partes.append(f"########## CASO: {caso} ##########\n{d[:_CHARS_POR_CASO]}")
+        dosier = "\n\n".join(partes)
         if len(dosier) > len(news_item.get("summary") or ""):
             news_item = {**news_item, "summary": dosier}
+        logger.info("Dosier del video: %s casos, %s caracteres.", len(partes), len(dosier))
 
     work_dir = Path(DATA_DIR) / f"job_{int(time.time())}"
     work_dir.mkdir(parents=True, exist_ok=True)
