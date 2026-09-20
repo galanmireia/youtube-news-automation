@@ -558,6 +558,10 @@ def render(spec: dict, width: int, height: int) -> list[Image.Image]:
 _VACIAS = frozenset("""
 para pero como cuando donde porque aunque desde hasta sobre entre sin con los las una unos unas
 que del por más muy fue era son han hay este esta esto ese esa eso sus nos les ya solo tras
+the and that this with from they were been have has had for but not you all can its
+what when where which while about after before because through another between against
+would could should their there these those them then than over under into more most
+some such only just also very much many said says told when who whom whose how why
 """.split())
 
 

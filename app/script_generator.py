@@ -661,6 +661,34 @@ def _trim_sources(summary: str, budget: int | None) -> str:
 
 
 
+def _que_le_pasa_al_guion(script: dict) -> str | None:
+    """What is wrong with this script, or None when nothing is.
+
+    Checked before anything expensive runs. Everything downstream reads
+    scene["narration"] directly - three separate places do - so a scene
+    without it is not a worse video, it is a crash, and the crash lands after
+    the narration has been paid for.
+
+    Slides are deliberately NOT checked: slides.py ignores a type it does not
+    know and catches its own drawing errors, so a bad slide costs a slide, not
+    a video."""
+    escenas = script.get("scenes")
+    if not isinstance(escenas, list) or not escenas:
+        return "no trae ninguna escena"
+    for i, escena in enumerate(escenas, 1):
+        if not isinstance(escena, dict):
+            return f"la escena {i} no es un objeto"
+        narracion = escena.get("narration")
+        if not isinstance(narracion, str) or not narracion.strip():
+            return f"la escena {i} no tiene narracion"
+    if not isinstance(script.get("tags"), list):
+        return "las etiquetas no son una lista"
+    for clave in ("title", "description"):
+        if not isinstance(script.get(clave), str) or not script[clave].strip():
+            return f"falta {clave}"
+    return None
+
+
 def _log_accent_rate(script: dict, variant: str) -> None:
     """Reports how accented the narration came out.
 
@@ -842,6 +870,20 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
         required_keys = {"title", "description", "tags", "scenes"}
         if not required_keys.issubset(script):
             last_error = ValueError(f"Respuesta de Claude incompleta, faltan claves: {required_keys - script.keys()}")
+            continue
+
+        # Aqui, y no despues, porque aqui todavia no se ha pagado nada caro.
+        #
+        # Lo unico que se comprobaba eran las cuatro claves de arriba. Una
+        # escena sin "narration" pasaba el filtro y reventaba mucho mas tarde,
+        # en el paso 4 o 5 - con la narracion del paso 3 YA PAGADA, que son
+        # unos siete mil quinientos creditos. Repetir el guion cuesta treinta
+        # centimos; descubrirlo despues cuesta el video entero.
+        problema = _que_le_pasa_al_guion(script)
+        if problema:
+            logger.warning("generate_script (%s): guion mal formado (%s). Intento %s.",
+                           variant, problema, attempt)
+            last_error = ValueError(f"Guion mal formado: {problema}")
             continue
 
         _log_accent_rate(script, variant)
