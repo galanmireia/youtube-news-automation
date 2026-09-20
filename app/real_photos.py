@@ -346,6 +346,57 @@ def _commons_search_photo(name: str, out_path: Path, exclude_urls: set[str]) -> 
         return None
 
 
+# Palabras que no distinguen a nadie: sobran en un titulo sin que eso
+# signifique que el articulo trate de otra cosa.
+_RELLENO = frozenset("""
+de del la el los las y e en al un una caso de-la
+of the and in at a an
+""".split())
+
+
+def _titulo_corresponde(nombre: str, titulo: str) -> bool:
+    """¿Este articulo trata de lo que he pedido, o solo se le parece?
+
+    Existe por un video real. Se pidio la foto de Rosario Porto, condenada en
+    el caso Asunta, y el sistema puso una foto de ROSARIO, la ciudad de
+    Argentina - y lo dio por bueno, "encontradas: ['Rosario Porto']". Tambien
+    puso a Teo Macero, un productor de jazz americano, donde iba el pueblo de
+    Teo. Poner la cara equivocada en un caso de sucesos es peor que no poner
+    ninguna: no es un video mas pobre, es un video que afirma algo falso.
+
+    Dos condiciones, y las dos hacen falta:
+
+      1. Todas las palabras del nombre tienen que estar en el titulo.
+         "Rosario Porto" contra "Rosario (Argentina)" falla aqui: falta Porto.
+
+      2. Al titulo no le pueden sobrar palabras con peso. "Teo" contra "Teo
+         Macero" falla aqui: Teo esta, pero sobra Macero, y eso es otra
+         persona. Lo mismo con "Calo (Teo)" o con "Archidiocesis de Santiago
+         de Compostela" cuando se pedia la ciudad.
+
+    Un calificativo entre parentesis no cuenta como sobra, porque es como
+    desambigua Wikipedia: "Rosario Porto (jurista)" sigue siendo ella.
+    """
+    pedido = [p for p in _fold(nombre).replace(",", " ").split() if p not in _RELLENO]
+    if not pedido:
+        return True
+    limpio = re.sub(r"\s*\([^)]*\)\s*$", "", titulo)
+    tiene = [p for p in _fold(limpio).replace(",", " ").split() if p not in _RELLENO]
+    if not all(any(p == t or (len(p) >= 5 and p in t) for t in tiene) for p in pedido):
+        return False
+    # Apellidos de mas al final son la misma persona: Wikipedia titula con los
+    # dos apellidos y un guion diria "Pedro Sánchez". Solo vale cuando lo
+    # pedido ya son dos palabras, porque con una sola - "Teo" - cualquier
+    # nombre que empiece igual colaria, y ahi es donde estaba el fallo.
+    if len(pedido) >= 2 and tiene[:len(pedido)] == pedido:
+        return True
+
+    sobran = [t for t in tiene
+              if not any(t == p or (len(t) >= 5 and t in p) or (len(p) >= 5 and p in t)
+                         for p in pedido)]
+    return not any(len(t) >= 4 for t in sobran)
+
+
 def imagenes_del_articulo(titulo: str, lang: str = WIKI_LANG) -> list[tuple[str, str]]:
     """Todas las imagenes que contiene un articulo: [(url, nombre de fichero)].
 
@@ -448,6 +499,15 @@ def fetch_portrait(person_name: str, out_path: Path, exclude_urls: set[str] | No
             person_name, _search_candidate_titles(person_name, lang)
         ) or [person_name]
         for title in candidates:
+            # El filtro que faltaba. La busqueda devuelve lo que se PARECE, no
+            # lo que ES: pidiendo "Rosario Porto" devolvio «Rosario
+            # (Argentina)» y el sistema puso la ciudad y lo dio por bueno.
+            # Poner una cara equivocada en un caso de sucesos no es un video
+            # mas pobre, es un video que afirma algo falso.
+            if not _titulo_corresponde(person_name, title):
+                logger.info("fetch_portrait(%r): descarto «%s», no es lo mismo.",
+                            person_name, title)
+                continue
             result = _fetch_summary_photo(title, out_path, exclude, lang)
             if result is None:
                 continue

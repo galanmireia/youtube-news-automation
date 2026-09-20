@@ -169,6 +169,43 @@ Como usarlo, porque de esto depende que el video tenga algo que contar:
     },
 }
 
+# Como se escribe la narracion, que depende del idioma y no es cosmetico: el
+# sintetizador pronuncia SEGUN COMO ESTE ESCRITO, y lo que le estorba en
+# español (una tilde que falta) no tiene nada que ver con lo que le estorba en
+# ingles (una cifra que lee mal).
+#
+# Esto estaba escrito a fuego en ingles desde que el canal se paso al ingles
+# por la mañana, asi que al volver al español la variable no sirvio de nada:
+# el prompt seguia diciendo "EN INGLES" y el guion salio en ingles. Un ajuste
+# que se puede cambiar por variable pero que el texto del prompt contradice no
+# es un ajuste, es una trampa.
+_ORTOGRAFIA = {
+    "es": """COMO SE ESCRIBE LA NARRACION, MUY IMPORTANTE: el campo "narration" lo lee en voz alta un
+sintetizador, y lo lee SEGUN COMO ESTE ESCRITO. Una palabra sin su tilde se pronuncia con el
+acento en la silaba equivocada y suena a robot. Escribe en español PERFECTAMENTE acentuado, con
+todas las tildes, eñes y signos de apertura: "investigacion" NO, "investigación" SI; "murio" NO,
+"murió" SI; "mas" NO, "más" SI; "ano" NO, "año" SI.
+
+Fijate en que ESTAS INSTRUCCIONES estan escritas sin tildes por motivos tecnicos: NO imites ese
+estilo, tu texto debe ir correctamente acentuado.
+
+- Nunca uses puntos suspensivos ni guiones para marcar una pausa: el sintetizador no los
+  respeta. Usa punto.
+- Frases cortas. Nada de frases largas encadenadas con comas: la voz las lee de corrido, sin
+  aire, y cansa.""",
+    "en": """COMO SE ESCRIBE LA NARRACION, MUY IMPORTANTE: el campo "narration" lo lee en voz alta un
+sintetizador, y lo lee SEGUN COMO ESTE ESCRITO. En ingles los problemas no son las tildes sino
+estos:
+
+- NUMEROS: escribe con letra los que se leen mal en cifra. "seventy-seven thousand videos", no
+  "77,000 videos". Los años si van en cifra (1988, 2013).
+- SIGLAS: la primera vez el nombre completo y la sigla despues.
+- NADA DE URLS NI DE RUTAS en la narracion.
+- Nunca uses puntos suspensivos ni guiones para marcar una pausa. Usa punto.
+- Frases cortas. Nada de frases largas encadenadas con comas.""",
+}
+
+
 PROMPT_TEMPLATE = """Eres el guionista y analista del canal de YouTube "{channel_name}" en {language}.
 
 REGLA PRINCIPAL, por encima de todo lo demas: el video SIEMPRE tiene que poder monetizarse en
@@ -207,26 +244,11 @@ escribiste, y hace pausa donde hay coma o punto y en ningun otro sitio.
 - Nada de frases largas encadenadas con comas: la voz las lee de corrido, sin aire, y cansa.
 - Nunca uses puntos suspensivos ni guiones para marcar una pausa: no los respeta. Usa punto.
 
-COMO SE ESCRIBE LA NARRACION, MUY IMPORTANTE: el campo "narration" lo lee en voz alta un
-sintetizador, y lo lee SEGUN COMO ESTE ESCRITO. La narracion va EN INGLES, y en ingles los
-problemas no son las tildes sino estos:
-
-- NUMEROS: escribe con letra los que se leen mal en cifra. "seventy-seven thousand videos", no
-  "77,000 videos". Los años si van en cifra (1988, 2013). Una cifra enorme y exacta se escribe
-  con letra hasta donde se entienda: "four point two million dollars".
-- SIGLAS: la primera vez, el nombre completo y la sigla despues. "the Federal Bureau of
-  Investigation, the FBI". Si la sigla se deletrea al hablar (FBI, DOJ, URL), dejala en
-  mayusculas; si se lee como palabra (NASA, WannaCry), tambien.
-- NADA DE URLS NI DE RUTAS en la narracion: "a YouTube channel called Webdriver Torso", no
-  "youtube.com/user/webdrivertorso".
-- Nunca uses puntos suspensivos ni guiones para marcar una pausa: el sintetizador no los
-  respeta. Usa punto.
-- Frases cortas. Nada de frases largas encadenadas con comas: la voz las lee de corrido, sin
-  aire, y cansa.
+{bloque_ortografia}
 
 Estas instrucciones estan escritas en español porque son para ti; TODO lo que va al video -
 "narration", "title", "description", "on_screen_highlight", los titulos de las diapositivas y
-los "tags" - va EN INGLES.
+los "tags" - va EN {language}.
 
 Recuerda: SIEMPRE anclado en los hechos de la noticia original. Nunca inventes conspiraciones ni
 afirmes cosas que no esten respaldadas por la fuente.
@@ -234,7 +256,7 @@ afirmes cosas que no esten respaldadas por la fuente.
 Fotos reales de personas y sitios concretos: para cada escena, si esa narracion nombra
 directamente (a) una persona real identificable por su nombre o su cargo, O (b) un lugar,
 edificio, organismo o empresa con nombre propio que casi seguro tenga articulo en Wikipedia con
-foto, rellena "photo_subject" con su nombre EXACTO tal y como lo titula la Wikipedia EN INGLES,
+foto, rellena "photo_subject" con su nombre EXACTO tal y como lo titula la Wikipedia en {language},
 para enseñar su foto real en vez de un video generico o una ilustracion inventada.
 
 Ejemplos de este canal: "Ross Ulbricht", "Edward Snowden", "Elizabeth Holmes", "Kevin Mitnick",
@@ -391,7 +413,7 @@ Cuatro tipos, cada uno con su forma exacta:
       Para dos cosas enfrentadas: lo previsto contra lo ocurrido, lo declarado contra lo probado,
       el antes contra el despues.
 
-Todo el texto de la diapositiva va EN INGLES: se lee en pantalla, en el mismo idioma que se
+Todo el texto de la diapositiva va EN {language}: se lee en pantalla, en el mismo idioma que se
 esta narrando. Un rotulo en otro idioma que la voz canta muchisimo.
 
 En las escenas que no lleven diapositiva, pon "slide": null. No inventes cifras ni fechas para
@@ -426,7 +448,7 @@ sugeridos):
 - "title": lleva SIEMPRE un numero o una promesa de tiempo. Es la forma del nicho, medida en
   los canales que funcionan, y no es decorativa: el numero dice cuanto dura el compromiso
   ("son cuatro cosas, no una clase") y la promesa de tiempo dice lo mismo de otra manera.
-  Maximo 90 caracteres, en ingles, con gancho pero sin exagerar (nada de MAYUSCULAS sostenidas
+  Maximo 90 caracteres, en {language}, con gancho pero sin exagerar (nada de MAYUSCULAS sostenidas
   ni "you won't believe").
   * CON NUMERO: "4 Internet Mysteries That Have Never Been Solved", "5 Broadcasts Nobody Can
     Explain". El numero es el de casos que cuentas de verdad.
@@ -446,7 +468,7 @@ sugeridos):
 - "tags": genera entre 10 y 15 palabras clave/frases de busqueda reales que la gente usaria en
   YouTube sobre este tema, mezclando: 2-3 amplias (el tema general, ej. "inteligencia artificial"),
   4-6 especificas (nombres, lugares, entidades concretas de la noticia), y 3-5 relacionadas con el
-  tipo de contenido (ej. "unsolved mysteries", "internet mysteries explained"). EN INGLES, que
+  tipo de contenido. EN {language}, que
   es donde busca esta audiencia. Sin duplicados,
   sin almohadillas aqui (van solo en la descripcion).
 {shorts_seo_hint}
@@ -472,12 +494,12 @@ despues de haberse escrito y pagado.
   "tags": ["tag1", "tag2", "... entre 10 y 15 tags"],
   "scenes": [
     {{
-      "narration": "EN INGLES, el texto que se narra en esta escena",
+      "narration": "EN {language}, el texto que se narra en esta escena",
       "visual_keywords": "palabras clave en ingles para buscar video de stock",
       "photo_subject": "nombre de una persona publica o de un lugar/institucion con nombre propio si aplica, si no, cadena vacia",
       "photo_subject_role": "cargo de la persona o descriptor corto del lugar si photo_subject no esta vacio, si no, cadena vacia",
       "ai_image_prompt": "descripcion en ingles para ilustracion por IA si aplica, si no, cadena vacia",
-      "on_screen_highlight": "EN INGLES, texto corto (3-6 palabras) con el dato clave de esta escena, con CIFRA si la escena tiene alguna, ver instrucciones arriba",
+      "on_screen_highlight": "EN {language}, texto corto (3-6 palabras) con el dato clave de esta escena, con CIFRA si la escena tiene alguna, ver instrucciones arriba",
       "slide": "objeto con la diapositiva de datos si esta escena la necesita, o null - ver DIAPOSITIVAS DE DATOS arriba"
     }}
   ]
@@ -799,6 +821,7 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
         channel_name=CHANNEL_NAME,
         tone_hint=CHANNEL_TONE_HINT,
         language=NEWS_LANGUAGE_HINT,
+        bloque_ortografia=_ORTOGRAFIA.get(NARRATION_LANG, _ORTOGRAFIA['es']),
         title=news_item["title"],
         summary=_trim_sources(news_item["summary"], _SOURCE_BUDGET[variant]),
         **variant_config,
