@@ -79,8 +79,14 @@ _MAX_RELATED = 7
 # budget is small and the reads happen at the same time rather than one after
 # another. Four good references is already more first-hand material than the
 # Wikipedia article itself carries.
-_MAX_REFERENCIAS = 4
+_MAX_REFERENCIAS = 6
 _REF_CHARS = 14000
+# Attempts are made at the same time, so trying eighteen costs the same wall
+# clock as trying eight: about two rounds of one timeout. Measured on Silk
+# Road, half of what is attempted comes back dead or paywalled, so the
+# attempts have to outnumber the places by a good margin or the budget is
+# spent on failures.
+_INTENTOS_POR_PLAZA = 3
 # One per domain. Six BBC pages about the same case are one source that has
 # been fetched six times, and they crowd out the indictment.
 _MAX_POR_DOMINIO = 1
@@ -330,7 +336,25 @@ def referencias_de(articulos: list[tuple[str, str]]) -> list[tuple[int, str, str
             continue
         por_emisor[emisor] = por_emisor.get(emisor, 0) + 1
         elegidas.append((rango, nombre, url))
-    return elegidas
+
+    # Best-first was wrong, and the first real case showed it: Silk Road cites
+    # a lot of .gov, so six of the eight attempts went to government pages -
+    # several of them two-hundred-word press releases - and the long-form
+    # reportage, which is where the story actually is, got one slot.
+    #
+    # So the groups take turns: the best public document, then the best
+    # reportage, then the best archive, then the best press, then the second
+    # of each. The ranking still decides who goes first inside a group and who
+    # opens the list; it no longer decides everything.
+    por_nivel: dict[int, list] = {}
+    for candidata in elegidas:
+        por_nivel.setdefault(candidata[0], []).append(candidata)
+    mezcladas = []
+    for i in range(max((len(v) for v in por_nivel.values()), default=0)):
+        for rango in sorted(por_nivel):
+            if i < len(por_nivel[rango]):
+                mezcladas.append(por_nivel[rango][i])
+    return mezcladas
 
 
 def leer_referencias(candidatas: list[tuple[int, str, str]],
@@ -349,11 +373,11 @@ def leer_referencias(candidatas: list[tuple[int, str, str]],
     copy - and finding that out costs a timeout either way. Reading them in
     parallel means the whole set costs one timeout rather than eight.
     """
-    intentos = candidatas[: cuantas * 2]
+    intentos = candidatas[: cuantas * _INTENTOS_POR_PLAZA]
     if not intentos:
         return []
     leidas: list[tuple[str, str, str, str]] = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=12) as pool:
         futuros = {pool.submit(open_web.leer, url): (nombre, url)
                    for _, nombre, url in intentos}
         resultados = {}

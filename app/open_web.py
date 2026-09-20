@@ -97,7 +97,7 @@ _PRENSA = (
     "lemonde.fr", "corriere.it", "repubblica.it", "smh.com.au",
 )
 # 4. Academic and archival.
-_ACADEMICO = (".edu", ".ac.uk", "arxiv.org", "doi.org", "acm.org", "ieee.org",
+_ACADEMICO = (".edu", ".ac.uk", "arxiv.org", "acm.org", "ieee.org",
               "nasa.gov", "archive.org", "web.archive.org")
 
 # Read in this order, and the order is the ranking: one reference from the
@@ -107,6 +107,17 @@ _NIVELES = (
     ("reportaje largo", _LARGO),
     ("archivo o academico", _ACADEMICO),
     ("prensa", _PRENSA),
+)
+
+# Gateways that match a group by their domain but are never a document about
+# the case: an abstract, a paywall or a search page. PubMed matched ".gov" on
+# Silk Road and spent one of the attempts to return nothing, which is the
+# whole reason this list exists.
+_NUNCA = (
+    "pubmed.ncbi.nlm.nih.gov", "ncbi.nlm.nih.gov", "doi.org", "jstor.org",
+    "sciencedirect.com", "springer.com", "link.springer.com", "wiley.com",
+    "researchgate.net", "academia.edu", "semanticscholar.org", "ssrn.com",
+    "tandfonline.com", "sagepub.com", "search.proquest.com",
 )
 
 # Extensions that are not an article. PDFs are excluded rather than parsed:
@@ -151,6 +162,8 @@ def nivel_de(url: str) -> tuple[int, str, str] | None:
     except ValueError:
         return None
     if not host or _NO_ES_ARTICULO.search(url):
+        return None
+    if any(host == n or host.endswith("." + n) for n in _NUNCA):
         return None
     for indice, (nombre, dominios) in enumerate(_NIVELES):
         for dominio in dominios:
@@ -232,8 +245,14 @@ def _en_el_archivo(url: str) -> str:
         r.raise_for_status()
         foto = (r.json().get("archived_snapshots") or {}).get("closest") or {}
     except (requests.RequestException, ValueError, AttributeError):
-        return ""
-    return foto.get("url", "") if foto.get("available") else ""
+        foto = {}
+    if foto.get("available") and foto.get("url"):
+        return foto["url"]
+    # The availability API is rate-limited and drops requests under load, and
+    # when it does it answers exactly like a page that was never archived.
+    # Asking the archive directly costs one redirect and disambiguates the
+    # two: /web/<year>/<url> serves the nearest snapshot there is.
+    return f"https://web.archive.org/web/2018/{url}"
 
 
 def leer(url: str) -> tuple[str, str]:

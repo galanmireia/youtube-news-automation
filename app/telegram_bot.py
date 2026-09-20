@@ -980,7 +980,7 @@ async def handle_sources_command(update: Update, context: ContextTypes.DEFAULT_T
             # Only the ones actually attempted can be called failures. The rest
             # were never tried: the budget ran out first, and reporting them as
             # dead would be inventing a result.
-            intentadas = candidatas[: research._MAX_REFERENCIAS * 2]
+            intentadas = candidatas[: research._MAX_REFERENCIAS * research._INTENTOS_POR_PLAZA]
             conseguidas = {pedida for _n, pedida, _u, _t in leidas}
             for _rango, nombre, url in intentadas:
                 if url in conseguidas:
