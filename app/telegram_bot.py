@@ -9,8 +9,9 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
-from . import (ai_images, demanda, efemerides, news_source, real_photos, research,
-               storage, tendencias, topic_source, tts, voice_align, voice_clone)
+from . import (ai_images, demanda, efemerides, fotos_propias, news_source,
+               real_photos, research, storage, tendencias, topic_source, tts,
+               voice_align, voice_clone)
 from .voice_align import AlignmentFailed
 from .config import (
     CHANNEL_NAME,
@@ -1028,6 +1029,74 @@ async def handle_trending_command(update: Update, context: ContextTypes.DEFAULT_
     context.application.create_task(trabajo())
 
 
+async def handle_photos_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/fotos - las imagenes que has puesto tu, y como quitarlas.
+
+    /fotos                 las lista
+    /fotos borrar <nombre> quita las de esa persona
+    Para añadir: mandame la foto con el nombre en el pie."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    args = list(context.args or [])
+    if args and args[0].lower() in ("borrar", "quitar"):
+        nombre = " ".join(args[1:]).strip()
+        if not nombre:
+            await update.message.reply_text("Dime de quien: /fotos borrar Rosario Porto")
+            return
+        n = fotos_propias.borrar(nombre)
+        await update.message.reply_text(
+            f"Borradas {n} foto(s) de «{nombre}»." if n else f"No tenia ninguna de «{nombre}».")
+        return
+
+    guardadas = fotos_propias.listar()
+    if not guardadas:
+        await update.message.reply_text(
+            "No tienes ninguna foto puesta.\n\n"
+            "Para añadir una: mandamela con el nombre en el pie, por ejemplo "
+            "«Rosario Porto». A partir de ahi sale en todos los videos donde "
+            "se la nombre, por delante de lo que encuentre yo.")
+        return
+    lineas = ["*Tus fotos*", ""]
+    for nombre, cuantas in guardadas:
+        lineas.append(f"  · {nombre} ({cuantas})")
+    lineas += ["", "Para añadir: mandame la foto con el nombre en el pie.",
+               "Para quitar: /fotos borrar <nombre>"]
+    await update.message.reply_text("\n".join(lineas), parse_mode="Markdown")
+
+
+async def handle_incoming_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Una foto con un nombre en el pie se guarda para ese nombre."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    nombre = (update.message.caption or "").strip()
+    if not nombre:
+        await update.message.reply_text(
+            "Ponle el nombre en el pie de la foto y te la guardo, por ejemplo "
+            "«Rosario Porto». Asi la uso en todos los videos donde se la nombre.")
+        return
+
+    fichero = update.message.photo[-1] if update.message.photo else update.message.document
+    try:
+        descarga = await fichero.get_file()
+        datos = bytes(await descarga.download_as_bytearray())
+    except Exception:
+        logger.exception("No se ha podido descargar la foto de %r", nombre)
+        await update.message.reply_text("No he podido descargarla. Prueba otra vez.")
+        return
+
+    extension = ".jpg"
+    if getattr(fichero, "file_name", None) and "." in fichero.file_name:
+        extension = "." + fichero.file_name.rsplit(".", 1)[-1].lower()
+    ruta = await asyncio.get_running_loop().run_in_executor(
+        None, fotos_propias.guardar, nombre, datos, extension)
+    total = next((c for n, c in fotos_propias.listar()
+                  if n.lower() == nombre.lower()), 1)
+    await update.message.reply_text(
+        f"Guardada para «{nombre}» ({total} en total). "
+        "Se usara en todos los videos donde se la nombre, por delante de lo "
+        "que encuentre yo por mi cuenta.")
+
+
 async def handle_viable_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/viable <caso> - ¿merece la pena hacer este video? Antes de gastar nada.
 
@@ -1062,7 +1131,7 @@ async def handle_viable_command(update: Update, context: ContextTypes.DEFAULT_TY
                 dem = demanda.medir(tema)
             except (demanda.SinClave, demanda.SinCuota) as exc:
                 dem = {"medido": False, "vistas": 0, "consulta": tema, "aviso": str(exc)}
-            imgs = real_photos.imagenes_del_articulo(tema) if existe else []
+            imgs = real_photos.imagenes_del_caso(tema) if existe else []
             return existe, dem, imgs
 
         try:
@@ -1501,6 +1570,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("enviar", handle_resend_command))
     application.add_handler(CommandHandler("demanda", handle_demand_command))
     application.add_handler(CommandHandler("viable", handle_viable_command))
+    application.add_handler(CommandHandler("fotos", handle_photos_command))
     application.add_handler(CommandHandler("tendencias", handle_trending_command))
     application.add_handler(CommandHandler("calendario", handle_calendar_command))
     application.add_handler(CommandHandler("catalogo", handle_catalogue_command))
@@ -1509,6 +1579,9 @@ def build_application() -> Application:
     # three different Telegram types for the same thing.
     application.add_handler(MessageHandler(
         filters.AUDIO | filters.VOICE | filters.Document.AUDIO, handle_narration_audio))
+    # Una foto con el nombre en el pie entra en tu propia coleccion.
+    application.add_handler(MessageHandler(
+        filters.PHOTO | filters.Document.IMAGE, handle_incoming_photo))
     # Don't auto-generate on every restart/deploy - only at the regular interval.
     # Use /generar in the chat for an on-demand run (e.g. right after deploying).
     # Nothing generates itself in either of the two voice modes, for two

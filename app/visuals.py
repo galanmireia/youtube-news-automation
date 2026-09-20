@@ -1,13 +1,14 @@
 import logging
 import math
 import random
+import shutil
 import subprocess
 import time
 from pathlib import Path
 
 import requests
 
-from . import ai_images, branding, real_photos, slides
+from . import ai_images, branding, real_photos, slides, fotos_propias
 from .branding import BACKGROUND_COLOR
 from .config import CONTENT_MODE, CHANNEL_NAME, PEXELS_API_KEY, PIXABAY_API_KEY
 
@@ -426,12 +427,20 @@ def fetch_clips_for_scenes(
             # tiene articulo propio, pero sus fotos estan dentro del articulo
             # del caso. Buscando "Asunta Basterra" no sale nada; mirando las
             # imagenes de «Caso Asunta», si.
-            result = real_photos.fetch_portrait(
-                candidate, candidate_path, exclude_urls=used_photo_urls - reutilizables
-            )
+            # Lo primero de todo: si ella puso una foto para esto, es esa. No
+            # se compara con nada ni se busca alternativa - lo ha decidido
+            # ella, que es de quien es el canal.
+            propia = fotos_propias.de(candidate, excluir=used_photo_urls - reutilizables)
+            if propia is not None:
+                shutil.copyfile(propia, candidate_path)
+                result = (candidate_path, str(propia))
+            else:
+                result = real_photos.fetch_portrait(
+                    candidate, candidate_path, exclude_urls=used_photo_urls - reutilizables
+                )
             if result is None and caso:
                 if imagenes_del_caso is None:
-                    imagenes_del_caso = real_photos.imagenes_del_articulo(caso)
+                    imagenes_del_caso = real_photos.imagenes_del_caso(caso)
                 result = real_photos.retrato_en_el_caso(
                     candidate, imagenes_del_caso, candidate_path,
                     exclude_urls=used_photo_urls - reutilizables,
@@ -441,7 +450,9 @@ def fetch_clips_for_scenes(
                 used_photo_urls.add(photo_url)
                 ultima_aparicion[photo_url] = i
                 veces_usada[photo_url] = veces_usada.get(photo_url, 0) + 1
-                if creditos is not None:
+                if creditos is not None and photo_url.startswith("http"):
+                    # Las fotos propias no llevan el credito de Wikimedia: no
+                    # vienen de ahi y poner esa atribucion seria falsearla.
                     creditos.append(photo_url)
                 role = (
                     (scene.get("photo_subject_role") or "").strip()

@@ -483,6 +483,104 @@ def imagenes_del_articulo(titulo: str, lang: str = WIKI_LANG) -> list[tuple[str,
     return salida
 
 
+def _titulo_en_otro_idioma(titulo: str, desde: str, hacia: str) -> str:
+    """El mismo articulo en otra Wikipedia, que no se titula igual."""
+    try:
+        r = requests.get(_api_url(desde), params={
+            "action": "query", "prop": "langlinks", "lllang": hacia,
+            "titles": titulo, "format": "json", "redirects": 1,
+        }, headers=_HEADERS, timeout=20)
+        r.raise_for_status()
+        for pagina in r.json().get("query", {}).get("pages", {}).values():
+            for enlace in pagina.get("langlinks") or []:
+                if enlace.get("*"):
+                    return enlace["*"]
+    except (requests.RequestException, ValueError):
+        pass
+    return ""
+
+
+def _categoria_en_commons(titulo: str) -> list[tuple[str, str]]:
+    """Las imagenes de la categoria de Commons de este caso, si existe.
+
+    El articulo enseña dos o tres imagenes; la categoria suele tener bastantes
+    mas - fotos del lugar, del juicio, de los implicados - que nadie metio en
+    el articulo por no recargarlo. Es la misma licencia libre y nadie la
+    estaba mirando."""
+    salida: list[tuple[str, str]] = []
+    for nombre in (f"Category:{titulo}", f"Category:{titulo} case"):
+        try:
+            r = requests.get("https://commons.wikimedia.org/w/api.php", params={
+                "action": "query", "list": "categorymembers", "cmtitle": nombre,
+                "cmtype": "file", "cmlimit": 60, "format": "json",
+            }, headers=_HEADERS, timeout=20)
+            r.raise_for_status()
+            miembros = r.json().get("query", {}).get("categorymembers", [])
+        except (requests.RequestException, ValueError):
+            continue
+        if not miembros:
+            continue
+        ficheros = [m["title"] for m in miembros if m.get("title")]
+        for i in range(0, len(ficheros), 50):
+            try:
+                r = requests.get("https://commons.wikimedia.org/w/api.php", params={
+                    "action": "query", "prop": "imageinfo", "iiprop": "url",
+                    "titles": "|".join(ficheros[i:i + 50]), "format": "json",
+                }, headers=_HEADERS, timeout=20)
+                r.raise_for_status()
+                paginas = r.json().get("query", {}).get("pages", {})
+            except (requests.RequestException, ValueError):
+                continue
+            for pagina in paginas.values():
+                url = (pagina.get("imageinfo") or [{}])[0].get("url")
+                if url and not _is_symbol_not_photograph(url):
+                    salida.append((url, pagina.get("title", "").removeprefix("File:")))
+        if salida:
+            logger.info("La categoria «%s» de Commons tiene %s imagenes.", nombre, len(salida))
+            break
+    return salida
+
+
+def imagenes_del_caso(titulo: str) -> list[tuple[str, str]]:
+    """TODAS las imagenes libres que rodean a un caso, no solo las del articulo.
+
+    Se miraba un unico sitio - el articulo en el idioma del canal - y eso deja
+    fuera bastante:
+
+      - El articulo de la OTRA Wikipedia. No son traducciones: cada una elige
+        sus imagenes, y la inglesa suele llevar mas.
+      - La categoria de Commons del caso, que casi siempre tiene mas fotos que
+        las que acabaron en el articulo: el lugar, el juicio, los implicados.
+
+    Todo con la misma licencia libre de siempre. Esto no es buscar en otro
+    sitio menos seguro, es terminar de mirar donde ya se estaba mirando.
+    """
+    vistas: set[str] = set()
+    todas: list[tuple[str, str]] = []
+    for url, fichero in imagenes_del_articulo(titulo, WIKI_LANG):
+        if url not in vistas:
+            vistas.add(url)
+            todas.append((url, fichero))
+
+    otro = "en" if WIKI_LANG != "en" else "es"
+    titulo_otro = _titulo_en_otro_idioma(titulo, WIKI_LANG, otro)
+    if titulo_otro:
+        for url, fichero in imagenes_del_articulo(titulo_otro, otro):
+            if url not in vistas:
+                vistas.add(url)
+                todas.append((url, fichero))
+
+    for titulo_cat in filter(None, (titulo, titulo_otro)):
+        for url, fichero in _categoria_en_commons(titulo_cat):
+            if url not in vistas:
+                vistas.add(url)
+                todas.append((url, fichero))
+
+    logger.info("«%s»: %s imagenes libres en total (articulo, otra Wikipedia y Commons).",
+                titulo, len(todas))
+    return todas
+
+
 def retrato_en_el_caso(nombre: str, imagenes: list[tuple[str, str]],
                        out_path: Path, exclude_urls: set[str] | None = None
                        ) -> tuple[Path, str] | None:
