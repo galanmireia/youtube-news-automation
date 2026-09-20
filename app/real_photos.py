@@ -18,7 +18,10 @@ logger = logging.getLogger(__name__)
 # photograph, in only one of the two. Commons, searched last, is shared by
 # both - but WHICH image an article puts at the top is decided per language,
 # so asking two wikis is not the same question asked twice.
-WIKI_LANGS = ("es", "en")
+# The channel's language first, then the other, because which photo an
+# article puts at the top is decided per language and the article in the
+# channel's language is the one whose naming the script used.
+WIKI_LANGS = (WIKI_LANG,) + tuple(l for l in ("en", "es") if l != WIKI_LANG)
 
 
 def _api_url(lang: str) -> str:
@@ -40,11 +43,13 @@ COMMONS_API_URL = "https://commons.wikimedia.org/w/api.php"
 _HEADERS = {"User-Agent": f"{CHANNEL_NAME}NewsBot/1.0 (automated video generation; contact via YouTube channel)"}
 
 
-# The channel reports Spanish news, so where an institution exists under the
-# same name in several countries, Spain's is the one meant unless the request
-# says otherwise. Wikipedia disambiguates exactly this way: "Fiscalia General
-# del Estado (Espana)" next to "Fiscalia General del Estado (Ecuador)".
-_HOME_QUALIFIERS = {"espana", "espanol", "espanola", "spain", "spanish"}
+# Where an institution exists under the same name in several countries,
+# this is the one meant unless the request says otherwise. Wikipedia
+# disambiguates exactly this way: "Federal Bureau of Investigation" next to
+# the national police of somewhere else. This catalogue is overwhelmingly US
+# cases, so that is the default - but it is a DEFAULT, not a rule: the script
+# is told to disambiguate the country itself when the case is not American.
+_HOME_QUALIFIERS = {"united states", "u.s.", "us", "american", "usa"}
 
 
 def _fold(text: str) -> str:
@@ -90,7 +95,7 @@ def _rank_candidates(name: str, titles: list[str]) -> list[str]:
 
 # Six rather than three: ranking below only helps if the right article is in
 # the list at all, and they all come back from the same single request.
-def _search_candidate_titles(name: str, lang: str = "es", limit: int = 6) -> list[str]:
+def _search_candidate_titles(name: str, lang: str = WIKI_LANG, limit: int = 6) -> list[str]:
     """Uses Wikipedia's real full-text search (the same engine behind the
     site's own search box) ranked by relevance/popularity, instead of a
     prefix-only match - a plain/common name like "Oscar Lopez" can otherwise
@@ -109,7 +114,7 @@ def _search_candidate_titles(name: str, lang: str = "es", limit: int = 6) -> lis
         return []
 
 
-def _pageimages_thumbnail_url(title: str, lang: str = "es") -> str | None:
+def _pageimages_thumbnail_url(title: str, lang: str = WIKI_LANG) -> str | None:
     """Fallback for pages where the REST summary endpoint doesn't surface a
     lead image (common for institutions/buildings/organizations) even though
     the article does have one. action=query&prop=pageimages is a separate,
@@ -264,7 +269,7 @@ def _download(url: str, out_path: Path) -> bool:
         return False
 
 
-def _fetch_summary_photo(title: str, out_path: Path, exclude_urls: set[str], lang: str = "es") -> tuple[Path, str] | None:
+def _fetch_summary_photo(title: str, out_path: Path, exclude_urls: set[str], lang: str = WIKI_LANG) -> tuple[Path, str] | None:
     try:
         response = requests.get(
             _summary_url(lang, title.replace(" ", "_")), headers=_HEADERS, timeout=15

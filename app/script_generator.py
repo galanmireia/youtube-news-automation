@@ -380,8 +380,8 @@ Cuatro tipos, cada uno con su forma exacta:
       Para dos cosas enfrentadas: lo previsto contra lo ocurrido, lo declarado contra lo probado,
       el antes contra el despues.
 
-Todo el texto de la diapositiva va en español con SUS TILDES: se lee en pantalla, y una
-palabra sin tilde ahi es una falta de ortografia a pantalla completa.
+Todo el texto de la diapositiva va EN INGLES: se lee en pantalla, en el mismo idioma que se
+esta narrando. Un rotulo en otro idioma que la voz canta muchisimo.
 
 En las escenas que no lleven diapositiva, pon "slide": null. No inventes cifras ni fechas para
 poder poner una: si la escena no tiene datos en la noticia, no lleva diapositiva. Esto vale
@@ -454,12 +454,12 @@ Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni ma
   "tags": ["tag1", "tag2", "... entre 10 y 15 tags"],
   "scenes": [
     {{
-      "narration": "texto que se narrara en esta escena, en español con TODAS las tildes correctas",
+      "narration": "EN INGLES, el texto que se narra en esta escena",
       "visual_keywords": "palabras clave en ingles para buscar video de stock",
       "photo_subject": "nombre de una persona publica o de un lugar/institucion con nombre propio si aplica, si no, cadena vacia",
       "photo_subject_role": "cargo de la persona o descriptor corto del lugar si photo_subject no esta vacio, si no, cadena vacia",
       "ai_image_prompt": "descripcion en ingles para ilustracion por IA si aplica, si no, cadena vacia",
-      "on_screen_highlight": "texto corto en español (3-6 palabras) con el dato clave de esta escena, con CIFRA si la escena tiene alguna, ver instrucciones arriba",
+      "on_screen_highlight": "EN INGLES, texto corto (3-6 palabras) con el dato clave de esta escena, con CIFRA si la escena tiene alguna, ver instrucciones arriba",
       "slide": "objeto con la diapositiva de datos si esta escena la necesita, o null - ver DIAPOSITIVAS DE DATOS arriba"
     }}
   ]

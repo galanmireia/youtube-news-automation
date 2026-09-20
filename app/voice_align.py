@@ -22,6 +22,7 @@ What must not happen is a quiet failure. Handed the wrong file, this would
 put every cut in the wrong place and produce a video that looks broken for no
 visible reason, so below a floor of agreement it refuses and says why.
 """
+from .config import NARRATION_LANG
 import difflib
 import subprocess
 import logging
@@ -191,7 +192,7 @@ def _spoken_times(oidas: list, escritas: list[str]) -> tuple[list[float], float]
 
 
 def align_recording(
-    scenes: list[dict], audio_path: Path, language: str = "es"
+    scenes: list[dict], audio_path: Path, language: str = NARRATION_LANG
 ) -> tuple[Path, list[float]]:
     """Where each scene ends inside one recording of the whole script.
 

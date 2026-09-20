@@ -1,4 +1,5 @@
 import difflib
+from .config import NARRATION_LANG
 import logging
 import re
 import unicodedata
@@ -259,7 +260,7 @@ def generate_subtitles(
     burn_path: Path,
     width: int,
     height: int,
-    language: str = "es",
+    language: str = NARRATION_LANG,
     script_text: str = "",
 ) -> tuple[Path, Path]:
     """Transcribes the narration once and writes two subtitle files from it:

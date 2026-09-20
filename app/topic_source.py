@@ -182,32 +182,15 @@ def _resolve(term: str) -> str | None:
 
 
 def _extract(title: str) -> str:
-    """The article's plain text, trimmed to what a script actually needs."""
-    try:
-        response = requests.get(
-            WIKIPEDIA_API_URL,
-            params={
-                "action": "query",
-                "prop": "extracts",
-                "explaintext": 1,
-                "exsectionformat": "plain",
-                "titles": title,
-                "format": "json",
-                "redirects": 1,
-            },
-            headers=_HEADERS,
-            timeout=25,
-        )
-        response.raise_for_status()
-        pages = response.json().get("query", {}).get("pages", {})
-        for page in pages.values():
-            texto = (page.get("extract") or "").strip()
-            if texto:
-                return texto[:_EXTRACT_CHARS]
-    except (requests.RequestException, KeyError, ValueError):
-        pass
-    return ""
+    """The article's plain text, trimmed to what a script actually needs.
 
+    Delegates to research._extract instead of asking the API itself, and that
+    is the point: this had its own copy of the same call, with the same
+    silent except around it, so the day the extracts extension returned
+    nothing BOTH went empty and neither said why. One route, one fallback,
+    one place to fix."""
+    from . import research
+    return research._extract(WIKI_LANG, title, _EXTRACT_CHARS)
 
 def _article_url(title: str) -> str:
     return "https://es.wikipedia.org/wiki/" + title.replace(" ", "_")
