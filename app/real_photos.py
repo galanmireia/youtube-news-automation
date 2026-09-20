@@ -380,7 +380,12 @@ def _nombre_seguido(nombre: str, texto: str) -> bool:
     partes = [re.escape(p) for p in _fold(nombre).split() if p]
     if not partes:
         return False
-    patron = r"[\s_\-]+".join(partes)
+    # Con limites de palabra a los dos lados. Sin ellos colo
+    # «AltarNtraSradelRosario-PortoAlegreBrasil.jpg» para "Rosario Porto":
+    # las dos palabras estan, y con un guion entre ellas, pero una es el final
+    # de "delRosario" y la otra el principio de "PortoAlegre". Estar dentro de
+    # otra palabra no es estar.
+    patron = r"(?<![a-z0-9])" + r"[\s_\-]+".join(partes) + r"(?![a-z0-9])"
     return re.search(patron, _fold(texto)) is not None
 
 
