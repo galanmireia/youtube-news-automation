@@ -93,6 +93,18 @@ RSS_FEEDS = [feed.strip() for feed in os.environ.get("RSS_FEEDS", _DEFAULT_RSS_F
 
 PIPELINE_INTERVAL_SECONDS = int(os.environ.get("PIPELINE_INTERVAL_SECONDS", 60 * 60 * 12))
 NEWS_LANGUAGE_HINT = os.environ.get("NEWS_LANGUAGE_HINT", "castellano, España")
+
+# Which Wikipedia the research reads, and it is one knob on purpose: the
+# catalogue, the article search, the dossier and the image lookup were all
+# nailed to "es" separately, so moving the channel to English meant finding
+# four hardcoded strings and missing one of them.
+#
+# English is not just the channel's language, it is the bigger library. Half
+# of this catalogue has no Spanish article at all, the ones that do are a
+# fraction of the size, and - the part that decides whether any of this was
+# worth building - a Spanish article cites Spanish press, while the domains
+# the open-web reader trusts are almost all English-language.
+WIKI_LANG = os.environ.get("WIKI_LANG", "en")
 # Which kind of channel this is.
 #
 # "news": stories arrive from RSS feeds, a picker chooses the best one, and the

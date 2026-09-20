@@ -9,7 +9,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
-from . import ai_images, research, storage, tts, voice_align, voice_clone
+from . import ai_images, research, storage, topic_source, tts, voice_align, voice_clone
 from .voice_align import AlignmentFailed
 from .config import (
     CHANNEL_NAME,
@@ -20,6 +20,7 @@ from .config import (
     TTS_LANGUAGE_CODE,
     TTS_VOICE_NAME,
     NARRATION_SOURCE,
+    WIKI_LANG,
 )
 from .pipeline import (
     cleanup_finished_video_files,
@@ -835,6 +836,71 @@ async def handle_dossier_command(update: Update, context: ContextTypes.DEFAULT_T
     context.application.create_task(trabajo())
 
 
+async def handle_catalogue_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/catalogo - comprueba que los 58 casos existen de verdad.
+
+    Los titulos del catalogo se escribieron de memoria, y un titulo mal
+    puesto no falla de forma ruidosa: falla despues, cuando ya se ha pagado
+    el guion, y devuelve un dosier vacio o - peor - el articulo equivocado.
+    "Silk Road" en español es la Ruta de la Seda.
+
+    Esto pregunta por los cincuenta y ocho de golpe (la API acepta cincuenta
+    titulos por peticion, o sea dos llamadas) y para cada uno que falte
+    propone lo que Wikipedia si tiene con ese nombre. Propone, no corrige:
+    elegir solo el primer resultado es justo como se acaba narrando la ruta
+    comercial del siglo XIV."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    await update.message.reply_text(
+        f"Comprobando los {len(topic_source.CATALOGUE)} casos del catalogo...")
+    loop = asyncio.get_running_loop()
+
+    async def trabajo():
+        def comprobar():
+            titulos = list(topic_source.CATALOGUE)
+            estado = research.existen(WIKI_LANG, titulos)
+            faltan = [t for t in titulos if estado.get(t) is False]
+            # Only the ones that are definitely missing get a search; a title
+            # left out of `estado` was never answered for, and guessing a
+            # replacement for it would be inventing a problem.
+            sugerencias = {t: research.buscar(WIKI_LANG, t) for t in faltan}
+            sin_respuesta = [t for t in titulos if t not in estado]
+            return titulos, faltan, sugerencias, sin_respuesta
+
+        try:
+            titulos, faltan, sugerencias, sin_respuesta = await loop.run_in_executor(
+                None, comprobar)
+        except Exception:
+            logger.exception("Error comprobando el catalogo")
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID, text="No he podido comprobar el catalogo. Mira los logs.")
+            return
+
+        buenos = len(titulos) - len(faltan) - len(sin_respuesta)
+        lineas = [f"*Catalogo: {buenos} de {len(titulos)} existen*"]
+        if sin_respuesta:
+            lineas.append(f"({len(sin_respuesta)} sin respuesta de Wikipedia, no comprobados)")
+        if not faltan:
+            lineas.append("\nNinguno mal. El catalogo esta limpio.")
+        else:
+            lineas.append(f"\n{len(faltan)} NO existen:")
+            for t in faltan:
+                opciones = sugerencias.get(t) or []
+                if opciones:
+                    lineas.append(f"  ✗ «{t}»\n      Wikipedia tiene: {' · '.join(opciones)}")
+                else:
+                    lineas.append(f"  ✗ «{t}»\n      Wikipedia no encuentra nada parecido.")
+
+        # Telegram cuts a message at 4096 characters, and a silent cut here
+        # would hide exactly the titles this command exists to show.
+        texto = "\n".join(lineas)
+        for i in range(0, len(texto), 3500):
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID, text=texto[i:i + 3500], parse_mode="Markdown")
+
+    context.application.create_task(trabajo())
+
+
 async def handle_sources_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/fuentes <caso> - which sources outside Wikipedia this case actually has.
 
@@ -869,14 +935,14 @@ async def handle_sources_command(update: Update, context: ContextTypes.DEFAULT_T
 
     async def trabajo():
         def medir(tema):
-            if not research.existe("es", tema):
+            if not research.existe(WIKI_LANG, tema):
                 return None
             # The same articles build_dossier reads, so what this reports is
             # what a real run would get, not a different question.
-            idiomas = [("es", tema)]
-            otros = research._translations("es", tema)
+            idiomas = [(WIKI_LANG, tema)]
+            otros = research._translations(WIKI_LANG, tema)
             idiomas += [(l, otros[l]) for l in research._LANG_PRIORITY
-                        if l in otros and l != "es"][: research._MAX_LANGS - 1]
+                        if l in otros and l != WIKI_LANG][: research._MAX_LANGS - 1]
             candidatas = research.referencias_de(idiomas)
             return idiomas, candidatas, research.leer_referencias(candidatas)
 
@@ -1110,6 +1176,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("usar", handle_use_command))
     application.add_handler(CommandHandler("dosier", handle_dossier_command))
     application.add_handler(CommandHandler("fuentes", handle_sources_command))
+    application.add_handler(CommandHandler("catalogo", handle_catalogue_command))
     # Audio arriving with no command is a narration for whatever script is
     # waiting; a voice note, an audio file and a file sent "as document" are
     # three different Telegram types for the same thing.

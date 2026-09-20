@@ -6,7 +6,7 @@ from urllib.parse import unquote
 
 import requests
 
-from .config import CHANNEL_NAME
+from .config import CHANNEL_NAME, WIKI_LANG
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ def _summary_url(lang: str, title: str) -> str:
     return f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{title}"
 
 
-WIKIPEDIA_API_URL = _api_url("es")
+WIKIPEDIA_API_URL = _api_url(WIKI_LANG)
 COMMONS_API_URL = "https://commons.wikimedia.org/w/api.php"
 
 # Wikimedia's API policy requires a descriptive User-Agent identifying the

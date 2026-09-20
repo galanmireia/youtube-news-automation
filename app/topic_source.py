@@ -22,12 +22,12 @@ import logging
 
 import requests
 
-from .config import CHANNEL_NAME
+from .config import CHANNEL_NAME, WIKI_LANG
 from .storage import is_source_processed
 
 logger = logging.getLogger(__name__)
 
-WIKIPEDIA_API_URL = "https://es.wikipedia.org/w/api.php"
+WIKIPEDIA_API_URL = f"https://{WIKI_LANG}.wikipedia.org/w/api.php"
 _HEADERS = {
     "User-Agent": f"{CHANNEL_NAME}Bot/1.0 (automated video generation; contact via YouTube channel)"
 }
@@ -76,6 +76,11 @@ CATALOGUE = [
     # millones sobre virus) tiene debajo a otro canal con el mismo tema, el
     # mismo formato y 43 visitas.
     #
+    # Los titulos son los de la Wikipedia EN INGLES, que es la que se lee: la
+    # mitad de estos casos no tiene articulo en espanol y los que lo tienen son
+    # mucho mas cortos. Comprobables con /catalogo, que es de donde salieron -
+    # escritos de memoria fallan en silencio, resolviendo a otro articulo.
+    #
     # Criterio para entrar aqui, y es duro: el caso tiene que estar DOCUMENTADO
     # EN WIKIPEDIA. Los misterios de internet abundan en foros y en videos de
     # otros, y de ahi no se puede sacar nada - ni por derechos ni por fiabilidad.
@@ -84,78 +89,76 @@ CATALOGUE = [
     # Criptogramas y acertijos sin resolver
     "Cicada 3301",
     "Kryptos",
-    "Manuscrito Voynich",
-    "Codigo Beale",
-    "Taman Shud",
-    "Disco de Festos",
+    "Voynich manuscript",
+    "Beale ciphers",
+    "Tamam Shud case",
+    "Phaistos Disc",
     "Publius Enigma",
-    "Zodiac Killer cifrado",
+    "Zodiac Killer",
 
     # Emisiones y señales que nadie explica
     "Webdriver Torso",
-    "Señal Wow!",
+    "Wow! signal",
     "UVB-76",
-    "Incidente de Max Headroom",
+    "Max Headroom signal hijacking",
     "Numbers station",
     "Bloop",
-    "Lincolnshire Poacher",
+    "Lincolnshire Poacher (numbers station)",
 
     # Leyendas que salieron de internet y tuvieron consecuencias reales
     "Slender Man",
-    "Apuñalamiento de Slender Man",
-    "Momo Challenge",
-    "Reto de la ballena azul",
+    "Slender Man stabbing",
+    "Momo Challenge hoax",
+    "Blue Whale Challenge",
     "Creepypasta",
-    "Polybius videojuego",
-    "Pizzagate",
+    "Polybius (urban legend)",
+    "Pizzagate conspiracy theory",
 
     # Identidades ocultas
     "Satoshi Nakamoto",
     "Banksy",
     "D. B. Cooper",
-    "Q (QAnon)",
-    "Bitcoin creador",
+    "QAnon",
 
     # Desapariciones y casos con rastro digital
-    "Elisa Lam",
-    "Desaparicion de Maura Murray",
-    "Caso de Lars Mittank",
-    "Hombre de Somerton",
-    "Vuelo 370 de Malaysia Airlines",
+    "Death of Elisa Lam",
+    "Disappearance of Maura Murray",
+    "Disappearance of Lars Mittank",
+    "Malaysia Airlines Flight 370",
 
     # Rincones oscuros de la red
-    "Silk Road (mercado negro)",
+    "Silk Road (marketplace)",
     "Ross Ulbricht",
-    "Deep web",
-    "Red Tor",
-    "Anonymous (colectivo)",
+    "Dark web",
+    "Tor (network)",
+    "Anonymous (hacker group)",
     "LulzSec",
     "4chan",
-    "Ashley Madison filtracion",
+    "Ashley Madison data breach",
 
-    # Fraudes y engaños nacidos en la red
-    "Teoria del internet muerto",
+    # Fraudes y enganos nacidos en la red
+    "Dead Internet theory",
     "Fyre Festival",
     "OneCoin",
     "Theranos",
     "Elizabeth Holmes",
-    "Estafa nigeriana",
+    "Advance-fee scam",
 
     # Desastres informaticos que el publico conoce
-    "Gusano Morris",
-    "WannaCry",
+    "Morris worm",
+    "WannaCry ransomware attack",
     "Stuxnet",
-    "Mirai botnet",
+    "Mirai (malware)",
     "ILOVEYOU",
     "Kevin Mitnick",
-    "Caida de CrowdStrike de 2024",
+    "2024 CrowdStrike-related IT outages",
 
     # Vigilancia y filtraciones
     "Edward Snowden",
     "Cambridge Analytica",
     "WikiLeaks",
     "Room 641A",
-    "PRISM (programa de vigilancia)",
+    "PRISM",
 ]
 
 

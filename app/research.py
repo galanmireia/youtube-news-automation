@@ -49,7 +49,7 @@ import unicodedata
 import requests
 
 from . import open_web
-from .config import CHANNEL_NAME
+from .config import CHANNEL_NAME, WIKI_LANG
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +62,15 @@ _MAIN_CHARS = 40000
 _OTHER_LANG_CHARS = 25000
 _RELATED_CHARS = 7000
 
-# Spanish first because it is the channel's language and the names and
-# spellings should come from it. English second: three times the size and
-# where the engineering detail usually is. The rest are the languages the
-# cases in the catalogue actually happened in.
-_LANG_PRIORITY = ("es", "en", "it", "fr", "de", "pt", "nl", "ru", "ja", "no", "sv")
+# The channel's language first, because the names and spellings should come
+# from the article the script is actually written off. The rest are the
+# languages these cases happened in, and they are read for what the main
+# article does not have: the trial, the local consequences, the detail the
+# English write-up skipped.
+_LANG_PRIORITY = (WIKI_LANG,) + tuple(
+    l for l in ("en", "es", "it", "fr", "de", "pt", "nl", "ru", "ja", "no", "sv")
+    if l != WIKI_LANG
+)
 _MAX_LANGS = 3
 _MAX_RELATED = 7
 
@@ -91,19 +95,31 @@ _HEADERS = {
 # are dropped before the relevance scoring rather than being allowed to win it
 # on sheer frequency.
 _GENERIC_LINK = re.compile(
-    r"^(\d{1,4}|siglo\s|anexo:|categor|wikiproyecto|portal:|plantilla:|"
-    r"lista de|idioma |lengua |metro|kilómetro|tonelada|milla|nudo \(|"
-    r"océano|mar |continente|europa$|asia$|áfrica$|américa|oceanía$|"
-    # The computing equivalents. Measured on the Morris worm dossier, where
-    # frequency scoring returned "Unix", "Correo electrónico", "Universidad de
-    # Berkeley" and "Gusano informático" - four generic articles, 4,166 words,
-    # more than half the dossier, none of them about the case. They score
-    # highly for the same reason they are useless: the article says "Unix" and
-    # "correo" constantly, because that is what the worm travelled through.
-    r"unix$|linux$|internet$|correo electr|ordenador|computadora|software$|"
-    r"hardware$|programa \(|lenguaje de programaci|sistema operativo$|"
-    r"universidad de |instituto de |red de computadoras$|servidor$|"
-    r"protocolo$|algoritmo$|criptograf|contrase|informática$|programador$)",
+    r"^(\d{1,4}|siglo\s|century$|anexo:|categor|wikiproyecto|portal:|plantilla:|"
+    r"template:|list of |lista de|idioma |lengua |language$|metro|kilómetro|"
+    r"kilometer|tonelada|milla|mile$|nudo \(|knot \(|"
+    r"océano|ocean$|mar |sea$|continente|continent$|europa$|europe$|asia$|"
+    r"áfrica$|africa$|américa|america$|oceanía$|oceania$|"
+    # The computing equivalents, in both languages. Measured on the Morris worm
+    # dossier, where frequency scoring returned "Unix", "Correo electrónico",
+    # "Universidad de Berkeley" and "Gusano informático" - four generic
+    # articles, 4,166 words, more than half the dossier, none of them about the
+    # case. They score highly for the same reason they are useless: the article
+    # says "Unix" and "email" constantly, because that is what the worm
+    # travelled through.
+    #
+    # The English half is not a translation for tidiness. This list is the only
+    # thing standing between the dossier and that failure, and a Spanish-only
+    # pattern matches nothing at all in an English article - the bug would have
+    # come back whole, silently, the first time a video was generated.
+    r"unix$|linux$|internet$|correo electr|email$|e-mail$|ordenador|computadora|"
+    r"computer$|software$|hardware$|programa \(|lenguaje de programaci|"
+    r"programming language$|sistema operativo$|operating system$|"
+    r"universidad de |university of |instituto de |institute of |"
+    r"red de computadoras$|computer network$|servidor$|server$|"
+    r"protocolo$|protocol$|algoritmo$|algorithm$|criptograf|cryptograph|"
+    r"encryption$|contrase|password$|informática$|computing$|computer science$|"
+    r"programador$|programmer$|world wide web$|website$|web browser$)",
     re.IGNORECASE,
 )
 
@@ -224,6 +240,51 @@ def existe(lang: str, title: str) -> bool:
     return any("missing" not in p for p in paginas.values()) if paginas else False
 
 
+def existen(lang: str, titulos: list[str], lote: int = 50) -> dict[str, bool]:
+    """Which of these articles exist, asked fifty at a time.
+
+    The API takes many titles per request, so checking a whole catalogue is
+    two calls rather than fifty-eight. A title that is missing is reported as
+    missing; a batch whose request FAILED is left out of the result entirely
+    rather than reported as missing, because a network blip that answers
+    "your catalogue is broken" is worse than no answer."""
+    resultado: dict[str, bool] = {}
+    for i in range(0, len(titulos), lote):
+        grupo = titulos[i:i + lote]
+        consulta = _get(lang, action="query", titles="|".join(grupo)).get("query", {})
+        paginas = consulta.get("pages")
+        if not paginas:
+            continue
+        # A title can be normalised ("cicada 3301" -> "Cicada 3301") and then
+        # redirected, so what comes back is keyed by the FINAL name and has to
+        # be followed back to the one that was asked for.
+        salto: dict[str, str] = {}
+        for paso in ("normalized", "redirects"):
+            for m in consulta.get(paso) or []:
+                if m.get("from") and m.get("to"):
+                    salto[m["from"]] = m["to"]
+
+        def final(t: str) -> str:
+            visto: set[str] = set()
+            while t in salto and t not in visto:
+                visto.add(t)
+                t = salto[t]
+            return t
+
+        faltan = {p.get("title") for p in paginas.values() if "missing" in p}
+        for t in grupo:
+            resultado[t] = final(t) not in faltan
+    return resultado
+
+
+def buscar(lang: str, texto: str, cuantos: int = 3) -> list[str]:
+    """What Wikipedia would find for this name. Used to propose a fix, never
+    to apply one: a search that quietly picks the first hit is how "Silk Road"
+    becomes a video about a trade route."""
+    data = _get(lang, action="query", list="search", srsearch=texto, srlimit=cuantos)
+    return [r.get("title", "") for r in data.get("query", {}).get("search", []) if r.get("title")]
+
+
 def _enlaces_externos(lang: str, title: str) -> list[str]:
     """Every external URL the article cites."""
     data = _get(lang, action="query", prop="extlinks", ellimit=500, titles=title)
@@ -320,7 +381,7 @@ _IDIOMA = {
 }
 
 
-def build_dossier(title: str, lang: str = "es") -> str:
+def build_dossier(title: str, lang: str = WIKI_LANG) -> str:
     """Everything Wikimedia has on this case, labelled by where it came from.
 
     Labelled on purpose: the script is told to cross its sources, and it can
