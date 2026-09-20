@@ -851,16 +851,26 @@ async def handle_sources_command(update: Update, context: ContextTypes.DEFAULT_T
     run on a case before deciding to make a video about it."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
-    tema = " ".join(context.args).strip()
-    if not tema:
-        await update.message.reply_text("Dime de que caso: /fuentes Silk Road")
+    # Three cases pasted into one message is the normal way to send three
+    # cases, and Telegram hands the whole block over as the arguments of the
+    # first command. Splitting it back apart costs one line and removes the
+    # only way this command can be used wrong.
+    bruto = " ".join(context.args).strip()
+    temas = [t.strip() for t in re.split(r"/fuentes\b", bruto) if t.strip()][:5]
+    if not temas:
+        await update.message.reply_text(
+            "Dime de que caso: /fuentes Silk Road (mercado negro)\n"
+            "Puedes pegar varios de golpe, uno por linea.")
         return
     await update.message.reply_text(
-        f"Buscando fuentes de *{tema}* fuera de Wikipedia...", parse_mode="Markdown")
+        "Buscando fuentes fuera de Wikipedia de:\n" +
+        "\n".join(f"· {t}" for t in temas))
     loop = asyncio.get_running_loop()
 
     async def trabajo():
-        def medir():
+        def medir(tema):
+            if not research.existe("es", tema):
+                return None
             # The same articles build_dossier reads, so what this reports is
             # what a real run would get, not a different question.
             idiomas = [("es", tema)]
@@ -868,56 +878,64 @@ async def handle_sources_command(update: Update, context: ContextTypes.DEFAULT_T
             idiomas += [(l, otros[l]) for l in research._LANG_PRIORITY
                         if l in otros and l != "es"][: research._MAX_LANGS - 1]
             candidatas = research.referencias_de(idiomas)
-            leidas = research.leer_referencias(candidatas)
-            return idiomas, candidatas, leidas
+            return idiomas, candidatas, research.leer_referencias(candidatas)
 
-        try:
-            idiomas, candidatas, leidas = await loop.run_in_executor(None, medir)
-        except Exception:
-            logger.exception("Error sondeando las fuentes de %r", tema)
-            await context.bot.send_message(
-                chat_id=TELEGRAM_CHAT_ID, text="No he podido sondear las fuentes. Mira los logs.")
-            return
-
-        if not candidatas:
-            await context.bot.send_message(
-                chat_id=TELEGRAM_CHAT_ID,
-                text=f"«{tema}»: Wikipedia no cita ninguna fuente de la lista. "
-                     "El video saldria solo de Wikipedia. Si el nombre del "
-                     "articulo no es exacto, prueba con el exacto.")
-            return
-
-        lineas = [f"*{tema}*",
-                  f"Wikipedia en: {', '.join(l for l, _ in idiomas)}",
-                  f"{len(candidatas)} referencias en la lista · {len(leidas)} leidas", ""]
-        palabras_extra = 0
-        for nombre, _pedida, url, texto in leidas:
-            palabras = len(texto.split())
-            palabras_extra += palabras
-            marca = " (del archivo)" if "web.archive.org" in url else ""
-            dominio = url.split("/")[2] if "//" in url else url
-            lineas.append(f"  ✓ {nombre} · {dominio}{marca} — {palabras:,} palabras".replace(",", "."))
-
-        # Only the ones that were actually attempted can be called failures.
-        # The rest were never tried: the budget ran out first, and reporting
-        # them as dead would be inventing a result.
-        intentadas = candidatas[: research._MAX_REFERENCIAS * 2]
-        conseguidas = {pedida for _n, pedida, _u, _t in leidas}
-        for _rango, nombre, url in intentadas:
-            if url in conseguidas:
+        for tema in temas:
+            try:
+                medido = await loop.run_in_executor(None, medir, tema)
+            except Exception:
+                logger.exception("Error sondeando las fuentes de %r", tema)
+                await context.bot.send_message(
+                    chat_id=TELEGRAM_CHAT_ID,
+                    text=f"«{tema}»: ha fallado el sondeo. Mira los logs.")
                 continue
-            dominio = url.split("/")[2] if "//" in url else url
-            lineas.append(f"  ✗ {nombre} · {dominio} — muerta, de pago o vacia")
 
-        lineas.append("")
-        lineas.append(
-            f"{palabras_extra:,} palabras que Wikipedia NO tiene.".replace(",", "."))
-        if not leidas:
-            lineas.append(
-                "Ninguna respondio: este caso saldria solo de Wikipedia, "
-                "igual que el de cualquier otro canal.")
-        await context.bot.send_message(
-            chat_id=TELEGRAM_CHAT_ID, text="\n".join(lineas), parse_mode="Markdown")
+            if medido is None:
+                await context.bot.send_message(
+                    chat_id=TELEGRAM_CHAT_ID,
+                    text=f"«{tema}»: NO existe ese articulo en Wikipedia en espanol. "
+                         "No es que no tenga fuentes: es que no existe. "
+                         "Comprueba el nombre exacto.")
+                continue
+
+            idiomas, candidatas, leidas = medido
+            lineas = [f"*{tema}*",
+                      f"Wikipedia en: {', '.join(l for l, _ in idiomas)}",
+                      f"{len(candidatas)} referencias en la lista · {len(leidas)} leidas", ""]
+            palabras_extra = 0
+            for nombre, _pedida, url, texto in leidas:
+                palabras = len(texto.split())
+                palabras_extra += palabras
+                marca = " (del archivo)" if "web.archive.org" in url else ""
+                dominio = url.split("/")[2] if "//" in url else url
+                lineas.append(
+                    f"  ✓ {nombre} · {dominio}{marca} — {palabras:,} palabras".replace(",", "."))
+
+            # Only the ones actually attempted can be called failures. The rest
+            # were never tried: the budget ran out first, and reporting them as
+            # dead would be inventing a result.
+            intentadas = candidatas[: research._MAX_REFERENCIAS * 2]
+            conseguidas = {pedida for _n, pedida, _u, _t in leidas}
+            for _rango, nombre, url in intentadas:
+                if url in conseguidas:
+                    continue
+                dominio = url.split("/")[2] if "//" in url else url
+                lineas.append(f"  ✗ {nombre} · {dominio} — muerta, de pago o vacia")
+
+            lineas.append("")
+            if leidas:
+                lineas.append(
+                    f"{palabras_extra:,} palabras que Wikipedia NO tiene.".replace(",", "."))
+            elif candidatas:
+                lineas.append(
+                    "El articulo cita fuentes de la lista pero ninguna respondio: "
+                    "muertas, de pago o sin copia en el archivo.")
+            else:
+                lineas.append(
+                    "El articulo existe pero no cita ni una fuente de la lista. "
+                    "Este caso saldria solo de Wikipedia, igual que el de cualquier otro canal.")
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID, text="\n".join(lineas), parse_mode="Markdown")
 
     context.application.create_task(trabajo())
 

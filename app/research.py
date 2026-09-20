@@ -211,6 +211,19 @@ def _menciona(cuerpo: str, caso: str) -> bool:
     return len(ultimo) >= 5 and _fold(ultimo) in plegado
 
 
+def existe(lang: str, title: str) -> bool:
+    """Is there an article under this exact name?
+
+    Worth its own call because the two ways a probe comes back empty look
+    identical from the outside and mean opposite things. "The article exists
+    and cites nothing we can read" is a finding about the case. "There is no
+    such article" is a typo. Reporting the second as the first is how you
+    conclude a feature does not work without ever having tested it."""
+    data = _get(lang, action="query", titles=title)
+    paginas = data.get("query", {}).get("pages", {})
+    return any("missing" not in p for p in paginas.values()) if paginas else False
+
+
 def _enlaces_externos(lang: str, title: str) -> list[str]:
     """Every external URL the article cites."""
     data = _get(lang, action="query", prop="extlinks", ellimit=500, titles=title)
