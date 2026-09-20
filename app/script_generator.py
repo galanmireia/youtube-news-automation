@@ -448,7 +448,8 @@ linea.
 
 Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni markdown.
 
-Y esto literalmente: el PRIMER caracter de tu respuesta tiene que ser "{". Nada antes. Ni
+Y esto literalmente: el PRIMER caracter de tu respuesta tiene que ser una llave de apertura.
+Nada antes. Ni
 "Voy a seleccionar los casos...", ni "Escribiendo el guion para...", ni un resumen de lo que
 has decidido. Las decisiones que tomas - que casos entran, en que orden - se ven en el JSON,
 que para eso esta. Un solo parrafo tuyo por delante y el guion entero se tira a la basura
@@ -480,6 +481,31 @@ ser reales.
 Titular: {title}
 Resumen: {summary}
 """
+
+
+def _comprobar_plantilla() -> None:
+    """Does PROMPT_TEMPLATE still format?
+
+    A literal brace in the prompt is invisible to anyone reading it and blows
+    up .format() with "unexpected '{' in field name". It cost a run: a line
+    added to tell the model that its reply must start with an opening brace
+    contained one, and the whole generation died before it ever reached the
+    API - the prompt could not be built at all.
+
+    Checked once at import with empty values, because a template that cannot
+    be formatted cannot make a single video and the right moment to find that
+    out is the deploy, not the next time somebody presses generate."""
+    campos = set(re.findall(r"(?<!\{)\{(\w+)\}(?!\})", PROMPT_TEMPLATE))
+    try:
+        PROMPT_TEMPLATE.format(**{c: "" for c in campos})
+    except (ValueError, KeyError, IndexError) as exc:
+        logger.error(
+            "PROMPT_TEMPLATE no se puede formatear (%s). Casi seguro es una llave "
+            "literal sin escapar: en esta plantilla se escriben {{ y }}. "
+            "Mientras esto no se arregle NO se puede generar ningun video.", exc)
+
+
+_comprobar_plantilla()
 
 _VARIANT_CONFIG = {
     "short": {

@@ -593,9 +593,12 @@ def _choose_and_prepare(forced_topic: str | None) -> tuple[dict | None, Path | N
                 # are labelled so the script can cross them, and one that
                 # stops halfway reads as a document contradicting itself
                 # rather than as one that ended.
-                partes.append(
-                    f"########## CASO: {caso} ##########\n"
-                    f"{_trim_sources(d, _CHARS_POR_CASO)}")
+                recortado = _trim_sources(d, _CHARS_POR_CASO)
+                if len(recortado) < len(d):
+                    logger.info(
+                        "Caso %r recortado a %s de %s caracteres para el recopilatorio.",
+                        caso, len(recortado), len(d))
+                partes.append(f"########## CASO: {caso} ##########\n{recortado}")
         dosier = "\n\n".join(partes)
         if len(dosier) > len(news_item.get("summary") or ""):
             news_item = {**news_item, "summary": dosier}
