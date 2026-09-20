@@ -269,6 +269,22 @@ siempre hay foto. Y al reves, NUNCA pongas "photo_subject" para algo que no es u
 articulo propio - "the deep web", "a server room", "an imageboard" no son sujetos de foto: esos
 van en "visual_keywords".
 
+EN UN CASO DE SUCESOS TIENES QUE PEDIR TU LAS CARAS, Y ESTO ES OBLIGATORIO.
+
+Cuando un caso es sensible, el sistema NO detecta personas por su cuenta a proposito: nadie debe
+poner una cara sin que alguien lo haya decidido. El que lo decide eres tu, aqui, escena por
+escena. Si no rellenas "photo_subject" con el nombre de una persona, en ese video no sale ni una
+sola cara - y un caso de sucesos sin caras es un expediente leido en voz alta.
+
+Asi que, en la escena donde se la nombra por primera vez, rellena "photo_subject" con:
+- la victima, una vez;
+- cada persona con SENTENCIA FIRME, diciendo la condena en la narracion;
+- los sitios con nombre propio: el pueblo, el juzgado, la ciudad.
+
+Pon el nombre tal cual, aunque creas que esa persona no tiene articulo propio en Wikipedia - que
+casi nunca lo tiene. El sistema sabe buscarla dentro del articulo del caso, que es donde suelen
+estar estas fotos.
+
 LAS PERSONAS DE UN CASO DE SUCESOS, que es donde hay que afinar:
 
 - La foto de una victima SI se puede usar, una vez y con respeto, cuando el caso va de ella y la
