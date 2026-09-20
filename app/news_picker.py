@@ -105,7 +105,10 @@ def _filtrar_por_demanda(candidates: list[dict]) -> list[dict]:
     for c in candidates:
         try:
             m = demanda.medir(c["title"])
-        except demanda.SinClave as exc:
+        except (demanda.SinClave, demanda.SinCuota) as exc:
+            # Sin poder medir, se elige como se elegia antes. Lo que NO se hace
+            # es descartar: quedarse sin video porque hoy no se puede preguntar
+            # seria cambiar un problema por otro peor.
             logger.warning("%s Se elige sin medir, como antes.", exc)
             return candidates
         except Exception:

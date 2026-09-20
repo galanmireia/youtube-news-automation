@@ -961,7 +961,7 @@ async def handle_demand_command(update: Update, context: ContextTypes.DEFAULT_TY
         try:
             medidos = await loop.run_in_executor(
                 None, lambda: [demanda.medir(t) for t in temas])
-        except demanda.SinClave as exc:
+        except (demanda.SinClave, demanda.SinCuota) as exc:
             await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=str(exc))
             return
         except Exception:

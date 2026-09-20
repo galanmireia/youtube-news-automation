@@ -32,6 +32,7 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
+from . import storage
 from .config import YOUTUBE_API_KEY
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,17 @@ class SinClave(RuntimeError):
     pass
 
 
+class SinCuota(RuntimeError):
+    """La cuota diaria de la API se ha agotado.
+
+    Merece su propia excepcion porque es lo contrario de lo que parece. Sin
+    ella, la respuesta era "no se ha podido medir", que a su vez se enseñaba
+    como "no tiene datos de Claudia" - o sea que el tema con cinco millones de
+    visitas semanales salia como tema sin demanda. Es exactamente el mismo
+    error que "el articulo no tiene texto" cuando lo que pasaba era un 429 de
+    Wikipedia: confundir "no he podido preguntar" con "la respuesta es no"."""
+
+
 def _get(url: str, params: dict) -> dict:
     if not YOUTUBE_API_KEY:
         raise SinClave(
@@ -67,6 +79,14 @@ def _get(url: str, params: dict) -> dict:
     except requests.RequestException as exc:
         logger.warning("YouTube no responde midiendo la demanda: %s", exc)
         return {}
+    if r.status_code in (403, 429) and "quota" in r.text.lower():
+        raise SinCuota(
+            "Se ha agotado la cuota diaria de la API de YouTube. Cada busqueda "
+            "cuesta 100 de las 10.000 unidades del dia, o sea cien busquedas. "
+            "Se renueva a las 9:00 de la mañana (hora española). NO quiere "
+            "decir que el tema no tenga demanda: quiere decir que hoy no puedo "
+            "preguntarlo."
+        )
     if r.status_code != 200:
         logger.warning("YouTube contesta %s midiendo la demanda: %s",
                        r.status_code, r.text[:300])
@@ -83,6 +103,11 @@ def medir(consulta: str, dias: int = _DIAS) -> dict:
     La diferencia entre "no hay demanda" y "no he podido medir" importa, asi
     que va marcada: dar por bueno un cero de una peticion fallida descartaria
     un tema que si la tiene."""
+    guardada = storage.demanda_guardada(consulta)
+    if guardada is not None:
+        logger.info("Demanda de %r leida de la cache; no gasta cuota.", consulta)
+        return guardada
+
     desde = (datetime.now(timezone.utc) - timedelta(days=dias)).strftime("%Y-%m-%dT%H:%M:%SZ")
     datos = _get(_BUSCAR, {
         "part": "snippet", "q": consulta, "type": "video",
@@ -104,7 +129,7 @@ def medir(consulta: str, dias: int = _DIAS) -> dict:
         return {"consulta": consulta, "medido": False, "videos": len(ids),
                 "vistas": 0, "mediana": 0, "mejor": 0}
 
-    return {
+    resultado = {
         "consulta": consulta,
         "medido": True,
         "videos": len(vistas),
@@ -114,6 +139,8 @@ def medir(consulta: str, dias: int = _DIAS) -> dict:
         "mediana": int(statistics.median(vistas)),
         "mejor": max(vistas),
     }
+    storage.guardar_demanda(consulta, resultado)
+    return resultado
 
 
 def resumen(m: dict) -> str:

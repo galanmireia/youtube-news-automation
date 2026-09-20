@@ -1,3 +1,5 @@
+import json
+from datetime import datetime, timedelta, timezone
 import sqlite3
 import time
 from contextlib import contextmanager
@@ -26,6 +28,12 @@ CREATE TABLE IF NOT EXISTS videos (
     telegram_chat_id TEXT,
     telegram_message_id TEXT,
     youtube_video_id TEXT
+);
+
+CREATE TABLE IF NOT EXISTS demanda_cache (
+    consulta  TEXT PRIMARY KEY,
+    datos     TEXT NOT NULL,
+    medido_en TEXT NOT NULL
 );
 """
 
@@ -67,6 +75,37 @@ def init_db() -> None:
             "  WHERE v.source_url = processed_sources.source_url AND v.title IS NOT NULL"
             "  LIMIT 1"
             ") WHERE title IS NULL OR title = ''"
+        )
+
+
+def demanda_guardada(consulta: str, horas: int = 8) -> dict | None:
+    """La ultima medicion de este tema, si es reciente.
+
+    Cada busqueda cuesta 100 de las 10.000 unidades diarias, o sea cien
+    busquedas al dia para todo: el picker, lo que ella consulte a mano y las
+    pruebas. Medir dos veces el mismo tema en la misma tarde tira una de esas
+    cien, y la demanda no cambia de hora en hora."""
+    limite = (datetime.now(timezone.utc) - timedelta(hours=horas)).isoformat()
+    with get_conn() as conn:
+        fila = conn.execute(
+            "SELECT datos FROM demanda_cache WHERE consulta = ? AND medido_en > ?",
+            (consulta.strip().lower(), limite),
+        ).fetchone()
+    if not fila:
+        return None
+    try:
+        return json.loads(fila["datos"])
+    except ValueError:
+        return None
+
+
+def guardar_demanda(consulta: str, datos: dict) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO demanda_cache (consulta, datos, medido_en) "
+            "VALUES (?, ?, ?)",
+            (consulta.strip().lower(), json.dumps(datos),
+             datetime.now(timezone.utc).isoformat()),
         )
 
 
