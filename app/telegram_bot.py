@@ -10,7 +10,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
-from . import (ai_images, archivo, demanda, efemerides, fotos_propias, news_source, oficial,
+from . import (ai_images, archivo, demanda, efemerides, fotos_propias, nichos, news_source, oficial,
                pipeline,
                real_photos, research, storage, tendencias, topic_source, tts,
                voice_align, voice_clone)
@@ -1277,6 +1277,58 @@ async def handle_archivo_command(update: Update, context: ContextTypes.DEFAULT_T
                                    parse_mode="Markdown", disable_web_page_preview=True)
 
 
+async def handle_nichos_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/nichos <tema> - que canales estan funcionando con un formato copiable.
+
+    Idea suya: en vez de elegir tema y esperar, mirar quien lo esta petando con
+    algo que nosotros podamos hacer, y meternos ahi."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    semillas = [t for t in " ".join(context.args or []).split(",") if t.strip()]
+    if not semillas:
+        await update.message.reply_text(
+            "Dime por donde buscar, separado por comas:\n"
+            "/nichos crimenes reales, casos sin resolver, misterios historia")
+        return
+    semillas = [t.strip() for t in semillas][:4]
+    await update.message.reply_text(
+        f"Buscando canales con «{'», «'.join(semillas)}»... "
+        f"({len(semillas) * 100} unidades de cuota)")
+
+    loop = asyncio.get_running_loop()
+    try:
+        canales, gastado = await loop.run_in_executor(None, nichos.explorar, semillas)
+    except (nichos.SinClave, nichos.SinCuota) as exc:
+        await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=str(exc))
+        return
+    except Exception:
+        logger.exception("Error explorando nichos con %r", semillas)
+        await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                                       text="No he podido mirarlo. Revisa los logs.")
+        return
+
+    if not canales:
+        await context.bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID,
+            text=("Ningun canal replicable con esas busquedas. O el nicho lo llevan "
+                  "veteranos, o son canales enormes. Prueba con otras palabras."))
+        return
+
+    lineas = ["*Canales que podriamos replicar*", ""]
+    for c in canales[:8]:
+        lineas += [
+            f"*{c['nombre'][:38]}*",
+            f"  {c['meses']:.0f} meses · {c['subs']:,} subs · {c['videos']} videos".replace(",", "."),
+            f"  {c['por_video']:,} vistas por video · {c['ritmo']}/mes".replace(",", "."),
+            f"  +{c['subs_mes']:,} subs al mes".replace(",", "."),
+            f"  youtube.com/channel/{c['id']}",
+            "",
+        ]
+    lineas += [f"_Cuota gastada: {gastado} de 10.000._"]
+    await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=_recorta_pie("\n".join(lineas)),
+                                   parse_mode="Markdown", disable_web_page_preview=True)
+
+
 async def handle_oficial_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/oficial <nombre o caso> - ¿hay material oficial que se pueda usar?
 
@@ -1823,6 +1875,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("fotos", handle_photos_command))
     application.add_handler(CommandHandler("oficial", handle_oficial_command))
     application.add_handler(CommandHandler("archivo", handle_archivo_command))
+    application.add_handler(CommandHandler("nichos", handle_nichos_command))
     application.add_handler(CommandHandler("tendencias", handle_trending_command))
     application.add_handler(CommandHandler("calendario", handle_calendar_command))
     application.add_handler(CommandHandler("catalogo", handle_catalogue_command))
