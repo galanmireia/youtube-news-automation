@@ -459,7 +459,9 @@ def prepare_voice_job(variant: str, forced_topic: str | None = None) -> dict | N
     dossier, the script, the entities - and then the job waits on disk. What
     comes back is the text to read; what resumes it is resume_voice_job with
     the recording."""
-    news_item, work_dir = _choose_and_prepare(forced_topic)
+    news_item, work_dir = _choose_and_prepare(
+        forced_topic,
+        _MINIMO_DOSIER_SHORT if variant == "short" else _MINIMO_DOSIER)
     if news_item is None:
         return None
 
@@ -582,7 +584,8 @@ def _recopilatorio(casos: list[dict]) -> dict:
     }
 
 
-def _choose_and_prepare(forced_topic: str | None) -> tuple[dict | None, Path | None]:
+def _choose_and_prepare(forced_topic: str | None,
+                        minimo_dosier: int = _MINIMO_DOSIER) -> tuple[dict | None, Path | None]:
     """Picks the case to make, gathers its sources and opens a working
     directory for it. Shared by the ordinary run and by a job that pauses to
     be narrated, so both choose the same way."""
@@ -682,8 +685,11 @@ def _choose_and_prepare(forced_topic: str | None) -> tuple[dict | None, Path | N
                 "el guion se lo inventaria entero. Paro aqui sin gastar nada. "
                 "Mira los logs: ahora dicen por que falla Wikipedia."
             )
-        minimo = _MINIMO_DOSIER_SHORT if variant == "short" else _MINIMO_DOSIER
-        if len(dosier) < minimo:
+        # El liston lo decide QUIEN LLAMA, porque el dosier se monta una vez
+        # para todas las variantes y aqui no se sabe cual se va a hacer. Yo
+        # puse 'variant' directamente y reventó la tanda entera con un
+        # NameError despues de haber elegido los temas.
+        if len(dosier) < minimo_dosier:
             raise RuntimeError(
                 f"Solo he reunido {len(dosier):,} caracteres de material en "
                 f"{len(partes)} caso(s), que no da para un video sin rellenar. "
@@ -710,7 +716,12 @@ def run_once(
     _stop_requested.clear()
     cleanup_finished_video_files()
 
-    news_item, work_dir = _choose_and_prepare(forced_topic)
+    # Solo se rebaja cuando NO se va a hacer ningun largo con este mismo
+    # dosier: si en la misma tanda sale un largo, el material tiene que dar
+    # para el largo.
+    news_item, work_dir = _choose_and_prepare(
+        forced_topic,
+        _MINIMO_DOSIER_SHORT if set(variants) == {"short"} else _MINIMO_DOSIER)
     if news_item is None:
         return []
 
