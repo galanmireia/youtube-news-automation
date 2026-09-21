@@ -1,4 +1,8 @@
 import logging
+import re
+import shutil
+import time
+import unicodedata
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -118,6 +122,74 @@ def _publish_status() -> tuple[dict, datetime | None]:
     )
 
 
+
+def _nombre_con_palabras(video_path: Path, title: str) -> Path:
+    """Copia el fichero con el titulo por nombre antes de subirlo.
+
+    Efecto pequeño y honestamente discutible - YouTube no lo usa como señal de
+    posicionamiento - pero es gratis y no puede hacer daño. "caso-asunta-13-
+    anos-despues.mp4" en vez de "final_subtitled.mp4". Lo que NO es cierto es
+    el mito de que asi "YouTube entiende de que va": de eso se encargan el
+    titulo, la descripcion y los subtitulos.
+    """
+    limpio = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode()
+    trozos = [t for t in re.split(r"[^a-zA-Z0-9]+", limpio) if t]
+    nombre = "-".join(trozos).lower()[:70] or "video"
+    destino = video_path.with_name(f"{nombre}.mp4")
+    if destino == video_path:
+        return video_path
+    try:
+        shutil.copyfile(video_path, destino)
+        return destino
+    except OSError:
+        return video_path
+
+
+def _esperar_a_que_procese(youtube, video_id: str, minutos: int = 12) -> bool:
+    """Espera a que YouTube termine de procesar el HD. Devuelve si lo logro.
+
+    ESTE SI ES EL TRUCO DE VERDAD, y es la version cierta de lo que ella
+    intuia. El mito dice que hay que dejarlo en privado un rato "para que
+    YouTube entienda de que va"; eso es falso. Lo que si pasa es mas prosaico
+    y mas grave: al publicar, YouTube todavia esta generando las resoluciones
+    altas, y durante esos minutos QUIEN ABRE EL VIDEO LO VE EN 360p.
+
+    Y esos minutos son justo cuando el algoritmo esta midiendo si la gente se
+    queda. O sea que la primera tanda de espectadores -la que decide si el
+    video se distribuye o se entierra- juzga la peor version que va a existir.
+
+    Cuesta una unidad de cuota por consulta.
+    """
+    limite = time.time() + minutos * 60
+    while time.time() < limite:
+        try:
+            r = youtube.videos().list(part="processingDetails", id=video_id).execute()
+        except HttpError:
+            return False
+        items = r.get("items") or []
+        if not items:
+            return False
+        estado = items[0].get("processingDetails", {}).get("processingStatus")
+        if estado == "succeeded":
+            logger.info("Video %s procesado; ya se puede publicar en calidad buena.", video_id)
+            return True
+        if estado == "failed":
+            logger.warning("YouTube dice que fallo el procesado de %s.", video_id)
+            return False
+        time.sleep(20)
+    logger.warning("El video %s sigue procesando tras %s minutos; se publica igual.",
+                   video_id, minutos)
+    return False
+
+
+def _hacer_publico(youtube, video_id: str) -> None:
+    youtube.videos().update(
+        part="status",
+        body={"id": video_id, "status": {"privacyStatus": "public",
+                                         "selfDeclaredMadeForKids": False}},
+    ).execute()
+    logger.info("Video %s publicado.", video_id)
+
 def upload_video(
     video_path: Path, thumbnail_path: Path, title: str, description: str, tags: list[str]
 ) -> tuple[str, datetime | None]:
@@ -147,7 +219,18 @@ def upload_video(
         },
         "status": status,
     }
-    media = MediaFileUpload(str(video_path), chunksize=-1, resumable=True, mimetype="video/mp4")
+    # Si el destino es publico, se sube EN PRIVADO y se publica despues de que
+    # YouTube termine de procesar el HD. Ver _esperar_a_que_procese.
+    publicar_al_final = (status.get("privacyStatus") == "public")
+    if publicar_al_final:
+        status = {**status, "privacyStatus": "private"}
+        body_status = status
+    else:
+        body_status = status
+    body["status"] = body_status
+
+    subir = _nombre_con_palabras(video_path, title)
+    media = MediaFileUpload(str(subir), chunksize=-1, resumable=True, mimetype="video/mp4")
     request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
 
     response = None
@@ -161,6 +244,18 @@ def upload_video(
         # Custom thumbnails require a phone-verified channel; the video itself
         # already uploaded fine, so this shouldn't fail the whole operation.
         logger.warning("No se pudo establecer la miniatura personalizada para %s: %s", video_id, exc)
+
+    if publicar_al_final:
+        _esperar_a_que_procese(youtube, video_id)
+        try:
+            _hacer_publico(youtube, video_id)
+        except HttpError as exc:
+            # Queda privado y visible en Studio: mejor eso que perderlo.
+            logger.error("El video %s se subio pero no se ha podido publicar: %s", video_id, exc)
+            raise
+
+    if subir != video_path:
+        subir.unlink(missing_ok=True)
 
     return video_id, publish_at
 

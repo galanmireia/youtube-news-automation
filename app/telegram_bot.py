@@ -1201,6 +1201,30 @@ async def handle_incoming_photo(update: Update, context: ContextTypes.DEFAULT_TY
         "que encuentre yo por mi cuenta.")
 
 
+def _limpio(texto: str) -> str:
+    """Texto de fuera, sin los caracteres que rompen el formato de Telegram.
+
+    Esto tiro /nichos con 38 canales de historia ya encontrados:
+
+        telegram.error.BadRequest: Can't parse entities:
+          can't find end of the entity starting at byte offset 342
+
+    Un nombre de canal llevaba un guion bajo o un asterisco. Como los nombres
+    van entre asteriscos para ponerlos en negrita, Telegram se encuentra un
+    formato a medio cerrar y RECHAZA EL MENSAJE ENTERO - no el nombre, el
+    mensaje. O sea que un canal con un underscore en el nombre borra el
+    trabajo de los otros treinta y siete.
+
+    Se quitan en vez de escaparse porque el Markdown viejo de Telegram escapa
+    mal y de forma distinta segun el contexto; quitarlos no puede fallar. Un
+    nombre de canal no necesita asteriscos.
+
+    Vale para todo lo que venga de fuera: nombres de canal, titulos de
+    Archive.org, nombres de fichero de Wikimedia.
+    """
+    return re.sub(r"[_*`\[\]()]", "", texto or "")
+
+
 _OTRO_COMANDO = re.compile(r"\s*/([a-zA-Z_]+)\s*")
 
 
@@ -1269,7 +1293,7 @@ async def handle_archivo_command(update: Update, context: ContextTypes.DEFAULT_T
         lineas.append(f"  ✓ {len(piezas)} piezas utilizables")
         for pz in piezas[:5]:
             año = f" ({pz['año']})" if pz.get("año") else ""
-            lineas.append(f"      · {pz['titulo'][:44]}{año}")
+            lineas.append(f"      · {_limpio(pz['titulo'])[:44]}{año}")
             lineas.append(f"        {pz['licencia'][:50]}")
         lineas.append("")
     await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID,
@@ -1312,7 +1336,7 @@ async def handle_nichos_command(update: Update, context: ContextTypes.DEFAULT_TY
             lineas.append(f"  *{f['cuantos']}*  {f['nicho']}")
             lineas.append(f"       +{f['crecimiento']:,} subs/mes de mediana".replace(",", "."))
             mejor = f["mejor"]
-            lineas.append(f"       el mejor: {mejor['nombre'][:30]} "
+            lineas.append(f"       el mejor: {_limpio(mejor['nombre'])[:30]} "
                           f"({mejor['meses']:.0f} meses, {mejor['subs']:,} subs)".replace(",", "."))
         lineas += ["", f"_Cuota gastada: {gastado} de 10.000._"]
         await context.bot.send_message(
@@ -1390,7 +1414,7 @@ async def handle_oficial_command(update: Update, context: ContextTypes.DEFAULT_T
         if encontrado:
             _url, fichero = encontrado
             lineas += ["  ✓ FOTO LIBRE · Wikidata tiene ficha con retrato",
-                       f"      · {fichero[:52]}",
+                       f"      · {_limpio(fichero)[:52]}",
                        "      Entra sola en el proximo video, no tienes que hacer nada.", ""]
         else:
             lineas += ["  ✗ FOTO LIBRE · Wikidata no tiene retrato fichado", ""]
@@ -1492,7 +1516,7 @@ async def handle_viable_command(update: Update, context: ContextTypes.DEFAULT_TY
         lineas.append(f"  {'✓' if imgs else '✗'} IMAGENES · {len(imgs)} libres "
                       "(articulo, otra Wikipedia y Commons)")
         for _url, fichero in imgs[:8]:
-            lineas.append(f"      · {fichero[:52]}")
+            lineas.append(f"      · {_limpio(fichero)[:52]}")
         if len(imgs) > 8:
             lineas.append(f"      · ...y {len(imgs) - 8} mas")
         if not imgs:
