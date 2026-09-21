@@ -4,7 +4,7 @@ import re
 
 import anthropic
 
-from . import llm_usage
+from . import bocadillos, llm_usage
 from .spanish import MIN_TASA_ACENTOS, tasa_de_acentos
 from .config import CONTENT_MODE, ANTHROPIC_API_KEY, CHANNEL_NAME, CHANNEL_TONE_HINT, CLAUDE_MODEL, NEWS_LANGUAGE_HINT, NARRATION_LANG
 
@@ -320,13 +320,7 @@ lugares).
 
 {bloque_ilustracion}
 
-LA PRIMERA ESCENA TIENE UN TRABAJO DISTINTO. Su imagen no esta ahi para ilustrar la frase: esta
-ahi para que el espectador no se vaya. Asi que en la escena 1 las "visual_keywords" tienen que
-SITUAR - la ciudad, el edificio, el juzgado, la casa, una cara - y no el detalle literal del sitio
-donde pasaron los hechos. El video del caso Asunta abrio con un camino de tierra en un bosque,
-porque ahi aparecio el cuerpo: correcto como dato y pesimo como primer plano, porque quien no
-conoce el caso ve un camino cualquiera y se va. Ese detalle es bueno MAS TARDE, cuando ya se ha
-contado que paso y el espectador sabe por que esta mirando un camino.
+{bloque_primera_imagen}
 
 Palabras clave visuales ("visual_keywords"): RELLENALAS SIEMPRE, en TODAS las escenas, tambien
 cuando ya hayas puesto "photo_subject" o "ai_image_prompt". Son la red de seguridad: si la foto real
@@ -635,6 +629,27 @@ _VARIANT_CONFIG = {
         # hay algo real va SIEMPRE en photo_subject" - se escribio para un
         # canal de noticias y aqui deja el guion sin un solo dibujo: en
         # historia TODAS las escenas nombran a alguien o algun sitio.
+        "bloque_primera_imagen": """LA PRIMERA IMAGEN ES LA PORTADA DEL VIDEO. No exagero: en un Short la miniatura casi no la ve
+nadie - lo que la gente ve es el primer segundo del video reproduciendose. Ese primer plano ES la
+portada, y decide si se quedan.
+
+Asi que la imagen de la escena 1 tiene que ser EL GANCHO HECHO IMAGEN, de cerca: un sujeto
+llenando el encuadre, cara o accion, con algo raro que se entienda de un vistazo. Nada de planos
+generales, ni vistas de una ciudad, ni un edificio entero, ni un paisaje. Un plano general dice
+"esto es un documental" y el pulgar sigue.
+
+  Narracion: "Heredo cuarenta y cuatro titulos y no le cabian en el carnet."
+    BIEN: una anciana diminuta sepultada bajo una montaña de pergaminos y medallas, mirando a
+          camara con cara de circunstancias
+    MAL:  un palacio sevillano visto desde la calle
+
+  Narracion: "Siguieron defendiendo una iglesia once meses despues de perder la guerra."
+    BIEN: la cara de un soldado demacrado asomando entre las tablas de una ventana, de muy cerca
+    MAL:  una iglesia pequeña en un pueblo al amanecer
+
+Habia escrito aqui justo lo contrario - que la escena 1 tenia que SITUAR, "la ciudad, el
+edificio, el juzgado" - y encima tres parrafos despues de prohibirle a la narracion que situe. El
+video abria contando un golpe sobre un plano general de nada.""",
         "bloque_ilustracion": """Ilustracion por IA ("ai_image_prompt"): OBLIGATORIA EN TODAS Y CADA UNA DE LAS ESCENAS.
 
 Este canal es DIBUJADO. No es un documental con fotos de archivo: es una historia contada con
@@ -696,6 +711,13 @@ los dibujan deformados y se nota.""",
         # En horizontal se queda como estaba: un video largo con foto real de
         # Wikipedia donde la hay es correcto, y dibujarlo entero costaria
         # catorce ilustraciones.
+        "bloque_primera_imagen": """LA PRIMERA ESCENA TIENE UN TRABAJO DISTINTO. Su imagen no esta ahi para ilustrar la frase: esta
+ahi para que el espectador no se vaya. Asi que en la escena 1 las "visual_keywords" tienen que
+SITUAR - la ciudad, el edificio, el juzgado, la casa, una cara - y no el detalle literal del sitio
+donde pasaron los hechos. El video del caso Asunta abrio con un camino de tierra en un bosque,
+porque ahi aparecio el cuerpo: correcto como dato y pesimo como primer plano, porque quien no
+conoce el caso ve un camino cualquiera y se va. Ese detalle es bueno MAS TARDE, cuando ya se ha
+contado que paso y el espectador sabe por que esta mirando un camino.""",
         "bloque_ilustracion": """Ilustracion por IA ("ai_image_prompt"): es para las escenas ABSTRACTAS, las que no tienen nada real
 que enseñar. Si la escena nombra una persona, un lugar o una institucion con nombre propio, va
 SIEMPRE en "photo_subject" y nunca aqui: una foto real de Wikipedia es gratis y siempre mejor, y una
@@ -899,6 +921,17 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long") -> str | None:
         # una. Una escena sin "ai_image_prompt" no da un video un poco peor:
         # da una foto de stock generica, que es de lo que se queja ella desde
         # el primer dia. Se comprueba AQUI, que es antes de pagar la voz.
+        # Y QUE ALGUIEN HABLE DE VERDAD. El #82 salio con sus cinco dibujos y
+        # con CERO bocadillos, porque el prompt los pedia y nada comprobaba
+        # que estuvieran. Es el mismo fallo que llevo repitiendo todo el dia:
+        # escribir una regla en el prompt y no comprobar en codigo que se ha
+        # cumplido. Se mira con la MISMA funcion que luego dibuja el globo,
+        # asi que lo que pasa aqui es exactamente lo que se vera en pantalla.
+        hablan = sum(1 for e in escenas if bocadillos.cita_de(e.get("narration", "")))
+        if not hablan:
+            return ("no habla nadie: ninguna escena trae una frase entre comillas "
+                    "angulares, asi que el video no tendra ni un bocadillo")
+
         sin_dibujo = [i for i, e in enumerate(escenas, 1)
                       if not (e.get("ai_image_prompt") or "").strip()]
         if sin_dibujo:
