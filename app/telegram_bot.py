@@ -1302,6 +1302,42 @@ async def handle_archivo_command(update: Update, context: ContextTypes.DEFAULT_T
                                    parse_mode="Markdown", disable_web_page_preview=True)
 
 
+async def handle_dibujo_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/dibujo <escena> - una ilustracion suelta, para ver el estilo.
+
+    Existe para poder enseñarle como va a quedar el dibujo SIN gastar creditos
+    de voz. Cuatro centimos la imagen frente a los 700 creditos de un Short:
+    ajustar el estilo probando videos enteros era absurdo."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    escena = " ".join(context.args or []).strip()
+    if not escena:
+        await update.message.reply_text(
+            "Dime que dibujo:\n"
+            "/dibujo una galera ardiendo en la batalla de Lepanto")
+        return
+    await update.message.reply_text(f"Dibujando «{escena[:60]}»... (unos 4 centimos)")
+    loop = asyncio.get_running_loop()
+    destino = Path(DATA_DIR) / "pruebas" / "dibujo.jpg"
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        hecho = await loop.run_in_executor(
+            None, ai_images.generate_image, escena, destino, "9:16")
+    except Exception:
+        logger.exception("Error dibujando %r", escena)
+        await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                                       text="No he podido dibujarlo. Mira los logs.")
+        return
+    if hecho is None:
+        await context.bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID,
+            text="No ha salido. O se ha agotado el cupo diario de imagenes, o fallo el modelo.")
+        return
+    with open(hecho, "rb") as f:
+        await context.bot.send_photo(chat_id=TELEGRAM_CHAT_ID, photo=f,
+                                     caption=f"{escena[:180]}")
+
+
 async def handle_temas_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/temas - de que podriamos hacer Shorts hoy. No gasta nada."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
@@ -2009,6 +2045,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("archivo", handle_archivo_command))
     application.add_handler(CommandHandler("nichos", handle_nichos_command))
     application.add_handler(CommandHandler("temas", handle_temas_command))
+    application.add_handler(CommandHandler("dibujo", handle_dibujo_command))
     application.add_handler(CommandHandler("tanda", handle_tanda_command))
     application.add_handler(CommandHandler("tendencias", handle_trending_command))
     application.add_handler(CommandHandler("calendario", handle_calendar_command))

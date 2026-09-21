@@ -49,6 +49,23 @@ _MIN_SCENE_SECONDS_FOR_MULTI_PHOTO = 6.0
 _MAX_SECONDS_PER_CLIP = 9.0
 _MAX_CLIPS_PER_SCENE = 2
 
+# EN VERTICAL SE CORTA MUCHO MAS. Ella lo dijo mirando los canales que
+# funcionan: "lo que hace que sigas mirando un video es el dinamismo... para
+# que me estes poniendo un documental aburrido que te lo ponen en clase".
+#
+# Y tenia razon con los numeros delante: un plano podia aguantar NUEVE segundos
+# con un zoom del 12% repartido en ellos. Eso no se mueve. En el feed de
+# Shorts, donde el pulgar esta apoyado en la pantalla, un plano quieto tres
+# segundos ya es una invitacion a deslizar.
+#
+# Dos segundos y medio por plano: la escena de siete segundos pasa de un plano
+# a tres. No es un ajuste fino, es la diferencia entre montar y enseñar
+# diapositivas.
+_SEGUNDOS_POR_PLANO_VERTICAL = 2.5
+_MAX_PLANOS_ESCENA_VERTICAL = 4
+_MAX_FOTOS_ESCENA_VERTICAL = 3
+_MIN_SEGUNDOS_MULTIFOTO_VERTICAL = 2.5
+
 # How many scenes must pass between two fact cards. A card beats generic stock
 # for a scene with nothing real to show, but a run of them turns the video into
 # a slideshow - the complaint this is meant to answer is images that do not
@@ -89,7 +106,12 @@ _MAX_CARD_SECONDS = 4.0
 # "China", "Espana" and "Portugal" all "found" a photo first. Three leaves a
 # six-scene Short at least three shots of real footage, which is the balance
 # wanted: the AI image is for what cannot be filmed, not for everything.
-_MAX_AI_IMAGES = {"9:16": 3, "16:9": 4}
+# En vertical, que el video sea DIBUJADO y no una sucesion de fotos de stock.
+# Con tres por Short el resto de escenas caian en stock generico, que es
+# exactamente el "imagen tras imagen" del que se queja. Ocho cubre las cinco
+# escenas con margen y cuesta unos treinta centimos: nada al lado de los 700
+# creditos de voz del mismo video.
+_MAX_AI_IMAGES = {"9:16": 8, "16:9": 4}
 _MAX_AI_IMAGES_DEFAULT = 2
 
 # A FIXED quota does not survive the video getting longer. Four was sized for
@@ -336,6 +358,7 @@ def fetch_clips_for_scenes(
     the first one."""
     out_dir.mkdir(parents=True, exist_ok=True)
     clip_entries: list[list[tuple[Path, dict | None]]] = []
+    es_vertical = aspect_ratio == "9:16"
     used_video_ids: set[int] = set()
     # Stock clips were already deduplicated, but real photos weren't: an
     # entity named in several scenes (e.g. "Junta Electoral Central") showed
@@ -430,7 +453,9 @@ def fetch_clips_for_scenes(
                     clip_entries.append([(clip, None)])
                     continue
 
-        max_photos = _MAX_PHOTOS_PER_SCENE if duration >= _MIN_SCENE_SECONDS_FOR_MULTI_PHOTO else 1
+        tope_fotos = _MAX_FOTOS_ESCENA_VERTICAL if es_vertical else _MAX_PHOTOS_PER_SCENE
+        minimo = _MIN_SEGUNDOS_MULTIFOTO_VERTICAL if es_vertical else _MIN_SCENE_SECONDS_FOR_MULTI_PHOTO
+        max_photos = tope_fotos if duration >= minimo else 1
         found: list[tuple[str, Path, str]] = []
         for candidate in candidates:
             if len(found) >= max_photos:
@@ -632,7 +657,9 @@ def fetch_clips_for_scenes(
         query = (scene.get("visual_keywords") or "").strip() or ai_image_prompt or _LAST_RESORT_QUERIES.get(CONTENT_MODE, _LAST_RESORT_FALLBACK)
         # A long scene gets several clips rather than one held for its whole
         # length. Each search excludes the clips already used, so they differ.
-        clip_count = min(_MAX_CLIPS_PER_SCENE, max(1, math.ceil(duration / _MAX_SECONDS_PER_CLIP)))
+        por_plano = _SEGUNDOS_POR_PLANO_VERTICAL if es_vertical else _MAX_SECONDS_PER_CLIP
+        tope = _MAX_PLANOS_ESCENA_VERTICAL if es_vertical else _MAX_CLIPS_PER_SCENE
+        clip_count = min(tope, max(1, math.ceil(duration / por_plano)))
         # Only the first clip carries the caption: repeating it on every cut
         # of the same scene would make it flash in and out repeatedly.
         scene_entries: list[tuple[Path, dict | None]] = []

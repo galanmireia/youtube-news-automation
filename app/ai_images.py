@@ -58,11 +58,22 @@ _IMAGE_MODELS = (
 # subtitles and the source tag sit - an illustration whose subject is dead
 # centre-bottom gets covered by its own captions.
 _HOUSE_STYLE = (
-    "editorial news illustration, flat vector shapes with subtle paper grain, "
+    # Esto decia "restrained serious documentary tone, not cartoonish, not
+    # whimsical, no caricature". O sea que yo mismo habia prohibido por escrito
+    # que las ilustraciones fueran interesantes, y luego me extrañaba que el
+    # video pareciera un documental de clase.
+    #
+    # Sigue sin ser infantil - la voz narra en tono formal y una cosa tiene que
+    # ir con la otra - pero ahora es un DIBUJO, con gente que tiene cara y
+    # escenas que tienen luz, no un pictograma.
+    "warm illustrated history scene, hand-drawn look with visible ink lines and "
+    "textured brush shading, expressive characters with clear faces and gestures, "
+    "dramatic lighting with strong light and shadow, sense of movement and moment, "
     "limited palette of deep charcoal #1A1715, warm cream #F0EBDC and a single "
-    "crimson #C41E2A accent, muted desaturated supporting tones, one clear focal "
-    "subject, strong simple silhouettes, restrained serious documentary tone, "
-    "not cartoonish, not whimsical, no caricature, "
+    "crimson #C41E2A accent over muted supporting tones, "
+    "cinematic composition, one clear focal subject, "
+    "the feel of a good graphic novel page, not a pictogram and not a corporate "
+    "vector illustration, "
     "generous empty space across the bottom fifth and the top-right corner, "
     "absolutely no text, no words, no letters, no numbers, no logos, no watermarks, "
     "no recognisable real people"
