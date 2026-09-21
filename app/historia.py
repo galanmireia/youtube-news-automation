@@ -56,12 +56,20 @@ def _vale(titulo: str) -> bool:
 
 
 def articulos_de(categoria: str, cuantos: int = 200) -> list[str]:
-    datos = research.peticion(
+    # peticion() devuelve la RESPUESTA, no el JSON - lo di por hecho y por eso
+    # /temas reventó con "'Response' object has no attribute 'get'". Devuelve
+    # la respuesta a proposito: asi quien llama puede mirar el codigo de estado.
+    respuesta = research.peticion(
         "https://es.wikipedia.org/w/api.php",
         {"action": "query", "list": "categorymembers", "cmtitle": categoria,
          "cmlimit": min(500, cuantos), "cmnamespace": 0, "format": "json"},
     )
-    if not datos:
+    if respuesta is None or respuesta.status_code != 200:
+        logger.warning("Wikipedia no ha dado los articulos de %s.", categoria)
+        return []
+    try:
+        datos = respuesta.json()
+    except ValueError:
         return []
     miembros = (datos.get("query") or {}).get("categorymembers") or []
     return [m["title"] for m in miembros if m.get("title") and _vale(m["title"])]
