@@ -380,13 +380,26 @@ def _nombre_seguido(nombre: str, texto: str) -> bool:
     partes = [re.escape(p) for p in _fold(nombre).split() if p]
     if not partes:
         return False
-    # Con limites de palabra a los dos lados. Sin ellos colo
-    # «AltarNtraSradelRosario-PortoAlegreBrasil.jpg» para "Rosario Porto":
-    # las dos palabras estan, y con un guion entre ellas, pero una es el final
-    # de "delRosario" y la otra el principio de "PortoAlegre". Estar dentro de
-    # otra palabra no es estar.
-    patron = r"(?<![a-z0-9])" + r"[\s_\-]+".join(partes) + r"(?![a-z0-9])"
-    return re.search(patron, _fold(texto)) is not None
+    plano = _fold(texto)
+    # Los dos apellidos. Aqui en España se llevan dos, y cada fuente usa los
+    # que le parece: el guion pidio "Asunta Basterra Porto" y el fichero que
+    # existe se llama «Asunta Basterra.jpg», o sea que esto lo descarto y el
+    # video salio sin la unica foto libre que hay de ella. Un nombre mas corto
+    # que empieza igual es la misma persona con un apellido menos, no otra.
+    #
+    # Solo por delante y con dos palabras minimo: "Asunta Basterra" vale,
+    # "Asunta" sola no, porque un nombre de pila suelto vuelve a ser Teo
+    # Macero. Y como cada trozo se sigue buscando ENTERO Y SEGUIDO, "Rosario
+    # Porto" no cuela por «Colegio do Rosario, Porto Alegre»: la coma sigue
+    # separandolos.
+    for corte in range(len(partes), 1, -1):
+        patron = r"(?<![a-z0-9])" + r"[\s_\-]+".join(partes[:corte]) + r"(?![a-z0-9])"
+        if re.search(patron, plano):
+            return True
+    # Un nombre de una sola palabra se compara entero, como siempre.
+    if len(partes) == 1:
+        return re.search(r"(?<![a-z0-9])" + partes[0] + r"(?![a-z0-9])", plano) is not None
+    return False
 
 
 def _titulo_corresponde(nombre: str, titulo: str) -> bool:
