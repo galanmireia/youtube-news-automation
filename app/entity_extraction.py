@@ -61,6 +61,12 @@ def _strip_markdown_fence(text: str) -> str:
     return text.strip()
 
 
+# Doce escenas por llamada. El Short que si funcionaba tenia seis y gasto
+# bastante menos de la mitad del tope, asi que doce deja margen de sobra
+# incluso con escenas llenas de nombres.
+_POR_LOTE = 12
+
+
 def extract_entities(scenes: list[dict]) -> dict[int, list[dict]]:
     """Dedicated, isolated pass over the final narration text asking Claude
     to list every named person/place/institution/party per scene. Doing
@@ -73,6 +79,31 @@ def extract_entities(scenes: list[dict]) -> dict[int, list[dict]]:
     Returns an empty dict on any failure (missing text, bad JSON, API
     error), so callers can fall back to whatever else they already use
     (the model's own photo_subject) instead of breaking generation."""
+    # POR LOTES, y esto es lo que fallaba en los largos. Se mandaban las 31
+    # escenas de una y la respuesta topaba con el limite de salida:
+    #
+    #   [coste] entidades: 4659 entrada + 6000 salida
+    #   extract_entities: JSON invalido, ...{"name": "Rosario Porto Ortega",
+    #   "type": "person", "descriptor": "abogada, cond'
+    #
+    # Cortado a media palabra, asi que el JSON entero se tiraba y el video se
+    # quedaba sin UNA SOLA entidad detectada - habiendo detectado bien a los
+    # dos padres, que se ven en el trozo truncado. En un Short de seis escenas
+    # cabia de sobra y por eso no habia salido nunca.
+    #
+    # Subir el tope solo mueve el problema al siguiente guion mas largo. Con
+    # lotes la respuesta nunca crece: crece el numero de llamadas, que es lo
+    # que si escala.
+    if len(scenes) > _POR_LOTE:
+        salida: dict[int, list[dict]] = {}
+        for inicio in range(0, len(scenes), _POR_LOTE):
+            trozo = scenes[inicio:inicio + _POR_LOTE]
+            for relativo, entidades in extract_entities(trozo).items():
+                salida[inicio + relativo] = entidades
+        logger.info("Entidades: %s escenas en %s lotes, %s con algo.",
+                    len(scenes), -(-len(scenes) // _POR_LOTE), len(salida))
+        return salida
+
     scenes_block = "\n".join(f'{i}: "{scene["narration"]}"' for i, scene in enumerate(scenes))
     prompt = _PROMPT_TEMPLATE.format(scenes_block=scenes_block)
 

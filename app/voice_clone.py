@@ -17,9 +17,11 @@ lives in the environment and the audio it produces comes back through the same
 chat the scripts go out on.
 """
 import base64
+import hashlib
 import io
 import json
 import logging
+import time
 from pathlib import Path
 
 import requests
@@ -721,6 +723,105 @@ def _partir_los_que_no_quepan(
     return salida
 
 
+
+# ---------------------------------------------------------------- la cache
+#
+# Esto existe por el largo del caso Asunta. Se narro entero - 7.332 creditos -
+# y el montaje murio en la escena 24 de 31 por un clip de stock con una
+# etiqueta de color invalida. Al reintentar se volvio a narrar desde cero: se
+# pago dos veces lo unico que ella dijo que era lo mejor del video.
+#
+# La clave es EL CONTENIDO, no el sitio. Un trabajo que falla deja su
+# directorio tirado y el reintento crea otro, asi que guardar el audio dentro
+# del trabajo no sirve de nada. Con el contenido como clave, el mismo texto
+# dicho por la misma voz con los mismos ajustes se reconoce venga de donde
+# venga - y si se cambia una coma del guion, deja de reconocerse y se vuelve
+# a narrar, que es justo lo que tiene que pasar.
+_CACHE = Path(DATA_DIR) / "narracion_cache"
+_CACHE_DIAS = 7
+
+
+def _clave_de_toma(voice_id: str, texto: str, modelo: str, ajustes,
+                   antes: str, despues: str) -> str:
+    # 'antes' y 'despues' entran en la clave porque entran en la peticion: son
+    # el contexto que hace que la entonacion encaje con lo que va alrededor,
+    # asi que dos tomas con el mismo texto y distinto contexto no suenan igual
+    # y no se pueden intercambiar.
+    crudo = "\x00".join((voice_id, modelo, repr(ajustes), texto, antes, despues))
+    return hashlib.sha256(crudo.encode("utf-8")).hexdigest()
+
+
+def _toma_guardada(clave: str) -> tuple[bytes, list[float] | None] | None:
+    audio = _CACHE / f"{clave}.mp3"
+    if not audio.exists():
+        return None
+    try:
+        datos = audio.read_bytes()
+        if not datos:
+            return None
+        marcas_fichero = _CACHE / f"{clave}.json"
+        finales = None
+        if marcas_fichero.exists():
+            finales = json.loads(marcas_fichero.read_text(encoding="utf-8")) or None
+        # Se le toca la fecha para que la limpieza cuente desde el ultimo uso
+        # y no desde que se creo: una toma que se sigue reutilizando no es
+        # vieja.
+        audio.touch()
+        return datos, finales
+    except Exception:
+        logger.warning("Toma en cache ilegible (%s); se vuelve a narrar.", clave[:8])
+        return None
+
+
+def _guardar_toma(clave: str, audio_bytes: bytes, finales: list[float] | None) -> None:
+    try:
+        _CACHE.mkdir(parents=True, exist_ok=True)
+        # Se escribe aparte y se renombra: si el proceso muere a mitad, lo que
+        # queda es un fichero temporal, no media toma que luego suene cortada.
+        temporal = _CACHE / f"{clave}.mp3.parcial"
+        temporal.write_bytes(audio_bytes)
+        temporal.rename(_CACHE / f"{clave}.mp3")
+        if finales:
+            (_CACHE / f"{clave}.json").write_text(json.dumps(finales), encoding="utf-8")
+    except Exception:
+        logger.warning("No se ha podido guardar la toma en cache; no es grave.",
+                       exc_info=True)
+
+
+def _limpiar_cache() -> None:
+    """Lo que lleve una semana sin usarse. El volumen no es infinito."""
+    if not _CACHE.exists():
+        return
+    limite = time.time() - _CACHE_DIAS * 86400
+    borrados = 0
+    for fichero in _CACHE.iterdir():
+        try:
+            if fichero.stat().st_mtime < limite:
+                fichero.unlink()
+                borrados += 1
+        except OSError:
+            continue
+    if borrados:
+        logger.info("Cache de narracion: %s ficheros viejos borrados.", borrados)
+
+
+def _narrar_toma(voice_id: str, texto: str, modelo: str, ajustes,
+                 antes: str, despues: str) -> tuple[bytes, list[float] | None]:
+    """Una toma hablada de verdad, pagando. Era el cuerpo del bucle."""
+    try:
+        return _hablar_con_marcas(voice_id, texto, modelo, ajustes, antes, despues)
+    except CloneError as exc:
+        if "largo" not in str(exc).lower() and "long" not in str(exc).lower():
+            raise
+        # Refused for length after all: speak it in halves and stitch them.
+        logger.warning("Toma rechazada por longitud; se habla en dos mitades.")
+        corte = texto.rfind(". ", 0, len(texto) // 2 + len(texto) // 4) + 1 or len(texto) // 2
+        partes = []
+        for trozo in (texto[:corte].strip(), texto[corte:].strip()):
+            if trozo:
+                partes.append(_hablar_sin_marcas(voice_id, trozo, modelo, ajustes, "", ""))
+        return b"".join(partes), None
+
 def sintetizar_escenas(
     scenes: list[dict], out_dir: Path, marcas: list | None = None
 ) -> tuple[Path, list[float]]:
@@ -741,6 +842,7 @@ def sintetizar_escenas(
     pausa = AudioSegment.silent(duration=250)
     duraciones: list[float] = []
     caracteres_totales = 0
+    reutilizados = 0
 
     # A take the model refuses for being too long is split and spoken in two,
     # rather than losing the narration. It matters more now than it did: a
@@ -755,22 +857,19 @@ def sintetizar_escenas(
         texto = " ".join(s.get("narration", "") for s in grupo)
         antes = " ".join(narraciones[max(0, hablado - 3):hablado])
         despues = " ".join(narraciones[hablado + len(grupo):hablado + len(grupo) + 3])
-        try:
-            audio_bytes, finales = _hablar_con_marcas(
-                voice_id, texto, modelo, ajustes, antes, despues
-            )
-        except CloneError as exc:
-            if "largo" not in str(exc).lower() and "long" not in str(exc).lower():
-                raise
-            # Refused for length after all: speak it in halves and stitch them.
-            logger.warning("Toma rechazada por longitud; se habla en dos mitades.")
-            corte = texto.rfind(". ", 0, len(texto) // 2 + len(texto) // 4) + 1 or len(texto) // 2
-            partes = []
-            for trozo in (texto[:corte].strip(), texto[corte:].strip()):
-                if trozo:
-                    partes.append(_hablar_sin_marcas(voice_id, trozo, modelo, ajustes, "", ""))
-            audio_bytes, finales = b"".join(partes), None
-        caracteres_totales += len(texto)
+        clave = _clave_de_toma(voice_id, texto, modelo, ajustes, antes, despues)
+        guardada = _toma_guardada(clave)
+        if guardada is not None:
+            audio_bytes, finales = guardada
+            reutilizados += len(texto)
+            logger.info("Toma %s/%s: reutilizada de una generacion anterior "
+                        "(%s caracteres que no se pagan).",
+                        indice + 1, len(grupos), len(texto))
+        else:
+            audio_bytes, finales = _narrar_toma(
+                voice_id, texto, modelo, ajustes, antes, despues)
+            _guardar_toma(clave, audio_bytes, finales)
+            caracteres_totales += len(texto)
         trozo = AudioSegment.from_file(io.BytesIO(audio_bytes))
         real = len(trozo) / 1000.0
 
@@ -796,10 +895,13 @@ def sintetizar_escenas(
     completo.export(destino, format="mp3")
     logger.info(
         "Narracion clonada: %s escenas en %s tomas, %.1fs, %s caracteres "
-        "(~%.0f creditos con %s).",
+        "(~%.0f creditos con %s).%s",
         len(scenes), len(grupos), len(completo) / 1000.0, caracteres_totales,
         creditos_estimados("x" * caracteres_totales, modelo), modelo,
+        f" Reutilizados de antes: {reutilizados} caracteres, que no se han "
+        f"vuelto a pagar." if reutilizados else "",
     )
+    _limpiar_cache()
     return destino, duraciones
 
 

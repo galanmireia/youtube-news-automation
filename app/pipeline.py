@@ -61,6 +61,15 @@ def stop_requested() -> bool:
     return _stop_requested.is_set()
 
 
+# En que anda ahora mismo, para que alguien de fuera lo pueda preguntar.
+#
+# Existe porque ella penso que se habia muerto. Y con razon: entre el paso 5 y
+# el 7 de un largo el bot se calla DIEZ MINUTOS enteros - las transiciones de
+# un video de siete minutos son varias pasadas de ffmpeg de dos o tres minutos
+# cada una - y desde Telegram eso es indistinguible de un cuelgue.
+ESTADO: dict = {"texto": "", "desde": time.time()}
+
+
 def _stage(variant: str, number: int, message: str, *args) -> None:
     """Announces a stage, and aborts the generation here if a stop was asked
     for. Every stage goes through this, so a stop is honoured at whichever
@@ -68,6 +77,13 @@ def _stage(variant: str, number: int, message: str, *args) -> None:
     if _stop_requested.is_set():
         raise GenerationStopped(f"parada pedida antes de [{variant}] {number}/7")
     logger.info("[%s] %s/7 " + message, variant, number, *args)
+    try:
+        ESTADO["texto"] = f"[{variant}] {number}/7 " + (message % args if args else message)
+        ESTADO["desde"] = time.time()
+    except Exception:
+        # Un fallo formateando el aviso no puede tumbar una generacion.
+        ESTADO["texto"] = f"[{variant}] {number}/7"
+        ESTADO["desde"] = time.time()
 
 _VARIANT_DIMENSIONS = {
     "short": (SHORT_VIDEO_WIDTH, SHORT_VIDEO_HEIGHT),

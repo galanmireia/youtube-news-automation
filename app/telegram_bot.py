@@ -11,6 +11,7 @@ from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
 from . import (ai_images, archivo, demanda, efemerides, fotos_propias, news_source, oficial,
+               pipeline,
                real_photos, research, storage, tendencias, topic_source, tts,
                voice_align, voice_clone)
 from .voice_align import AlignmentFailed
@@ -236,6 +237,7 @@ async def _run_pipeline_and_notify(
             logger.exception("Error enviando el video %s a Telegram", video_id)
 
     async with _pipeline_lock:
+        pulso = asyncio.create_task(_latido(bot))
         try:
             video_ids = await asyncio.wait_for(
                 loop.run_in_executor(None, run_once, on_variant_done, variants, forced_topic),
@@ -271,6 +273,10 @@ async def _run_pipeline_and_notify(
         except Exception:
             logger.exception("Error ejecutando el pipeline de generacion de video")
             await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="Error generando el video, revisa los logs.")
+        finally:
+            # En el finally para que se calle tambien cuando la generacion
+            # revienta, que es cuando mas raro seria seguir diciendo "sigo".
+            pulso.cancel()
 
 
 async def pipeline_job(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -366,6 +372,36 @@ async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_
     # Running it as a task lets the handler return now and the bot keep
     # answering; _pipeline_lock still stops two generations overlapping.
     context.application.create_task(_run_pipeline_and_notify(context.bot, variants, forced_topic))
+
+
+_LATIDO_SEGUNDOS = 180
+
+
+async def _latido(bot) -> None:
+    """Señal de vida cada tres minutos mientras se genera.
+
+    Ella penso que una generacion se habia muerto, y con razon: entre el paso
+    5 y el 7 de un largo el bot se calla diez minutos - las transiciones de un
+    video de siete minutos son varias pasadas de ffmpeg de dos o tres minutos
+    cada una - y desde fuera eso es igual que un cuelgue.
+
+    Va aqui y no en el pipeline a proposito: asi cubre TODAS las esperas
+    largas, incluidas las que estan dentro de un paso y no entre dos, que son
+    justo las que asustan.
+    """
+    try:
+        while True:
+            await asyncio.sleep(_LATIDO_SEGUNDOS)
+            paso = pipeline.ESTADO.get("texto") or "trabajando"
+            minutos = int((time.time() - float(pipeline.ESTADO.get("desde") or 0)) // 60)
+            cuanto = f", {minutos} min en este paso" if minutos >= 2 else ""
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                                   text=f"Sigo: {paso}{cuanto}.")
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        # El latido no puede tumbar una generacion por no poder avisar.
+        logger.warning("El latido ha fallado; la generacion sigue.", exc_info=True)
 
 
 async def _prepare_and_send_script(bot, variant: str, forced_topic: str | None) -> None:
