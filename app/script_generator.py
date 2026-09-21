@@ -567,11 +567,23 @@ _comprobar_plantilla()
 _VARIANT_CONFIG = {
     "short": {
         "format_hint": (
-            "YouTube Short vertical (9:16). Debe ser autoconclusivo, directo al grano, pensado "
-            "para verse en el feed de Shorts sin contexto previo."
+            "YouTube Short vertical (9:16). Autoconclusivo y directo, para verse en el feed sin "
+            "contexto previo.\n\n"
+            "LOS DOS PRIMEROS SEGUNDOS LO DECIDEN TODO. Es lo unico en lo que coincide todo lo "
+            "que se ha medido del formato: quien no se engancha en la primera frase desliza, y "
+            "el video se entierra. Asi que la ESCENA 1 no situa, no presenta y no dice de que "
+            "vamos a hablar - suelta el golpe.\n\n"
+            "Empieza por el dato mas raro, la cifra mas bestia o la frase que obliga a preguntar "
+            "'¿como?'. Si la escena 1 se puede resumir como 'hoy os cuento X', esta mal escrita.\n\n"
+            "  MAL:  'Hoy vamos a hablar del asedio de Baler, en Filipinas.'\n"
+            "  BIEN: 'Siguieron defendiendo una iglesia once meses despues de perder la guerra.'\n\n"
+            "  MAL:  'La batalla de Lepanto fue un enfrentamiento naval de 1571.'\n"
+            "  BIEN: 'En Lepanto remaban encadenados doce mil hombres que no eran soldados.'\n\n"
+            "UN SOLO HECHO POR VIDEO. Un Short no es un resumen: es una cosa contada entera. Si "
+            "te sobran datos, guardalos - hay mas videos."
         ),
-        "duration_hint": "40-50 segundos",
-        "scene_count_hint": "entre 5 y 6 escenas",
+        "duration_hint": "30-40 segundos",
+        "scene_count_hint": "entre 4 y 5 escenas",
         "scene_length_hint": (
             "Cada narracion es UNA frase corta y directa de UNAS 20 PALABRAS - nunca dos frases, "
             "nunca una frase larga con comas encadenadas. Con 5 o 6 escenas asi el Short sale en su "

@@ -10,7 +10,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
-from . import (ai_images, archivo, demanda, efemerides, fotos_propias, nichos, news_source, oficial,
+from . import (ai_images, archivo, demanda, efemerides, fotos_propias, historia, nichos,
+               news_source, oficial,
                pipeline,
                real_photos, research, storage, tendencias, topic_source, tts,
                voice_align, voice_clone)
@@ -1301,6 +1302,84 @@ async def handle_archivo_command(update: Update, context: ContextTypes.DEFAULT_T
                                    parse_mode="Markdown", disable_web_page_preview=True)
 
 
+async def handle_temas_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/temas - de que podriamos hacer Shorts hoy. No gasta nada."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    await update.message.reply_text("Buscando temas de historia...")
+    loop = asyncio.get_running_loop()
+    try:
+        temas = await loop.run_in_executor(None, historia.candidatos, 12)
+    except Exception:
+        logger.exception("Error buscando temas de historia")
+        await update.message.reply_text("No he podido. Mira los logs.")
+        return
+    if not temas:
+        await update.message.reply_text("Wikipedia no ha contestado. Vuelve a probar.")
+        return
+    lineas = ["*Temas para hoy*", ""]
+    lineas += [f"  · {_limpio(t)}" for t in temas]
+    lineas += ["", "Para uno: /generar s <tema>", "Para la tanda del dia: /tanda"]
+    await update.message.reply_text("\n".join(lineas), parse_mode="Markdown")
+
+
+async def handle_tanda_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/tanda [n] - los Shorts del dia, uno detras de otro.
+
+    El canal vive de subir a diario, no de un video perfecto cada semana: un
+    Short cuesta unos 700 creditos frente a los 7.500 de un largo, o sea que
+    por lo que vale un largo salen diez. Esto es lo que hace que subir a diario
+    no dependa de que ella este delante para lanzar cada uno."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    if _pipeline_lock.locked():
+        await update.message.reply_text("Ya hay una generacion en curso, espera a que acabe.")
+        return
+    cuantos = next((int(a) for a in (context.args or []) if a.isdigit()), 3)
+    cuantos = max(1, min(5, cuantos))
+
+    loop = asyncio.get_running_loop()
+    temas = await loop.run_in_executor(None, historia.candidatos, cuantos * 2)
+    temas = temas[:cuantos]
+    if not temas:
+        await update.message.reply_text("No he encontrado temas. Vuelve a probar.")
+        return
+
+    await update.message.reply_text(
+        f"Tanda de {len(temas)} Shorts (~{len(temas) * 700} creditos):\n"
+        + "\n".join(f"  {i + 1}. {t}" for i, t in enumerate(temas)))
+
+    bot = context.bot
+
+    def cuando_este(video_id: int) -> None:
+        asyncio.run_coroutine_threadsafe(send_for_approval(bot, video_id), loop).result()
+
+    hechos = 0
+    async with _pipeline_lock:
+        pulso = asyncio.create_task(_latido(bot))
+        try:
+            for numero, tema in enumerate(temas, 1):
+                if pipeline_stop_requested():
+                    break
+                await bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                                       text=f"[{numero}/{len(temas)}] {tema}")
+                try:
+                    ids = await loop.run_in_executor(
+                        None, run_once, cuando_este, ("short",), tema)
+                    hechos += len(ids or [])
+                except Exception:
+                    # Un tema que falla no puede llevarse la tanda por delante:
+                    # es justo lo que pasaba antes con las escenas y los videos.
+                    logger.exception("Falla el tema %r; sigue la tanda", tema)
+                    await bot.send_message(
+                        chat_id=TELEGRAM_CHAT_ID,
+                        text=f"«{tema}» ha fallado. Sigo con el resto.")
+        finally:
+            pulso.cancel()
+    await bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                           text=f"Tanda terminada: {hechos} Short(s) esperando tu aprobacion.")
+
+
 async def handle_nichos_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/nichos <tema> - que canales estan funcionando con un formato copiable.
 
@@ -1929,6 +2008,8 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("oficial", handle_oficial_command))
     application.add_handler(CommandHandler("archivo", handle_archivo_command))
     application.add_handler(CommandHandler("nichos", handle_nichos_command))
+    application.add_handler(CommandHandler("temas", handle_temas_command))
+    application.add_handler(CommandHandler("tanda", handle_tanda_command))
     application.add_handler(CommandHandler("tendencias", handle_trending_command))
     application.add_handler(CommandHandler("calendario", handle_calendar_command))
     application.add_handler(CommandHandler("catalogo", handle_catalogue_command))

@@ -20,7 +20,7 @@ TEXT_COLOR = (240, 235, 220)
 _BACKGROUND_COLOR = BACKGROUND_COLOR
 _ACCENT_COLOR = ACCENT_COLOR
 
-INTRO_NARRATION = f"{CHANNEL_NAME}, tu informador de confianza."
+INTRO_NARRATION = f"{CHANNEL_NAME}. Nuestra historia, en un minuto."
 
 # YouTube avatar CDN URLs take a "=sNNN-..." size suffix; try a bigger version
 # of the logo first (better quality once scaled up to full video frame size),
@@ -310,7 +310,7 @@ def render_fact_card(text: str, width: int, height: int) -> Image.Image:
 
 # Lo que va debajo del nombre en la careta. Corto a proposito: a este tamaño
 # una frase larga no se lee en un movil.
-_TAGLINE = "Casos reales, contados con documentos"
+_TAGLINE = "Nuestra historia, en un minuto"
 
 
 def _fichero_de_fuente() -> str:

@@ -141,7 +141,7 @@ NARRATION_LANG = os.environ.get("NARRATION_LANG", "en")
 # only where the subject and its facts come from differs.
 CONTENT_MODE = os.environ.get("CONTENT_MODE", "news").strip().lower()
 
-CHANNEL_NAME = os.environ.get("CHANNEL_NAME", "ActualiDark")
+CHANNEL_NAME = os.environ.get("CHANNEL_NAME", "España Contada")
 CHANNEL_LOGO_URL = os.environ.get(
     "CHANNEL_LOGO_URL",
     "https://yt3.googleusercontent.com/7pwcunu0h_a_fxTodi6tBv1pRBHF5J7AG78RFPKAOODHFyWYd1-Zkj9NunqTeDR52aQ1ed54Lw=s160-c-k-c0x00ffffff-no-rj",
