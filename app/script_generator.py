@@ -349,6 +349,14 @@ deformados y canta muchisimo.
 Deja "ai_image_prompt" vacio ("") cuando la escena si tenga algo real que enseñar o cuando un clip
 de archivo concreto la represente bien.
 
+LA PRIMERA ESCENA TIENE UN TRABAJO DISTINTO. Su imagen no esta ahi para ilustrar la frase: esta
+ahi para que el espectador no se vaya. Asi que en la escena 1 las "visual_keywords" tienen que
+SITUAR - la ciudad, el edificio, el juzgado, la casa, una cara - y no el detalle literal del sitio
+donde pasaron los hechos. El video del caso Asunta abrio con un camino de tierra en un bosque,
+porque ahi aparecio el cuerpo: correcto como dato y pesimo como primer plano, porque quien no
+conoce el caso ve un camino cualquiera y se va. Ese detalle es bueno MAS TARDE, cuando ya se ha
+contado que paso y el espectador sabe por que esta mirando un camino.
+
 Palabras clave visuales ("visual_keywords"): RELLENALAS SIEMPRE, en TODAS las escenas, tambien
 cuando ya hayas puesto "photo_subject" o "ai_image_prompt". Son la red de seguridad: si la foto real
 no aparece o la ilustracion falla, esto es lo unico que queda, y una escena que llega aqui sin nada

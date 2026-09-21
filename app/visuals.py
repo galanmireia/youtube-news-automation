@@ -356,7 +356,18 @@ def fetch_clips_for_scenes(
 
         if scene.get("is_intro"):
             width, height = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
-            card_path = branding.generate_intro_card(out_dir / f"clip_{i:02d}.jpg", width, height)
+            # La careta en movimiento. Antes era una tarjeta quieta con el logo
+            # en medio, que es exactamente lo que ella no queria. Si ffmpeg no
+            # se deja, se cae a la tarjeta de siempre: una careta fea es mejor
+            # que quedarse sin video.
+            try:
+                card_path = branding.generar_careta(
+                    out_dir / f"clip_{i:02d}.mp4", width, height, max(1.5, duration))
+            except Exception:
+                logger.warning("No se ha podido montar la careta; va la tarjeta quieta.",
+                               exc_info=True)
+                card_path = branding.generate_intro_card(
+                    out_dir / f"clip_{i:02d}.jpg", width, height)
             clip_entries.append([(card_path, None)])
             continue
 

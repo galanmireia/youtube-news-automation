@@ -1,5 +1,6 @@
 import io
 import logging
+import subprocess
 from pathlib import Path
 
 import requests
@@ -306,3 +307,93 @@ def render_fact_card(text: str, width: int, height: int) -> Image.Image:
         draw.text((text_left, y), line, font=font, fill=TEXT_COLOR)
         y += line_height
     return image
+
+# Lo que va debajo del nombre en la careta. Corto a proposito: a este tamaño
+# una frase larga no se lee en un movil.
+_TAGLINE = "Casos reales, contados con documentos"
+
+
+def _fichero_de_fuente() -> str:
+    """La ruta del .ttf, que drawtext necesita como fichero y no como nombre.
+
+    PIL encuentra "DejaVuSans-Bold.ttf" por nombre porque busca en las rutas
+    del sistema; ffmpeg no, quiere la ruta entera. Se saca de la propia fuente
+    que ya carga PIL, asi que ambas usan la misma y no pueden descuadrarse.
+    """
+    try:
+        ruta = getattr(_load_font("DejaVuSans-Bold.ttf", 24), "path", "")
+        if ruta and Path(ruta).exists():
+            return str(ruta)
+    except Exception:
+        pass
+    for tentativa in ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                      "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"):
+        if Path(tentativa).exists():
+            return tentativa
+    return ""
+
+
+def _ffmpeg(orden: list[str]) -> None:
+    resultado = subprocess.run(orden, capture_output=True, text=True)
+    if resultado.returncode != 0:
+        raise RuntimeError(f"ffmpeg fallo montando la careta: {resultado.stderr[-400:]}")
+
+
+def generar_careta(out_path: Path, width: int, height: int, duracion: float) -> Path:
+    """La careta del canal, en movimiento. Sustituye a la tarjeta quieta.
+
+    Lo que ella dijo del logo en medio de la pantalla: "tiene que ser
+    profesional, no un logo en la mitad". Asi que no hay logo. Hay tipografia,
+    que es lo que hacen las caretas seriaspor una razon - se lee en un movil a
+    tamaño miniatura, y no envejece.
+
+    Tres tiempos en dos segundos y medio:
+
+      - una regla roja que se abre desde el centro,
+      - el nombre, que aparece por debajo de ella,
+      - y la linea de abajo, mas tarde y mas pequeña.
+
+    Se hace con ffmpeg y drawtext, sin dependencias nuevas y sin navegador,
+    que es lo que descartaba Remotion aqui. Y va en 9:16 igual que en 16:9
+    porque todo se mide contra el ancho.
+    """
+    fuente = _fichero_de_fuente()
+    alto_nombre = int(width * (0.075 if height > width else 0.055))
+    alto_linea = int(alto_nombre * 0.30)
+    grosor = max(2, int(height * 0.004))
+    medio_y = int(height * 0.47)
+
+    fondo = "0x%02x%02x%02x" % _BACKGROUND_COLOR
+    rojo = "0x%02x%02x%02x" % _ACCENT_COLOR
+    crema = "0x%02x%02x%02x" % TEXT_COLOR
+
+    # La regla se abre desde el centro: media anchura a cada lado, con un
+    # arranque rapido que frena al final, que es lo que hace que parezca
+    # dibujada y no estirada.
+    mitad = f"min(1,(t/0.45))*({int(width * 0.16)})"
+    regla = (f"drawbox=x='{width // 2}-({mitad})':y={medio_y}:"
+             f"w='2*({mitad})':h={grosor}:color={rojo}@1:t=fill")
+
+    # El nombre entra cuando la regla ya esta puesta, subiendo unos pixeles.
+    sube = f"{medio_y + int(height * 0.055)}-min(1,max(0,(t-0.40)/0.5))*{int(height * 0.015)}"
+    nombre = (f"drawtext=fontfile='{fuente}':text='{CHANNEL_NAME.upper()}':"
+              f"fontsize={alto_nombre}:fontcolor={crema}:alpha='min(1,max(0,(t-0.40)/0.45))':"
+              f"x=(w-text_w)/2:y='{sube}'")
+
+    # Y la linea de abajo, la ultima y la mas discreta.
+    pie = (f"drawtext=fontfile='{fuente}':text='{_TAGLINE}':"
+           f"fontsize={alto_linea}:fontcolor={crema}:alpha='0.62*min(1,max(0,(t-0.95)/0.5))':"
+           f"x=(w-text_w)/2:y={medio_y + int(height * 0.075) + alto_nombre}")
+
+    # Funde a negro al final para empalmar con lo que venga detras.
+    fundido = f"fade=t=in:st=0:d=0.25,fade=t=out:st={max(0.0, duracion - 0.4):.2f}:d=0.4"
+
+    _ffmpeg([
+        "ffmpeg", "-y",
+        "-f", "lavfi", "-i", f"color=c={fondo}:s={width}x{height}:r=30",
+        "-t", f"{duracion:.3f}",
+        "-vf", f"{regla},{nombre},{pie},{fundido},format=yuv420p",
+        "-pix_fmt", "yuv420p",
+        str(out_path),
+    ])
+    return out_path

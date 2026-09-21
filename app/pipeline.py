@@ -161,10 +161,21 @@ def _generate_variant(
     # of a Short decide whether the viewer keeps watching or swipes, and a
     # logo card spends them on something that tells the viewer nothing. They
     # start on the hook instead.
-    has_intro = bool(script["scenes"]) and bool(script["scenes"][0].get("is_intro"))
-    if not ya_escrito and variant == "long":
+    # La careta va DETRAS DEL GANCHO, no delante. Los primeros cinco segundos
+    # deciden si el espectador se queda, y gastarlos en el nombre del canal es
+    # gastarlos en algo que todavia no le importa. Primero la frase que engancha,
+    # luego la careta, luego el video. En los Shorts sigue sin haber ninguna.
+    posicion_careta = 1
+    indices = (posicion_careta, 0)
+    has_intro = bool(script["scenes"]) and any(
+        i < len(script["scenes"]) and bool(script["scenes"][i].get("is_intro"))
+        for i in indices
+    )
+    if not ya_escrito and variant == "long" and script["scenes"]:
         has_intro = True
-        script["scenes"] = [dict(_INTRO_SCENE)] + script["scenes"]
+        escenas = list(script["scenes"])
+        escenas.insert(min(posicion_careta, len(escenas)), dict(_INTRO_SCENE))
+        script["scenes"] = escenas
     # Default to treating the story as sensitive if the field is somehow
     # missing/unparseable - that only disables the extra narration-based
     # real-photo lookup below, never anything the model explicitly asked for.
@@ -238,7 +249,12 @@ def _generate_variant(
         # naming the website never gave. The credit now goes where video
         # credits belong - the description - with what the licence asks for.
         source_name="",
-        intro_duration=scene_durations[0] if has_intro and scene_durations else 0.0,
+        # Cual es la careta ahora se busca, porque ya no es siempre la primera.
+        intro_duration=next(
+            (scene_durations[i] for i, e in enumerate(script["scenes"])
+             if e.get("is_intro") and i < len(scene_durations)),
+            0.0,
+        ) if has_intro else 0.0,
     )
 
     # Two subtitle tracks off one transcription: a sentence-level SRT still
