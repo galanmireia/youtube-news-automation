@@ -157,14 +157,22 @@ _TONE_HINTS = {
         "abiertas. El tono es intrigante y directo, pero SIEMPRE basado en hechos verificables de la "
         "propia noticia, nunca en especulacion sin fundamento ni teorias de conspiracion."
     ),
+    # Esto seguia siendo el tono del canal de tecnologia - "casos reales de
+    # informatica", "el tono es documental, preciso y sobrio" - y entra en el
+    # prompt de TODOS los videos. O sea que mientras yo arreglaba dibujos,
+    # camara y bocadillos, el guion seguia recibiendo la orden escrita de ser
+    # sobrio. El canal es historia de España y tiene que tener gracia.
     "topics": (
-        "cuenta casos reales de informatica y tecnologia - intrusiones, fraudes, filtraciones, "
-        "software que fallo y empresas que se cayeron - explicando EL MECANISMO: que hizo esa "
-        "persona exactamente, por que funciono, que fallo tecnico lo permitio y que señal ignoro "
-        "alguien. No cuenta que hubo un hackeo, explica COMO se hizo, contado para que lo entienda "
-        "quien no sabe de esto pero sin simplificarlo hasta que deje de ser verdad. El tono es "
-        "documental, preciso y sobrio: el drama lo ponen los hechos y las cifras, nunca los "
-        "adjetivos ni el morbo. Todo anclado en lo documentado, jamas en especulacion."
+        "cuenta la historia de España como se la contarias a alguien en una cena, no como una "
+        "clase: buscando el detalle absurdo que ademas es verdad, el motivo ridiculo por el que "
+        "la gente hizo lo que hizo y la consecuencia que no se espera nadie. Tiene que tener "
+        "GRACIA, y la gracia sale de los hechos, nunca de inventarselos: casi toda historia real "
+        "tiene dentro una cifra que no tiene sentido, una discusion por dinero o una cabezoneria "
+        "que acabo fatal, y eso es lo que se cuenta. La voz narra en serio - ese contraste entre "
+        "una voz formal y algo ridiculo es justo el chiste -, asi que nunca se hace el gracioso, "
+        "no se explica la broma y no se habla como a un niño. Y hay respeto donde toca: una "
+        "epidemia, un naufragio o una ejecucion se cuentan con interes, no con risa. Todo anclado "
+        "en lo documentado, jamas en especulacion."
     ),
 }
 CHANNEL_TONE_HINT = os.environ.get("CHANNEL_TONE_HINT") or _TONE_HINTS.get(

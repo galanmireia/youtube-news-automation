@@ -66,14 +66,23 @@ _HOUSE_STYLE = (
     # Sigue sin ser infantil - la voz narra en tono formal y una cosa tiene que
     # ir con la otra - pero ahora es un DIBUJO, con gente que tiene cara y
     # escenas que tienen luz, no un pictograma.
-    "warm illustrated history scene, hand-drawn look with visible ink lines and "
-    "textured brush shading, expressive characters with clear faces and gestures, "
+    # Y una vuelta mas: "divertido". Seguia pidiendo "dramatic lighting" y "the
+    # feel of a good graphic novel page", que da una lamina solemne preciosa y
+    # sin ninguna gracia. La gracia de un dibujo esta en la CARA y en la
+    # postura: alguien indignado por una tonteria se ve indignado desde el
+    # otro lado de la habitacion. Sigue sin ser un dibujo animado infantil,
+    # porque la voz narra en serio y de ese contraste vive el video.
+    "lively hand-drawn history scene, visible ink lines and textured brush shading, "
+    "caricatured expressive characters with exaggerated faces and body language, "
+    "one clear readable emotion on every face - outrage, smugness, panic, "
+    "resignation, exhaustion - and gestures big enough to read at a glance, "
+    "a comic's sense of the exact moment something goes wrong, "
     "dramatic lighting with strong light and shadow, sense of movement and moment, "
     "limited palette of deep charcoal #1A1715, warm cream #F0EBDC and a single "
     "crimson #C41E2A accent over muted supporting tones, "
     "cinematic composition, one clear focal subject, "
-    "the feel of a good graphic novel page, not a pictogram and not a corporate "
-    "vector illustration, "
+    "the feel of a sharp illustrated history comic for adults - witty, not solemn - "
+    "and never a children's cartoon, a pictogram or a corporate vector illustration, "
     "generous empty space across the bottom fifth and the top-right corner, "
     "absolutely no text, no words, no letters, no numbers, no logos, no watermarks, "
     "no recognisable real people"

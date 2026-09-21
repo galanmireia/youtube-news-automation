@@ -561,22 +561,53 @@ _VARIANT_CONFIG = {
             "  3. EL GIRO. Lo que cambio las cosas, o el detalle que lo vuelve raro. Sin esto "
             "no hay historia, hay una ficha.\n"
             "  4. COMO ACABO. El desenlace, concreto. Nada de 'y asi termino aquella epoca'.\n"
-            "  5. EL POSO. La frase que se queda. Lo que quedo de aquello, o el dato final que "
-            "obliga a pensar. NO es una moraleja ni un 'suscribete'.\n\n"
+            "  5. EL REMATE. La coletilla que cierra la historia: lo que paso despues y no se "
+            "espera nadie, o el dato final que deja al espectador con la cara torcida. NO es una "
+            "moraleja, NO es un 'suscribete' y NO es una reflexion sobre el paso del tiempo. Si "
+            "suena a final de documental de La 2, esta mal.\n\n"
             "Si al leer las cinco seguidas no se entiende una historia con principio y final, "
             "esta mal escrito aunque cada frase sea correcta. Eso fue lo que paso con los "
             "primeros: datos ciertos, ordenados, y sin nada que contar.\n\n"
-            "QUE ALGUIEN HABLE. En dos o tres de las cinco escenas, mete DENTRO de la "
-            "narracion una frase corta que dijera alguien, entre comillas angulares: "
-            "«¡Que ardan con ella!». Va dentro del texto narrado, no aparte, porque la voz "
-            "la lee y encima aparece un bocadillo de comic justo cuando se dice.\n\n"
+            "QUE ALGUIEN HABLE, Y QUE DIGA ALGO BUENO. En dos o tres de las cinco escenas "
+            "mete DENTRO de la narracion una frase corta que dijera alguien, entre comillas "
+            "angulares: «¡Que ardan con ella!». Va dentro del texto narrado, no aparte, porque "
+            "la voz la lee y encima aparece un bocadillo de comic justo cuando se dice.\n\n"
+            "EL BOCADILLO ES DONDE MAS SE RIE LA GENTE. Es lo unico del video que no dice la voz "
+            "narrando en serio: es el personaje hablando por su cuenta. Asi que que diga lo que "
+            "esa persona diria de verdad en ese momento - mezquino, cabezota, harto, muerto de "
+            "miedo, indignado por algo pequeño -, no una frase de placa conmemorativa.\n\n"
+            "  BIEN: «Pues yo de aqui no me muevo.»\n"
+            "  BIEN: «¿Y esto quien lo paga?»\n"
+            "  BIEN: «Ya te lo dije.»\n"
+            "  MAL:  «Hoy comienza una nueva era para el reino.»\n\n"
             "Maximo SIETE palabras: lo que cabe en un globo y se lee de un vistazo. Y que sea "
-            "algo que esa persona pudo decir - una orden, una negativa, una amenaza, una "
-            "pregunta -, no una cita historica textual que te inventes. Si no sabes que dijo "
-            "nadie en esa escena, no pongas comillas: un bocadillo inventado en una frase "
-            "solemne se nota.\n\n"
-            "EL TONO. Se cuenta como se lo contarias a alguien en un bar, no como una clase: "
-            "vivo, con gente que quiere cosas y se las niegan. Ni solemne ni infantil."
+            "algo que esa persona pudo decir, no una cita historica textual que te inventes. Si "
+            "no sabes que dijo nadie en esa escena, no pongas comillas: un bocadillo inventado "
+            "en una frase solemne se nota.\n\n"
+            "EL TONO: DIVERTIDO. Esto no es un adorno, es lo que decide si alguien se queda "
+            "o desliza, y hasta ahora el prompt pedia justo lo contrario.\n\n"
+            "LA GRACIA NO LA PONE LA VOZ. La voz narra en serio, formal, como si estuviera "
+            "contando algo importante - y encima pasan cosas ridiculas. ESE CONTRASTE ES EL "
+            "CHISTE: dicho en serio, el detalle absurdo hace el doble de gracia que si te pones "
+            "a hacer el gracioso. Si la narracion lleva guiños, '¡atencion!', exclamaciones o "
+            "coletillas de youtuber, suena a pesado y se cae el video.\n\n"
+            "DE DONDE SALE LA GRACIA, por orden:\n"
+            "  1. EL DETALLE ABSURDO QUE ADEMAS ES VERDAD. Toda historia tiene uno: la cifra que "
+            "no tiene sentido, lo que alguien se llevo al huir, la razon ridicula por la que "
+            "empezo todo. Si al leer el dosier levantas una ceja, eso va dentro si o si.\n"
+            "  2. LA GENTE PORTANDOSE COMO GENTE. Nadie sabia que estaba dentro de la Historia: "
+            "discutian por dinero, por vanidad, por no dar su brazo a torcer, por no madrugar. "
+            "Los motivos pequeños son los que hacen gracia y ademas son los ciertos.\n"
+            "  3. DECIRLO CORTO Y SECO. 'Tardaron once meses en enterarse de que la guerra habia "
+            "terminado' tiene gracia. 'Debido a la incomunicacion, la noticia tardo once meses "
+            "en llegar' no tiene ninguna. La misma informacion.\n\n"
+            "LO QUE NO SE HACE: inventarse un dato porque queda gracioso, meter chistes de "
+            "ahora con calzador, reirse de quien lo paso mal - una epidemia, un naufragio o una "
+            "ejecucion se cuentan con interes, no con burla - ni explicar la gracia despues de "
+            "hacerla.\n\n"
+            "Y NO ES PARA NIÑOS. No se simplifica, no se habla como a un crio y no se ponen "
+            "tonterias. Es historia de verdad contada por alguien que se lo esta pasando bien "
+            "contandola."
         ),
         "duration_hint": "30-40 segundos",
         "scene_count_hint": (
@@ -995,6 +1026,14 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
     # every script of every video - permanently past the point of difference.
     # Moving it to the end and sending the instructions as a cached system
     # prompt means they are written once and then read at a tenth of the price.
+    # Que se vea EN EL LOG con que tono se esta escribiendo. CHANNEL_TONE_HINT
+    # se puede sobrescribir por variable de entorno, y durante dias estuvo
+    # entrando el tono del canal viejo - "casos reales de informatica... el
+    # tono es documental, preciso y sobrio" - sin que se notara en ningun
+    # sitio, porque el prompt no se imprime en ningun lado. Con esta linea se
+    # sabe de un vistazo cual mando en cada video.
+    logger.info("Guion (%s): tono del canal -> %s...", variant, CHANNEL_TONE_HINT[:70])
+
     instrucciones, _, noticia = prompt.partition(_STORY_MARKER)
 
     last_error: Exception | None = None
