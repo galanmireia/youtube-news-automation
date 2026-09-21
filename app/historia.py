@@ -23,27 +23,40 @@ logger = logging.getLogger(__name__)
 # dentro: "Batallas de España" da material; "Historia de España" da ensayos.
 CATEGORIAS = (
     "Categoría:Batallas de España",
-    "Categoría:Conquista de América",
-    "Categoría:Reyes de España",
-    "Categoría:Guerra civil española",
+    "Categoría:Asedios",
     "Categoría:Naufragios de España",
-    "Categoría:Historia militar de España",
-    "Categoría:Exploradores de España",
-    "Categoría:Inquisición española",
-    "Categoría:Al-Ándalus",
-    "Categoría:Reconquista",
-    "Categoría:Epidemias en España",
     "Categoría:Motines y revueltas en España",
     "Categoría:Atentados en España",
-    "Categoría:Científicos de España",
+    "Categoría:Epidemias en España",
+    "Categoría:Conquista de América",
+    "Categoría:Expediciones españolas",
+    "Categoría:Reyes de España",
     "Categoría:Monarcas de Castilla",
-    "Categoría:Siglo de Oro",
+    "Categoría:Exploradores de España",
+    "Categoría:Conquistadores españoles",
+    "Categoría:Inquisición española",
+    "Categoría:Guerra civil española",
+    "Categoría:Reconquista",
+    "Categoría:Al-Ándalus",
 )
 
 # Lo que NO es un hecho contable en cuarenta segundos.
 _NO_SIRVE = (
+    # Lo que no es un articulo de contenido.
     "anexo:", "categoría:", "plantilla:", "wikiproyecto:", "portal:",
     "lista de", "cronología", "bibliografía", "historiografía",
+    # Y lo que SI es un articulo pero NO es una historia. Esto salio del video
+    # #78: "Centro Geográfico del Ejército", que es un organismo. Un Short
+    # necesita algo que PASE, con gente dentro y un desenlace. Un instituto no
+    # pasa: existe. Y no hay gancho posible para algo que solo existe.
+    "centro ", "instituto", "museo", "academia", "regimiento", "batallón",
+    "cuartel", "archivo ", "biblioteca", "fundación", "asociación",
+    "real academia", "ministerio", "dirección general", "escuela ",
+    "universidad", "hospital ", "parque ", "estadio", "aeropuerto",
+    "carretera", "estación de", "línea ", "revista ", "periódico",
+    "premio ", "orden de", "condecoración", "escudo de", "bandera de",
+    "himno", "moneda de", "iglesia de", "catedral de", "castillo de",
+    "palacio de", "monasterio", "puente de", "torre de", "plaza de",
 )
 _MINIMO_TITULO = 8
 

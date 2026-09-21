@@ -571,6 +571,14 @@ def fetch_clips_for_scenes(
                     del_articulo = (destino, fichero)
                     break
             if del_articulo is not None:
+                # A la miniatura tambien. Sin esto, la portada de un Short de
+                # Lepanto seguia siendo el fotograma con mas contraste del
+                # video - o sea el clip de stock - teniendo el cuadro de
+                # Lepanto dentro. La miniatura con cara que monte por la mañana
+                # solo actua cuando hay cara, y en historia casi nunca la hay:
+                # eligi el nicho sin volver a mirar eso.
+                if retratos is not None:
+                    retratos.append(Path(del_articulo[0]))
                 logger.info("Escena %s: imagen del articulo (%s).", i, del_articulo[1][:48])
                 clip_entries.append([(del_articulo[0], None)])
                 continue
