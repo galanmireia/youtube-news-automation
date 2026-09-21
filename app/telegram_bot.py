@@ -167,7 +167,12 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     video_id = int(video_id_str)
     record = storage.get_video(video_id)
 
-    if record is None or record["status"] != "pending":
+    # 'upload_failed' tambien vale, y esto dejo el #75 encerrado. Un video que
+    # fallo al subir NO es un video sobre el que ya decidiste: es uno al que le
+    # paso algo - se caduco el permiso de YouTube, se cayo la red - y que sigue
+    # hecho y pagado en el disco. Dejarlo fuera significaba que la unica forma
+    # de publicarlo era generarlo otra vez entero.
+    if record is None or record["status"] not in ("pending", "upload_failed"):
         await query.edit_message_caption(caption="Este video ya fue procesado anteriormente.")
         return
 
@@ -1503,6 +1508,12 @@ async def handle_resend_command(update: Update, context: ContextTypes.DEFAULT_TY
     if storage.get_video(video_id) is None:
         await update.message.reply_text(f"No tengo ningun video con el id {video_id}.")
         return
+
+    # Si se quedo en 'upload_failed', vuelve a pendiente: lo que fallo fue la
+    # subida, no el video, y asi el estado dice la verdad.
+    if storage.get_video(video_id)["status"] == "upload_failed":
+        storage.set_status(video_id, "pending")
+        logger.info("Video %s vuelve a pendiente: la subida fallo, el video no.", video_id)
 
     await update.message.reply_text(f"Mandando otra vez el video {video_id}...")
     try:
