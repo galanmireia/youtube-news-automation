@@ -218,6 +218,7 @@ def _generate_variant(
             scene["detected_entities"] = entities_by_scene.get(i, [])
 
     marcas_narracion: list = []
+    retratos_usados: list = []
     if recording_path is not None:
         _stage(variant, 3, "Alineando tu grabacion con el guion (%s escenas)...", len(script["scenes"]))
         narration_path, scene_durations = align_recording(script["scenes"], Path(recording_path))
@@ -248,6 +249,9 @@ def _generate_variant(
         # dentro del articulo del caso. Sin esto, un video de sucesos se queda
         # sin una sola cara, que es justo lo que no puede pasar.
         caso=news_item.get("title", ""),
+        # Las caras que acaben en el video, para que la miniatura salga de una
+        # de ellas y no de un fotograma cualquiera.
+        retratos=retratos_usados,
     )
 
     _stage(variant, 5, "Montando el video con ffmpeg...")
@@ -295,7 +299,10 @@ def _generate_variant(
     # subtitles - otherwise a random half-sentence ends up across the
     # thumbnail.
     _stage(variant, 7, "Miniatura, subtitulos incrustados y musica...")
-    thumbnail_path = generate_thumbnail(final_video_path, script["title"], variant_dir / "thumbnail.jpg", width, height)
+    thumbnail_path = generate_thumbnail(
+        final_video_path, script["title"], variant_dir / "thumbnail.jpg", width, height,
+        retratos=retratos_usados,
+    )
 
     if BURN_SUBTITLES:
         final_video_path = burn_subtitles(final_video_path, burn_ass_path, variant_dir / "final_subtitled.mp4")

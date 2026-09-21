@@ -326,7 +326,8 @@ def fetch_clips_for_scenes(
     scenes: list[dict], out_dir: Path, aspect_ratio: str, scene_durations: list[float], is_sensitive: bool = False,
     creditos: list[str] | None = None,
     marcas: list | None = None,
-    caso: str = ""
+    caso: str = "",
+    retratos: list | None = None
 ) -> list[list[tuple[Path, dict | None]]]:
     """Returns, per scene, a list of (clip_path, name_tag) entries - normally
     just one, but up to _MAX_PHOTOS_PER_SCENE when a scene names several
@@ -495,6 +496,11 @@ def fetch_clips_for_scenes(
                             result = (candidate_path, url_wd)
             if result is not None:
                 photo_path, photo_url = result
+                # Para la miniatura. Se apunta CADA vez que se usa, con
+                # repeticiones a proposito: la cara que mas sale en el video es
+                # la protagonista, y esa es la que tiene que ir en la portada.
+                if retratos is not None:
+                    retratos.append(Path(photo_path))
                 used_photo_urls.add(photo_url)
                 ultima_aparicion[photo_url] = i
                 veces_usada[photo_url] = veces_usada.get(photo_url, 0) + 1

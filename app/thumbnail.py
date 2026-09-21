@@ -1,12 +1,15 @@
+import logging
 import subprocess
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont, ImageStat
+from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageStat
 
 # Fractions of the video to consider for the thumbnail still. All well past
 # the intro card: sampling near the start meant every thumbnail was just the
 # channel logo instead of anything from the story itself.
 _CANDIDATE_POSITIONS = (0.25, 0.40, 0.55, 0.70)
+
+logger = logging.getLogger(__name__)
 
 
 def _extract_frame(video_path: Path, out_path: Path, timestamp: float) -> Path | None:
@@ -112,7 +115,14 @@ def _cover(image: Image.Image, width: int, height: int) -> Image.Image:
     izquierda = (nuevo.width - width) // 2
     # Cropped from the upper third rather than the centre: the lower part of a
     # frame is where this pipeline puts its own name bars and caption boxes.
-    arriba = min(max(0, (nuevo.height - height) // 3), max(0, nuevo.height - height))
+    # Cuanto mas vertical es el original, mas arriba se recorta. Una foto de
+    # retrato lleva la cara en la mitad de arriba, y recortando por el tercio
+    # la cara caia justo donde luego va el texto: se leia el titulo y se comia
+    # la barbilla. Un quinto la sube lo suficiente para que el texto quede
+    # sobre los hombros, que es donde no molesta.
+    sobra = max(0, nuevo.height - height)
+    divisor = 5 if origen_h > origen_w * 1.2 else 3
+    arriba = min(sobra // divisor, sobra)
     return nuevo.crop((izquierda, arriba, izquierda + width, arriba + height))
 
 
@@ -136,35 +146,111 @@ def _thumbnail_text(title: str) -> str:
     return texto.upper().rstrip(" ,.;:")
 
 
-def generate_thumbnail(video_path: Path, title: str, out_path: Path, width: int, height: int) -> Path:
-    frame_path = _pick_frame(video_path, out_path)
-    image = _cover(Image.open(frame_path).convert("RGB"), width, height)
+def _la_cara_que_mas_sale(retratos: list[Path] | None) -> Path | None:
+    """La protagonista del video, que es la que tiene que ir en la portada.
 
-    margin = int(width * 0.04)
-    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
+    Aqui estaba el fallo de fondo, y no era de dibujo sino de eleccion: la
+    miniatura se sacaba del video eligiendo el fotograma con MAS CONTRASTE
+    (la desviacion tipica de la imagen), y eso puntua altisimo un camino de
+    bosque lleno de hojas y bajisimo una cara sobre fondo liso. O sea que
+    elegia textura justo cuando lo que hace clicar en un caso de sucesos es
+    una persona mirandote.
 
-    # Two lines, not three. A three-line band swallowed more than half the
-    # picture, which defeats the point of choosing an interesting frame in the
-    # first place - the thumbnail has to be read at the size of a phone
-    # listing, where a picture and four words beat a whole sentence.
+    La lista llega con repeticiones a proposito - una entrada por cada vez que
+    esa foto se uso - asi que la mas repetida es la que mas sale en el video.
+    """
+    if not retratos:
+        return None
+    veces: dict[str, int] = {}
+    for ruta in retratos:
+        veces[str(ruta)] = veces.get(str(ruta), 0) + 1
+    for ruta, _ in sorted(veces.items(), key=lambda par: -par[1]):
+        camino = Path(ruta)
+        if camino.exists() and camino.stat().st_size > 0:
+            return camino
+    return None
+
+
+def _con_fuerza(imagen: Image.Image) -> Image.Image:
+    """Mas contraste y un poco mas de color. Una miniatura apagada no se ve.
+
+    Se mira a tamaño de sello en un movil, compitiendo con veinte mas. Lo que
+    en pantalla grande parece exagerado, ahi es lo justo.
+    """
+    imagen = ImageEnhance.Contrast(imagen).enhance(1.18)
+    imagen = ImageEnhance.Color(imagen).enhance(1.12)
+    return ImageEnhance.Brightness(imagen).enhance(1.04)
+
+
+def _sombra_abajo(imagen: Image.Image, alto_banda: int) -> Image.Image:
+    """Un degradado negro por abajo, en vez de la caja negra de antes.
+
+    La caja opaca tapaba un tercio de la foto y se veia el corte recto, que es
+    lo que hace que una miniatura parezca una plantilla. Un degradado oscurece
+    lo justo para que el texto se lea y deja que la imagen siga.
+    """
+    ancho, alto = imagen.size
+    degradado = Image.new("L", (1, alto), 0)
+    for y in range(alto):
+        desde = alto - alto_banda
+        if y <= desde:
+            valor = 0
+        else:
+            avance = (y - desde) / max(1, alto_banda)
+            valor = int(235 * (avance ** 1.5))
+        degradado.putpixel((0, y), valor)
+    mascara = degradado.resize((ancho, alto))
+    negro = Image.new("RGB", imagen.size, (0, 0, 0))
+    return Image.composite(negro, imagen, mascara)
+
+
+def generate_thumbnail(video_path: Path, title: str, out_path: Path, width: int, height: int,
+                       retratos: list[Path] | None = None) -> Path:
+    # Primero la cara. Solo si no hay ninguna se vuelve al fotograma del video.
+    cara = _la_cara_que_mas_sale(retratos)
+    frame_path = None
+    if cara is not None:
+        base = Image.open(cara).convert("RGB")
+        logger.info("Miniatura: sobre la cara que mas sale (%s).", cara.name)
+    else:
+        frame_path = _pick_frame(video_path, out_path)
+        base = Image.open(frame_path).convert("RGB")
+        logger.info("Miniatura: sin caras en el video, se usa un fotograma.")
+
+    image = _con_fuerza(_cover(base, width, height))
+
+    margin = int(width * 0.045)
+    # CUATRO PALABRAS, no siete, y mas grandes. Una miniatura se lee en el
+    # tiempo que tarda un pulgar en pasar por encima; siete palabras a tamaño
+    # pequeño no se leen, se ignoran.
     font, lines = _fit_title(
-        draw, _thumbnail_text(title), max_width=width - margin * 2,
-        start_size=max(36, width // 11), max_lines=2,
+        draw=ImageDraw.Draw(image), text=_thumbnail_text(title),
+        max_width=width - margin * 2,
+        start_size=max(48, width // 8), max_lines=2,
     )
 
-    line_height = int(font.size * 1.22)
-    band_height = line_height * len(lines) + margin * 2
-    band_top = height - band_height
-    draw.rectangle([0, band_top, width, height], fill=(0, 0, 0, 175))
-    draw.rectangle([0, band_top, width, band_top + max(4, height // 300)], fill=(196, 30, 42, 255))
+    line_height = int(font.size * 1.18)
+    alto_banda = line_height * len(lines) + margin * 3
+    image = _sombra_abajo(image, alto_banda)
 
-    y = band_top + margin
+    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    y = height - line_height * len(lines) - margin
     for line in lines:
+        # Contorno negro: sobre una foto el blanco solo desaparece en cuanto
+        # cae encima de algo claro - una camisa, el cielo.
+        for dx, dy in ((-3, 0), (3, 0), (0, -3), (0, 3), (-2, -2), (2, 2), (-2, 2), (2, -2)):
+            draw.text((margin + dx, y + dy), line, font=font, fill=(0, 0, 0, 230))
         draw.text((margin, y), line, font=font, fill=(255, 255, 255, 255))
         y += line_height
 
+    # La regla roja del canal, corta y encima del texto, como firma.
+    regla_y = height - line_height * len(lines) - margin - max(8, height // 90)
+    draw.rectangle([margin, regla_y, margin + int(width * 0.10), regla_y + max(5, height // 200)],
+                   fill=(196, 30, 42, 255))
+
     combined = Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
     combined.save(out_path, quality=92)
-    frame_path.unlink(missing_ok=True)
+    if frame_path is not None:
+        frame_path.unlink(missing_ok=True)
     return out_path
