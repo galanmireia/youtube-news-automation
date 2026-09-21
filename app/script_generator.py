@@ -580,7 +580,21 @@ _VARIANT_CONFIG = {
             "  MAL:  'La batalla de Lepanto fue un enfrentamiento naval de 1571.'\n"
             "  BIEN: 'En Lepanto remaban encadenados doce mil hombres que no eran soldados.'\n\n"
             "UN SOLO HECHO POR VIDEO. Un Short no es un resumen: es una cosa contada entera. Si "
-            "te sobran datos, guardalos - hay mas videos."
+            "te sobran datos, guardalos - hay mas videos.\n\n"
+            "Y LAS CINCO ESCENAS NO SON CINCO DATOS. Cinco frases con cifras no cuentan nada: "
+            "son cinco frases con cifras. Cada escena tiene UN TRABAJO y hay que hacerlo:\n\n"
+            "  1. EL GOLPE. El hecho que no se cree nadie. Sin fecha, sin sitio, sin contexto: "
+            "eso viene despues. Solo lo que paso, dicho de la forma mas seca posible.\n"
+            "  2. QUIEN Y CUANDO. AHORA si: el año, el sitio y quienes eran. Una frase, porque "
+            "el espectador ya esta enganchado y solo necesita saber donde esta.\n"
+            "  3. EL GIRO. Lo que cambio las cosas, o el detalle que lo vuelve raro. Sin esto "
+            "no hay historia, hay una ficha.\n"
+            "  4. COMO ACABO. El desenlace, concreto. Nada de 'y asi termino aquella epoca'.\n"
+            "  5. EL POSO. La frase que se queda. Lo que quedo de aquello, o el dato final que "
+            "obliga a pensar. NO es una moraleja ni un 'suscribete'.\n\n"
+            "Si al leer las cinco seguidas no se entiende una historia con principio y final, "
+            "esta mal escrito aunque cada frase sea correcta. Eso fue lo que paso con los "
+            "primeros: datos ciertos, ordenados, y sin nada que contar."
         ),
         "duration_hint": "30-40 segundos",
         "scene_count_hint": (
