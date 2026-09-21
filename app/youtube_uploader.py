@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -17,7 +18,16 @@ from .config import (
     NARRATION_LANG,
 )
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+# youtube.upload sube el video y nada mas. La pista de subtitulos se sube con
+# captions().insert, que pide force-ssl, y por eso desde el primer dia todos
+# los videos han subido bien y sus subtitulos han fallado con "Insufficient
+# Permission". Los subtitulos incrustados en la imagen se veian igual, asi que
+# no se notaba; lo que se perdia es la pista que YouTube LEE para saber de que
+# va el video y a quien recomendarselo.
+SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.force-ssl",
+]
 
 # YouTube caps the combined tags string (joined with commas) at 500 characters.
 MAX_TAGS_CHARS = 480
@@ -40,6 +50,10 @@ def _fit_tags(tags: list[str]) -> list[str]:
     return fitted
 
 
+class AutorizacionCaducada(RuntimeError):
+    """El token de YouTube murio. No se arregla solo."""
+
+
 def get_credentials() -> Credentials:
     """Loads a cached OAuth token, refreshing it if needed. The very first
     token must be generated locally (see scripts/authorize_youtube.py)
@@ -51,7 +65,22 @@ def get_credentials() -> Credentials:
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+            try:
+                creds.refresh(Request())
+            except RefreshError as exc:
+                # "invalid_grant: Token has been expired or revoked" no se
+                # arregla reintentando: hay que volver a autorizar a mano. Lo
+                # normal es que la aplicacion de Google siga en modo "Testing",
+                # donde los permisos CADUCAN A LOS SIETE DIAS - que es justo lo
+                # que llevaba esta. Publicarla quita ese limite.
+                raise AutorizacionCaducada(
+                    "La autorizacion de YouTube ya no vale (%s). Hay que volver a "
+                    "autorizar: 'python -m scripts.authorize_youtube' en tu "
+                    "ordenador, y el contenido del token nuevo a la variable "
+                    "YOUTUBE_TOKEN_JSON de Railway. Y en Google Cloud, pon la "
+                    "aplicacion 'En produccion' o volvera a caducar en una "
+                    "semana." % exc
+                ) from exc
         else:
             flow = InstalledAppFlow.from_client_secrets_file(YOUTUBE_CLIENT_SECRETS_FILE, SCOPES)
             creds = flow.run_local_server(port=0)

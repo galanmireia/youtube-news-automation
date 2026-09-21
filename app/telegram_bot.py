@@ -38,7 +38,7 @@ from .pipeline import (
     stop_requested as pipeline_stop_requested,
 )
 from .video_builder import make_preview
-from .youtube_uploader import upload_captions, upload_video
+from .youtube_uploader import AutorizacionCaducada, upload_captions, upload_video
 
 logger = logging.getLogger(__name__)
 
@@ -214,6 +214,24 @@ async def handle_decision(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await query.edit_message_caption(
             caption=f"{label}\n{estado}: {record['title']}\nhttps://youtu.be/{youtube_id}"
         )
+    except AutorizacionCaducada:
+        # Esto no es un fallo de red que se arregle reintentando, asi que no se
+        # dice "revisa los logs": se dice que hay que hacer. El video queda
+        # pendiente, no fallido, porque no le pasa nada - el problema es el
+        # permiso, y cuando se arregle se sube con /enviar.
+        logger.error("Autorizacion de YouTube caducada al subir el video %s", video_id)
+        await query.edit_message_caption(
+            caption=(f"{label}\nLa autorizacion de YouTube ha caducado. El video esta "
+                     f"hecho y guardado: {record['title']}"))
+        await context.bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID,
+            text=("*La autorizacion de YouTube ha caducado.* No se ha perdido nada.\n\n"
+                  "1. En tu ordenador: `python -m scripts.authorize_youtube`\n"
+                  "2. El token nuevo, a la variable `YOUTUBE_TOKEN_JSON` de Railway.\n"
+                  "3. En Google Cloud, pantalla de consentimiento: ponla *En produccion*, "
+                  "o vuelve a caducar en una semana.\n\n"
+                  "Despues, /enviar y lo apruebas otra vez."),
+            parse_mode="Markdown")
     except Exception:
         logger.exception("Error subiendo el video %s a YouTube", video_id)
         storage.set_status(video_id, "upload_failed")
