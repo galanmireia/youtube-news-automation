@@ -20,7 +20,7 @@ from datetime import datetime, timedelta, timezone
 import requests
 
 from . import research
-from .config import YOUTUBE_API_KEY
+from .config import WIKI_LANG, YOUTUBE_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -97,11 +97,20 @@ _VIDEOS = "https://www.googleapis.com/youtube/v3/videos"
 
 # Como se busca "un video de historia que funcione". Varias consultas porque
 # una sola devuelve siempre el mismo puñado de canales.
+# "historia de españa" a secas trajo como video mas visto un clip de futbol
+# de España-Argentina con trece millones de visitas. Buscar bien es la mitad
+# del trabajo: consultas que no puedan pescar deportes ni actualidad, y el
+# filtro de CATEGORIA de YouTube, que es lo que de verdad separa un documental
+# de un viral.
 _COMO_BUSCAR = (
-    "historia de españa",
-    "curiosidades historia españa",
-    "que paso en españa",
+    "historia de españa documental",
+    "historia de españa siglo",
+    "reyes de españa historia",
+    "españa edad media historia",
 )
+# 27 = Educacion. 22 = Gente y blogs se queda fuera a proposito: ahi vive el
+# viral.
+_CATEGORIA_EDUCACION = "27"
 _DIAS = 90
 
 
@@ -116,6 +125,7 @@ def _titulos_que_funcionan(cuantos: int = 40) -> list[tuple[str, int]]:
             r = requests.get(_BUSCAR, params={
                 "part": "snippet", "q": consulta, "type": "video", "order": "viewCount",
                 "publishedAfter": desde, "regionCode": "ES", "relevanceLanguage": "es",
+                "videoCategoryId": _CATEGORIA_EDUCACION,
                 "maxResults": 50, "key": YOUTUBE_API_KEY}, timeout=30)
             if r.status_code == 403:
                 logger.warning("Sin cuota de YouTube para buscar temas; tiro de categorias.")
@@ -239,10 +249,29 @@ def candidatos(cuantos: int = 12, semilla: int | None = None) -> list[str]:
             temas.extend(articulos[:2])
         logger.info("Temas: completados con categorias hasta %s.", len(temas))
 
+    # Y se comprueba que EXISTAN antes de devolverlos. El primer candidato de
+    # la tanda anterior fue un titulo de futbol; no habia articulo, y la tanda
+    # entera se paro en vez de probar el siguiente. Un tema que no resuelve no
+    # es un tema: se cae aqui, gratis, y no gasta un hueco de la tanda.
     vistos, salida = set(), []
     for t in temas:
         clave = t.lower()
-        if clave not in vistos:
-            vistos.add(clave)
-            salida.append(t)
-    return salida[:cuantos]
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        if research.existe(WIKI_LANG, t) is False and not _resuelve(t):
+            logger.info("Tema descartado, no hay articulo: %r", t[:50])
+            continue
+        salida.append(t)
+        if len(salida) >= cuantos:
+            break
+    logger.info("Temas: %s comprobados contra Wikipedia.", len(salida))
+    return salida
+
+
+def _resuelve(termino: str) -> bool:
+    """¿La busqueda de Wikipedia encuentra algo con ese nombre?"""
+    try:
+        return bool(research.buscar(WIKI_LANG, termino, cuantos=1))
+    except Exception:
+        return False
