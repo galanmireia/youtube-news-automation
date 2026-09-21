@@ -1268,3 +1268,28 @@ def mix_background_music(video_path: Path, music_path: Path, out_path: Path, vol
         ]
     )
     return out_path
+
+
+def mezclar_efectos(video_path: Path, pista_path: Path, out_path: Path) -> Path:
+    """Los efectos de sonido, por debajo de la voz.
+
+    Va aparte de la musica y ANTES que ella a proposito: la pista de efectos
+    ya viene con cada sonido en su sitio y a su volumen desde sonidos.py, asi
+    que aqui solo hay que sumarla sin tocar la voz. normalize=0 por lo mismo
+    que en la musica - sin eso amix divide cada entrada por el numero de
+    entradas y la narracion se iria 6 dB abajo ella sola.
+    """
+    duracion = _probe_duration(video_path)
+    _run([
+        "ffmpeg", "-y",
+        "-i", str(video_path),
+        "-i", str(pista_path),
+        "-filter_complex",
+        "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,"
+        "alimiter=limit=0.89:level=disabled[aout]",
+        "-map", "0:v", "-map", "[aout]",
+        "-c:v", "copy", "-c:a", "aac",
+        "-t", str(duracion),
+        str(out_path),
+    ])
+    return out_path

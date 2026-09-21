@@ -8,7 +8,8 @@ from pathlib import Path
 
 import requests
 
-from . import ai_images, archivo, bocadillos, branding, oficial, real_photos, slides, fotos_propias
+from . import (ai_images, archivo, bocadillos, branding, monigotes, oficial,
+               real_photos, slides, fotos_propias)
 from .branding import BACKGROUND_COLOR
 from .config import CONTENT_MODE, CHANNEL_NAME, PEXELS_API_KEY, PIXABAY_API_KEY
 
@@ -447,7 +448,47 @@ def fetch_clips_for_scenes(
             clip_entries.append([(card_path, None)])
             continue
 
-        # EL DIBUJO VA PRIMERO, no el ultimo.
+        # LOS MONIGOTES VAN LOS PRIMEROS DE TODO.
+        #
+        # Sustituyen a la ilustracion por IA en vertical y ganan en las cuatro
+        # cosas que importaban: no cuestan nada, salen en medio segundo, son
+        # IGUALES en los cinco planos - que era el fallo de fondo del #82, cinco
+        # dibujos preciosos que no se conocian entre si - y se MUEVEN de verdad,
+        # porque una pose es una lista de puntos y entre dos poses hay
+        # infinitas intermedias.
+        #
+        # Y el bocadillo va dentro del propio dibujo, no pegado con ffmpeg
+        # encima: como los fotogramas se pintan de uno en uno y se sabe el
+        # segundo de cada uno, el globo sale solo en los que tocan. La
+        # sincronia es exacta por construccion.
+        highlight = (scene.get("on_screen_highlight") or "").strip()
+        if es_vertical and isinstance(scene.get("escena"), dict):
+            globo = None
+            cita = bocadillos.cita_de(scene.get("narration", ""))
+            if cita:
+                marca = marcas[i] if marcas and i < len(marcas) else None
+                ventana = (bocadillos.cuando_se_dice(marca[0], marca[1], cita)
+                           if marca else None)
+                if ventana:
+                    quien = scene["escena"].get("habla_x")
+                    figs = scene["escena"].get("figuras") or [{}]
+                    globo = {"texto": cita, "desde": ventana[0], "hasta": ventana[1],
+                             "x": float(quien) if isinstance(quien, (int, float))
+                                  else float(figs[0].get("x", 0.5) or 0.5)}
+            ancho_v, alto_v = _TARGET_DIMENSIONS.get(aspect_ratio, (1080, 1920))
+            clip = monigotes.render(scene["escena"], out_dir / f"mono_{i:02d}.mp4",
+                                    ancho_v, alto_v, duration, bocadillo=globo)
+            if clip is not None:
+                # A la miniatura va el FOTOGRAMA, no el mp4: thumbnail.py abre
+                # esa lista con PIL.
+                fijo = Path(clip).with_suffix(".jpg")
+                if retratos is not None and fijo.exists():
+                    retratos.append(fijo)
+                clip_entries.append([(clip, {"caption": highlight} if highlight else None)])
+                continue
+            logger.warning("Escena %s: los monigotes no han salido; sigo con lo de antes.", i)
+
+        # EL DIBUJO POR IA VA PRIMERO, no el ultimo.
         #
         # El video #81 se genero con el cupo ya subido a ocho ilustraciones,
         # con el estilo nuevo y con los bocadillos puestos, y salio sin un

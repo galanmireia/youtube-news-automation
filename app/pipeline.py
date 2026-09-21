@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from . import llm_usage, storage
+from . import llm_usage, sonidos, storage
 from .branding import INTRO_NARRATION
 from .config import (
     BURN_SUBTITLES,
@@ -33,7 +33,8 @@ from .tts import synthesize_scenes
 from .voice_clone import sintetizar_escenas
 from .voice_align import align_recording, reading_script
 from .config import NARRATION_SOURCE
-from .video_builder import build_video, burn_subtitles, mix_background_music
+from .video_builder import (build_video, burn_subtitles, mezclar_efectos,
+                            mix_background_music)
 from .visuals import fetch_clips_for_scenes
 
 logger = logging.getLogger(__name__)
@@ -306,6 +307,29 @@ def _generate_variant(
 
     if BURN_SUBTITLES:
         final_video_path = burn_subtitles(final_video_path, burn_ass_path, variant_dir / "final_subtitled.mp4")
+
+    # LOS EFECTOS DE SONIDO, antes de la musica.
+    #
+    # Se montan en UNA pista con cada efecto en su sitio, calculando el
+    # instante de cada escena a partir de las duraciones que ya se midieron
+    # para el video. Sintetizados, no descargados: un fichero de un banco de
+    # sonidos que cambia de licencia deja el canal desmonetizado meses
+    # despues, y una onda calculada aqui no.
+    trozos, reloj = [], 0.0
+    for escena, dura in zip(script["scenes"], scene_durations):
+        nombre = (escena.get("sonido") or "").strip().lower()
+        if nombre in sonidos.EFECTOS_VALIDOS:
+            trozos.append((nombre, reloj, min(dura, 6.0)))
+        reloj += dura
+    if trozos:
+        pista = sonidos.pista(trozos, reloj, variant_dir / "efectos.wav")
+        if pista is not None:
+            try:
+                final_video_path = mezclar_efectos(
+                    final_video_path, pista, variant_dir / "final_con_efectos.mp4")
+            except Exception:
+                # Un efecto que no entra cuesta un efecto, no el video.
+                logger.warning("No se han podido mezclar los efectos.", exc_info=True)
 
     music_path = _pick_music_track()
     if music_path is not None:

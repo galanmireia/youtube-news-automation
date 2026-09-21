@@ -488,6 +488,8 @@ despues de haberse escrito y pagado.
       "photo_subject": "nombre de una persona publica o de un lugar/institucion con nombre propio si aplica, si no, cadena vacia",
       "photo_subject_role": "cargo de la persona o descriptor corto del lugar si photo_subject no esta vacio, si no, cadena vacia",
       "ai_image_prompt": "descripcion en ingles para ilustracion por IA si aplica, si no, cadena vacia",
+      "escena": "{bloque_campo_escena}",
+      "sonido": "{bloque_campo_sonido}",
       "on_screen_highlight": "EN {language}, texto corto (3-6 palabras) con el dato clave de esta escena, con CIFRA si la escena tiene alguna, ver instrucciones arriba",
       "slide": "objeto con la diapositiva de datos si esta escena la necesita, o null - ver DIAPOSITIVAS DE DATOS arriba"
     }}
@@ -650,48 +652,62 @@ generales, ni vistas de una ciudad, ni un edificio entero, ni un paisaje. Un pla
 Habia escrito aqui justo lo contrario - que la escena 1 tenia que SITUAR, "la ciudad, el
 edificio, el juzgado" - y encima tres parrafos despues de prohibirle a la narracion que situe. El
 video abria contando un golpe sobre un plano general de nada.""",
-        "bloque_ilustracion": """Ilustracion por IA ("ai_image_prompt"): OBLIGATORIA EN TODAS Y CADA UNA DE LAS ESCENAS.
+        # El guion ya no describe una imagen para Gemini: ELIGE de unas
+        # listas cerradas y el programa la dibuja. Lo que no esta en la
+        # lista no se puede dibujar, asi que no se puede pedir.
+        "bloque_campo_escena": "objeto con la escena de monigotes, OBLIGATORIO - ver LA ESCENA arriba",
+        "bloque_campo_sonido": "uno de [gentio, campana, fuego, pasos, espada, tormenta, mar, monedas, puerta, caballo] o cadena vacia",
+        "bloque_ilustracion": """LA ESCENA ("escena"): OBLIGATORIA EN TODAS Y CADA UNA DE LAS ESCENAS.
 
-Este canal es DIBUJADO. No es un documental con fotos de archivo: es una historia contada con
-dibujos, y la voz va encima. Una escena sin "ai_image_prompt" acaba con una foto de banco de
-imagenes que no es de esto - una puesta de sol, un pasillo, gente anonima - y eso es lo que hace
-que el espectador deslice. Si no se te ocurre que dibujar, dibuja LA ACCION de la frase: alguien
-haciendo algo, en un sitio, con una cara.
+Este canal se dibuja con MONIGOTES - palotes con cabeza redonda, como los de un canal de
+historia contada con dibujos malos a proposito -, y los dibuja el propio programa. Tu no
+describes una imagen: eliges de unas listas cerradas. Lo que no este en las listas no se sabe
+dibujar, asi que no te inventes nada: si pides "catedral gotica al atardecer" no sale una
+catedral, sale un fondo liso.
 
-Lo que escribes es SOLO EL CONTENIDO de la imagen, en ingles, en una frase: que se ve, quien es
-el sujeto, que esta pasando y que se le nota en la cara. NO describas el estilo, ni colores, ni
-iluminacion, ni "illustration", ni "comic style", ni "cinematic" - el estilo lo pone el sistema,
-igual para todas, y si lo describes tu cada plano saldra de su padre y de su madre y el video
-parecera un collage.
+  "escena": {
+    "interior": uno de [monasterio, taberna, salon_trono] - o quitalo y usa "fondo"
+    "fondo":    uno de [campo, calle, salon, noche, liso]
+    "habla_x":  0.0 a 1.0, donde esta QUIEN HABLA en esta escena (para el bocadillo)
+    "figuras":  de 1 a 4 personajes, cada uno:
+       "x":        0.12 a 0.88, de izquierda a derecha
+       "alto":     0.18 a 0.46 de la pantalla (0.34 normal; 0.26 si hay cuatro)
+       "pose":     [de_pie, sentado, en_mesa, brazos_arriba, señala, corriendo]
+       "pose_fin": otra pose de la misma lista: el personaje SE MUEVE de una a otra
+       "gesto":    [neutro, sorpresa, contento, enfadado, grito]
+       "gorro":    [corona, comandante, tricornio, sombrero, casco, mitra, monje, boina,
+                    marinero] - o quitalo si no lleva
+       "espejo":   true para que mire hacia la izquierda
+    "tachados": hasta 3, cada uno {"x":.., "y":.., "tam":..}: una cruz roja encima de algo,
+                para decir "prohibido" o "se acabo" de un vistazo
+  }
 
-QUE HAYA GENTE Y QUE SE LES VEA LO QUE SIENTEN. Un mapa, un edificio vacio o un objeto suelto no
-sostienen un plano de siete segundos. En casi todas las escenas tiene que haber PERSONAS haciendo
-algo concreto: gritando, firmando, huyendo, negandose, muertas de miedo. Ademas la camara se
-mueve por dentro del dibujo, asi que el dibujo necesita tener cosas dentro que mirar.
+COSAS QUE HACEN QUE ESTO FUNCIONE:
 
-La ilustracion representa LO QUE DICE ESA FRASE, no el tema general del video. Antes de
-escribirla, pregunta: "si alguien ve esta imagen sin sonido, entiende la frase que estoy
-narrando?". Si la respuesta es no, esta mal.
-- "Siguieron defendiendo una iglesia once meses despues de perder la guerra." -> "exhausted
-  ragged soldiers barricaded behind the shuttered windows of a small church, rifles pointed out,
-  one of them staring at a torn flag"
-- "En Lepanto remaban encadenados doce mil hombres que no eran soldados." -> "rows of chained
-  rowers straining at heavy oars in the flooded belly of a war galley, an overseer shouting
-  above them"
-- MAL, vago, no dice nada: "a historic battle", "Spanish history concept", "an old map of Spain"
+- PON "pose_fin" CASI SIEMPRE. Es lo que hace que el plano se mueva en vez de ser una foto
+  quieta, y es gratis. Un monigote que pasa de "de_pie" a "brazos_arriba" esta celebrando o
+  indignandose; de "corriendo" a "de_pie" esta llegando; de "de_pie" a "sentado" se rinde.
+- EL GORRO ES QUIEN ES. No hay caras parecidas ni hace falta: la corona es el rey, la mitra el
+  obispo, el morrion el conquistador, el tricornio el del XVIII. Si en una escena hay un rey y
+  un subdito, ponle corona a uno y al otro nada, y ya se entiende.
+- MISMO PERSONAJE, MISMO GORRO Y MISMO SITIO EN TODAS LAS ESCENAS donde salga. Es lo que hace
+  que las cinco escenas sean UNA historia y no cinco dibujos sueltos.
+- LA CARA CUENTA EL CHISTE. "grito" y "enfadado" valen mas que cualquier adjetivo de la
+  narracion. Una escena entera de gente con cara "neutro" no la mira nadie.
+- "habla_x" tiene que coincidir con la x del que dice la frase entrecomillada, o el bocadillo
+  saldra apuntando a otro.
 
-LA ESCENA EN LA QUE ALGUIEN HABLA se dibuja distinto: que se vea QUIEN habla, de medio cuerpo o
-de cerca, con la boca abierta, y que quede sitio libre arriba - cielo, humo, una pared, un techo -
-porque justo ahi aparece el bocadillo con su frase.
+EJEMPLO, para la frase «El rey prohibio las capas largas y Madrid ardio tres dias»:
+  {"interior": "salon_trono", "habla_x": 0.30,
+   "figuras": [{"x":0.30,"alto":0.40,"pose":"señala","pose_fin":"brazos_arriba",
+                "gesto":"enfadado","gorro":"corona"},
+               {"x":0.70,"alto":0.36,"pose":"de_pie","pose_fin":"sentado",
+                "gesto":"sorpresa","espejo":true}]}
 
-CARAS REALES, NO. De alguien que llego a ser FOTOGRAFIADO - de mediados del siglo XIX en adelante -
-no pidas nunca la cara: sale un parecido falso y canta muchisimo. Dibujalo de espaldas, de lejos,
-en sombra, o dibuja la escena sin el. De alguien anterior a eso - un rey medieval, un almirante
-del XVI - dibujalo con normalidad, que es lo que hace cualquier libro de historia. Y de una
-victima o un acusado de un crimen, jamas, ni dibujado.
-
-Para representar una organizacion usa el COLOR o un objeto asociado, nunca su logo: estos modelos
-los dibujan deformados y se nota.""",
+Y EL SONIDO ("sonido"): uno de [gentio, campana, fuego, pasos, espada, tormenta, mar, monedas,
+puerta, caballo], o cadena vacia si ninguno pega. Va MUY por debajo de la voz, solo para que el
+plano no este mudo: "gentio" en un motin, "mar" en un naufragio, "campana" en un monasterio. No
+lo fuerces - un efecto que no pega distrae mas que el silencio.""",
     },
     "long": {
         "format_hint": "Video horizontal (16:9) extendido para YouTube, no es un Short.",
@@ -718,6 +734,8 @@ donde pasaron los hechos. El video del caso Asunta abrio con un camino de tierra
 porque ahi aparecio el cuerpo: correcto como dato y pesimo como primer plano, porque quien no
 conoce el caso ve un camino cualquiera y se va. Ese detalle es bueno MAS TARDE, cuando ya se ha
 contado que paso y el espectador sabe por que esta mirando un camino.""",
+        "bloque_campo_escena": "null, este formato no usa monigotes",
+        "bloque_campo_sonido": "cadena vacia",
         "bloque_ilustracion": """Ilustracion por IA ("ai_image_prompt"): es para las escenas ABSTRACTAS, las que no tienen nada real
 que enseñar. Si la escena nombra una persona, un lugar o una institucion con nombre propio, va
 SIEMPRE en "photo_subject" y nunca aqui: una foto real de Wikipedia es gratis y siempre mejor, y una
@@ -942,12 +960,31 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
             return ("no habla nadie: ninguna escena trae una frase entre comillas "
                     "angulares, asi que el video no tendra ni un bocadillo")
 
+        # Y QUE TODAS TRAIGAN SU ESCENA DE MONIGOTES. Una escena sin dibujo
+        # no da un video un poco peor: cae en la cadena vieja y acaba en una
+        # foto de archivo generica, que es de lo que se queja ella desde el
+        # primer dia. Se comprueba con la MISMA funcion que luego dibuja, asi
+        # que lo que pasa aqui es exactamente lo que se va a ver.
         sin_dibujo = [i for i, e in enumerate(escenas, 1)
-                      if not (e.get("ai_image_prompt") or "").strip()]
+                      if not isinstance(e.get("escena"), dict)
+                      or not (e["escena"].get("figuras") or e["escena"].get("interior")
+                              or e["escena"].get("fondo"))]
         if sin_dibujo:
             cuales = ", ".join(str(i) for i in sin_dibujo)
-            return (f"las escenas {cuales} no traen 'ai_image_prompt'. Este canal es "
-                    "dibujado: una escena sin dibujo acaba en foto de archivo generica")
+            return (f"las escenas {cuales} no traen 'escena'. Este canal se dibuja con "
+                    "monigotes: una escena sin dibujo acaba en foto de archivo generica")
+        # Y que lo que pidan se sepa dibujar. No se rechaza por esto - el
+        # vocabulario se limpia solo -, pero si TODAS las figuras de un guion
+        # cayeran al monigote por defecto seria que el modelo no ha entendido
+        # el formato, y eso si hay que reintentarlo.
+        from . import monigotes
+        reconocidas = sum(
+            1 for e in escenas
+            for f in monigotes.limpia(e["escena"])["figuras"]
+            if f["pose"] != "de_pie" or f["gesto"] != "neutro" or f["gorro"])
+        if not reconocidas:
+            return ("ninguna figura de ninguna escena trae pose, gesto ni gorro que se sepa "
+                    "dibujar: saldrian cinco monigotes de pie mirando al frente")
     if not isinstance(script.get("tags"), list):
         return "las etiquetas no son una lista"
     for clave in ("title", "description"):
