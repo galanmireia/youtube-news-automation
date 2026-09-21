@@ -128,6 +128,58 @@ _MIN_ILUSTRACIONES = 3
 _MAX_ILUSTRACIONES = 14
 
 
+def _ilustrar(scene: dict, i: int, out_dir: Path, aspect_ratio: str,
+              marcas, highlight: str):
+    """El dibujo de una escena, con su bocadillo si alguien habla.
+
+    Estaba metido a mano en medio del bucle y era lo ULTIMO que se intentaba,
+    detras de la foto real, de las imagenes del articulo y de la tarjeta de
+    dato. En un canal dibujado eso significa no dibujar nunca: cualquier
+    escena de historia nombra a alguien o algun sitio, asi que siempre ganaba
+    la foto. Sacarlo aqui permite llamarlo PRIMERO en vertical y dejarlo
+    donde estaba en horizontal.
+
+    Devuelve la entrada de clip lista - (fichero, rotulo) - o None si no hay
+    prompt o si la generacion falla, que es cuando hay que seguir buscando.
+    """
+    prompt = (scene.get("ai_image_prompt") or "").strip()
+    if not prompt:
+        return None
+    image_path = ai_images.generate_image(prompt, out_dir / f"clip_{i:02d}.jpg", aspect_ratio)
+    if image_path is None:
+        return None
+    # Si en esta escena alguien habla, el globo y CUANDO sale. La ventana
+    # viene de las marcas de la narracion, no a ojo: la frase va
+    # entrecomillada dentro del texto que se narra, asi que se sabe el
+    # instante exacto en que la voz la dice.
+    globo = None
+    cita = bocadillos.cita_de(scene.get("narration", ""))
+    if cita:
+        marca = marcas[i] if marcas and i < len(marcas) else None
+        ventana = (bocadillos.cuando_se_dice(marca[0], marca[1], cita)
+                   if marca else None)
+        if ventana:
+            ancho_v, alto_v = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
+            png = bocadillos.dibujar(
+                cita, ancho_v, alto_v, out_dir / f"globo_{i:02d}.png",
+                lado="izquierda" if i % 2 == 0 else "derecha")
+            if png is not None:
+                globo = {"png": str(png), "desde": ventana[0], "hasta": ventana[1]}
+                logger.info("Escena %s: bocadillo \u00ab%s\u00bb de %.1fs a %.1fs.",
+                            i, cita[:32], ventana[0], ventana[1])
+        else:
+            logger.info("Escena %s: hay cita \u00ab%s\u00bb pero sin tiempos; sin bocadillo.",
+                        i, cita[:32])
+    # Same badge the stock-footage branch puts on its first clip: a scene that
+    # states a fact should state it whatever kind of image ends up carrying it.
+    tag = {"caption": highlight} if highlight else None
+    if globo:
+        # El bocadillo manda sobre el rotulo de dato: si alguien habla en este
+        # plano, eso es lo que hay que ver.
+        tag = {**(tag or {}), "bocadillo": globo}
+    return (image_path, tag)
+
+
 def _cupo_de_ilustraciones(escenas: int, aspect_ratio: str) -> int:
     if aspect_ratio == "9:16":
         return _MAX_AI_IMAGES["9:16"]
@@ -395,6 +447,43 @@ def fetch_clips_for_scenes(
             clip_entries.append([(card_path, None)])
             continue
 
+        # EL DIBUJO VA PRIMERO, no el ultimo.
+        #
+        # El video #81 se genero con el cupo ya subido a ocho ilustraciones,
+        # con el estilo nuevo y con los bocadillos puestos, y salio sin un
+        # solo dibujo: "Cupo de ilustraciones por IA para este video: 8" y
+        # detras cero. El motivo estaba en el ORDEN. La ilustracion era la
+        # ultima opcion de la cadena - por detras de la foto real, de las
+        # imagenes del articulo y de la tarjeta de dato - y en historia
+        # siempre hay una foto: la escena 1 encontro a la duquesa en Commons,
+        # la 2 tambien, la 4 se fue a una diapositiva y las que quedaron
+        # cayeron en Pexels. El dibujo nunca llego a tener su turno.
+        #
+        # En vertical se invierte: el canal es dibujado, asi que se dibuja, y
+        # la foto real solo aparece si la generacion falla. Da igual lo bueno
+        # que sea el dibujo si el codigo no lo deja salir.
+        highlight = (scene.get("on_screen_highlight") or "").strip()
+        dibujo_intentado = False
+        if es_vertical and (scene.get("ai_image_prompt") or "").strip():
+            if ai_images_left > 0:
+                ai_images_left -= 1
+                dibujo_intentado = True
+                hecho = _ilustrar(scene, i, out_dir, aspect_ratio, marcas, highlight)
+                if hecho is not None:
+                    # A la miniatura tambien: en un canal dibujado la portada
+                    # tiene que ser un dibujo del propio video, no una foto de
+                    # archivo que no sale en el.
+                    if retratos is not None:
+                        retratos.append(Path(hecho[0]))
+                    clip_entries.append([hecho])
+                    continue
+                logger.warning(
+                    "Escena %s: la ilustracion no ha salido; se busca imagen real.", i)
+            else:
+                logger.info(
+                    "Escena %s: pedia dibujo, pero el video ya ha gastado su cupo de %s.",
+                    i, _cupo_de_ilustraciones(len(scenes), aspect_ratio))
+
         photo_subject = (scene.get("photo_subject") or "").strip()
         # detected_entities comes from a dedicated Claude pass over the
         # final narration (see entity_extraction.py) - far more reliable
@@ -628,7 +717,11 @@ def fetch_clips_for_scenes(
             last_card_index = i
             continue
 
-        ai_image_prompt = (scene.get("ai_image_prompt") or "").strip()
+        # En horizontal el dibujo sigue siendo el ultimo recurso, que es lo
+        # correcto en un video largo con foto real disponible. En vertical ya
+        # se ha intentado arriba, asi que aqui no se repite ni se vuelve a
+        # pagar.
+        ai_image_prompt = "" if dibujo_intentado else (scene.get("ai_image_prompt") or "").strip()
         if ai_image_prompt and ai_images_left <= 0:
             logger.info(
                 "Escena %s: pedia ilustracion por IA, pero este video ya ha gastado su cupo de %s.",
@@ -638,39 +731,9 @@ def fetch_clips_for_scenes(
             ai_image_prompt = ""
         if ai_image_prompt:
             ai_images_left -= 1
-            image_path = ai_images.generate_image(ai_image_prompt, out_dir / f"clip_{i:02d}.jpg", aspect_ratio)
-            # Si en esta escena alguien habla, el globo y CUANDO sale. La
-            # ventana viene de las marcas de la narracion, no a ojo: la frase
-            # va entrecomillada dentro del texto que se narra, asi que se sabe
-            # el instante exacto en que la voz la dice.
-            globo = None
-            cita = bocadillos.cita_de(scene.get("narration", ""))
-            if cita and image_path is not None:
-                marca = marcas[i] if marcas and i < len(marcas) else None
-                ventana = (bocadillos.cuando_se_dice(marca[0], marca[1], cita)
-                           if marca else None)
-                if ventana:
-                    ancho_v, alto_v = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
-                    png = bocadillos.dibujar(
-                        cita, ancho_v, alto_v, out_dir / f"globo_{i:02d}.png",
-                        lado="izquierda" if i % 2 == 0 else "derecha")
-                    if png is not None:
-                        globo = {"png": str(png), "desde": ventana[0], "hasta": ventana[1]}
-                        logger.info("Escena %s: bocadillo «%s» de %.1fs a %.1fs.",
-                                    i, cita[:32], ventana[0], ventana[1])
-                else:
-                    logger.info("Escena %s: hay cita «%s» pero sin tiempos; sin bocadillo.",
-                                i, cita[:32])
-            if image_path is not None:
-                # Same badge the stock-footage branch puts on its first clip:
-                # a scene that states a fact should state it whatever kind of
-                # image ends up carrying it.
-                tag = {"caption": highlight} if highlight else None
-                if globo:
-                    # El bocadillo manda sobre el rotulo de dato: si alguien
-                    # habla en este plano, eso es lo que hay que ver.
-                    tag = {**(tag or {}), "bocadillo": globo}
-                clip_entries.append([(image_path, tag)])
+            hecho = _ilustrar(scene, i, out_dir, aspect_ratio, marcas, highlight)
+            if hecho is not None:
+                clip_entries.append([hecho])
                 continue
 
         # visual_keywords can be intentionally empty when the scene expected a
@@ -680,7 +743,9 @@ def fetch_clips_for_scenes(
         # proper noun meant for Wikipedia, and Pexels indexes in English, so
         # searching it returns nothing useful - a scene about Pekin searched
         # Pexels for "Pekin" and fell through to generic footage anyway.
-        query = (scene.get("visual_keywords") or "").strip() or ai_image_prompt or _LAST_RESORT_QUERIES.get(CONTENT_MODE, _LAST_RESORT_FALLBACK)
+        query = ((scene.get("visual_keywords") or "").strip()
+                 or (scene.get("ai_image_prompt") or "").strip()
+                 or _LAST_RESORT_QUERIES.get(CONTENT_MODE, _LAST_RESORT_FALLBACK))
         # A long scene gets several clips rather than one held for its whole
         # length. Each search excludes the clips already used, so they differ.
         por_plano = _SEGUNDOS_POR_PLANO_VERTICAL if es_vertical else _MAX_SECONDS_PER_CLIP

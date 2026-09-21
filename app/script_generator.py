@@ -318,36 +318,7 @@ nombrada es una victima de un crimen/tragedia o un particular sin relevancia pub
 la foto real de victimas o personas privadas - esta excepcion es solo para personas, nunca aplica a
 lugares).
 
-Ilustracion por IA ("ai_image_prompt"): es para las escenas ABSTRACTAS, las que no tienen nada real
-que enseñar. Si la escena nombra una persona, un lugar o una institucion con nombre propio, va
-SIEMPRE en "photo_subject" y nunca aqui: una foto real de Wikipedia es gratis y siempre mejor, y una
-ilustracion de un sitio real identificable se nota que esta inventada. Pero cuando la frase habla de
-una idea, un proceso, una cifra o una consecuencia y no hay nada que fotografiar, una ilustracion
-que diga EXACTAMENTE eso vale mucho mas que un clip de archivo generico de gente tecleando: es
-precisamente ahi donde el video se llena ahora de imagenes que no pegan, y esto lo arregla.
-
-Lo que escribes es SOLO EL CONTENIDO de la imagen, en ingles, en una frase: que se ve, quien o que
-es el sujeto, que esta pasando. NO describas el estilo, ni colores, ni iluminacion, ni "editorial
-illustration", ni "news graphic style" - el estilo lo pone el sistema automaticamente e igual para
-todas, y si lo describes tu cada escena saldra de su padre y de su madre y el video parecera un
-collage.
-
-La ilustracion tiene que representar LO QUE DICE ESA FRASE CONCRETA, no el tema general del video.
-Antes de escribirla, pregunta: "si alguien ve esta imagen sin sonido, entiende la frase que estoy
-narrando?". Si la respuesta es no, esta mal.
-- Narracion: "la banca gano un 30% mas mientras las hipotecas subian" -> "a rising stack of coins
-  beside a small house weighed down by an oversized percentage arrow"
-- Narracion: "el algoritmo decide quien recibe la ayuda sin que nadie lo revise" -> "a faceless
-  automated machine sorting human silhouettes into two separate groups"
-- MAL (vago, no dice nada): "technology concept", "economic uncertainty", "political tension"
-
-Nunca pidas personas reales reconocibles, y en este canal eso es literal: nada de caras de
-victimas, de desaparecidos ni de acusados, ni siquiera dibujadas. Para representar una
-organizacion usa el COLOR o un objeto asociado, nunca su logo: estos modelos los dibujan
-deformados y canta muchisimo.
-
-Deja "ai_image_prompt" vacio ("") cuando la escena si tenga algo real que enseñar o cuando un clip
-de archivo concreto la represente bien.
+{bloque_ilustracion}
 
 LA PRIMERA ESCENA TIENE UN TRABAJO DISTINTO. Su imagen no esta ahi para ilustrar la frase: esta
 ahi para que el espectador no se vaya. Asi que en la escena 1 las "visual_keywords" tienen que
@@ -628,6 +599,53 @@ _VARIANT_CONFIG = {
             '- Incluye "#Shorts" como uno de los hashtags al final de la descripcion (obligatorio '
             "para que YouTube lo clasifique bien como Short)."
         ),
+        # El dibujo es el video, no un recurso para cuando no hay foto. La
+        # regla de antes - "la ilustracion es para las escenas ABSTRACTAS, si
+        # hay algo real va SIEMPRE en photo_subject" - se escribio para un
+        # canal de noticias y aqui deja el guion sin un solo dibujo: en
+        # historia TODAS las escenas nombran a alguien o algun sitio.
+        "bloque_ilustracion": """Ilustracion por IA ("ai_image_prompt"): OBLIGATORIA EN TODAS Y CADA UNA DE LAS ESCENAS.
+
+Este canal es DIBUJADO. No es un documental con fotos de archivo: es una historia contada con
+dibujos, y la voz va encima. Una escena sin "ai_image_prompt" acaba con una foto de banco de
+imagenes que no es de esto - una puesta de sol, un pasillo, gente anonima - y eso es lo que hace
+que el espectador deslice. Si no se te ocurre que dibujar, dibuja LA ACCION de la frase: alguien
+haciendo algo, en un sitio, con una cara.
+
+Lo que escribes es SOLO EL CONTENIDO de la imagen, en ingles, en una frase: que se ve, quien es
+el sujeto, que esta pasando y que se le nota en la cara. NO describas el estilo, ni colores, ni
+iluminacion, ni "illustration", ni "comic style", ni "cinematic" - el estilo lo pone el sistema,
+igual para todas, y si lo describes tu cada plano saldra de su padre y de su madre y el video
+parecera un collage.
+
+QUE HAYA GENTE Y QUE SE LES VEA LO QUE SIENTEN. Un mapa, un edificio vacio o un objeto suelto no
+sostienen un plano de siete segundos. En casi todas las escenas tiene que haber PERSONAS haciendo
+algo concreto: gritando, firmando, huyendo, negandose, muertas de miedo. Ademas la camara se
+mueve por dentro del dibujo, asi que el dibujo necesita tener cosas dentro que mirar.
+
+La ilustracion representa LO QUE DICE ESA FRASE, no el tema general del video. Antes de
+escribirla, pregunta: "si alguien ve esta imagen sin sonido, entiende la frase que estoy
+narrando?". Si la respuesta es no, esta mal.
+- "Siguieron defendiendo una iglesia once meses despues de perder la guerra." -> "exhausted
+  ragged soldiers barricaded behind the shuttered windows of a small church, rifles pointed out,
+  one of them staring at a torn flag"
+- "En Lepanto remaban encadenados doce mil hombres que no eran soldados." -> "rows of chained
+  rowers straining at heavy oars in the flooded belly of a war galley, an overseer shouting
+  above them"
+- MAL, vago, no dice nada: "a historic battle", "Spanish history concept", "an old map of Spain"
+
+LA ESCENA EN LA QUE ALGUIEN HABLA se dibuja distinto: que se vea QUIEN habla, de medio cuerpo o
+de cerca, con la boca abierta, y que quede sitio libre arriba - cielo, humo, una pared, un techo -
+porque justo ahi aparece el bocadillo con su frase.
+
+CARAS REALES, NO. De alguien que llego a ser FOTOGRAFIADO - de mediados del siglo XIX en adelante -
+no pidas nunca la cara: sale un parecido falso y canta muchisimo. Dibujalo de espaldas, de lejos,
+en sombra, o dibuja la escena sin el. De alguien anterior a eso - un rey medieval, un almirante
+del XVI - dibujalo con normalidad, que es lo que hace cualquier libro de historia. Y de una
+victima o un acusado de un crimen, jamas, ni dibujado.
+
+Para representar una organizacion usa el COLOR o un objeto asociado, nunca su logo: estos modelos
+los dibujan deformados y se nota.""",
     },
     "long": {
         "format_hint": "Video horizontal (16:9) extendido para YouTube, no es un Short.",
@@ -644,6 +662,39 @@ _VARIANT_CONFIG = {
             "matices en el analisis."
         ),
         "shorts_seo_hint": "",
+        # En horizontal se queda como estaba: un video largo con foto real de
+        # Wikipedia donde la hay es correcto, y dibujarlo entero costaria
+        # catorce ilustraciones.
+        "bloque_ilustracion": """Ilustracion por IA ("ai_image_prompt"): es para las escenas ABSTRACTAS, las que no tienen nada real
+que enseñar. Si la escena nombra una persona, un lugar o una institucion con nombre propio, va
+SIEMPRE en "photo_subject" y nunca aqui: una foto real de Wikipedia es gratis y siempre mejor, y una
+ilustracion de un sitio real identificable se nota que esta inventada. Pero cuando la frase habla de
+una idea, un proceso, una cifra o una consecuencia y no hay nada que fotografiar, una ilustracion
+que diga EXACTAMENTE eso vale mucho mas que un clip de archivo generico de gente tecleando: es
+precisamente ahi donde el video se llena ahora de imagenes que no pegan, y esto lo arregla.
+
+Lo que escribes es SOLO EL CONTENIDO de la imagen, en ingles, en una frase: que se ve, quien o que
+es el sujeto, que esta pasando. NO describas el estilo, ni colores, ni iluminacion, ni "editorial
+illustration", ni "news graphic style" - el estilo lo pone el sistema automaticamente e igual para
+todas, y si lo describes tu cada escena saldra de su padre y de su madre y el video parecera un
+collage.
+
+La ilustracion tiene que representar LO QUE DICE ESA FRASE CONCRETA, no el tema general del video.
+Antes de escribirla, pregunta: "si alguien ve esta imagen sin sonido, entiende la frase que estoy
+narrando?". Si la respuesta es no, esta mal.
+- Narracion: "la banca gano un 30% mas mientras las hipotecas subian" -> "a rising stack of coins
+  beside a small house weighed down by an oversized percentage arrow"
+- Narracion: "el algoritmo decide quien recibe la ayuda sin que nadie lo revise" -> "a faceless
+  automated machine sorting human silhouettes into two separate groups"
+- MAL (vago, no dice nada): "technology concept", "economic uncertainty", "political tension"
+
+Nunca pidas personas reales reconocibles, y en este canal eso es literal: nada de caras de
+victimas, de desaparecidos ni de acusados, ni siquiera dibujadas. Para representar una
+organizacion usa el COLOR o un objeto asociado, nunca su logo: estos modelos los dibujan
+deformados y canta muchisimo.
+
+Deja "ai_image_prompt" vacio ("") cuando la escena si tenga algo real que enseñar o cuando un clip
+de archivo concreto la represente bien.""",
     },
 }
 
@@ -811,6 +862,18 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long") -> str | None:
             return (f"{palabras} palabras de narracion para un Short, que son "
                     f"unos {palabras / 2.2:.0f} segundos; el tope son "
                     f"{_PALABRAS_MAXIMAS_SHORT}")
+        # Y QUE TODAS LLEVEN DIBUJO. Esto es lo que fallo en el #81: el canal
+        # entero se monto para ser dibujado, se subio el cupo a ocho
+        # ilustraciones y el video salio con cero, porque el guion no pidio ni
+        # una. Una escena sin "ai_image_prompt" no da un video un poco peor:
+        # da una foto de stock generica, que es de lo que se queja ella desde
+        # el primer dia. Se comprueba AQUI, que es antes de pagar la voz.
+        sin_dibujo = [i for i, e in enumerate(escenas, 1)
+                      if not (e.get("ai_image_prompt") or "").strip()]
+        if sin_dibujo:
+            cuales = ", ".join(str(i) for i in sin_dibujo)
+            return (f"las escenas {cuales} no traen 'ai_image_prompt'. Este canal es "
+                    "dibujado: una escena sin dibujo acaba en foto de archivo generica")
     if not isinstance(script.get("tags"), list):
         return "las etiquetas no son una lista"
     for clave in ("title", "description"):
