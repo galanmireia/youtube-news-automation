@@ -19,6 +19,8 @@ exact match.
 """
 
 import logging
+import re
+import unicodedata
 
 import requests
 
@@ -111,6 +113,62 @@ CATALOGUE = _CatalogoPorFecha()
 
 
 
+_PALABRAS_VACIAS = frozenset({
+    "como", "para", "sobre", "entre", "hasta", "desde", "donde", "cuando",
+    "porque", "aunque", "tiene", "tienen", "tenia", "fueron", "estaba",
+    "anos", "siglo", "historia", "mundo", "parte", "todos", "todas", "mejor",
+    "mayor", "mas", "menos", "esta", "este", "esto", "esos", "esas",
+})
+
+
+def _palabras(texto: str) -> set[str]:
+    limpio = unicodedata.normalize("NFKD", texto.lower())
+    limpio = "".join(c for c in limpio if not unicodedata.combining(c))
+    return {p for p in re.split(r"[^a-z0-9]+", limpio)
+            if len(p) >= 4 and p not in _PALABRAS_VACIAS}
+
+
+# Lo que un titulo de Wikipedia pone DELANTE del tema de verdad: "Monasterio
+# de El Escorial", "Batalla de Lepanto", "Anexo:Bienes de interes cultural".
+# Son palabras de catalogo, no del tema, y casi nunca aparecen en un titulo de
+# YouTube - asi que contarlas hundia resoluciones correctas. Lo que decide es
+# el nombre propio que queda: Escorial, Lepanto.
+_DE_CATALOGO = frozenset({
+    "anexo", "batalla", "batallas", "guerra", "guerras", "monasterio",
+    "iglesia", "catedral", "castillo", "palacio", "motin", "asedio", "sitio",
+    "conquista", "reino", "corona", "casa", "caso", "tratado", "revuelta",
+    "rebelion", "expedicion", "naufragio", "incendio", "epidemia", "desastre",
+    "atentado", "batallon", "regimiento", "dinastia", "imperio",
+})
+
+
+def _tiene_que_ver(termino: str, titulo: str) -> bool:
+    """¿El articulo que ha devuelto la busqueda va de lo que se buscaba?
+
+    La busqueda de Wikipedia SIEMPRE devuelve algo, y comprobar solo que
+    devuelva algo es no comprobar nada. Lo vi con esto:
+
+      'España tiene las fronteras mas extrañas del mundo' -> 'Mundo islamico'
+
+    y la tanda se puso a escribir un guion sobre el mundo islamico. Coincidia
+    la palabra "mundo" y ya esta.
+
+    Se mira al reves de como parece: que las palabras del TITULO esten en lo
+    que se buscaba. Un titulo bueno no trae temas nuevos - "Batalla de
+    Lepanto" sale de "la batalla de Lepanto contada entera" y no añade nada -
+    mientras que uno malo aparece con palabras de la nada, como "islamico".
+    """
+    del_titulo = _palabras(titulo) - _DE_CATALOGO
+    if not del_titulo:
+        # El titulo entero era catalogo ("Guerra civil"): se mira sin quitar
+        # nada, porque algo tiene que coincidir.
+        del_titulo = _palabras(titulo)
+    if not del_titulo:
+        return True
+    dentro = del_titulo & _palabras(termino)
+    return len(dentro) / len(del_titulo) >= 0.5
+
+
 def _resolve(term: str) -> str | None:
     """The real article title for a search term, or None if Wikipedia has no
     article for it. Searching rather than assuming means an entry written from
@@ -119,14 +177,20 @@ def _resolve(term: str) -> str | None:
         from . import research
         response = research.peticion(
             WIKIPEDIA_API_URL,
-            {"action": "query", "list": "search", "srsearch": term, "srlimit": 1,
+            {"action": "query", "list": "search", "srsearch": term, "srlimit": 5,
              "format": "json"},
             timeout=20,
         )
         if response is None or response.status_code != 200:
             return None
         results = response.json().get("query", {}).get("search", [])
-        return results[0]["title"] if results else None
+        for resultado in results:
+            titulo = resultado["title"]
+            if _tiene_que_ver(term, titulo):
+                return titulo
+            logger.info("Wikipedia devuelve %r para %r, que no tiene nada que ver.",
+                        titulo, term[:50])
+        return None
     except (requests.RequestException, KeyError, ValueError, IndexError):
         return None
 

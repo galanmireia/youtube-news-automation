@@ -885,7 +885,8 @@ _ABRE_SITUANDO = re.compile(
 _PALABRAS_MAXIMAS_SHORT = 110
 
 
-def _que_le_pasa_al_guion(script: dict, variant: str = "long") -> str | None:
+def _que_le_pasa_al_guion(script: dict, variant: str = "long",
+                          exigente: bool = True) -> str | None:
     """What is wrong with this script, or None when nothing is.
 
     Checked before anything expensive runs. Everything downstream reads
@@ -905,7 +906,16 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long") -> str | None:
         narracion = escena.get("narration")
         if not isinstance(narracion, str) or not narracion.strip():
             return f"la escena {i} no tiene narracion"
-    if variant == "short":
+    # Las de mas abajo son de CALIDAD, no de que el video reviente: un Short
+    # de sesenta segundos sin bocadillos es peor que uno bueno, pero es
+    # infinitamente mejor que ningun video. En el ultimo intento se aceptan.
+    #
+    # Esto lo aprendi tirando 0,37 $ y una tanda entera: puse la regla de los
+    # bocadillos como obligatoria y el tema que toco fue 'Mundo islamico', un
+    # articulo enciclopedico donde no habla nadie. Tres guiones pagados,
+    # ningun video. Una regla nueva sin pensar que pasa cuando no se puede
+    # cumplir.
+    if variant == "short" and exigente:
         primera = (escenas[0].get("narration") or "").strip()
         if _ABRE_SITUANDO.match(primera):
             return (f"la escena 1 abre situando ({primera[:40]}...), que es lo que "
@@ -1145,12 +1155,22 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
         # en el paso 4 o 5 - con la narracion del paso 3 YA PAGADA, que son
         # unos siete mil quinientos creditos. Repetir el guion cuesta treinta
         # centimos; descubrirlo despues cuesta el video entero.
-        problema = _que_le_pasa_al_guion(script, variant)
+        # En el ultimo intento solo se miran los fallos que revientan el
+        # video; lo de calidad se acepta y se avisa. Perder un guion ya
+        # pagado por una regla de estilo es el peor cambio posible.
+        ultimo = attempt >= _MAX_ATTEMPTS
+        problema = _que_le_pasa_al_guion(script, variant, exigente=not ultimo)
         if problema:
             logger.warning("generate_script (%s): guion mal formado (%s). Intento %s.",
                            variant, problema, attempt)
             last_error = ValueError(f"Guion mal formado: {problema}")
             continue
+        if ultimo:
+            pega = _que_le_pasa_al_guion(script, variant, exigente=True)
+            if pega:
+                logger.warning(
+                    "generate_script (%s): el guion sale con una pega despues de %s "
+                    "intentos y se acepta igual - %s.", variant, attempt, pega)
 
         _log_accent_rate(script, variant)
         return script

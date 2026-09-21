@@ -289,8 +289,18 @@ def _ya_hecho(termino: str) -> bool:
 
 
 def _resuelve(termino: str) -> bool:
-    """¿La busqueda de Wikipedia encuentra algo con ese nombre?"""
+    """¿Hay articulo, Y es de esto?
+
+    Usa el MISMO resolutor que luego generara el video. Antes preguntaba por
+    su cuenta con research.buscar, que solo dice si la busqueda devuelve
+    algo, y ahora el otro camino ademas comprueba que el articulo tenga que
+    ver con lo buscado. Con dos criterios distintos un tema puede pasar el
+    filtro de la tanda y morirse al generarlo - que es justo el fallo que
+    arregle esta tarde, otra vez y por otro sitio.
+    """
     try:
-        return bool(research.buscar(WIKI_LANG, termino, cuantos=1))
+        from .topic_source import _resolve
+        return _resolve(termino) is not None
     except Exception:
+        logger.warning("No he podido resolver %r.", termino[:50], exc_info=True)
         return False
