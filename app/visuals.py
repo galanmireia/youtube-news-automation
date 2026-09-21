@@ -8,7 +8,7 @@ from pathlib import Path
 
 import requests
 
-from . import ai_images, branding, oficial, real_photos, slides, fotos_propias
+from . import ai_images, archivo, branding, oficial, real_photos, slides, fotos_propias
 from .branding import BACKGROUND_COLOR
 from .config import CONTENT_MODE, CHANNEL_NAME, PEXELS_API_KEY, PIXABAY_API_KEY
 
@@ -182,7 +182,8 @@ def _pick_video_file(video: dict, target_width: int, target_height: int) -> dict
     )
 
 
-def fetch_clip_for_scene(keywords: str, out_path: Path, aspect_ratio: str, used_video_ids: set[int]) -> Path:
+def fetch_clip_for_scene(keywords: str, out_path: Path, aspect_ratio: str,
+                         used_video_ids: set[int], creditos_archivo: list | None = None) -> Path:
     orientation = _PEXELS_ORIENTATION.get(aspect_ratio, "landscape")
     target_width, target_height = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
     target_is_portrait = target_height > target_width
@@ -239,6 +240,29 @@ def fetch_clip_for_scene(keywords: str, out_path: Path, aspect_ratio: str, used_
             continue
         chosen_video = _choose(matching)
         break
+
+    if chosen_video is None:
+        # Antes de conformarse con un clip mal encuadrado, Archive.org. Es
+        # distinto de Pexels y Pixabay y por eso va aqui: aquellos tienen
+        # stock generico - "mar", "barco" - y este tiene EL HECHO, filmado
+        # cuando paso. Para un canal de efemerides eso no es un respaldo peor,
+        # es material mejor; lo que pasa es que no siempre existe, y cuando no
+        # existe hay que seguir teniendo algo que poner.
+        for query in queries:
+            piezas = archivo.buscar(query, cuantos=3)
+            fichero = next((c for pz in piezas for c in archivo.clips_de(pz["id"])), None)
+            if fichero is None:
+                continue
+            try:
+                _download_to_file(fichero["url"], out_path)
+            except Exception:
+                logger.warning("Archive.org: no se ha podido bajar %s", fichero["nombre"])
+                continue
+            pieza = next(pz for pz in piezas if pz["id"] in fichero["url"])
+            logger.info("Archive.org da metraje real para %r: %s", query, pieza["titulo"][:60])
+            if creditos_archivo is not None:
+                creditos_archivo.append(archivo.credito_de(pieza))
+            return out_path
 
     if chosen_video is None and wrong_shape:
         logger.info(
@@ -556,7 +580,8 @@ def fetch_clips_for_scenes(
             out_path = out_dir / f"clip_{i:02d}_{j}.mp4"
             logger.info("Escena %s: buscando clip %s/%s en Pexels para %r...", i, j + 1, clip_count, query)
             try:
-                fetch_clip_for_scene(query, out_path, aspect_ratio, used_video_ids)
+                fetch_clip_for_scene(query, out_path, aspect_ratio, used_video_ids,
+                                     creditos_archivo=creditos)
             except Exception:
                 # La red de seguridad: aqui la narracion YA esta pagada.
                 logger.warning(

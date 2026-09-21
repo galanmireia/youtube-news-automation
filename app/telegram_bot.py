@@ -10,7 +10,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
-from . import (ai_images, demanda, efemerides, fotos_propias, news_source, oficial,
+from . import (ai_images, archivo, demanda, efemerides, fotos_propias, news_source, oficial,
                real_photos, research, storage, tendencias, topic_source, tts,
                voice_align, voice_clone)
 from .voice_align import AlignmentFailed
@@ -1175,6 +1175,49 @@ def _varios_temas(args, comando: str) -> tuple[list[str], list[str]]:
     return temas[:5], ajenos
 
 
+async def handle_archivo_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/archivo <tema> - metraje real y libre en Archive.org.
+
+    Lo que nos faltaba: video EN MOVIMIENTO de hechos historicos. Para el
+    calendario del canal es justo lo que hace falta, porque casi todo son
+    efemerides de cosas que se filmaron."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    temas, ajenos = _varios_temas(context.args, "archivo")
+    if not temas:
+        await update.message.reply_text("Dime de que: /archivo Estonia ferry 1994")
+        return
+    if ajenos:
+        await update.message.reply_text(
+            "Ojo, lleva otro comando dentro (" + ", ".join(ajenos[:3]) + "), mandalo aparte.")
+    await update.message.reply_text(
+        "Buscando metraje libre de *" + "*, *".join(temas) + "*...", parse_mode="Markdown")
+
+    loop = asyncio.get_running_loop()
+    lineas: list[str] = []
+    for tema in temas:
+        try:
+            piezas = await loop.run_in_executor(None, archivo.buscar, tema)
+        except Exception:
+            logger.exception("Error buscando en Archive.org %r", tema)
+            lineas += [f"*{tema}*", "  · no he podido comprobarlo, mira los logs", ""]
+            continue
+        lineas.append(f"*{tema}*")
+        if not piezas:
+            lineas += ["  ✗ nada publicable. Hay material, pero sin licencia",
+                       "    que permita usarlo en un canal monetizado.", ""]
+            continue
+        lineas.append(f"  ✓ {len(piezas)} piezas utilizables")
+        for pz in piezas[:5]:
+            año = f" ({pz['año']})" if pz.get("año") else ""
+            lineas.append(f"      · {pz['titulo'][:44]}{año}")
+            lineas.append(f"        {pz['licencia'][:50]}")
+        lineas.append("")
+    await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                                   text=_recorta_pie("\n".join(lineas)),
+                                   parse_mode="Markdown", disable_web_page_preview=True)
+
+
 async def handle_oficial_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/oficial <nombre o caso> - ¿hay material oficial que se pueda usar?
 
@@ -1704,6 +1747,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("viable", handle_viable_command))
     application.add_handler(CommandHandler("fotos", handle_photos_command))
     application.add_handler(CommandHandler("oficial", handle_oficial_command))
+    application.add_handler(CommandHandler("archivo", handle_archivo_command))
     application.add_handler(CommandHandler("tendencias", handle_trending_command))
     application.add_handler(CommandHandler("calendario", handle_calendar_command))
     application.add_handler(CommandHandler("catalogo", handle_catalogue_command))
