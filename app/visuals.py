@@ -540,6 +540,41 @@ def fetch_clips_for_scenes(
             ])
             continue
 
+        # LAS IMAGENES DEL PROPIO ARTICULO, como plano.
+        #
+        # Esto faltaba entero y se vio en el primer Short del canal nuevo: un
+        # motin en el Sahara en 1975 ilustrado con una puesta de sol de stock.
+        # Y no era que no hubiera material - Commons tiene fotos de la epoca,
+        # del territorio y de las unidades - era que NI SE MIRABAN.
+        #
+        # El buscador se escribio para un canal de sucesos, donde lo que hace
+        # falta es la CARA de alguien con nombre. En historia las imagenes que
+        # valen son otras: el mapa, el sitio, el grabado, la foto de epoca. Y
+        # estan en el articulo del caso, que hasta ahora se abria solo para
+        # rebuscar retratos dentro y se cerraba sin mirar el resto.
+        #
+        # Va despues de las caras y antes del stock a proposito: una cara con
+        # nombre sigue siendo mejor, pero cualquier imagen del articulo es
+        # mejor que un plano generico que no es de esto.
+        if caso and not found:
+            if imagenes_del_caso is None:
+                imagenes_del_caso = real_photos.imagenes_del_caso(caso)
+            del_articulo = None
+            for url, fichero in imagenes_del_caso:
+                if url in used_photo_urls:
+                    continue
+                destino = out_dir / f"clip_{i:02d}_art.jpg"
+                if real_photos._download(url, destino):
+                    used_photo_urls.add(url)
+                    if creditos is not None:
+                        creditos.append(url)
+                    del_articulo = (destino, fichero)
+                    break
+            if del_articulo is not None:
+                logger.info("Escena %s: imagen del articulo (%s).", i, del_articulo[1][:48])
+                clip_entries.append([(del_articulo[0], None)])
+                continue
+
         highlight = (scene.get("on_screen_highlight") or "").strip()
         # A scene with no real subject and a concrete fact to state is better
         # served by the fact than by whatever stock footage a vague search

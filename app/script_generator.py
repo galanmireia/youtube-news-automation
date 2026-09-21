@@ -583,9 +583,18 @@ _VARIANT_CONFIG = {
             "te sobran datos, guardalos - hay mas videos."
         ),
         "duration_hint": "30-40 segundos",
-        "scene_count_hint": "entre 4 y 5 escenas",
+        "scene_count_hint": (
+            "EXACTAMENTE 5 escenas, y el guion ENTERO no puede pasar de 85 PALABRAS "
+            "de narracion sumando todas. Cuentalas antes de contestar. El primer Short "
+            "de este canal pidio 4 o 5 escenas y devolvio 7, con 66 segundos en vez de "
+            "35: el numero de escenas no ata, el presupuesto de palabras si"
+        ),
         "scene_length_hint": (
-            "Cada narracion es UNA frase corta y directa de UNAS 20 PALABRAS - nunca dos frases, "
+            "LA ESCENA 1 NO PUEDE EMPEZAR POR UNA FECHA NI POR UN LUGAR. El primer Short "
+            "de este canal abrio con 'En mayo de 1975, en el Sahara...' - o sea situando, "
+            "que es justo lo que se prohibe mas arriba. Nada de 'En [año]', 'El [dia]', "
+            "'En [sitio]'. Empieza por lo que hicieron o por lo que paso.\n\n"
+            "Cada narracion es UNA frase corta y directa de UNAS 17 PALABRAS - nunca dos frases, "
             "nunca una frase larga con comas encadenadas. Con 5 o 6 escenas asi el Short sale en su "
             "duracion. Si una frase se te va larga, recorta adjetivos y contexto, nunca las cifras "
             "ni la causa tecnica."
@@ -730,7 +739,24 @@ def _trim_sources(summary: str, budget: int | None) -> str:
 
 
 
-def _que_le_pasa_al_guion(script: dict) -> str | None:
+# Una escena 1 que empieza situando. Se comprueba en codigo porque pedirlo en
+# el prompt no basto: el primer Short del canal abrio con "En mayo de 1975, en
+# el Sahara..." teniendo la regla escrita tres veces mas arriba.
+#
+# Y se comprueba ANTES de narrar, que es donde esta el dinero: un guion malo
+# cuesta veinte centimos de reescritura, y uno malo ya narrado cuesta mil
+# creditos y un video que nadie va a ver.
+_ABRE_SITUANDO = re.compile(
+    r"^\s*(en|el|la|los|las|durante|hacia|a\s+finales|a\s+principios|corria)\s+"
+    r"(el\s+|la\s+)?(\d{1,4}\b|\w+\s+de\s+\d{3,4}|[A-ZÁÉÍÓÚÑ])",
+    re.IGNORECASE,
+)
+
+
+_PALABRAS_MAXIMAS_SHORT = 110
+
+
+def _que_le_pasa_al_guion(script: dict, variant: str = "long") -> str | None:
     """What is wrong with this script, or None when nothing is.
 
     Checked before anything expensive runs. Everything downstream reads
@@ -750,6 +776,16 @@ def _que_le_pasa_al_guion(script: dict) -> str | None:
         narracion = escena.get("narration")
         if not isinstance(narracion, str) or not narracion.strip():
             return f"la escena {i} no tiene narracion"
+    if variant == "short":
+        primera = (escenas[0].get("narration") or "").strip()
+        if _ABRE_SITUANDO.match(primera):
+            return (f"la escena 1 abre situando ({primera[:40]}...), que es lo que "
+                    "mata un Short en los dos primeros segundos")
+        palabras = sum(len((e.get("narration") or "").split()) for e in escenas)
+        if palabras > _PALABRAS_MAXIMAS_SHORT:
+            return (f"{palabras} palabras de narracion para un Short, que son "
+                    f"unos {palabras / 2.2:.0f} segundos; el tope son "
+                    f"{_PALABRAS_MAXIMAS_SHORT}")
     if not isinstance(script.get("tags"), list):
         return "las etiquetas no son una lista"
     for clave in ("title", "description"):
@@ -949,7 +985,7 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
         # en el paso 4 o 5 - con la narracion del paso 3 YA PAGADA, que son
         # unos siete mil quinientos creditos. Repetir el guion cuesta treinta
         # centimos; descubrirlo despues cuesta el video entero.
-        problema = _que_le_pasa_al_guion(script)
+        problema = _que_le_pasa_al_guion(script, variant)
         if problema:
             logger.warning("generate_script (%s): guion mal formado (%s). Intento %s.",
                            variant, problema, attempt)
