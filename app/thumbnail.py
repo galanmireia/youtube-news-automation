@@ -2,7 +2,9 @@ import logging
 import subprocess
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageStat
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageStat
+
+from . import caras
 
 # Fractions of the video to consider for the thumbnail still. All well past
 # the intro card: sampling near the start meant every thumbnail was just the
@@ -204,38 +206,125 @@ def _sombra_abajo(imagen: Image.Image, alto_banda: int) -> Image.Image:
     return Image.composite(negro, imagen, mascara)
 
 
+
+# ----------------------------------------------- la miniatura con cara
+#
+# La primera version fue una bronca merecida: "me estas poniendo una puta foto
+# normal y corriente en vez de generar una miniatura entera". Y tenia razon -
+# era su foto con un rotulo encima, que es lo que hace cualquiera en treinta
+# segundos.
+#
+# Una miniatura que funciona hace tres cosas, y ninguna se puede hacer sin
+# saber DONDE esta la cara:
+#
+#   1. La cara grande. Ocupando casi la mitad del alto, no perdida en un plano
+#      general. Se mira a tamaño de sello: una cara pequeña no es una cara, es
+#      una mancha.
+#   2. La cara SEPARADA del fondo. Un fondo nitido compite con ella; borroso y
+#      oscuro, la empuja hacia delante.
+#   3. El texto DONDE NO LA TAPA. Antes el titulo caia sobre la barbilla
+#      porque se ponia siempre abajo, mirase quien mirase.
+_CARA_DEL_ALTO = 0.46      # cuanto del alto ocupa la cara
+_CARA_ALTURA_OJOS = 0.40   # a que altura queda su centro
+_DESENFOQUE = 14
+
+
+def _encuadrar_en_la_cara(ruta: Path, width: int, height: int) -> Image.Image | None:
+    """Recorta la foto para que la cara salga grande y a un lado.
+
+    A un lado y no en el centro porque el otro lado es donde va el texto. Con
+    la cara centrada solo quedan las esquinas, y ahi no cabe nada que se lea.
+    """
+    caja = caras.la_cara(ruta)
+    if caja is None:
+        return None
+    x, y, ancho_cara, alto_cara = caja
+    origen = Image.open(ruta).convert("RGB")
+
+    escala = (height * _CARA_DEL_ALTO) / max(1, alto_cara)
+    nuevo = origen.resize((max(1, round(origen.width * escala)),
+                           max(1, round(origen.height * escala))), Image.LANCZOS)
+    centro_x = (x + ancho_cara / 2) * escala
+    centro_y = (y + alto_cara / 2) * escala
+
+    # La cara a la DERECHA y el texto a la izquierda: se lee de izquierda a
+    # derecha, asi que el ojo entra por el texto y acaba en la cara.
+    izquierda = int(centro_x - width * 0.66)
+    arriba = int(centro_y - height * _CARA_ALTURA_OJOS)
+
+    # Si el recorte se sale, se rellena con el propio fondo estirado en vez de
+    # con negro: un borde negro delata el apaño enseguida.
+    relleno = _cover(origen, width, height).filter(ImageFilter.GaussianBlur(_DESENFOQUE * 2))
+    lienzo = relleno.copy()
+    lienzo.paste(nuevo, (-izquierda, -arriba))
+    return lienzo
+
+
+def _separar_del_fondo(imagen: Image.Image, width: int, height: int) -> Image.Image:
+    """Nitido donde esta el sujeto, borroso y oscuro en el resto.
+
+    No es un recorte de verdad - para eso haria falta un modelo de segmentacion
+    y varios cientos de megas - pero hace el mismo trabajo: manda la mirada a
+    la cara. Y al ser un degradado no tiene bordes recortados, que es lo que
+    hace que un recorte mal hecho cante mas que no recortar.
+    """
+    fondo = imagen.filter(ImageFilter.GaussianBlur(_DESENFOQUE))
+    fondo = ImageEnhance.Brightness(fondo).enhance(0.55)
+    fondo = ImageEnhance.Color(fondo).enhance(0.55)
+
+    mascara = Image.new("L", (width, height), 0)
+    pincel = ImageDraw.Draw(mascara)
+    cx, cy = int(width * 0.66), int(height * _CARA_ALTURA_OJOS)
+    rx, ry = int(width * 0.34), int(height * 0.62)
+    pincel.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=255)
+    mascara = mascara.filter(ImageFilter.GaussianBlur(int(width * 0.06)))
+    return Image.composite(imagen, fondo, mascara)
+
 def generate_thumbnail(video_path: Path, title: str, out_path: Path, width: int, height: int,
                        retratos: list[Path] | None = None) -> Path:
     # Primero la cara. Solo si no hay ninguna se vuelve al fotograma del video.
-    cara = _la_cara_que_mas_sale(retratos)
+    foto = _la_cara_que_mas_sale(retratos)
     frame_path = None
-    if cara is not None:
-        base = Image.open(cara).convert("RGB")
-        logger.info("Miniatura: sobre la cara que mas sale (%s).", cara.name)
+    con_cara = False
+    if foto is not None:
+        encuadrada = _encuadrar_en_la_cara(foto, width, height)
+        if encuadrada is not None:
+            image = _con_fuerza(_separar_del_fondo(encuadrada, width, height))
+            con_cara = True
+            logger.info("Miniatura: encuadrada en la cara de %s.", foto.name)
+        else:
+            image = _con_fuerza(_cover(Image.open(foto).convert("RGB"), width, height))
+            logger.info("Miniatura: %s no tiene cara detectable; encuadre normal.", foto.name)
     else:
         frame_path = _pick_frame(video_path, out_path)
-        base = Image.open(frame_path).convert("RGB")
+        image = _con_fuerza(_cover(Image.open(frame_path).convert("RGB"), width, height))
         logger.info("Miniatura: sin caras en el video, se usa un fotograma.")
-
-    image = _con_fuerza(_cover(base, width, height))
 
     margin = int(width * 0.045)
     # CUATRO PALABRAS, no siete, y mas grandes. Una miniatura se lee en el
     # tiempo que tarda un pulgar en pasar por encima; siete palabras a tamaño
     # pequeño no se leen, se ignoran.
+    # Con cara, el texto vive en la mitad izquierda y en tres lineas: es una
+    # columna estrecha al lado del sujeto, no una banda cruzandole la cara.
+    ancho_texto = int(width * 0.52) if con_cara else width - margin * 2
     font, lines = _fit_title(
         draw=ImageDraw.Draw(image), text=_thumbnail_text(title),
-        max_width=width - margin * 2,
-        start_size=max(48, width // 8), max_lines=2,
+        max_width=ancho_texto - margin,
+        start_size=max(48, width // (7 if con_cara else 8)),
+        max_lines=3 if con_cara else 2,
     )
 
-    line_height = int(font.size * 1.18)
-    alto_banda = line_height * len(lines) + margin * 3
-    image = _sombra_abajo(image, alto_banda)
+    line_height = int(font.size * 1.12)
+    if not con_cara:
+        image = _sombra_abajo(image, line_height * len(lines) + margin * 3)
 
     overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
-    y = height - line_height * len(lines) - margin
+    if con_cara:
+        # Centrado en vertical en su columna: al lado de la cara, no debajo.
+        y = (height - line_height * len(lines)) // 2
+    else:
+        y = height - line_height * len(lines) - margin
     for line in lines:
         # Contorno negro: sobre una foto el blanco solo desaparece en cuanto
         # cae encima de algo claro - una camisa, el cielo.
@@ -245,7 +334,8 @@ def generate_thumbnail(video_path: Path, title: str, out_path: Path, width: int,
         y += line_height
 
     # La regla roja del canal, corta y encima del texto, como firma.
-    regla_y = height - line_height * len(lines) - margin - max(8, height // 90)
+    regla_y = (((height - line_height * len(lines)) // 2) if con_cara
+               else (height - line_height * len(lines) - margin)) - max(10, height // 55)
     draw.rectangle([margin, regla_y, margin + int(width * 0.10), regla_y + max(5, height // 200)],
                    fill=(196, 30, 42, 255))
 
