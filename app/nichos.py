@@ -176,3 +176,89 @@ def explorar(semillas: list[str], dias: int = 90,
     logger.info("Nichos: %s canales vistos, %s replicables (cuota %s).",
                 len(medidos), len(buenos), gastado)
     return buenos, gastado
+
+# El mapa: una consulta por nicho, para preguntar lo que ella pregunto de
+# verdad - "en QUE deberiamos estar", no "quien hay en el sitio donde ya
+# estamos". Yo puse crimenes porque es lo que veniamos haciendo, que es
+# exactamente el sesgo que hay que quitar de en medio.
+#
+# Son nichos donde un canal SIN CARA puede funcionar: voz en off, material de
+# archivo o de stock y montaje. Quedan fuera a proposito los que exigen estar
+# delante de la camara (vlogs, humor, reacciones, gameplay) o rodar algo
+# (cocina, viajes, reformas): por buenos que sean, no los podemos hacer.
+_MAPA = {
+    "crimenes reales":        "casos criminales reales",
+    "historia":               "documental historia",
+    "misterios":              "misterios sin resolver",
+    "espacio y ciencia":      "documental universo espacio",
+    "psicologia":             "psicologia comportamiento humano",
+    "dinero":                 "finanzas personales invertir",
+    "salud":                  "salud habitos cuerpo",
+    "tecnologia e IA":        "inteligencia artificial explicado",
+    "desarrollo personal":    "habitos disciplina motivacion",
+    "curiosidades":           "datos curiosos que no sabias",
+    "mitologia":              "mitologia dioses leyendas",
+    "biografias":             "biografia vida de",
+    "ingenieria y desastres": "desastres ingenieria explicado",
+    "geopolitica":            "geopolitica conflicto explicado",
+    "relatos de terror":      "historias de terror narradas",
+    "naturaleza y animales":  "documental animales naturaleza",
+}
+
+
+def mapa_de_nichos(dias: int = 90, region: str = "ES", idioma: str = "es",
+                   solo: list[str] | None = None) -> tuple[list[dict], int]:
+    """Donde hay canales jovenes creciendo con un formato que podriamos hacer.
+
+    Una busqueda por nicho, y luego las fichas de todos sus canales de golpe -
+    que es donde esta el ahorro: la busqueda cuesta cien unidades y la ficha
+    una, asi que dieciseis nichos son 1.600 de las 10.000 del dia.
+
+    Devuelve un nicho por fila, ordenados por lo unico que contesta la
+    pregunta: cuanta gente esta creciendo ahi ahora mismo.
+    """
+    nichos = {k: v for k, v in _MAPA.items() if not solo or k in solo}
+    por_nicho: dict[str, dict[str, str]] = {}
+    gastado = 0
+    for nombre, consulta in nichos.items():
+        try:
+            por_nicho[nombre] = _canales_de(consulta, dias, region, idioma)
+        except SinCuota:
+            logger.warning("Cuota agotada a mitad del mapa; se devuelve lo mirado.")
+            break
+        gastado += _COSTE_BUSQUEDA
+
+    # Todas las fichas de una tacada: un canal que sale en dos nichos se pide
+    # una sola vez.
+    todos = sorted({c for canales in por_nicho.values() for c in canales})
+    if not todos:
+        return [], gastado
+    fichas = {f.get("id"): f for f in _ficha(todos)}
+    gastado += len(todos) // 50 + 1
+
+    filas = []
+    for nombre, canales in por_nicho.items():
+        buenos = []
+        for cid in canales:
+            medido = _medir(fichas.get(cid, {}))
+            if medido and replicable(medido)[0]:
+                buenos.append(medido)
+        if not buenos:
+            filas.append({"nicho": nombre, "cuantos": 0, "crecimiento": 0,
+                          "mejor": None, "vistos": len(canales)})
+            continue
+        buenos.sort(key=lambda c: -c["subs_mes"])
+        filas.append({
+            "nicho": nombre,
+            "cuantos": len(buenos),
+            # La MEDIANA, no la suma: un solo canal enorme no puede hacer que
+            # un nicho vacio parezca lleno.
+            "crecimiento": sorted(c["subs_mes"] for c in buenos)[len(buenos) // 2],
+            "mejor": buenos[0],
+            "vistos": len(canales),
+        })
+
+    filas.sort(key=lambda f: (-f["cuantos"], -f["crecimiento"]))
+    logger.info("Mapa de nichos: %s nichos, %s canales mirados, cuota %s.",
+                len(filas), len(todos), gastado)
+    return filas, gastado

@@ -1286,9 +1286,38 @@ async def handle_nichos_command(update: Update, context: ContextTypes.DEFAULT_TY
         return
     semillas = [t for t in " ".join(context.args or []).split(",") if t.strip()]
     if not semillas:
+        # Sin argumentos: el mapa entero. Es la pregunta que ella hizo de
+        # verdad - "en QUE nicho deberiamos estar" - y no "quien hay donde ya
+        # estamos", que es lo que yo habia entendido.
         await update.message.reply_text(
-            "Dime por donde buscar, separado por comas:\n"
-            "/nichos crimenes reales, casos sin resolver, misterios historia")
+            "Mirando YouTube entero: 16 nichos donde un canal sin cara puede "
+            "funcionar. Son 1.600 unidades de cuota y un par de minutos...")
+        loop = asyncio.get_running_loop()
+        try:
+            filas, gastado = await loop.run_in_executor(None, nichos.mapa_de_nichos)
+        except (nichos.SinClave, nichos.SinCuota) as exc:
+            await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=str(exc))
+            return
+        except Exception:
+            logger.exception("Error haciendo el mapa de nichos")
+            await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                                           text="No he podido mirarlo. Revisa los logs.")
+            return
+
+        lineas = ["*Donde hay canales jovenes creciendo*", ""]
+        for f in filas:
+            if not f["cuantos"]:
+                lineas.append(f"  ·  {f['nicho']:<22} ninguno replicable")
+                continue
+            lineas.append(f"  *{f['cuantos']}*  {f['nicho']}")
+            lineas.append(f"       +{f['crecimiento']:,} subs/mes de mediana".replace(",", "."))
+            mejor = f["mejor"]
+            lineas.append(f"       el mejor: {mejor['nombre'][:30]} "
+                          f"({mejor['meses']:.0f} meses, {mejor['subs']:,} subs)".replace(",", "."))
+        lineas += ["", f"_Cuota gastada: {gastado} de 10.000._"]
+        await context.bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID, text=_recorta_pie("\n".join(lineas)),
+            parse_mode="Markdown", disable_web_page_preview=True)
         return
     semillas = [t.strip() for t in semillas][:4]
     await update.message.reply_text(
