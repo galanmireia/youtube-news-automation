@@ -1348,7 +1348,17 @@ async def handle_viable_command(update: Update, context: ContextTypes.DEFAULT_TY
     No genera nada, no gasta creditos y cuesta unas cien unidades de cuota."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
-    tema = " ".join(context.args).strip()
+    # /viable hace dos consultas pesadas por tema, asi que no se encadena solo
+    # como /oficial: pero SI detecta que le han metido otro comando dentro y lo
+    # dice, en vez de buscar la frase entera y contestar que no existe - que es
+    # lo que hacia /oficial esta mañana y sonaba a respuesta de verdad.
+    temas, ajenos = _varios_temas(context.args, "viable")
+    if ajenos or len(temas) > 1:
+        await update.message.reply_text(
+            "Van de uno en uno, que cada uno cuesta cuota. Mandame:\n"
+            + "\n".join(f"/viable {t}" for t in (temas or ajenos)[:4]))
+        return
+    tema = temas[0] if temas else ""
     if not tema:
         await update.message.reply_text("Dime de que caso: /viable Caso Asunta Basterra")
         return
