@@ -21,23 +21,34 @@ logger = logging.getLogger(__name__)
 
 # De lo concreto a lo general. Un Short necesita algo que pase, con gente
 # dentro: "Batallas de España" da material; "Historia de España" da ensayos.
+# Historia DE ESPAÑA, y que pase EN España.
+#
+# Aqui tenia "Conquista de América", "Conquistadores españoles" y
+# "Exploradores de España", y el video #80 salio sobre el reparto de indigenas
+# en encomienda. Es historia de España en el sentido academico, pero el canal
+# se llama España Contada y dice "nuestra historia": quien lo abre espera algo
+# que suene a aqui. Fuera.
+#
+# Cada categoria de esta lista tiene que cumplir dos cosas: que sus articulos
+# sean HECHOS (no institutos ni edificios) y que pasen en la peninsula, las
+# islas o Ceuta y Melilla.
 CATEGORIAS = (
-    "Categoría:Batallas de España",
-    "Categoría:Asedios",
-    "Categoría:Naufragios de España",
-    "Categoría:Motines y revueltas en España",
-    "Categoría:Atentados en España",
-    "Categoría:Epidemias en España",
-    "Categoría:Conquista de América",
-    "Categoría:Expediciones españolas",
-    "Categoría:Reyes de España",
-    "Categoría:Monarcas de Castilla",
-    "Categoría:Exploradores de España",
-    "Categoría:Conquistadores españoles",
-    "Categoría:Inquisición española",
+    "Categoría:Batallas de la guerra civil española",
     "Categoría:Guerra civil española",
+    "Categoría:Batallas de la guerra de la Independencia Española",
     "Categoría:Reconquista",
     "Categoría:Al-Ándalus",
+    "Categoría:Motines y revueltas en España",
+    "Categoría:Atentados en España",
+    "Categoría:Naufragios de España",
+    "Categoría:Accidentes ferroviarios en España",
+    "Categoría:Incendios en España",
+    "Categoría:Inundaciones en España",
+    "Categoría:Epidemias en España",
+    "Categoría:Inquisición española",
+    "Categoría:Reyes de España",
+    "Categoría:Monarcas de Castilla",
+    "Categoría:Guerras carlistas",
 )
 
 # Lo que NO es un hecho contable en cuarenta segundos.
