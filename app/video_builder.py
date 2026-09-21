@@ -419,10 +419,44 @@ def _build_photo_segment(
     )
 
 
+def _build_color_segment(duration: float, width: int, height: int, out_path: Path) -> None:
+    """Un plano liso del color del canal. El ultimo recurso del montaje.
+
+    No lee ningun fichero ni monta ningun grafo de filtros, o sea que no tiene
+    de donde fallar: es lo que se pone cuando el clip de una escena rompe
+    ffmpeg. Sale sobrio, y con la narracion y los subtitulos encima se lee
+    como una pausa, no como un error.
+    """
+    _run([
+        "ffmpeg", "-y",
+        "-f", "lavfi", "-i", f"color=c=0x101418:s={width}x{height}:r={_ZOOM_FPS}",
+        "-t", f"{duration:.3f}",
+        "-pix_fmt", "yuv420p",
+        str(out_path),
+    ])
+
+
 def _build_video_clip_segment(
     clip_path: Path, duration: float, width: int, height: int, tag: dict | None, out_path: Path, tmp_dir: Path, key: str
 ) -> None:
-    vf = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
+    # setparams PRIMERO, y esto es lo que tiro el largo del caso Asunta en la
+    # escena 24 de 31, despues de pagar la narracion entera:
+    #
+    #   yuv420p(tv, reserved/reserved/smpte170m, progressive)
+    #   [graph -1 input from stream 0:0] Invalid color space
+    #   [vf#0:0] Error reinitializing filters!
+    #   Task finished with error code: -22 (Invalid argument)
+    #
+    # Ese "reserved/reserved" no es un color raro: es un hueco de la norma que
+    # no significa nada, y ffmpeg se niega a montar el filtro con el. Venia de
+    # un clip de Pexels, o sea que no hace falta material raro para toparselo:
+    # basta con que a alguien se le colase mal una etiqueta al subirlo.
+    #
+    # Como no se puede mirar cada clip antes de bajarlo, se le imponen
+    # etiquetas validas a la entrada. setparams solo reescribe los metadatos,
+    # no toca un pixel, asi que a un clip sano no le hace nada.
+    vf = ("setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709,"
+          f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}")
     caption = (tag or {}).get("caption")
 
     if not caption or duration < 1.5:
@@ -1002,7 +1036,20 @@ def build_video(
         logger.info(
             "Renderizando escena %s/%s (%.1fs, %s clip(s))...", i + 1, len(clip_entries), seg_seconds, len(entries)
         )
-        _build_scene_segment(entries, seg_seconds, width, height, seg_path, normalized_dir, i)
+        try:
+            _build_scene_segment(entries, seg_seconds, width, height, seg_path, normalized_dir, i)
+        except Exception:
+            # Una escena que no se deja montar no puede costar el video entero.
+            # El largo del caso Asunta murio aqui, en la 24 de 31, con la
+            # narracion ya pagada: se perdieron las treinta que SI estaban
+            # montadas por culpa de una. Ya existia esta idea unas lineas mas
+            # abajo, para las transiciones, y es la misma: lo que se pueda
+            # salvar se salva y el log dice cual es.
+            logger.exception(
+                "La escena %s no se ha podido montar; va con fondo liso para no "
+                "perder el video entero.", i + 1,
+            )
+            _build_color_segment(seg_seconds, width, height, seg_path)
         _ensure_duration(seg_path, seg_seconds, normalized_dir, i)
         segment_paths.append(seg_path)
 
