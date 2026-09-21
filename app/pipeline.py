@@ -548,7 +548,18 @@ _CHARS_POR_CASO = 25000
 
 # Por debajo de esto no hay video, hay relleno. Dos mil caracteres son unas
 # trescientas palabras: menos que la entradilla de un solo caso.
+#
+# Menos para un Short, y no por relajar el listón sino porque mide otra cosa:
+# un largo son dos mil palabras de narracion y necesita un dosier que las
+# sostenga, mientras que un Short son noventa palabras y UN hecho. Mil
+# doscientos caracteres son unas ciento ochenta palabras - el doble de lo que
+# se va a narrar - y con eso el guion cuenta algo que leyó, no algo que se
+# invento, que es de lo que protege este guardia.
+#
+# Importa para la tanda diaria: con el listón del largo, media historia de
+# España se descartaría por tener el articulo corto.
 _MINIMO_DOSIER = 2000
+_MINIMO_DOSIER_SHORT = 1200
 
 
 def _recopilatorio(casos: list[dict]) -> dict:
@@ -671,7 +682,8 @@ def _choose_and_prepare(forced_topic: str | None) -> tuple[dict | None, Path | N
                 "el guion se lo inventaria entero. Paro aqui sin gastar nada. "
                 "Mira los logs: ahora dicen por que falla Wikipedia."
             )
-        if len(dosier) < _MINIMO_DOSIER:
+        minimo = _MINIMO_DOSIER_SHORT if variant == "short" else _MINIMO_DOSIER
+        if len(dosier) < minimo:
             raise RuntimeError(
                 f"Solo he reunido {len(dosier):,} caracteres de material en "
                 f"{len(partes)} caso(s), que no da para un video sin rellenar. "
