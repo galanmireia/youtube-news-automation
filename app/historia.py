@@ -262,11 +262,30 @@ def candidatos(cuantos: int = 12, semilla: int | None = None) -> list[str]:
         if research.existe(WIKI_LANG, t) is False and not _resuelve(t):
             logger.info("Tema descartado, no hay articulo: %r", t[:50])
             continue
+        # Y que no lo hayamos hecho ya. Sin esto la tanda repite tema: el #81
+        # y el #82 salieron los dos sobre la duquesa de Alba, y un tercero
+        # habria salido igual.
+        if _ya_hecho(t):
+            logger.info("Tema descartado, ya tiene video: %r", t[:50])
+            continue
         salida.append(t)
         if len(salida) >= cuantos:
             break
     logger.info("Temas: %s comprobados contra Wikipedia.", len(salida))
     return salida
+
+
+def _ya_hecho(termino: str) -> bool:
+    """Se importa aqui dentro y no arriba: topic_source trae efemerides con
+    el, y historia no necesita nada de eso para existir."""
+    try:
+        from .topic_source import ya_hecho
+        return ya_hecho(termino)
+    except Exception:
+        # Si no se puede comprobar, que siga: perder un tema repetido es peor
+        # que parar la tanda.
+        logger.warning("No he podido comprobar si %r ya tiene video.", termino[:50], exc_info=True)
+        return False
 
 
 def _resuelve(termino: str) -> bool:

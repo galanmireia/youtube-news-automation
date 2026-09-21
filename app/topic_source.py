@@ -155,6 +155,24 @@ def _article_url(title: str) -> str:
     return f"https://{WIKI_LANG}.wikipedia.org/wiki/" + title.replace(" ", "_")
 
 
+def ya_hecho(term: str) -> bool:
+    """¿Ese tema ya tiene un video?
+
+    fetch_topic_by_term ignora a proposito el historial, porque /generar sirve
+    para REHACER un tema y comparar dos versiones. Pero una tanda que repite
+    tema es dinero tirado, y eso es justo lo que paso: el #81 y el #82 son los
+    dos sobre la duquesa de Alba, porque el filtro de "ya hecho" solo actuaba
+    en el catalogo viejo y la tanda no pasa por ahi.
+
+    Resolver cuesta una busqueda en Wikipedia, que es gratis, y la tanda ya la
+    estaba haciendo para comprobar que el tema existe.
+    """
+    title = _resolve(term)
+    if title is None:
+        return False
+    return is_source_processed(_article_url(title))
+
+
 def fetch_topic_by_term(term: str) -> dict | None:
     """One named case, whether or not it has been made before, in the same
     shape the catalogue returns. This is what lets the same story be remade
