@@ -392,6 +392,33 @@ def _build_photo_segment(
     # all while Imagen was unreachable, so its caption tag never arrived here
     # and the code read tag["name"] unconditionally. The first video that
     # actually generated an illustration crashed on it.
+    # EL BOCADILLO. Va antes que cualquier otro rotulo porque es el que manda:
+    # si alguien habla en este plano, eso es lo que hay que ver.
+    #
+    # Se superpone un PNG ya dibujado durante su ventana de tiempo, con una
+    # entrada rapida. Dibujarlo fotograma a fotograma en PIL daria un rebote
+    # mas bonito y tardaria treinta veces mas para lo mismo.
+    globo = (tag or {}).get("bocadillo") if tag else None
+    if globo and globo.get("png") and Path(globo["png"]).exists():
+        desde = max(0.0, float(globo.get("desde", 0.0)))
+        hasta = min(duration, float(globo.get("hasta", duration)))
+        if hasta - desde >= 0.3:
+            entrada = 0.18
+            _run([
+                "ffmpeg", "-y",
+                "-loop", "1", "-i", str(image_path),
+                "-loop", "1", "-i", str(globo["png"]),
+                "-t", f"{duration:.3f}",
+                "-filter_complex",
+                f"[0:v]{vf_bg}[fondo];"
+                f"[1:v]format=rgba,fade=t=in:st={desde:.2f}:d={entrada}:alpha=1,"
+                f"fade=t=out:st={max(desde, hasta - 0.12):.2f}:d=0.12:alpha=1[globo];"
+                f"[fondo][globo]overlay=0:0:enable='between(t,{desde:.2f},{hasta:.2f})'[outv]",
+                "-map", "[outv]", "-r", str(_ZOOM_FPS),
+                str(out_path),
+            ])
+            return
+
     caption = (tag or {}).get("caption", "").strip() if tag else ""
     if tag and not tag.get("name") and caption:
         _build_caption_over_still(image_path, duration, width, height, caption, out_path, tmp_dir, key, vf_bg)

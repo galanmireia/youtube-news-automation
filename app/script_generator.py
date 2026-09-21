@@ -594,7 +594,18 @@ _VARIANT_CONFIG = {
             "obliga a pensar. NO es una moraleja ni un 'suscribete'.\n\n"
             "Si al leer las cinco seguidas no se entiende una historia con principio y final, "
             "esta mal escrito aunque cada frase sea correcta. Eso fue lo que paso con los "
-            "primeros: datos ciertos, ordenados, y sin nada que contar."
+            "primeros: datos ciertos, ordenados, y sin nada que contar.\n\n"
+            "QUE ALGUIEN HABLE. En dos o tres de las cinco escenas, mete DENTRO de la "
+            "narracion una frase corta que dijera alguien, entre comillas angulares: "
+            "«¡Que ardan con ella!». Va dentro del texto narrado, no aparte, porque la voz "
+            "la lee y encima aparece un bocadillo de comic justo cuando se dice.\n\n"
+            "Maximo SIETE palabras: lo que cabe en un globo y se lee de un vistazo. Y que sea "
+            "algo que esa persona pudo decir - una orden, una negativa, una amenaza, una "
+            "pregunta -, no una cita historica textual que te inventes. Si no sabes que dijo "
+            "nadie en esa escena, no pongas comillas: un bocadillo inventado en una frase "
+            "solemne se nota.\n\n"
+            "EL TONO. Se cuenta como se lo contarias a alguien en un bar, no como una clase: "
+            "vivo, con gente que quiere cosas y se las niegan. Ni solemne ni infantil."
         ),
         "duration_hint": "30-40 segundos",
         "scene_count_hint": (

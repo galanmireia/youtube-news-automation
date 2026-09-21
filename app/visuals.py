@@ -8,7 +8,7 @@ from pathlib import Path
 
 import requests
 
-from . import ai_images, archivo, branding, oficial, real_photos, slides, fotos_propias
+from . import ai_images, archivo, bocadillos, branding, oficial, real_photos, slides, fotos_propias
 from .branding import BACKGROUND_COLOR
 from .config import CONTENT_MODE, CHANNEL_NAME, PEXELS_API_KEY, PIXABAY_API_KEY
 
@@ -639,11 +639,37 @@ def fetch_clips_for_scenes(
         if ai_image_prompt:
             ai_images_left -= 1
             image_path = ai_images.generate_image(ai_image_prompt, out_dir / f"clip_{i:02d}.jpg", aspect_ratio)
+            # Si en esta escena alguien habla, el globo y CUANDO sale. La
+            # ventana viene de las marcas de la narracion, no a ojo: la frase
+            # va entrecomillada dentro del texto que se narra, asi que se sabe
+            # el instante exacto en que la voz la dice.
+            globo = None
+            cita = bocadillos.cita_de(scene.get("narration", ""))
+            if cita and image_path is not None:
+                marca = marcas[i] if marcas and i < len(marcas) else None
+                ventana = (bocadillos.cuando_se_dice(marca[0], marca[1], cita)
+                           if marca else None)
+                if ventana:
+                    ancho_v, alto_v = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
+                    png = bocadillos.dibujar(
+                        cita, ancho_v, alto_v, out_dir / f"globo_{i:02d}.png",
+                        lado="izquierda" if i % 2 == 0 else "derecha")
+                    if png is not None:
+                        globo = {"png": str(png), "desde": ventana[0], "hasta": ventana[1]}
+                        logger.info("Escena %s: bocadillo «%s» de %.1fs a %.1fs.",
+                                    i, cita[:32], ventana[0], ventana[1])
+                else:
+                    logger.info("Escena %s: hay cita «%s» pero sin tiempos; sin bocadillo.",
+                                i, cita[:32])
             if image_path is not None:
                 # Same badge the stock-footage branch puts on its first clip:
                 # a scene that states a fact should state it whatever kind of
                 # image ends up carrying it.
                 tag = {"caption": highlight} if highlight else None
+                if globo:
+                    # El bocadillo manda sobre el rotulo de dato: si alguien
+                    # habla en este plano, eso es lo que hay que ver.
+                    tag = {**(tag or {}), "bocadillo": globo}
                 clip_entries.append([(image_path, tag)])
                 continue
 
