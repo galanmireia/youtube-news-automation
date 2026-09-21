@@ -23,7 +23,11 @@ _TAG_MAX_HOLD_SECONDS = 3.5
 # technique) gives every static shot its own life instead of only the stock
 # video clips ever having any movement. Kept small (12% max) so it never
 # creeps in far enough to crop a face/logo near the edge of the frame.
+# Un 12% repartido en todo el plano es una deriva que no se ve. En vertical el
+# plano dura dos segundos y medio, asi que un 26% se nota y no marea.
 _ZOOM_MAX = 1.12
+_ZOOM_MAX_VERTICAL = 1.26
+_SOBRE_ESCALA_VERTICAL = 1.35
 _ZOOM_FPS = 30
 
 # Filling the empty space around a photo with a blurred, darkened copy of
@@ -204,6 +208,7 @@ _MIN_PAN_PIXELS = 40
 # slow enough to read what is in it. Where that means not reaching the ends of
 # the photo, not reaching them is the right answer.
 _MAX_PAN_SPEED = 0.08
+_MAX_PAN_SPEED_VERTICAL = 0.22
 
 
 def _probe_image_size(path: Path) -> tuple[int, int] | None:
@@ -235,7 +240,23 @@ def _photo_fill_filter(
     it for the length of the shot. Returns the filter and whether it actually
     moves, or None when covering would cost too much of the picture, leaving
     the caller to pad instead."""
+    # SOBRE-ESCALADO A PROPOSITO EN VERTICAL, y aqui estaba el motivo de que no
+    # se moviera nada.
+    #
+    # La camara solo se movia si la imagen DESBORDABA el marco, porque el
+    # recorrido es justo lo que sobra. Y una ilustracion generada ya en 9:16
+    # encaja exacta: recorrido cero. Asi que en los Shorts lo unico que se
+    # movia era el zoom del 12%, repartido ademas en planos de hasta nueve
+    # segundos. Un dibujo bueno y quieto sigue siendo un dibujo quieto.
+    #
+    # Ahora en vertical se agranda un 35% a proposito para que HAYA por donde
+    # moverse: un empujon cerrado sobre la cubierta, un barrido por el fuego.
+    # Se pierde un tercio del dibujo en cada plano, y esta bien: con cuatro
+    # planos por escena se ve entero igual, a trozos y con movimiento, que es
+    # justo lo contrario de enseñarlo completo y quieto.
     cover = max(width / image_w, height / image_h)
+    if height > width:
+        cover *= _SOBRE_ESCALA_VERTICAL
     shown_w, shown_h = image_w * cover, image_h * cover
     # Whichever axis overflows is the one being cropped; the other fits exactly.
     retained = min(width / shown_w, height / shown_h)
@@ -249,7 +270,8 @@ def _photo_fill_filter(
     def used_travel(travel: int, extent: int) -> float:
         if duration <= 0:
             return 0.0
-        return min(travel * _PAN_TRAVEL_FRACTION, _MAX_PAN_SPEED * extent * duration)
+        velocidad = _MAX_PAN_SPEED_VERTICAL if height > width else _MAX_PAN_SPEED
+        return min(travel * _PAN_TRAVEL_FRACTION, velocidad * extent * duration)
 
     moves = max(used_travel(travel_x, width), used_travel(travel_y, height)) >= _MIN_PAN_PIXELS
 
@@ -293,14 +315,15 @@ def _photo_background_filter(width: int, height: int) -> str:
 
 def _ken_burns_filter(width: int, height: int, duration: float, zoom_out: bool = False) -> str:
     frames = max(1, round(duration * _ZOOM_FPS))
-    increment = (_ZOOM_MAX - 1) / frames
+    tope = _ZOOM_MAX_VERTICAL if height > width else _ZOOM_MAX
+    increment = (tope - 1) / frames
     # Alternating zoom-in and zoom-out between shots (instead of every single
     # shot doing the exact same push-in) reads as more deliberately dynamic
     # rather than one repeated motion.
     if zoom_out:
-        z_expr = f"if(eq(on,0),{_ZOOM_MAX},max(zoom-{increment:.6f},1))"
+        z_expr = f"if(eq(on,0),{tope},max(zoom-{increment:.6f},1))"
     else:
-        z_expr = f"min(zoom+{increment:.6f},{_ZOOM_MAX})"
+        z_expr = f"min(zoom+{increment:.6f},{tope})"
     return f"zoompan=z='{z_expr}':d={frames}:s={width}x{height}:fps={_ZOOM_FPS}"
 
 
