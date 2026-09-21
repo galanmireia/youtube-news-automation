@@ -281,9 +281,15 @@ def _fetch_summary_photo(title: str, out_path: Path, exclude_urls: set[str], lan
         if data.get("type") == "disambiguation":
             return None
 
+        # La ORIGINAL primero. Estaba al reves, y eso es lo que ella vio como
+        # "imagenes de poca calidad": el resumen de Wikipedia devuelve una
+        # miniatura de unos 320 pixeles de ancho, y al estirarla a 1920 se
+        # convierte en una mancha. La original suele venir a 2000 o mas.
+        # La miniatura se queda de respaldo, porque un articulo viejo puede no
+        # tener original y mas vale pequeña que ninguna.
         thumbnail = (
-            data.get("thumbnail", {}).get("source")
-            or data.get("originalimage", {}).get("source")
+            data.get("originalimage", {}).get("source")
+            or data.get("thumbnail", {}).get("source")
             or _pageimages_thumbnail_url(title, lang)
         )
         if not thumbnail or thumbnail in exclude_urls:
