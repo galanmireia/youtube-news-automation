@@ -189,7 +189,15 @@ def _tema_de(titulo: str) -> str:
     articulo igual. Lo que si hace falta es tirar lo que no es un tema, porque
     "de la de España" encontraria cualquier cosa.
     """
-    limpio = _RUIDO.sub(" ", titulo)
+    # "curiosidades" e "historia" eran paja cuando buscaba documentales. Ahora
+    # que busco CURIOSIDADES, muchas veces son la palabra que sostiene el
+    # titulo: "7 curiosidades de la ciudad de Avila" se quedaba en "7 de la
+    # ciudad de Avila", que no es un tema, es un despojo.
+    #
+    # Asi que se limpia, y si lo que queda esta roto - empieza por un numero
+    # suelto o por una preposicion - se vuelve al titulo con la paja menos
+    # agresiva.
+    limpio = _limpia_o_no(titulo)
     limpio = re.sub(r"[|¿?¡!:\-–—\"\u201c\u201d#]+", " ", limpio)
     # Conectores sueltos al principio, que es lo que queda al quitar la paja.
     limpio = re.sub(r"^\s*(sobre|de|del|la|el|los|las|que|lo|en|un|una)\b\s*", " ",
@@ -204,6 +212,40 @@ def _tema_de(titulo: str) -> str:
         return ""
     return limpio
 
+
+
+# Lo que se quita SIEMPRE: son etiquetas de formato, nunca tema.
+_RUIDO_SEGURO = re.compile(
+    r"\b(shorts?|documental|resumen|explicado|en\s+\d+\s*minutos?"
+    r"|lo\s+que\s+no\s+te\s+contaron|top\s*\d*|parte\s*\d+|#\w+)\b",
+    re.IGNORECASE,
+)
+# Y lo que se quita solo si despues queda algo con sentido.
+_ROTO = re.compile(r"^\s*(\d+|de|del|la|el|los|las|y|en|a)\b", re.IGNORECASE)
+
+
+def _limpia_o_no(titulo: str) -> str:
+    agresivo = _RUIDO.sub(" ", titulo)
+    suave = _RUIDO_SEGURO.sub(" ", titulo)
+    sin_espacios = lambda t: re.sub(r"\s+", " ", t).strip(" .,|-")
+    agresivo, suave = sin_espacios(agresivo), sin_espacios(suave)
+    if not agresivo or _ROTO.match(agresivo):
+        return suave
+    return agresivo
+
+
+# Disputas territoriales de ACTUALIDAD. Son historia y son de España, pero no
+# son curiosidades: son politica de hoy, traen comentarios y no es el canal.
+# En la lista de temas salieron tres seguidas - Ceuta y Melilla "debate
+# actualidad", Gibraltar, Portugal - y ninguna cuenta como vivia la gente.
+_ES_POLITICA_DE_HOY = (
+    "gibraltar", "debate", "actualidad", "reclama", "conflicto con",
+    "soberania", "independentismo", "referendum", "sahara occidental",
+)
+
+
+def _es_politica(termino: str) -> bool:
+    return any(p in _sin_tildes(termino.lower()) for p in _ES_POLITICA_DE_HOY)
 
 
 def _vale(titulo: str) -> bool:
@@ -275,6 +317,9 @@ def candidatos(cuantos: int = 12, semilla: int | None = None) -> list[str]:
         # Y que no lo hayamos hecho ya. Sin esto la tanda repite tema: el #81
         # y el #82 salieron los dos sobre la duquesa de Alba, y un tercero
         # habria salido igual.
+        if _es_politica(t):
+            logger.info("Tema descartado, es politica de hoy: %r", t[:50])
+            continue
         if not _es_de_aqui(t):
             logger.info("Tema descartado, no pasa en España: %r", t[:50])
             continue

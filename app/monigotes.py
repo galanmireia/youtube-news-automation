@@ -1545,23 +1545,23 @@ _DECORADOS = {
                      "fondo": [("ventana_mar", .26, .34, .34), ("chimenea", .78, 1.0, .30)],
                      "muebles": [("mesa_fondo", .49, .03, .24), ("taburete", .90, .10, .09)],
                      "delante": [("mesa", .46, .34, .92)],
-                     "cuelga": [("espada", .13, .52, .10)], "velas": [(.78, -.10)]},
+                     "cuelga": [("espada", .13, .40, .10)], "velas": [(.78, -.10)]},
     "monasterio":   {"pared": "piedra", "piso": "losas",
                      "fondo": [("ventana_arco", .50, .36, .20)],
                      "muebles": [("estante", .18, .06, .22)],
                      "delante": [("mesa", .50, .30, .94)],
-                     "cuelga": [("cruz", .84, .50, .09)], "velas": [(.12, -.30), (.88, -.30)]},
+                     "cuelga": [("cruz", .84, .38, .09)], "velas": [(.12, -.30), (.88, -.30)]},
     "salon_trono":  {"pared": "piedra", "piso": "losas",
                      "fondo": [("trono", .50, 1.0, .22), ("estandarte", .16, .22, .13),
                                ("estandarte", .84, .22, .13)],
                      "muebles": [], "delante": [],
-                     "cuelga": [("espada", .30, .44, .11), ("espada", .70, .44, .11)],
+                     "cuelga": [("espada", .26, .34, .11), ("espada", .74, .34, .11)],
                      "velas": [(.08, -.34), (.92, -.34)]},
     "cocina":       {"pared": "encalada", "piso": "losas",
                      "fondo": [("chimenea", .74, 1.0, .34), ("ventana_arco", .22, .34, .16)],
                      "muebles": [("estante", .30, .30, .30)],
                      "delante": [("mesa", .44, .32, .90)],
-                     "cuelga": [("olla", .50, .42, .06)], "velas": [(.74, -.12)]},
+                     "cuelga": [("olla", .50, .30, .06)], "velas": [(.74, -.12)]},
     "iglesia":      {"pared": "piedra", "piso": "losas",
                      "fondo": [("ventana_arco", .28, .30, .17), ("ventana_arco", .72, .30, .17),
                                ("cruz_grande", .50, .58, .22)],
@@ -1660,23 +1660,42 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
 
     for que, x, y, tam in receta["fondo"]:
         _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g)
+    # Lo colgado de la pared, DETRAS de todo lo demas: es pared. Lo tenia al
+    # final, despues incluso de los muebles de delante, y las espadas del
+    # salon del trono salian clavadas en la cabeza de los monigotes.
+    for que, x, y, tam in receta["cuelga"]:
+        f = COSAS.get(que)
+        if f:
+            f(d, w*x, h*y, h*tam, rnd, max(2, g//2), TINTA)
     _piso(d, w, h, suelo, receta["piso"], rnd, g)
     for que, x, y, tam in receta["muebles"]:
         _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g)
 
+    # DONDE PISA LA GENTE. Tenia un +0.24 fijo, puesto para la taberna: ahi
+    # hay una mesa por delante que les tapa medio cuerpo, asi que hundirlos es
+    # lo correcto. En un salon del trono NO hay mesa, y ese mismo +0.24 les
+    # dejaba los pies al 90% de la pantalla - mas el 4,5% que recorta la
+    # camara -, o sea con las piernas cortadas por el borde y un agujero
+    # vacio enorme entre la pared y ellos.
+    #
+    # Asi que depende del decorado, no de un numero suelto: si hay algo
+    # delante, se hunden para que lo tape; si no, pisan cerca de la linea del
+    # suelo, que es donde pisa la gente.
+    # Y con TOPE: pase lo que pase, los pies no bajan del 86% de la pantalla.
+    # Un decorado con mesa mas un personaje alto mas el recorte de camara se
+    # comian las piernas por el borde de abajo, y eso no puede depender de que
+    # los numeros del decorado esten bien elegidos.
+    hunde = h*(0.24 if receta["delante"] else 0.06)
+    pies = min(suelo + hunde, h*0.86)
     for f in spec.get("figuras", []):
         alto_f = h*f.get("alto", 0.30)
-        figura(d, w*f["x"], suelo + h*0.24 + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
+        figura(d, w*f["x"], pies + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
                alto_f, rnd, f.get("pose", "de_pie"), f.get("gesto", "neutro"),
                f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
                rasgos=REPARTO.get(f.get("quien") or ""))
 
     for que, x, y, tam in receta["delante"]:
         _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g)
-    for que, x, y, tam in receta["cuelga"]:
-        f = COSAS.get(que)
-        if f:
-            f(d, w*x, h*y, h*tam, rnd, max(2, g//2), TINTA)
 
     if spec.get("cartel"):
         _cartel(d, w*0.50, h*0.09, w*0.44, str(spec["cartel"])[:40], rnd, g)
