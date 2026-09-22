@@ -1371,13 +1371,25 @@ async def handle_tanda_command(update: Update, context: ContextTypes.DEFAULT_TYP
     if _pipeline_lock.locked():
         await update.message.reply_text("Ya hay una generacion en curso, espera a que acabe.")
         return
-    # UNO por defecto, no tres. Estaba en tres porque el canal vive de subir a
-    # diario, y eso sigue siendo verdad - pero el descuido de escribir /tanda
-    # en vez de /tanda 1 costaba tres guiones. Esta mañana paso exactamente
-    # eso: pidio uno, salieron tres en cola y tuvo que parar a mitad del
-    # segundo, con el guion ya pagado. Para la tanda del dia esta /tanda 3.
-    cuantos = next((int(a) for a in (context.args or []) if a.isdigit()), 1)
-    cuantos = max(1, min(5, cuantos))
+    # UNO por defecto, no tres: el descuido tiene que costar lo menos posible.
+    #
+    # Y SOBRE TODO, si escribe algo y no lo entiendo, SE LO DIGO. Escribio
+    # "/tanda 1." - con el punto - y salieron tres videos, porque "1.".isdigit()
+    # es False y el codigo se caia al valor por defecto sin abrir la boca.
+    # Pidio uno, le di tres y no dije nada. Un argumento que no se entiende no
+    # puede convertirse en silencio en un numero MAYOR del que te han pedido.
+    #
+    # Ahora se sacan los digitos de lo que sea que haya escrito - "1.", "1,",
+    # "1 video" valen todos - y si aun asi no hay ningun numero, se para y se
+    # pregunta.
+    crudo = " ".join(context.args or []).strip()
+    digitos = re.sub(r"[^0-9]", "", crudo)
+    if crudo and not digitos:
+        await update.message.reply_text(
+            f"No entiendo {crudo!r} como un numero de videos. "
+            "Escribe /tanda para uno, o /tanda 3 para tres.")
+        return
+    cuantos = max(1, min(5, int(digitos))) if digitos else 1
 
     loop = asyncio.get_running_loop()
     temas = await loop.run_in_executor(None, historia.candidatos, cuantos * 2)
