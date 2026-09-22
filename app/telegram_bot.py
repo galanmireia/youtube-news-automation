@@ -1355,7 +1355,7 @@ async def handle_temas_command(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     lineas = ["*Temas para hoy*", ""]
     lineas += [f"  · {_limpio(t)}" for t in temas]
-    lineas += ["", "Para uno: /generar s <tema>", "Para la tanda del dia: /tanda"]
+    lineas += ["", "Para uno: /generar s <tema>", "Para uno: /tanda   ·   para varios: /tanda 3"]
     await update.message.reply_text("\n".join(lineas), parse_mode="Markdown")
 
 
@@ -1371,7 +1371,12 @@ async def handle_tanda_command(update: Update, context: ContextTypes.DEFAULT_TYP
     if _pipeline_lock.locked():
         await update.message.reply_text("Ya hay una generacion en curso, espera a que acabe.")
         return
-    cuantos = next((int(a) for a in (context.args or []) if a.isdigit()), 3)
+    # UNO por defecto, no tres. Estaba en tres porque el canal vive de subir a
+    # diario, y eso sigue siendo verdad - pero el descuido de escribir /tanda
+    # en vez de /tanda 1 costaba tres guiones. Esta mañana paso exactamente
+    # eso: pidio uno, salieron tres en cola y tuvo que parar a mitad del
+    # segundo, con el guion ya pagado. Para la tanda del dia esta /tanda 3.
+    cuantos = next((int(a) for a in (context.args or []) if a.isdigit()), 1)
     cuantos = max(1, min(5, cuantos))
 
     loop = asyncio.get_running_loop()
@@ -1381,9 +1386,12 @@ async def handle_tanda_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("No he encontrado temas. Vuelve a probar.")
         return
 
+    coste = len(temas) * 700
     await update.message.reply_text(
-        f"Tanda de {len(temas)} Shorts (~{len(temas) * 700} creditos):\n"
-        + "\n".join(f"  {i + 1}. {t}" for i, t in enumerate(temas)))
+        f"{len(temas)} Short{'s' if len(temas) > 1 else ''}"
+        f" (~{coste} creditos de voz + ~{len(temas) * 0.2:.2f} $ de guion):\n"
+        + "\n".join(f"  {i + 1}. {t}" for i, t in enumerate(temas))
+        + ("\n\nPara mas de uno: /tanda 3" if len(temas) == 1 else ""))
 
     bot = context.bot
 
