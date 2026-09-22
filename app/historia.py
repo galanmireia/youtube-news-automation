@@ -102,11 +102,21 @@ _VIDEOS = "https://www.googleapis.com/youtube/v3/videos"
 # del trabajo: consultas que no puedan pescar deportes ni actualidad, y el
 # filtro de CATEGORIA de YouTube, que es lo que de verdad separa un documental
 # de un viral.
+# Buscar "historia de españa documental" trae SUCESOS - batallas, guerras,
+# reinados -, y un suceso no da curiosidades: da una ficha con fechas. El
+# canal cuenta COMO ERA la cosa, no QUE PASO, asi que hay que pescar donde
+# estan los titulos de ese tipo: "como vivian", "que comian", "cuanto
+# cobraba", "por que".
+#
+# Y ademas se dibujan mucho mejor con monigotes: "la batalla de Lepanto" es
+# dificil de ilustrar y "como se lavaban los reyes" sale sola.
 _COMO_BUSCAR = (
-    "historia de españa documental",
-    "historia de españa siglo",
-    "reyes de españa historia",
-    "españa edad media historia",
+    "como vivian en españa historia",
+    "curiosidades historia de españa",
+    "que comian en españa historia",
+    "como era la vida en la españa del siglo",
+    "por que en españa historia curiosidad",
+    "costumbres antiguas de españa",
 )
 # 27 = Educacion. 22 = Gente y blogs se queda fuera a proposito: ahi vive el
 # viral.
