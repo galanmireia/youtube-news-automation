@@ -481,6 +481,7 @@ despues de haberse escrito y pagado.
   "description": "descripcion con hashtags, ver requisitos arriba",
   "is_sensitive": "true o false - true si la noticia trata sobre una muerte, crimen violento, victima identificable, tragedia personal real, o una acusacion/investigacion no probada sobre una persona identificable (ver AVISO DE SENSIBILIDAD arriba), false en cualquier otro caso",
   "tags": ["tag1", "tag2", "... entre 10 y 15 tags"],
+  "lo_gracioso": "{bloque_campo_gracia}",
   "scenes": [
     {{
       "narration": "EN {language}, el texto que se narra en esta escena",
@@ -488,7 +489,6 @@ despues de haberse escrito y pagado.
       "photo_subject": "nombre de una persona publica o de un lugar/institucion con nombre propio si aplica, si no, cadena vacia",
       "photo_subject_role": "cargo de la persona o descriptor corto del lugar si photo_subject no esta vacio, si no, cadena vacia",
       "ai_image_prompt": "descripcion en ingles para ilustracion por IA si aplica, si no, cadena vacia",
-      "lo_gracioso": "{bloque_campo_gracia}",
       "escena": "{bloque_campo_escena}",
       "sonido": "{bloque_campo_sonido}",
       "on_screen_highlight": "EN {language}, texto corto (3-6 palabras) con el dato clave de esta escena, con CIFRA si la escena tiene alguna, ver instrucciones arriba",
@@ -1483,3 +1483,49 @@ def generate_script(news_item: dict, variant: str = "long",
         return script
 
     raise RuntimeError(f"generate_script fallo tras {_MAX_ATTEMPTS} intentos: {last_error}") from last_error
+
+
+# QUE EL CAMPO ESTE DONDE SE LEE.
+#
+# Este es el fallo mas caro que he escrito y el mas silencioso. Puse
+# "lo_gracioso" DENTRO del objeto de cada escena en las instrucciones, y el
+# validador lo lee ARRIBA, junto al titulo:
+#
+#     gracia = (script.get("lo_gracioso") or "").strip()
+#
+# O sea que el modelo lo escribia donde se le pedia y yo lo buscaba donde no
+# estaba. Ese control no paso NUNCA, ni una sola vez: cada video pagaba tres
+# intentos y se aceptaba "con pega" al tercero - 1,21 $ en una sola mañana -,
+# y la regla que mas le importa a ella, que el video tenga gracia, llevaba
+# desactivada desde el dia que la escribi.
+#
+# Y lo que lo hizo invisible: cuando dije "comprobado sobre cuatro guiones",
+# probe el validador con diccionarios hechos a mano que YA traian el campo
+# arriba. Nunca lo probe contra el esquema que se le manda al modelo. Las dos
+# mitades nunca se tocaron.
+#
+# Asi que ahora se tocan al arrancar. Es la misma cura que el reparto de las
+# voces y los decorados: dos sitios que tienen que decir lo mismo no se
+# vigilan leyendolos, se vigilan con codigo.
+_CAMPOS_QUE_SE_LEEN_ARRIBA = ("lo_gracioso", "title", "description", "tags", "scenes")
+
+
+def _los_campos_estan_donde_se_leen() -> None:
+    cabecera, marca, _ = PROMPT_TEMPLATE.partition('  "scenes": [')
+    if not marca:
+        raise RuntimeError(
+            "El esquema de PROMPT_TEMPLATE ya no tiene la linea '\"scenes\": [', "
+            "asi que no puedo comprobar donde va cada campo. Arregla esta "
+            "comprobacion antes de seguir: sin ella los campos se descolocan "
+            "en silencio.")
+    perdidos = [c for c in _CAMPOS_QUE_SE_LEEN_ARRIBA
+                if f'"{c}"' not in cabecera + marca]
+    if perdidos:
+        raise RuntimeError(
+            f"Estos campos se leen del nivel de arriba del guion pero NO estan "
+            f"declarados arriba en las instrucciones: {perdidos}. El modelo no "
+            f"los va a poner donde se buscan y la comprobacion que los usa no "
+            f"pasara nunca.")
+
+
+_los_campos_estan_donde_se_leen()
