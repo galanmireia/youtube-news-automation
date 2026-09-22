@@ -548,6 +548,18 @@ _VARIANT_CONFIG = {
             "  BIEN: 'En Lepanto remaban encadenados doce mil hombres que no eran soldados.'\n\n"
             "UN SOLO HECHO POR VIDEO. Un Short no es un resumen: es una cosa contada entera. Si "
             "te sobran datos, guardalos - hay mas videos.\n\n"
+            "UNA SOLA COSA, MIRADA DE CERCA. Es la regla que manda sobre todas las demas.\n\n"
+            "El dosier casi siempre es una biografia o un articulo entero, y la tentacion "
+            "es resumirlo. NO LO HAGAS. De todo lo que trae, elige EL DETALLE MAS RARO - uno - "
+            "y dedicale el video entero. El resto no se menciona, ni de pasada.\n\n"
+            "  MAL:  la vida de Carlos II - los matrimonios entre primos, los sintomas, los "
+            "exorcismos, la autopsia y la guerra que desato. Eso son cinco titulares y no se "
+            "entiende ninguno.\n"
+            "  BIEN: a un rey de España le hicieron exorcismos como tratamiento medico. Quien "
+            "lo decidio, que le hacian exactamente, cuanto duro, que decian los medicos y en "
+            "que acabo.\n\n"
+            "Si al terminar el espectador sabe cinco cosas del tema, has hecho un resumen. "
+            "Tiene que saber UNA, y de esa saberlo todo.\n\n"
             "ESTO NO ES UN DOCUMENTAL DE SUCESOS: SON CURIOSIDADES. Y eso cambia la "
             "forma de contarlo.\n\n"
             "Un video de sucesos cuenta QUE PASO: la batalla, el motin, el naufragio. Uno de "
@@ -614,9 +626,9 @@ _VARIANT_CONFIG = {
             "tonterias. Es historia de verdad contada por alguien que se lo esta pasando bien "
             "contandola."
         ),
-        "duration_hint": "30-40 segundos",
+        "duration_hint": "50-60 segundos",
         "scene_count_hint": (
-            "EXACTAMENTE 5 escenas, y el guion ENTERO no puede pasar de 85 PALABRAS "
+            "ENTRE 7 Y 8 escenas, y el guion ENTERO no puede pasar de 170 PALABRAS "
             "de narracion sumando todas. Cuentalas antes de contestar. El primer Short "
             "de este canal pidio 4 o 5 escenas y devolvio 7, con 66 segundos en vez de "
             "35: el numero de escenas no ata, el presupuesto de palabras si"
@@ -965,7 +977,13 @@ _ABRE_SITUANDO = re.compile(
 )
 
 
-_PALABRAS_MAXIMAS_SHORT = 110
+# Un Short de YouTube admite 60 segundos, y yo me habia atado a 85 palabras
+# - unos 25 - o sea a la mitad del sitio disponible sin ninguna razon. Con
+# 25 segundos una curiosidad sale en titulares: ella lo dijo mirando el
+# #88, 'al ser tan corto no se entiende mucho'. 170 palabras son unos 55
+# segundos y cuestan unos 1.000 creditos en vez de 700: sigue siendo el
+# bucle barato para probar si el formato funciona.
+_PALABRAS_MAXIMAS_SHORT = 200
 
 
 def _que_le_pasa_al_guion(script: dict, variant: str = "long",
