@@ -532,6 +532,19 @@ def _comprobar_plantilla() -> None:
 
 _comprobar_plantilla()
 
+def _lista_de_posturas() -> str:
+    """Las posturas que el guion puede pedir, sacadas de monigotes.
+
+    Escrita a mano decia [de_pie, sentado, en_mesa, brazos_arriba, señala,
+    corriendo] cuando ya habia dieciseis, asi que el guion no podia pedir diez
+    de ellas aunque existieran. Es la cuarta vez que dos listas que tienen que
+    decir lo mismo se separan, asi que esta sale del codigo.
+    """
+    from . import monigotes
+    return "\n".join(f'  "{p}"{" " * max(1, 16 - len(p))}{monigotes.POSES_EXPLICADAS[p]}'
+                      for p in monigotes.POSES_VALIDAS)
+
+
 _VARIANT_CONFIG = {
     "short": {
         "format_hint": (
@@ -639,10 +652,15 @@ _VARIANT_CONFIG = {
         ),
         "duration_hint": "50-60 segundos",
         "scene_count_hint": (
-            "ENTRE 7 Y 8 escenas, y el guion ENTERO no puede pasar de 170 PALABRAS "
-            "de narracion sumando todas. Cuentalas antes de contestar. El primer Short "
+            "ENTRE 10 Y 12 escenas, y el guion ENTERO no puede pasar de 170 PALABRAS "
+            "de narracion sumando todas. Cuentalas antes de contestar. O sea unas 15 "
+            "palabras por escena: frases CORTAS, un plano por idea. El primer Short "
             "de este canal pidio 4 o 5 escenas y devolvio 7, con 66 segundos en vez de "
-            "35: el numero de escenas no ata, el presupuesto de palabras si"
+            "35: el numero de escenas no ata, el presupuesto de palabras si. "
+            "Mas escenas NO es mas video: son las mismas 170 palabras repartidas en mas "
+            "planos, o sea mas cortes. El #90 salio con 8 planos de 5,8 segundos de "
+            "media y se veia lento; con 11 planos son 4,2 segundos, que es el ritmo que "
+            "tiene un Short que la gente aguanta"
         ),
         "scene_length_hint": (
             "LA ESCENA 1 NO PUEDE EMPEZAR POR UNA FECHA NI POR UN LUGAR. El primer Short "
@@ -766,8 +784,8 @@ catedral, sale un fondo liso.
     "figuras":  de 1 a 3 personajes, cada uno:
        "quien":    [cronista, mandamas, abuela, chaval, soldado] - OBLIGATORIO, del reparto fijo
        "x":        0.12 a 0.88, de izquierda a derecha
-       "pose":     [de_pie, sentado, en_mesa, brazos_arriba, señala, corriendo]
-       "pose_fin": otra pose de la misma lista: el personaje SE MUEVE de una a otra
+       "pose":     LO QUE ESTA HACIENDO. La lista entera esta abajo, en LAS POSTURAS
+       "pose_fin": otra postura de la misma lista: el personaje SE MUEVE de una a otra
        "gesto":    [neutro, sorpresa, contento, enfadado, grito]
        "gorro":    [corona, comandante, tricornio, sombrero, casco, mitra, monje, boina,
                     marinero] - o quitalo si no lleva
@@ -776,11 +794,23 @@ catedral, sale un fondo liso.
                 para decir "prohibido" o "se acabo" de un vistazo
   }
 
+LAS POSTURAS. LA POSTURA ES LO QUE EL PERSONAJE ESTA HACIENDO, Y TIENE QUE SER LO QUE
+CUENTAS EN ESA ESCENA. Si la narracion dice que firmaron un tratado, alguien esta "firmando";
+si dice que cruzaban el rio, alguien esta "remando"; si dice que cavaban en la mina, alguien
+esta "cavando". Un monigote de pie SEÑALANDO lo que cuentas no es un monigote HACIENDOLO, y la
+diferencia entre las dos cosas es la diferencia entre que el video se vea y que no.
+
+{bloque_posturas}
+
 COSAS QUE HACEN QUE ESTO FUNCIONE:
 
+- PRIMERO ELIGE EL VERBO, LUEGO EL DECORADO. Lee tu propia narracion de esa escena y pregunta:
+  ¿que esta HACIENDO alguien aqui? Esa es la postura. Si de verdad no hace nada nadie, es que
+  esa escena no tiene imagen y hay que contarla de otra manera.
 - PON "pose_fin" CASI SIEMPRE. Es lo que hace que el plano se mueva en vez de ser una foto
   quieta, y es gratis. Un monigote que pasa de "de_pie" a "brazos_arriba" esta celebrando o
-  indignandose; de "corriendo" a "de_pie" esta llegando; de "de_pie" a "sentado" se rinde.
+  indignandose; de "corriendo" a "de_pie" esta llegando; de "peleando" a "cayendose" acaba de
+  perder. NUNCA pongas la misma en las dos: "señala" -> "señala" es una foto.
 - EL GORRO ES QUIEN ES. No hay caras parecidas ni hace falta: la corona es el rey, la mitra el
   obispo, el morrion el conquistador, el tricornio el del XVIII. Si en una escena hay un rey y
   un subdito, ponle corona a uno y al otro nada, y ya se entiende.
@@ -1120,6 +1150,24 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
             return (f"solo trae {concretos} dato(s) con cifra en toda la narracion. Una "
                     "curiosidad se sostiene sobre numeros y años concretos, no sobre "
                     "impresiones")
+
+        # Y QUE ALGUIEN HAGA ALGO. Es lo que ella pidio mirando el #90: "mas
+        # escenas, que se note que el personaje esta haciendo algo que esta
+        # contando". Que nadie se quede congelado ya lo garantiza limpia(),
+        # pero eso solo da movimiento; esto pide que el movimiento SIGNIFIQUE
+        # algo. Un video entero de gente de pie señalando cosas cumple todas
+        # las demas reglas y sigue sin enseñar nada pasando.
+        if nivel >= _TODO:
+            from . import monigotes
+            verbos = {f["pose"] for e in escenas if isinstance(e.get("escena"), dict)
+                      for f in monigotes.limpia(e["escena"])["figuras"]} & set(monigotes._CICLOS)
+            quietas = {"de_pie", "sentado", "en_mesa", "señala"}
+            hacen = {f["pose"] for e in escenas if isinstance(e.get("escena"), dict)
+                     for f in monigotes.limpia(e["escena"])["figuras"]} - quietas
+            if not verbos and not hacen:
+                return ("nadie HACE nada en todo el video: todos los monigotes estan de pie, "
+                        "sentados o señalando. Alguna escena tiene que dibujar la accion que "
+                        "se cuenta - remando, firmando, peleando, cavando, cayendose")
 
         # Y QUE TODAS TRAIGAN SU ESCENA DE MONIGOTES. Una escena sin dibujo
         # no da un video un poco peor: cae en la cadena vieja y acaba en una
@@ -1510,6 +1558,38 @@ def generate_script(news_item: dict, variant: str = "long",
 _CAMPOS_QUE_SE_LEEN_ARRIBA = ("lo_gracioso", "title", "description", "tags", "scenes")
 
 
+# El bloque de la escena entra en la plantilla como VALOR, y str.format no
+# mira dentro de lo que sustituye - el comentario de arriba avisa de esto y
+# aun asi lo acabo de escribir mal. Asi que la lista se mete aqui, al
+# arrancar, y lo que llega al modelo son las dieciseis posturas y no las
+# palabras "{bloque_posturas}".
+_VARIANT_CONFIG["short"]["bloque_ilustracion"] = (
+    _VARIANT_CONFIG["short"]["bloque_ilustracion"]
+    .replace("{bloque_posturas}", _lista_de_posturas()))
+
+
+def _el_guion_conoce_todas_las_posturas() -> None:
+    """Que el prompt del Short ofrezca TODAS las que se saben dibujar.
+
+    La lista estaba escrita a mano y se habia quedado en seis de dieciseis: el
+    guion no podia pedir "firmando" ni "remando" porque no sabia que
+    existieran, y desde fuera eso es indistinguible de un guion que no quiere
+    usarlas. Diez posturas dibujadas y nunca pedidas.
+    """
+    from . import monigotes
+    texto = _VARIANT_CONFIG["short"]["bloque_ilustracion"]
+    if "{bloque_posturas}" in texto:
+        raise RuntimeError(
+            "La lista de posturas no se ha metido en el bloque de la escena: al "
+            "modelo le llegarian las palabras '{bloque_posturas}' en vez de las "
+            "posturas.")
+    perdidas = [p for p in monigotes.POSES_VALIDAS if f'"{p}"' not in texto]
+    if perdidas:
+        raise RuntimeError(
+            f"Estas posturas se saben dibujar pero el guion no sabe que existen: "
+            f"{perdidas}. Se dibujarian solas si alguien las pidiera, y nadie puede.")
+
+
 def _los_campos_estan_donde_se_leen() -> None:
     cabecera, marca, _ = PROMPT_TEMPLATE.partition('  "scenes": [')
     if not marca:
@@ -1529,3 +1609,4 @@ def _los_campos_estan_donde_se_leen() -> None:
 
 
 _los_campos_estan_donde_se_leen()
+_el_guion_conoce_todas_las_posturas()

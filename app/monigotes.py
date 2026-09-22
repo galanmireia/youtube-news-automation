@@ -107,7 +107,214 @@ _POSES = {
     "corriendo_b":{"cuello": (0,-.68), "cadera": (0,-.37),
                  "brazos": [[(0,-.64),(.20,-.56),(.30,-.44)], [(0,-.64),(-.18,-.58),(-.30,-.64)]],
                  "piernas":[[(0,-.37),(.20,-.20),(.30,-.06)],  [(0,-.37),(-.18,-.20),(-.28,-.08)]]},
+
+    # ---- VERBOS -----------------------------------------------------------
+    #
+    # Lo que faltaba, y se veia en el #90: de doce monigotes, SIETE no se
+    # movian, y una escena entera estaba congelada. No era culpa del guion.
+    # El repertorio no tenia un solo verbo - de_pie, sentado, señala,
+    # brazos_arriba, en_mesa, corriendo -, asi que "firmaron el tratado" o
+    # "cruzaban el rio" solo se podian dibujar como alguien de pie
+    # señalandolo. Un monigote que señala lo que cuentas no es un monigote
+    # HACIENDOLO.
+    #
+    # Las que acaban en _b son la otra mitad de un movimiento que se repite,
+    # como corriendo/corriendo_b: remar, cavar, pelear y empujar no son
+    # posturas, son ciclos, y se animan solos sin que el guion pida nada.
+
+    # REMAR: tronco echado adelante y brazos estirados, luego tiron al pecho.
+    "remando":  {"cuello": (.07,-.50), "cadera": (0,-.14),
+                 "brazos": [[(.04,-.46),(.18,-.44),(.32,-.40)], [(.04,-.46),(.18,-.40),(.32,-.36)]],
+                 "piernas":[[(0,-.14),(.20,-.17),(.31,-.02)],   [(0,-.14),(.22,-.09),(.34,-.02)]]},
+    "remando_b":{"cuello": (-.05,-.51), "cadera": (0,-.14),
+                 "brazos": [[(-.03,-.47),(.08,-.40),(-.02,-.34)], [(-.03,-.47),(.10,-.36),(0,-.31)]],
+                 "piernas":[[(0,-.14),(.20,-.17),(.31,-.02)],   [(0,-.14),(.22,-.09),(.34,-.02)]]},
+
+    # CAVAR / PICAR: doblado, las dos manos juntas abajo; luego las levanta.
+    "cavando":  {"cuello": (.10,-.58), "cadera": (0,-.36),
+                 "brazos": [[(.06,-.55),(.18,-.44),(.26,-.24)], [(.06,-.55),(.20,-.42),(.28,-.22)]],
+                 "piernas":[[(0,-.36),(-.11,-.18),(-.15,0)],    [(0,-.36),(.12,-.19),(.17,0)]]},
+    "cavando_b":{"cuello": (.04,-.64), "cadera": (0,-.37),
+                 "brazos": [[(.02,-.61),(.10,-.72),(.02,-.86)], [(.02,-.61),(.13,-.70),(.05,-.84)]],
+                 "piernas":[[(0,-.37),(-.11,-.19),(-.15,0)],    [(0,-.37),(.12,-.19),(.17,0)]]},
+
+    # PELEAR: zancada y el brazo de la espada arriba; luego el tajo adelante.
+    "peleando": {"cuello": (.05,-.68), "cadera": (0,-.38),
+                 "brazos": [[(0,-.64),(-.17,-.57),(-.28,-.52)], [(0,-.64),(.16,-.77),(.27,-.93)]],
+                 "piernas":[[(0,-.38),(-.17,-.21),(-.28,0)],    [(0,-.38),(.17,-.23),(.29,0)]]},
+    "peleando_b":{"cuello": (.09,-.67), "cadera": (0,-.38),
+                 "brazos": [[(0,-.63),(-.15,-.55),(-.24,-.48)], [(0,-.63),(.24,-.62),(.40,-.54)]],
+                 "piernas":[[(0,-.38),(-.19,-.20),(-.31,0)],    [(0,-.38),(.19,-.24),(.32,0)]]},
+
+    # EMPUJAR: el cuerpo volcado hacia delante y los dos brazos estirados.
+    "empujando":{"cuello": (.12,-.65), "cadera": (0,-.38),
+                 "brazos": [[(.04,-.62),(.18,-.61),(.32,-.60)], [(.04,-.62),(.18,-.57),(.32,-.56)]],
+                 "piernas":[[(0,-.38),(-.17,-.22),(-.31,-.02)], [(0,-.38),(.11,-.20),(.17,0)]]},
+    # La otra mitad es el ARRANQUE, no un temblor: se recoge, dobla los codos
+    # y vuelve a volcarse. Medido, la primera version movia 0.045 - o sea
+    # nada - y empujar sin recogerse no se lee como empujar.
+    "empujando_b":{"cuello": (-.02,-.68), "cadera": (-.04,-.38),
+                 "brazos": [[(-.06,-.64),(.04,-.60),(.14,-.62)], [(-.06,-.64),(.04,-.56),(.14,-.58)]],
+                 "piernas":[[(-.04,-.38),(-.13,-.22),(-.22,-.01)],[(-.04,-.38),(.13,-.21),(.21,0)]]},
+
+    # FIRMAR / ESCRIBIR: en la mesa pero con una mano garabateando. Para un
+    # canal de historia esto sale en uno de cada tres videos - un tratado, una
+    # cedula, una sentencia - y no habia forma de dibujarlo.
+    "firmando": {"cuello": (.05,-.51), "cadera": (0,-.26),
+                 "brazos": [[(.02,-.47),(-.14,-.40),(-.22,-.34)], [(.02,-.47),(.17,-.41),(.27,-.33)]],
+                 "piernas":[[(0,-.26),(.16,-.26),(.20,-.02)],   [(0,-.26),(.09,-.25),(.11,-.02)]]},
+    # Y firmar tiene que VERSE: el brazo entero barre el papel y la cabeza
+    # sigue a la mano. Moviendo solo la punta de la mano medía 0.063, que a
+    # tamaño de movil es un pixel y medio.
+    "firmando_b":{"cuello": (-.02,-.53), "cadera": (0,-.26),
+                 "brazos": [[(.02,-.47),(-.14,-.40),(-.22,-.34)], [(.02,-.47),(.08,-.44),(.10,-.32)]],
+                 "piernas":[[(0,-.26),(.16,-.26),(.20,-.02)],   [(0,-.26),(.09,-.25),(.11,-.02)]]},
+
+    # CARGAR: doblado bajo el peso, las manos por encima de los hombros.
+    "cargando": {"cuello": (.08,-.62), "cadera": (0,-.36),
+                 "brazos": [[(.04,-.58),(-.13,-.66),(-.05,-.74)], [(.04,-.58),(.15,-.66),(.07,-.74)]],
+                 "piernas":[[(0,-.36),(-.13,-.20),(-.11,0)],    [(0,-.36),(.13,-.20),(.16,0)]]},
+
+    # CAERSE: todo el cuerpo torcido y los brazos por el aire.
+    "cayendose":{"cuello": (-.15,-.64), "cadera": (-.05,-.36),
+                 "brazos": [[(-.11,-.60),(-.28,-.71),(-.37,-.87)], [(-.11,-.60),(.09,-.73),(.19,-.88)]],
+                 "piernas":[[(-.05,-.36),(-.21,-.25),(-.36,-.15)],[(-.05,-.36),(.11,-.19),(.18,0)]]},
+
+    # MIRAR A LO LEJOS: la mano de visera. El vigia, el que descubre algo.
+    "mirando":  {"cuello": (0,-.70), "cadera": (0,-.38),
+                 "brazos": [[(0,-.66),(-.14,-.54),(-.13,-.39)], [(0,-.66),(.19,-.73),(.09,-.81)]],
+                 "piernas":[[(0,-.38),(-.09,-.19),(-.11,0)],    [(0,-.38),(.09,-.19),(.11,0)]]},
+
+    # REZAR: las manos juntas al pecho y la cabeza un poco baja.
+    "rezando":  {"cuello": (.02,-.67), "cadera": (0,-.38),
+                 "brazos": [[(0,-.63),(-.13,-.55),(-.02,-.49)], [(0,-.63),(.13,-.55),(.02,-.49)]],
+                 "piernas":[[(0,-.38),(-.08,-.19),(-.10,0)],    [(0,-.38),(.08,-.19),(.10,0)]]},
+
+    # DAR / ENTREGAR: el brazo estirado con la mano abierta hacia el otro.
+    "dando":    {"cuello": (0,-.70), "cadera": (0,-.38),
+                 "brazos": [[(0,-.66),(-.12,-.52),(-.15,-.36)], [(0,-.66),(.21,-.59),(.38,-.55)]],
+                 "piernas":[[(0,-.38),(-.09,-.19),(-.11,0)],    [(0,-.38),(.09,-.19),(.11,0)]]},
 }
+
+# Lo que se mueve SOLO: la otra mitad de cada ciclo. El guion no tiene que
+# pedirlo - y por eso funciona, porque lo que hay que pedir se olvida.
+_CICLOS = {
+    "corriendo": "corriendo_b",
+    "remando":   "remando_b",
+    "cavando":   "cavando_b",
+    "peleando":  "peleando_b",
+    "empujando": "empujando_b",
+    "firmando":  "firmando_b",
+}
+
+
+# NADIE SE QUEDA CONGELADO.
+#
+# En el #90, de doce monigotes SIETE no se movieron: el guion les puso pose y
+# no pose_fin, y una postura sin destino y sin ciclo es una foto. Una escena
+# entera - la 6 - salio con las dos figuras quietas.
+#
+# Pedirselo mejor al guion no lo arregla: lleva dos dias demostrado que lo que
+# solo esta escrito en el prompt se difumina. Asi que si el guion no dice a
+# donde va una figura, se le pone un destino que pega con lo que hace. No es
+# inventarse la escena, es no dejarla parada.
+_ACOMPAÑA = {
+    "de_pie":        "señala",
+    "señala":        "de_pie",
+    "sentado":       "en_mesa",
+    "en_mesa":       "sentado",
+    "brazos_arriba": "de_pie",
+    "mirando":       "señala",
+    "rezando":       "de_pie",
+    "dando":         "de_pie",
+    "cargando":      "de_pie",
+    "cayendose":     "de_pie",
+}
+
+
+# COMO SE LE CUENTAN AL GUION. Aqui, pegado a las posturas, y no copiado a
+# mano en el prompt: una lista de posturas que se ofrecen y otra de posturas
+# que se saben dibujar es exactamente la forma que ya costo la taberna, el
+# arbol y el campo de la gracia.
+POSES_EXPLICADAS = {
+    "de_pie":        "quieto, de pie",
+    "sentado":       "sentado en el suelo o en un banco",
+    "en_mesa":       "sentado a una mesa, los brazos encima",
+    "brazos_arriba": "los brazos en alto: celebra, se indigna, se rinde",
+    "señala":        "señala algo con el brazo estirado",
+    "corriendo":     "CORRE - huye, persigue, llega con la noticia",
+    "remando":       "REMA - cruza un rio, va en galera, escapa en barca",
+    "cavando":       "CAVA o PICA - mina, entierra, desentierra, abre una zanja",
+    "peleando":      "PELEA con la espada en alto - batalla, duelo, motin",
+    "empujando":     "EMPUJA algo pesado con las dos manos",
+    "firmando":      "FIRMA o ESCRIBE en una mesa - un tratado, una cedula, una condena",
+    "cargando":      "CARGA un peso al hombro, doblado",
+    "cayendose":     "SE CAE, se desploma, sale por los aires",
+    "mirando":       "OTEA a lo lejos con la mano de visera - vigia, descubre algo",
+    "rezando":       "REZA con las manos juntas",
+    "dando":         "ENTREGA algo, tiende la mano al otro",
+}
+
+
+def _las_posturas_estan_explicadas() -> None:
+    faltan = set(POSES_VALIDAS) - set(POSES_EXPLICADAS)
+    sobran = set(POSES_EXPLICADAS) - set(POSES_VALIDAS)
+    if faltan or sobran:
+        raise RuntimeError(
+            f"POSES_EXPLICADAS y POSES_VALIDAS no dicen lo mismo. Sin explicar: "
+            f"{sorted(faltan)}. Explicadas y no dibujables: {sorted(sobran)}.")
+
+
+def _destino(f: dict) -> str | None:
+    """A donde va esta figura. Nunca a ningun sitio.
+
+    Tambien cubre el caso de que el guion pida la MISMA postura dos veces,
+    que es lo que hizo en el #90 - "señala->señala", "de_pie->de_pie" - y que
+    en el log parecia movimiento sin serlo.
+    """
+    pedido = f.get("pose_fin")
+    salida = _una_de(pedido, POSES_VALIDAS, "") if pedido else None
+    pose = _una_de(f.get("pose"), POSES_VALIDAS, "de_pie")
+    if salida and salida != pose:
+        return salida
+    # Si el verbo tiene ciclo ya se anima solo en animar(); si no, compañera.
+    return None if pose in _CICLOS else _ACOMPAÑA.get(pose)
+
+
+def _los_ciclos_se_mueven() -> None:
+    """Que un verbo se mueva de verdad, comprobado al arrancar.
+
+    No es adorno. Escribi "empujando" y "firmando" a ojo y las dos salieron
+    practicamente quietas - 0.045 y 0.063 de altura de figura, o sea un pixel
+    y medio en un movil -, y desde fuera eso es indistinguible de una postura
+    que funciona: el video sale, nadie peta, y el monigote no hace nada. Que
+    es exactamente lo que ella vio en el #90 y yo no.
+
+    Se mide sobre los puntos del esqueleto y no sobre los pixeles, porque la
+    respiracion mueve la figura entera unos pixeles y una medida en pixeles no
+    distingue eso de un brazo. Ya me paso una vez con el encuadre.
+    """
+    import math
+    minimo = 0.12
+    flojos = []
+    for a, b in _CICLOS.items():
+        for nombre in (a, b):
+            if nombre not in _POSES:
+                raise RuntimeError(f"El ciclo {a!r} nombra una postura que no existe: {nombre!r}")
+        pa, pb = (([_POSES[n]["cuello"], _POSES[n]["cadera"]]
+                   + [x for br in _POSES[n]["brazos"] for x in br]
+                   + [x for pi in _POSES[n]["piernas"] for x in pi]) for n in (a, b))
+        recorrido = max(math.dist(x, y) for x, y in zip(pa, pb))
+        if recorrido < minimo:
+            flojos.append(f"{a} ({recorrido:.3f})")
+    if flojos:
+        raise RuntimeError(
+            f"Estos verbos casi no se mueven, asi que no son verbos: {', '.join(flojos)}. "
+            f"Lo que mas se mueva tiene que recorrer al menos {minimo} de la altura de "
+            f"la figura, o a tamaño de movil no se ve.")
+
+
+_los_ciclos_se_mueven()
 
 def _cara(d, c, r, g, rnd, gesto, tinta=TINTA):
     o = r*0.30
@@ -436,10 +643,13 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None):
             desfase = k*0.37
             tk = (reloj/_SEGUNDOS_POR_CICLO + desfase) % 1.0
             tk = 1 - abs(1 - 2*tk) if vaiven else tk
-            # Andar o correr se anima SOLO: son ciclos, no un gesto. Si el
-            # guion no pide a donde va, la pierna alterna igual.
-            if not fin and f.get("pose") == "corriendo":
-                fin = "corriendo_b"
+            # Los verbos se animan SOLOS: correr, remar, cavar, pelear,
+            # empujar y firmar no son gestos, son ciclos. Si el guion no pide
+            # a donde va, el movimiento sale igual - y eso importa mas que
+            # parecer elegante, porque lo que hay que pedir se olvida y en el
+            # #90 siete de doce monigotes salieron congelados.
+            if not fin:
+                fin = _CICLOS.get(f.get("pose"))
             if fin and fin != f.get("pose"):
                 g["pose_mezclada"] = _mezcla(_POSES[f.get("pose","de_pie")], _POSES[fin], tk)
             # RESPIRACION: sube y baja un poco aunque no cambie de pose.
@@ -462,7 +672,10 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None):
 # y una escena que no se puede dibujar es un hueco en el video. Lo que no se
 # reconoce no rompe nada, se sustituye por lo mas parecido y se apunta.
 FONDOS_VALIDOS = tuple(FONDOS)
-POSES_VALIDAS = tuple(p for p in _POSES if p != "corriendo_b")
+# Derivadas, no copiadas: las mitades de ciclo (_b) no se ofrecen al guion
+# porque no son posturas, son el otro fotograma de una. Escribir la lista a
+# mano es como se perdieron la taberna y el arbol.
+POSES_VALIDAS = tuple(p for p in _POSES if not p.endswith("_b"))
 GESTOS_VALIDOS = ("neutro", "sorpresa", "contento", "enfadado", "grito")
 GORROS_VALIDOS = ("corona", "comandante", "tricornio", "sombrero", "casco",
                   "mitra", "monje", "boina", "marinero")
@@ -505,8 +718,7 @@ def limpia(spec: dict) -> dict:
             "alto": por_defecto if quien else min(
                 0.46, max(0.18, float(f.get("alto", 0.34) or 0.34))),
             "pose": _una_de(f.get("pose"), POSES_VALIDAS, "de_pie"),
-            "pose_fin": (_una_de(f.get("pose_fin"), POSES_VALIDAS, "")
-                         if f.get("pose_fin") else None),
+            "pose_fin": _destino(f),
             "gesto": _una_de(f.get("gesto"), GESTOS_VALIDOS, "neutro"),
             "gorro": gorro if gorro in GORROS_VALIDOS else None,
             "espejo": bool(f.get("espejo")),
@@ -1789,3 +2001,7 @@ def _montar_escena(limpio: dict) -> dict:
                 f["gesto"] = _REACCION.get(quien.get("gesto", "neutro"), "sorpresa")
     limpio["habla_x"] = quien["x"]
     return limpio
+
+
+# Al final del todo, que es donde ya existe POSES_VALIDAS.
+_las_posturas_estan_explicadas()
