@@ -1300,7 +1300,13 @@ def _sin_lo_que_ya_no_usa(prompt: str) -> str:
     return prompt
 
 
-def generate_script(news_item: dict, variant: str = "long") -> dict:
+def generate_script(news_item: dict, variant: str = "long",
+                    parar=None) -> dict:
+    """El guion del video. `parar` es una funcion sin argumentos que dice si
+    hay que dejarlo: se pregunta ANTES de cada intento, no solo al final.
+
+    Se pasa desde fuera en vez de mirar la bandera del pipeline aqui para no
+    montar un import circular - el pipeline ya importa esto."""
     if variant not in _VARIANT_CONFIG:
         raise ValueError(f"variant desconocida: {variant!r}")
     variant_config = dict(_VARIANT_CONFIG[variant])
@@ -1358,6 +1364,21 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
     pega_anterior = ""
 
     for attempt in range(1, _MAX_ATTEMPTS + 1):
+        # AQUI TAMBIEN SE PUEDE PARAR, y esto costo dinero de verdad.
+        #
+        # /parar solo se miraba en los siete saltos de paso del pipeline, y los
+        # tres intentos del guion viven DENTRO del paso 1. O sea que el trozo
+        # mas largo que no se podia interrumpir era justo el que cobra por
+        # vuelta. Pidiendo parar en el intento 1 de un video equivocado, se
+        # pagaron los tres igual: 0,22 + 0,19 + 0,18 = 0,59 $, y la parada no
+        # llego hasta cinco minutos despues.
+        if attempt > 1 and parar is not None and parar():
+            # Import de dentro, no de arriba: el pipeline ya importa este
+            # modulo, asi que ponerlo arriba seria un import circular.
+            from .pipeline import GenerationStopped
+            raise GenerationStopped(
+                f"parada pedida antes del intento {attempt} del guion")
+
         # STREAMED, and not for the progress: the SDK refuses a plain request
         # whose max_tokens is high enough that it might run past ten minutes,
         # and raises before sending anything. Raising the ceiling for a

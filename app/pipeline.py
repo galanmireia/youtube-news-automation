@@ -172,7 +172,7 @@ def _generate_variant(
     ya_escrito = script is not None
     if not ya_escrito:
         _stage(variant, 1, "Escribiendo el guion...")
-        script = generate_script(news_item, variant=variant)
+        script = generate_script(news_item, variant=variant, parar=_stop_requested.is_set)
     # Long videos open with a fixed bumper line over a branded title card, so
     # the channel has a consistent opening. Shorts don't: the first seconds
     # of a Short decide whether the viewer keeps watching or swipes, and a
@@ -517,7 +517,7 @@ def prepare_voice_job(variant: str, forced_topic: str | None = None) -> dict | N
 
     width, height = _VARIANT_DIMENSIONS[variant]
     _stage(variant, 1, "Escribiendo el guion para narrar a mano...")
-    script = generate_script(news_item, variant=variant)
+    script = generate_script(news_item, variant=variant, parar=_stop_requested.is_set)
     if variant == "long":
         script["scenes"] = [dict(_INTRO_SCENE)] + script["scenes"]
 
@@ -660,7 +660,17 @@ def _choose_and_prepare(forced_topic: str | None,
     else:
         candidates = fetch_candidate_news(limit=6)
     if not candidates:
-        logger.info("No hay temas nuevos que procesar.")
+        if forced_topic:
+            # Distinto de quedarse sin catalogo, y decirlo igual seria mentir:
+            # aqui el tema existe, lo que no hay es un articulo que vaya de eso.
+            # Mejor no hacer nada que hacer el video equivocado, que es lo que
+            # pasaba antes - "Por que España posee tierra en Francia" se fue a
+            # "Ejercito de Tierra (España)" y se puso a escribirlo.
+            logger.warning(
+                "No hay ningun articulo de Wikipedia que vaya de %r, asi que no "
+                "hago nada. Prueba con el nombre propio de la cosa.", forced_topic)
+        else:
+            logger.info("No hay temas nuevos que procesar.")
         return None, None
 
     # Which story gets made matters more than how well it is made: a

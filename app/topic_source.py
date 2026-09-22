@@ -142,6 +142,27 @@ _DE_CATALOGO = frozenset({
 })
 
 
+# PALABRAS QUE NO IDENTIFICAN A NADIE.
+#
+# Distintas de las de catalogo. Las de catalogo van DELANTE del tema y se
+# quitan; estas estan dentro del tema pero salen en cualquier titulo de
+# historia de España, asi que coincidir en ellas no demuestra nada.
+#
+# Esto lo costo un video: "Por que España posee tierra en Francia" acabo en
+# "Ejercito de Tierra (España)". Dos de las tres palabras del titulo - tierra
+# y españa - estaban en lo que se pidio, o sea un 67%, de sobra para el listo
+# del 50%. Y la unica palabra que dice de que va el articulo, "ejercito", no
+# aparecia por ningun lado y eso no lo frenaba.
+_COMODIN = frozenset({
+    "espana", "espanol", "espanola", "espanoles", "espanolas", "hispania",
+    "tierra", "tierras", "mundo", "historia", "pais", "paises", "nacion",
+    "nacional", "ciudad", "ciudades", "pueblo", "pueblos", "region",
+    "provincia", "siglo", "siglos", "antiguo", "antigua", "antiguos",
+    "nuevo", "nueva", "gran", "grande", "grandes", "real", "reales",
+    "general", "generales", "primera", "primero", "segunda", "segundo",
+})
+
+
 def _tiene_que_ver(termino: str, titulo: str) -> bool:
     """¿El articulo que ha devuelto la busqueda va de lo que se buscaba?
 
@@ -165,8 +186,28 @@ def _tiene_que_ver(termino: str, titulo: str) -> bool:
         del_titulo = _palabras(titulo)
     if not del_titulo:
         return True
-    dentro = del_titulo & _palabras(termino)
-    return len(dentro) / len(del_titulo) >= 0.5
+    del_termino = _palabras(termino)
+
+    # Si el titulo CONTIENE entero lo que se pidio, vale, aunque traiga mucho
+    # mas. Wikipedia guarda a la gente por su nombre completo - "la duquesa de
+    # Alba" vive en "Cayetana Fitz-James Stuart, XVIII duquesa de Alba" -, y
+    # ahi el porcentaje sale del 29% y tumbaba una resolucion perfecta.
+    if del_termino and del_termino <= _palabras(titulo):
+        return True
+
+    dentro = del_titulo & del_termino
+    if len(dentro) / len(del_titulo) < 0.5:
+        return False
+
+    # Y ADEMAS: tiene que coincidir en alguna palabra que DIGA de que va el
+    # articulo. Que cuadre el porcentaje no basta si lo que cuadra son las
+    # palabras que salen en todos los titulos. El articulo se llama "Ejercito
+    # de Tierra" por lo de ejercito, no por lo de tierra.
+    #
+    # Si el titulo entero es de comodin - "Historia de España" - no se le
+    # puede exigir una palabra propia que no tiene, y decide el porcentaje.
+    propias = del_titulo - _COMODIN
+    return bool(propias & del_termino) if propias else True
 
 
 def _resolve(term: str) -> str | None:
