@@ -129,6 +129,21 @@ _MIN_ILUSTRACIONES = 3
 _MAX_ILUSTRACIONES = 14
 
 
+def _quien_dice_cada_frase(habla_x, figuras, cuantas: int) -> list[float]:
+    """En que x sale cada globo de la escena.
+
+    El guion dice quien empieza ("habla_x"); la respuesta es del OTRO, que es
+    lo que hace que se lea como una conversacion y no como alguien hablando
+    solo dos veces. Con un unico monigote en el plano, habla el mismo las dos
+    veces, que tambien pasa.
+    """
+    equis = [float(f.get("x", 0.5) or 0.5) for f in figuras] or [0.5]
+    primera = (float(habla_x) if isinstance(habla_x, (int, float)) else equis[0])
+    # El que contesta es el que esta mas lejos del que ha hablado.
+    otro = max(equis, key=lambda x: abs(x - primera)) if len(equis) > 1 else primera
+    return [primera if k % 2 == 0 else otro for k in range(cuantas)]
+
+
 def _ilustrar(scene: dict, i: int, out_dir: Path, aspect_ratio: str,
               marcas, highlight: str):
     """El dibujo de una escena, con su bocadillo si alguien habla.
@@ -463,21 +478,29 @@ def fetch_clips_for_scenes(
         # sincronia es exacta por construccion.
         highlight = (scene.get("on_screen_highlight") or "").strip()
         if es_vertical and isinstance(scene.get("escena"), dict):
-            globo = None
-            cita = bocadillos.cita_de(scene.get("narration", ""))
-            if cita:
+            globos = []
+            citas = bocadillos.citas_de(scene.get("narration", ""))
+            cita = citas[0] if citas else ""
+            if citas:
                 marca = marcas[i] if marcas and i < len(marcas) else None
-                ventana = (bocadillos.cuando_se_dice(marca[0], marca[1], cita)
-                           if marca else None)
-                if ventana:
-                    quien = scene["escena"].get("habla_x")
-                    figs = scene["escena"].get("figuras") or [{}]
-                    globo = {"texto": cita, "desde": ventana[0], "hasta": ventana[1],
-                             "x": float(quien) if isinstance(quien, (int, float))
-                                  else float(figs[0].get("x", 0.5) or 0.5)}
-                    logger.info("Escena %s: bocadillo \u00ab%s\u00bb de %.1fs a %.1fs.",
-                                i, cita[:36], ventana[0], ventana[1])
-                else:
+                # UNA CONVERSACION, no una frase. Cada globo con SU instante y
+                # apuntando a SU monigote: el primero al que habla, el segundo
+                # al que contesta.
+                quien = scene["escena"].get("habla_x")
+                figs = scene["escena"].get("figuras") or [{}]
+                equis = _quien_dice_cada_frase(quien, figs, len(citas))
+                cursor = 0
+                for k, frase in enumerate(citas):
+                    ventana = (bocadillos.cuando_se_dice(marca[0], marca[1], frase, cursor)
+                               if marca else None)
+                    if not ventana:
+                        continue
+                    cursor = bocadillos.donde_se_dice(marca[0], frase, cursor) + len(frase)
+                    globos.append({"texto": frase, "desde": ventana[0],
+                                   "hasta": ventana[1], "x": equis[k]})
+                    logger.info("Escena %s: bocadillo %s \u00ab%s\u00bb de %.1fs a %.1fs (x=%.2f).",
+                                i, k + 1, frase[:36], ventana[0], ventana[1], equis[k])
+                if not globos:
                     # ESTO ERA UN PUNTO CIEGO. El #84 salio sin que yo pudiera
                     # saber desde el log si alguien hablaba o no, y es justo lo
                     # que ya habia fallado en silencio dos veces.
@@ -488,7 +511,7 @@ def fetch_clips_for_scenes(
                 logger.info("Escena %s: nadie habla, sin bocadillo.", i)
             ancho_v, alto_v = _TARGET_DIMENSIONS.get(aspect_ratio, (1080, 1920))
             clip = monigotes.render(scene["escena"], out_dir / f"mono_{i:02d}.mp4",
-                                    ancho_v, alto_v, duration, bocadillo=globo)
+                                    ancho_v, alto_v, duration, bocadillos=globos or None)
             if clip is not None:
                 # A la miniatura va el FOTOGRAMA, no el mp4: thumbnail.py abre
                 # esa lista con PIL.

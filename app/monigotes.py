@@ -578,7 +578,7 @@ def _fuente(alto_img):
     return ImageFont.load_default()
 
 
-def _pinta_bocadillo(img, texto, apunta_x, rnd):
+def _pinta_bocadillo(img, texto, apunta_x, rnd, fila=0):
     """El globo, DENTRO del propio dibujo.
 
     Antes se pegaba con ffmpeg encima del plano ya montado. Aqui sale mejor y
@@ -602,7 +602,14 @@ def _pinta_bocadillo(img, texto, apunta_x, rnd):
     alto_linea = f.size*1.32
     ancho = max(w*0.30, max(d.textlength(l, font=f) for l in lineas) + w*0.10)
     alto = alto_linea*len(lineas) + h*0.022
-    cx, cy = w*0.50, h*0.155
+    # LA RESPUESTA VA DEBAJO Y DEL LADO DE QUIEN CONTESTA. Los dos globos se
+    # pintaban centrados en el mismo sitio, asi que en un dialogo el segundo
+    # tapaba al primero y parecia un fallo de dibujo en vez de una
+    # conversacion. Se desplaza un poco hacia su monigote - no del todo, que
+    # entonces se sale por el borde - y baja una fila.
+    cx = w*0.50 + (apunta_x - w*0.50)*0.30
+    cx = min(max(cx, w*0.30), w*0.70)
+    cy = h*(0.135 + 0.135*fila)
     x0, y0, x1, y1 = cx-ancho/2, cy-alto/2, cx+ancho/2, cy+alto/2
     g = max(4, int(w*0.006))
     d.rounded_rectangle([x0, y0, x1, y1], radius=int(alto*0.30),
@@ -635,7 +642,7 @@ _RESPIRACION = 0.012      # de la altura de la figura
 _SEGUNDOS_RESPIRACION = 2.3
 
 
-def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None):
+def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=None):
     """Los fotogramas de una escena donde cada figura va de 'pose' a 'pose_fin'.
 
     El temblor de la linea cambia cada tres fotogramas y no cada uno: cada uno
@@ -674,11 +681,16 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None):
             paso["figuras"].append(g)
         rnd = random.Random(1000 + n//3)
         img = _decorado(paso, semilla=1000 + n//3)
-        if bocadillo:
-            ahora = n/fps
-            if bocadillo["desde"] <= ahora <= bocadillo["hasta"]:
-                quien = bocadillo.get("x", 0.5)
-                img = _pinta_bocadillo(img, bocadillo["texto"], img.size[0]*quien, rnd)
+        # UNO O DOS. Dos es una conversacion: uno dice algo y el otro le
+        # contesta, cada globo en SU instante y apuntando a SU monigote. Si se
+        # solapan en el tiempo se pintan los dos, que es como se dibuja una
+        # discusion.
+        ahora = n/fps
+        for fila, globo in enumerate(bocadillos if bocadillos is not None
+                                     else ([bocadillo] if bocadillo else [])):
+            if globo and globo["desde"] <= ahora <= globo["hasta"]:
+                img = _pinta_bocadillo(img, globo["texto"],
+                                       img.size[0]*globo.get("x", 0.5), rnd, fila)
         fotogramas.append(img)
     return fotogramas
 
@@ -827,7 +839,8 @@ _FPS = 15
 
 
 def render(spec: dict, out_path: Path, ancho: int, alto: int,
-           segundos: float, bocadillo: dict | None = None) -> Path | None:
+           segundos: float, bocadillo: dict | None = None,
+           bocadillos: list | None = None) -> Path | None:
     """La escena, ya montada como clip de video de la duracion que se pida.
 
     Devuelve None si algo falla, nunca revienta: una escena sin clip cae en la
@@ -838,7 +851,7 @@ def render(spec: dict, out_path: Path, ancho: int, alto: int,
         limpio = limpia(spec)
         segundos = max(1.0, min(12.0, float(segundos)))
         fotogramas = animar(limpio, segundos=segundos, fps=_FPS,
-                            bocadillo=bocadillo)
+                            bocadillo=bocadillo, bocadillos=bocadillos)
         carpeta = Path(out_path).with_suffix("")
         carpeta.mkdir(parents=True, exist_ok=True)
         for i, img in enumerate(fotogramas):

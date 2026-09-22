@@ -49,6 +49,34 @@ def _sin_tildes(texto: str) -> str:
                    if unicodedata.category(c) != "Mn")
 
 
+MAX_CITAS = 2   # una frase y su respuesta: mas no cabe en cuatro segundos
+
+
+def citas_de(narracion: str) -> list[str]:
+    """TODAS las frases entrecomilladas de una escena, en orden.
+
+    Ella: "pon menos narracion y mas conversaciones de los monigotes, que
+    queda gracioso". Tiene razon y el codigo no dejaba: se cogia solo la
+    PRIMERA comilla de cada escena, asi que un ida y vuelta - uno dice algo y
+    el otro le contesta - se quedaba a medias, con el segundo monigote mudo
+    aunque el guion hubiera escrito su respuesta.
+
+    Se mezclan los dos tipos de comilla en una sola pasada y no una detras de
+    otra: buscando primero las angulares y luego las rectas, un dialogo escrito
+    con las dos salia en el orden equivocado.
+    """
+    if not narracion:
+        return []
+    fuera = []
+    for m in re.finditer(r"[«“]([^»”]{2,80})[»”]|\"([^\"]{2,80})\"", narracion):
+        frase = (m.group(1) or m.group(2) or "").strip(" .,;:")
+        if frase and len(frase.split()) <= MAX_PALABRAS:
+            fuera.append(frase)
+        if len(fuera) >= MAX_CITAS:
+            break
+    return fuera
+
+
 def cita_de(narracion: str) -> str:
     """La frase entrecomillada de una narracion, si la hay.
 
@@ -65,7 +93,8 @@ def cita_de(narracion: str) -> str:
     return ""
 
 
-def cuando_se_dice(narracion: str, tiempos: list[float], cita: str) -> tuple[float, float] | None:
+def cuando_se_dice(narracion: str, tiempos: list[float], cita: str,
+                   desde: int = 0) -> tuple[float, float] | None:
     """(inicio, fin) de la frase dentro del audio de esa escena.
 
     tiempos[i] es el instante en que termina el caracter i, que es lo que
@@ -74,12 +103,20 @@ def cuando_se_dice(narracion: str, tiempos: list[float], cita: str) -> tuple[flo
     """
     if not cita or not tiempos or len(tiempos) != len(narracion or ""):
         return None
-    posicion = _sin_tildes(narracion).find(_sin_tildes(cita))
+    # `desde` existe para la segunda frase de un dialogo: sin el, dos
+    # personajes que dicen lo mismo - "«No»" y "«No»" - darian los dos el
+    # mismo instante, y los dos bocadillos saldrian a la vez.
+    posicion = _sin_tildes(narracion).find(_sin_tildes(cita), max(0, desde))
     if posicion < 0:
         return None
     fin_idx = min(posicion + len(cita), len(tiempos)) - 1
     inicio = tiempos[posicion - 1] if posicion > 0 else 0.0
     return max(0.0, inicio), max(inicio + 0.4, tiempos[fin_idx])
+
+
+def donde_se_dice(narracion: str, cita: str, desde: int = 0) -> int:
+    """En que caracter empieza esa frase, para seguir buscando tras ella."""
+    return _sin_tildes(narracion or "").find(_sin_tildes(cita or ""), max(0, desde))
 
 
 def dibujar(texto: str, ancho: int, alto: int, out_path: Path,

@@ -619,10 +619,23 @@ _VARIANT_CONFIG = {
             "frase que empiece por '¿sabias que...?', no era una curiosidad, era una ficha.\n\n"
             "Y NO ES UNA LISTA. Cinco curiosidades sueltas sobre el mismo tema no valen: "
             "es UNA cosa, mirada de cerca, que va poniendose mas rara escena a escena.\n\n"
-            "QUE ALGUIEN HABLE, Y QUE DIGA ALGO BUENO. En dos o tres de las cinco escenas "
-            "mete DENTRO de la narracion una frase corta que dijera alguien, entre comillas "
-            "angulares: «¡Que ardan con ella!». Va dentro del texto narrado, no aparte, porque "
-            "la voz la lee y encima aparece un bocadillo de comic justo cuando se dice.\n\n"
+            "MENOS NARRAR Y MAS HABLAR. Es lo que pidio ella viendo los videos: "
+            "\"pon menos narracion y mas conversaciones de los monigotes, que queda "
+            "gracioso\". Y es verdad: la voz contando datos es informacion, dos monigotes "
+            "discutiendo es una escena.\n\n"
+            "Asi que la MITAD de las escenas, por lo menos, tienen que traer a alguien "
+            "hablando. Va DENTRO de la narracion, entre comillas angulares - «¡Que ardan con "
+            "ella!» -, no aparte: la voz lo lee y encima sale un bocadillo justo cuando se "
+            "dice.\n\n"
+            "Y MEJOR AUN, QUE SE CONTESTEN. En una escena caben DOS frases: una la dice uno "
+            "y la otra se la responde el otro. Eso ya no es una cita, es una conversacion, y "
+            "es donde esta la gracia. Cada uno sale con su propio bocadillo y con su propia "
+            "voz, mas aguda o mas grave segun quien sea.\n\n"
+            "  Narracion de la escena, con las dos dentro:\n"
+            "    Perico se asomo a la urna y pregunto lo que pensaba todo el mundo: "
+            "«¿Y eso se bebe?». Remedios ni le miro: «Tu calla».\n\n"
+            "No metas mas de DOS por escena: en cuatro segundos no da tiempo a leer tres "
+            "globos.\n\n"
             "EL BOCADILLO ES DONDE MAS SE RIE LA GENTE. Es lo unico del video que no dice la voz "
             "narrando en serio: es el personaje hablando por su cuenta. Asi que que diga lo que "
             "esa persona diria de verdad en ese momento - mezquino, cabezota, harto, muerto de "
@@ -1131,6 +1144,15 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
         if not hablan:
             return ("no habla nadie: ninguna escena trae una frase entre comillas "
                     "angulares, asi que el video no tendra ni un bocadillo")
+        # Y QUE HABLEN EN LA MITAD, no en una sola. "Menos narracion y mas
+        # conversaciones": con una cita en ocho escenas se cumplia la regla de
+        # arriba y el video seguia siendo una voz contando datos. Esto solo en
+        # el primer intento - un video con un bocadillo es peor que uno con
+        # cuatro, pero es infinitamente mejor que ninguno.
+        if nivel >= _TODO and hablan * 2 < len(escenas):
+            return (f"solo hablan {hablan} de {len(escenas)} escenas. Tiene que hablar "
+                    f"alguien en LA MITAD por lo menos: la voz contando datos es "
+                    f"informacion, dos monigotes discutiendo es una escena")
 
         # REIR Y APRENDER, las dos mitades, cada una con su comprobacion.
         #

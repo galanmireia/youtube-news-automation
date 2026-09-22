@@ -135,6 +135,32 @@ def poner_voces(narracion: Path, trozos: list[tuple[str, float, float]],
         return None
 
 
+def _quienes_hablan(escena: dict, cuantas: int) -> list[str]:
+    """El personaje de cada frase de la escena, en orden.
+
+    La primera es de quien dice el guion ("habla_x"); la respuesta es del
+    OTRO. Es la misma regla que usa el bocadillo para decidir a quien apunta
+    el rabo, y tiene que serlo: si la voz dijera un personaje y el globo
+    apuntara a otro, el video se contradiria a si mismo en pantalla.
+    """
+    figuras = [f for f in (escena.get("figuras") or []) if isinstance(f, dict)]
+    if not figuras:
+        return []
+    x = escena.get("habla_x")
+    orden = figuras
+    if isinstance(x, (int, float)):
+        orden = sorted(figuras, key=lambda f: abs(float(f.get("x", 0.5) or 0.5) - float(x)))
+    primero = (orden[0].get("quien") or "").strip().lower()
+    # El que contesta es el que esta mas lejos, igual que en el bocadillo.
+    if len(orden) > 1:
+        ref = float(orden[0].get("x", 0.5) or 0.5)
+        lejos = max(figuras, key=lambda f: abs(float(f.get("x", 0.5) or 0.5) - ref))
+        segundo = (lejos.get("quien") or "").strip().lower()
+    else:
+        segundo = primero
+    return [primero if k % 2 == 0 else segundo for k in range(cuantas)]
+
+
 def _quien_habla(escena: dict) -> str:
     """El personaje que dice la frase de esta escena.
 
@@ -168,17 +194,24 @@ def trozos_de(scenes: list[dict], duraciones: list[float],
     for i, scene in enumerate(scenes):
         dura = duraciones[i] if i < len(duraciones) else 0.0
         escena = scene.get("escena")
-        cita = bocadillos.cita_de(scene.get("narration", ""))
+        citas = bocadillos.citas_de(scene.get("narration", ""))
         marca = marcas[i] if marcas and i < len(marcas) else None
-        if cita and marca and isinstance(escena, dict):
-            ventana = bocadillos.cuando_se_dice(marca[0], marca[1], cita)
-            quien = _quien_habla(escena)
-            if ventana and quien in VOCES:
-                trozos.append((quien, reloj + ventana[0],
-                               min(reloj + ventana[1], reloj + dura)))
-            elif ventana:
-                logger.info("Escena %s: habla alguien que no es del reparto (%r); "
-                            "se queda con la voz de la narracion.", i, quien)
+        if citas and marca and isinstance(escena, dict):
+            quienes = _quienes_hablan(escena, len(citas))
+            cursor = 0
+            for k, frase in enumerate(citas):
+                ventana = bocadillos.cuando_se_dice(marca[0], marca[1], frase, cursor)
+                if not ventana:
+                    continue
+                cursor = bocadillos.donde_se_dice(marca[0], frase, cursor) + len(frase)
+                quien = quienes[k] if k < len(quienes) else ""
+                if quien in VOCES:
+                    trozos.append((quien, reloj + ventana[0],
+                                   min(reloj + ventana[1], reloj + dura)))
+                else:
+                    logger.info("Escena %s: la frase %s la dice alguien que no es del "
+                                "reparto (%r); se queda con la voz de la narracion.",
+                                i, k + 1, quien)
         reloj += dura
     return trozos
 
