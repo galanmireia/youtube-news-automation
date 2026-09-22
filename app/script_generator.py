@@ -488,6 +488,7 @@ despues de haberse escrito y pagado.
       "photo_subject": "nombre de una persona publica o de un lugar/institucion con nombre propio si aplica, si no, cadena vacia",
       "photo_subject_role": "cargo de la persona o descriptor corto del lugar si photo_subject no esta vacio, si no, cadena vacia",
       "ai_image_prompt": "descripcion en ingles para ilustracion por IA si aplica, si no, cadena vacia",
+      "lo_gracioso": "{bloque_campo_gracia}",
       "escena": "{bloque_campo_escena}",
       "sonido": "{bloque_campo_sonido}",
       "on_screen_highlight": "EN {language}, texto corto (3-6 palabras) con el dato clave de esta escena, con CIFRA si la escena tiene alguna, ver instrucciones arriba",
@@ -548,6 +549,16 @@ _VARIANT_CONFIG = {
             "  BIEN: 'En Lepanto remaban encadenados doce mil hombres que no eran soldados.'\n\n"
             "UN SOLO HECHO POR VIDEO. Un Short no es un resumen: es una cosa contada entera. Si "
             "te sobran datos, guardalos - hay mas videos.\n\n"
+            "LAS DOS COSAS A LA VEZ: TIENE QUE HACER REIR Y TIENE QUE ENSEÑAR. Esa es la medida "
+            "del canal y va por delante de todo lo demas. Un video que enseña y no hace gracia "
+            "es un documental de clase. Uno que hace gracia y no enseña es ruido. Los dos a la "
+            "vez es lo que hace que alguien lo comparta.\n\n"
+            "Antes de escribir una palabra, rellena \"lo_gracioso\": en una frase, que es lo que "
+            "va a hacer gracia. Tiene que ser un HECHO del dosier - lo que de verdad hicieron -, "
+            "nunca un chiste inventado ni un juego de palabras. Si no sabes decir cual es la "
+            "gracia, el video no la tiene: cambia de enfoque y elige otro detalle.\n\n"
+            "Y ENSEÑAR quiere decir cifras, nombres y años CONCRETOS, no impresiones. "
+            "'Muchisimo dinero' no enseña; 'doscientos mil ducados' si.\n\n"
             "UNA SOLA COSA, MIRADA DE CERCA. Es la regla que manda sobre todas las demas.\n\n"
             "El dosier casi siempre es una biografia o un articulo entero, y la tentacion "
             "es resumirlo. NO LO HAGAS. De todo lo que trae, elige EL DETALLE MAS RARO - uno - "
@@ -676,6 +687,7 @@ video abria contando un golpe sobre un plano general de nada.""",
         # El guion ya no describe una imagen para Gemini: ELIGE de unas
         # listas cerradas y el programa la dibuja. Lo que no esta en la
         # lista no se puede dibujar, asi que no se puede pedir.
+        "bloque_campo_gracia": "EN UNA FRASE: que es lo que va a hacer gracia de este video, y tiene que ser un HECHO del dosier, no un chiste que te inventes. Si no sabes decirlo, el video no tiene gracia: cambia de enfoque antes de escribir",
         "bloque_campo_escena": "objeto con la escena de monigotes, OBLIGATORIO - ver LA ESCENA arriba",
         "bloque_campo_sonido": "uno de [gentio, campana, fuego, pasos, espada, tormenta, mar, monedas, puerta, caballo] o cadena vacia",
         "bloque_ilustracion": """LA ESCENA ("escena"): OBLIGATORIA EN TODAS Y CADA UNA DE LAS ESCENAS.
@@ -811,6 +823,7 @@ donde pasaron los hechos. El video del caso Asunta abrio con un camino de tierra
 porque ahi aparecio el cuerpo: correcto como dato y pesimo como primer plano, porque quien no
 conoce el caso ve un camino cualquiera y se va. Ese detalle es bueno MAS TARDE, cuando ya se ha
 contado que paso y el espectador sabe por que esta mirando un camino.""",
+        "bloque_campo_gracia": "cadena vacia",
         "bloque_campo_escena": "null, este formato no usa monigotes",
         "bloque_campo_sonido": "cadena vacia",
         "bloque_ilustracion": """Ilustracion por IA ("ai_image_prompt"): es para las escenas ABSTRACTAS, las que no tienen nada real
@@ -986,6 +999,22 @@ _ABRE_SITUANDO = re.compile(
 _PALABRAS_MAXIMAS_SHORT = 200
 
 
+# Palabras que estarian en cualquier frase y no sirven para comprobar que la
+# gracia declarada este de verdad en la narracion.
+_PALABRAS_COMUNES = frozenset({
+    "que", "para", "porque", "como", "cuando", "donde", "hacia", "sobre",
+    "entre", "desde", "hasta", "gracia", "gracioso", "video", "espectador",
+    "resulta", "acaba", "acabaron", "tenian", "tenia", "hicieron", "hacian",
+    "estaba", "estaban", "fueron", "siendo", "mismo", "misma", "cosa",
+})
+
+
+def _sin_tildes(t: str) -> str:
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFKD", t)
+                   if not unicodedata.combining(c))
+
+
 def _que_le_pasa_al_guion(script: dict, variant: str = "long",
                           exigente: bool = True) -> str | None:
     """What is wrong with this script, or None when nothing is.
@@ -1042,6 +1071,37 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
         if not hablan:
             return ("no habla nadie: ninguna escena trae una frase entre comillas "
                     "angulares, asi que el video no tendra ni un bocadillo")
+
+        # REIR Y APRENDER, las dos mitades, cada una con su comprobacion.
+        #
+        # Esto sale del patron de estos dos dias: CADA regla que puse con una
+        # comprobacion en codigo se ha cumplido - los dibujos, los bocadillos,
+        # el reparto, la duracion - y CADA regla que solo estaba escrita en el
+        # prompt se difumino. "Que sea divertido" llevaba un dia escrito y el
+        # #88 salio enseñando sin hacer gracia: "REY CON SOLO 4 AÑOS",
+        # "POSIBLE SINDROME GENETICO". Datos correctos, cero gracia.
+        gracia = (script.get("lo_gracioso") or "").strip()
+        if len(gracia.split()) < 5:
+            return ("no dice que es lo gracioso del video. Si no sabe nombrar la gracia en "
+                    "una frase, es que no la tiene")
+        # Y que no sea decoracion: lo que dice que hace gracia tiene que estar
+        # DENTRO de lo que se narra.
+        narrado = _sin_tildes(" ".join(
+            (e.get("narration") or "") for e in escenas).lower())
+        claves = [p for p in _sin_tildes(gracia.lower()).split()
+                  if len(p) > 4 and p not in _PALABRAS_COMUNES]
+        dentro = sum(1 for p in claves if p in narrado)
+        if claves and dentro < max(1, len(claves)//3):
+            return (f"dice que lo gracioso es {gracia[:60]!r}, pero eso no aparece en la "
+                    "narracion: la gracia esta en la ficha y no en el video")
+
+        # APRENDER: cifras, años o nombres propios. Sin datos concretos es una
+        # impresion, no una curiosidad.
+        concretos = len(re.findall(r"\b\d[\d.,]*\b", narrado))
+        if concretos < 2:
+            return (f"solo trae {concretos} dato(s) con cifra en toda la narracion. Una "
+                    "curiosidad se sostiene sobre numeros y años concretos, no sobre "
+                    "impresiones")
 
         # Y QUE TODAS TRAIGAN SU ESCENA DE MONIGOTES. Una escena sin dibujo
         # no da un video un poco peor: cae en la cadena vieja y acaba en una
