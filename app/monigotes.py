@@ -248,6 +248,8 @@ def escena(spec, w=1080, h=1920, semilla=0):
     for y0, y1, col in FONDOS[spec.get("fondo","liso")]:
         d.rectangle([0, int(h*y0), w, int(h*y1)], fill=col)
     suelo = int(h*spec.get("suelo", 0.66))
+    g_base = max(4, int(w*0.006))
+    _sembrar(d, w, h, suelo, spec.get("fondo", "liso"), random.Random(semilla + 77), g_base)
     if spec.get("arbol"): arbol(d, w*spec["arbol"], suelo, h*0.16, rnd)
     g = max(5, int(h*0.006))
     for t in spec.get("tachados", []):
@@ -731,7 +733,7 @@ def _jarra(d, x, y, alto, rnd, g):
     _linea(d, [(x-alto*.34, y-alto), (x+alto*.34, y-alto), (x+alto*.28, y),
                (x-alto*.28, y), (x-alto*.34, y-alto)], g, rnd, temblor=1.2)
     d.polygon([(x-alto*.32, y-alto*.94), (x+alto*.32, y-alto*.94),
-               (x+alto*.26, y-g), (x-alto*.26, y-g)], fill=(92, 88, 82))
+               (x+alto*.26, y-g), (x-alto*.26, y-g)], fill=(198, 152, 104))
     d.arc([x+alto*.20, y-alto*.80, x+alto*.62, y-alto*.30], 290, 70, fill=TINTA, width=g)
 
 
@@ -1074,3 +1076,313 @@ COSAS = {
     "arbol": lambda d, x, y, t, rnd, g, tinta=TINTA: arbol(d, x, y, t*1.6, rnd),
 }
 COSAS_VALIDAS = tuple(COSAS)
+
+
+# ---- DECORADOS CON FONDO -----------------------------------------------------
+# Ella, enseñandome una taberna dibujada con palotes igual que los mios pero
+# con entramado de madera, chimenea de ladrillo, mapas en las mesas y el
+# puerto por la ventana: "las escenas siempre son las mismas, igual no
+# necesitan mas movimiento si no mejorar la imagen, el fondo".
+#
+# Tiene razon y cambia la prioridad. En esa imagen no se mueve NADA y te
+# quedas mirandola, porque hay cosas que ver. Lo mio eran dos bandas de color
+# planas, asi que todas las escenas se parecian aunque los monigotes hicieran
+# cosas distintas.
+#
+# Lo que da profundidad es tener CAPAS: algo al fondo que se ve por un hueco
+# (el mar por la ventana), la habitacion en medio, y algo delante que corta el
+# plano (una viga, una mesa). Eso es lo que separa un decorado de un fondo.
+
+MADERA_CLARA = (186, 146, 96)
+LADRILLO = (166, 86, 68)
+PIEDRA_CLARA = (196, 190, 180)
+
+
+def _tablas(d, w, y0, y1, rnd, g, n=9):
+    """Suelo de tablas con fuga: las juntas se juntan hacia el fondo."""
+    d.rectangle([0, y0, w, y1], fill=MADERA)
+    fuga = (w*0.5, y0 - (y1-y0)*1.2)
+    for k in range(n+1):
+        px = w*k/n
+        _linea(d, [(px, y1), (fuga[0] + (px-fuga[0])*0.22, y0)], max(2, g//2), rnd,
+               color=MADERA_OSCURA, temblor=1.2)
+    for k in range(1, 4):                      # juntas transversales
+        yy = y1 - (y1-y0)*(k/4)**1.7
+        _linea(d, [(0, yy), (w, yy)], max(2, g//2), rnd, color=MADERA_OSCURA, temblor=1.4)
+
+
+def _entramado(d, w, y0, y1, rnd, g, postes=4):
+    """Pared de entramado: yeso entre vigas de madera."""
+    d.rectangle([0, y0, w, y1], fill=(226, 214, 192))
+    grueso = w*0.035
+    for k in range(postes+1):
+        px = w*k/postes - grueso/2
+        d.rectangle([px, y0, px+grueso, y1], fill=MADERA_CLARA)
+        _linea(d, [(px, y0), (px, y1)], max(2, g//2), rnd, color=MADERA_OSCURA, temblor=1.4)
+        _linea(d, [(px+grueso, y0), (px+grueso, y1)], max(2, g//2), rnd,
+               color=MADERA_OSCURA, temblor=1.4)
+    for yy in (y0 + (y1-y0)*0.06, y1 - (y1-y0)*0.06):
+        d.rectangle([0, yy-grueso/2, w, yy+grueso/2], fill=MADERA_CLARA)
+        _linea(d, [(0, yy-grueso/2), (w, yy-grueso/2)], max(2, g//2), rnd,
+               color=MADERA_OSCURA, temblor=1.4)
+        _linea(d, [(0, yy+grueso/2), (w, yy+grueso/2)], max(2, g//2), rnd,
+               color=MADERA_OSCURA, temblor=1.4)
+
+
+def _chimenea(d, x, y_suelo, ancho, alto, rnd, g, encendida=True):
+    x0, x1 = x-ancho/2, x+ancho/2
+    y0 = y_suelo - alto
+    d.rectangle([x0, y0, x1, y_suelo], fill=LADRILLO)
+    fila_h = alto/9
+    for f in range(9):                         # ladrillos a matajunta
+        yy = y0 + f*fila_h
+        _linea(d, [(x0, yy), (x1, yy)], max(2, g//2), rnd, color=(126, 62, 48), temblor=1.0)
+        desfase = (ancho/4) if f % 2 else 0
+        px = x0 + desfase
+        while px < x1:
+            _linea(d, [(px, yy), (px, yy+fila_h)], max(2, g//2), rnd,
+                   color=(126, 62, 48), temblor=1.0)
+            px += ancho/2
+    _linea(d, [(x0, y0), (x1, y0), (x1, y_suelo)], g, rnd, color=TINTA)
+    _linea(d, [(x0, y0), (x0, y_suelo)], g, rnd, color=TINTA)
+    hueco = [(x-ancho*.28, y_suelo), (x-ancho*.28, y_suelo-alto*.30),
+             (x, y_suelo-alto*.42), (x+ancho*.28, y_suelo-alto*.30),
+             (x+ancho*.28, y_suelo)]
+    d.polygon(hueco, fill=(42, 36, 32)); _linea(d, hueco, g, rnd, color=TINTA)
+    if encendida:
+        _fuego(d, x, y_suelo-alto*.02, ancho*.34, rnd, max(2, g//2), TINTA)
+        for lado in (-1, 1):                   # leños
+            _linea(d, [(x+lado*ancho*.20, y_suelo-alto*.02),
+                       (x-lado*ancho*.06, y_suelo-alto*.06)], g, rnd, color=MADERA_OSCURA)
+
+
+def _ventana_al_mar(d, x, y, ancho, alto, rnd, g, barcos=2):
+    """Un hueco con OTRO mundo detras: es lo que da fondo a la escena."""
+    x0, y0, x1, y1 = x-ancho/2, y-alto/2, x+ancho/2, y+alto/2
+    d.rectangle([x0, y0, x1, y1], fill=(146, 198, 232))
+    d.rectangle([x0, y0+alto*0.52, x1, y1], fill=(92, 140, 186))
+    for k in range(barcos):
+        bx = x0 + ancho*(0.22 + 0.42*k)
+        _barco(d, bx, y0+alto*(0.62+0.06*k), ancho*0.26, rnd, max(2, g//2), TINTA)
+    _linea(d, [(x0, y1-alto*0.36), (x1, y1-alto*0.30)], max(2, g//2), rnd,
+           color=(120, 92, 62), temblor=1.4)     # el muelle
+    _linea(d, [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)], int(g*1.6), rnd, color=TINTA)
+    _linea(d, [(x, y0), (x, y1)], g, rnd, color=TINTA)
+
+
+def _adoquines(d, x0, y0, x1, y1, rnd, g):
+    d.rectangle([x0, y0, x1, y1], fill=PIEDRA_CLARA)
+    fila, yy = 0, y0
+    while yy < y1:
+        alto = (y1-y0)*0.06 + (yy-y0)*0.05
+        px = x0 - ((x1-x0)*0.05 if fila % 2 else 0)
+        while px < x1:
+            ancho = (x1-x0)*0.11 + (yy-y0)*0.04
+            _linea(d, [(px, yy), (px+ancho, yy), (px+ancho, yy+alto), (px, yy+alto), (px, yy)],
+                   max(2, g//2), rnd, color=(150, 144, 136), temblor=1.2)
+            px += ancho
+        yy += alto; fila += 1
+
+
+def _mesa_con_cosas(d, x, y, ancho, rnd, g, papeles=2, jarras=2, alto=None):
+    alto = alto if alto else ancho*0.30
+    tablero = [(x-ancho/2, y-alto), (x+ancho/2, y-alto),
+               (x+ancho*0.42, y-alto*0.72), (x-ancho*0.42, y-alto*0.72)]
+    d.polygon(tablero, fill=MADERA_CLARA); _linea(d, tablero+[tablero[0]], g, rnd, color=TINTA)
+    for lado in (-1, 1):
+        px = x + lado*ancho*0.36
+        _linea(d, [(px, y-alto*0.74), (px, y)], int(g*1.8), rnd, color=MADERA_OSCURA)
+    for k in range(papeles):
+        px = x - ancho*0.22 + ancho*0.34*k
+        hoja = [(px-ancho*.13, y-alto*1.02), (px+ancho*.13, y-alto*1.04),
+                (px+ancho*.15, y-alto*.88), (px-ancho*.15, y-alto*.86)]
+        d.polygon(hoja, fill=(248, 242, 226)); _linea(d, hoja+[hoja[0]], max(2, g//2), rnd, color=TINTA)
+        for j in range(2):
+            _linea(d, [(px-ancho*.09, y-alto*(.98-.05*j)), (px+ancho*.09, y-alto*(.99-.05*j))],
+                   max(2, g//3), rnd, color=(150, 140, 126), temblor=1.6)
+    for k in range(jarras):
+        px = x + ancho*(0.30 - 0.52*k)
+        _jarra(d, px, y-alto*0.92, ancho*0.075, rnd, max(2, g//2))
+
+
+def _taburete(d, x, y, t, rnd, g):
+    d.ellipse([x-t*.30, y-t*.62, x+t*.30, y-t*.44], fill=MADERA_CLARA, outline=TINTA, width=g)
+    for px in (-.22, 0, .22):
+        _linea(d, [(x+t*px, y-t*.52), (x+t*px*1.5, y)], int(g*1.4), rnd, color=MADERA_OSCURA)
+
+
+def _cartel(d, x, y, ancho, texto, rnd, g):
+    """El cartel colgado. Lo de la imagen que me paso: es lo que le pone
+    NOMBRE al sitio sin que la voz tenga que decirlo."""
+    lineas = texto.upper().split("\n")[:3]
+    alto = ancho*(0.30 + 0.18*len(lineas))
+    x0, y0, x1, y1 = x-ancho/2, y, x+ancho/2, y+alto
+    _linea(d, [(x-ancho*.42, y), (x-ancho*.42, y-ancho*.22)], g, rnd, color=TINTA)
+    _linea(d, [(x+ancho*.42, y), (x+ancho*.42, y-ancho*.22)], g, rnd, color=TINTA)
+    _linea(d, [(x-ancho*.55, y-ancho*.22), (x+ancho*.55, y-ancho*.22)], int(g*1.4), rnd, color=TINTA)
+    d.rectangle([x0, y0, x1, y1], fill=MADERA_CLARA)
+    _linea(d, [(x0,y0),(x1,y0),(x1,y1),(x0,y1),(x0,y0)], int(g*1.5), rnd, color=TINTA)
+    # La letra se MIDE y se encoge hasta que cabe. Sin esto "LA TABERNA DEL
+    # PUERTO" se salia del tablero por los dos lados: elegia el tamaño por la
+    # altura del cartel y no miraba lo ancho que era el texto.
+    px = int(alto/(len(lineas)+0.6))
+    for _ in range(14):
+        f = _fuente_cartel(px)
+        if max(d.textlength(l, font=f) for l in lineas) <= ancho*0.84 or px <= 12:
+            break
+        px = int(px*0.88)
+    salto = alto*0.80/len(lineas)
+    arriba = y0 + (alto - salto*len(lineas))/2
+    for i, l in enumerate(lineas):
+        d.text((x - d.textlength(l, font=f)/2, arriba + i*salto), l, font=f, fill=(74, 52, 34))
+
+
+def _fuente_cartel(px):
+    from PIL import ImageFont
+    import glob
+    for patron in ("/usr/share/fonts/**/DejaVuSerif-Bold.ttf",
+                   "/usr/share/fonts/**/DejaVuSans-Bold.ttf"):
+        for f in glob.glob(patron, recursive=True):
+            try:
+                return ImageFont.truetype(f, max(12, px))
+            except Exception:
+                continue
+    return ImageFont.load_default()
+
+
+def taberna(spec: dict, w: int, h: int, semilla: int = 0):
+    """Una taberna de puerto, montada por capas de profundidad.
+
+      1. la pared del fondo, con su entramado
+      2. un hueco al mar y una chimenea encendida - el "otro mundo"
+      3. mesas del fondo, mas pequeñas, con su gente
+      4. el suelo de tablas
+      5. LAS FIGURAS
+      6. la mesa de delante con mapas y jarras, POR DELANTE de la gente
+      7. una viga cruzando arriba, que es lo que mete al espectador dentro
+    """
+    rnd = random.Random(semilla)
+    vertical = h > w
+    suelo = int(h*spec.get("suelo", 0.70))
+    img = Image.new("RGB", (w, h), (226, 214, 192))
+    d = ImageDraw.Draw(img)
+    g = max(4, int(w*0.006))
+
+    _entramado(d, w, 0, suelo, rnd, g, postes=3 if vertical else 5)
+    _ventana_al_mar(d, w*0.26, h*(0.30 if vertical else 0.32),
+                    w*0.34, h*(0.16 if vertical else 0.26), rnd, g)
+    _chimenea(d, w*0.78, suelo, w*0.30, h*(0.30 if vertical else 0.46), rnd, g)
+    _tablas(d, w, suelo, h, rnd, g, n=7 if vertical else 11)
+
+    # Gente del fondo, pequeña: llena el sitio sin robar el plano.
+    for x, alto in ((0.42, 0.10), (0.56, 0.095)):
+        figura(d, w*x, suelo + h*0.02, h*alto, rnd, "en_mesa", "neutro")
+    _mesa_con_cosas(d, w*0.49, suelo + h*0.03, w*0.24, rnd, max(2, g//2),
+                    papeles=1, jarras=1, alto=h*0.035)
+
+    velas = []
+    for f in spec.get("figuras", []):
+        alto_f = h*f.get("alto", 0.30)
+        figura(d, w*f["x"], suelo + h*0.27 + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
+               alto_f, rnd, f.get("pose", "en_mesa"), f.get("gesto", "neutro"),
+               f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
+               rasgos=REPARTO.get(f.get("quien") or ""))
+
+    _mesa_con_cosas(d, w*0.46, suelo + h*0.34, w*0.92, rnd, g, papeles=2, jarras=2,
+                    alto=h*0.075)
+    _taburete(d, w*0.90, suelo + h*0.36, h*0.09, rnd, g)
+    # Un banco cruzando abajo: cierra el plano y quita el metro de suelo
+    # vacio que quedaba. Es lo que en la referencia hace la barandilla.
+    _banco(d, w*0.42, h*1.02, w*0.62, rnd, g)
+
+    # La viga de delante: el marco que mete al espectador DENTRO del sitio.
+    d.rectangle([0, 0, w, h*0.055], fill=MADERA_CLARA)
+    _linea(d, [(0, h*0.055), (w, h*0.055)], int(g*1.6), rnd, color=MADERA_OSCURA)
+    for px in (0.12, 0.88):
+        d.rectangle([w*px-w*0.022, 0, w*px+w*0.022, h*0.30], fill=MADERA_CLARA)
+        _linea(d, [(w*px-w*0.022, 0), (w*px-w*0.022, h*0.30)], g, rnd, color=MADERA_OSCURA)
+        _linea(d, [(w*px+w*0.022, 0), (w*px+w*0.022, h*0.30)], g, rnd, color=MADERA_OSCURA)
+
+    # La pared de la izquierda salia pelada. Dos cosas colgadas y ya hay algo
+    # que mirar mientras habla la voz.
+    # Colgadas de la pared, y solo lo que se cuelga de verdad: el libro
+    # flotaba a media pared como un fantasma.
+    for px, py, que, tam in ((0.13, 0.52, "espada", 0.10), (0.15, 0.72, "olla", 0.05)):
+        COSAS[que](d, w*px, h*py, h*tam, rnd, max(2, g//2), TINTA)
+    _linea(d, [(w*0.09, h*0.73), (w*0.21, h*0.73)], int(g*1.4), rnd, color=MADERA_OSCURA)
+    _vela(d, w*0.36, suelo - h*0.01, h*0.035, rnd, max(2, g//2))
+
+    letrero = spec.get("cartel")
+    if letrero:
+        _cartel(d, w*0.50, h*0.10, w*0.42, str(letrero)[:40], rnd, g)
+
+    img = _resplandor(img, (w*0.78, suelo - h*0.10), h*0.16)
+    return img
+
+
+# ---- EL SUELO CON COSAS ------------------------------------------------------
+# Del video que me paso: dos monigotes en una savana, y el suelo NO es una
+# banda verde - tiene matas de hierba, piedras sueltas y arboles de distintos
+# tamaños repartidos. Eso es lo que hace que el plano aguante veinte segundos
+# de voz encima. Y es barato: son bucles.
+#
+# Va sembrado con semilla fija por escena, asi que los matojos no bailan de un
+# fotograma a otro - que es justo lo que pasaria sembrandolos al azar en cada
+# uno, y marearia.
+
+def _mata(d, x, y, t, rnd, g, color=(72, 132, 52)):
+    for k in (-1, 0, 1):
+        _linea(d, [(x + k*t*0.18, y),
+                   (x + k*t*0.34, y - t*rnd.uniform(0.55, 1.0))], g, rnd,
+               color=color, temblor=1.6)
+
+
+def _piedra(d, x, y, t, rnd, g, color=(150, 142, 132)):
+    pts = []
+    for i in range(9):
+        a = i/8*math.pi
+        pts.append((x - math.cos(a)*t*rnd.uniform(.8, 1.1),
+                    y - math.sin(a)*t*rnd.uniform(.45, .7)))
+    pts += [(x + t, y), (x - t, y)]
+    d.polygon(pts, fill=color)
+    _linea(d, pts + [pts[0]], max(2, g//2), rnd, color=TINTA, temblor=1.2)
+
+
+_SIEMBRA = {
+    "campo": {"matas": 34, "piedras": 9, "arboles": 3, "verde": (72, 132, 52)},
+    "calle": {"matas": 5,  "piedras": 16, "arboles": 1, "verde": (120, 112, 96)},
+    "noche": {"matas": 20, "piedras": 7, "arboles": 2, "verde": (44, 62, 44)},
+    "liso":  {"matas": 0,  "piedras": 0, "arboles": 0, "verde": (72, 132, 52)},
+    "salon": {"matas": 0,  "piedras": 0, "arboles": 0, "verde": (72, 132, 52)},
+}
+
+
+def _sembrar(d, w, h, suelo, fondo, rnd, g):
+    """Lo que llena el suelo. Las cosas de detras, mas pequeñas y mas palidas:
+    es lo unico que hace falta para que haya profundidad."""
+    plan = _SIEMBRA.get(fondo)
+    if not plan:
+        return
+    # Un par de nubes: el cielo se quedaba como un rectangulo azul enorme y
+    # vacio, que es la mitad de arriba del plano en vertical.
+    if plan["arboles"] and fondo != "noche":
+        for _ in range(2):
+            _nube(d, w*rnd.uniform(0.08, 0.92), suelo*rnd.uniform(0.18, 0.55),
+                  h*rnd.uniform(0.035, 0.055), rnd, max(3, g//2))
+    hondo = h - suelo
+    # Los arboles van EN EL HORIZONTE, no repartidos por el prado: sembrados
+    # hacia delante salian entre las piernas de la gente, y ademas pequeños,
+    # con lo que parecian arbustos en un palo. En la referencia estan todos en
+    # la linea del fondo y son grandes.
+    for _ in range(plan["arboles"]):
+        arbol(d, w*rnd.uniform(0.02, 0.98), suelo + hondo*rnd.uniform(0.0, 0.05),
+              h*rnd.uniform(0.13, 0.19), rnd)
+    for _ in range(plan["matas"]):
+        f = rnd.uniform(0, 1)
+        _mata(d, w*rnd.uniform(0.01, 0.99), suelo + hondo*f,
+              h*(0.016 + 0.038*f), rnd, max(3, int(g*(0.5 + 0.7*f))),
+              color=plan["verde"])
+    for _ in range(plan["piedras"]):
+        f = rnd.uniform(0.1, 1)
+        _piedra(d, w*rnd.uniform(0.03, 0.97), suelo + hondo*f,
+                h*(0.006 + 0.022*f), rnd, max(2, int(g*(0.4 + 0.6*f))))
