@@ -38,6 +38,14 @@ from PIL import Image, ImageDraw, ImageFont
 logger = logging.getLogger(__name__)
 
 TINTA = (24, 22, 20)
+TINTA_CLARA = (244, 238, 226)
+
+# Sobre que fondos hay que dibujar con tinta CLARA. Lo encontre midiendo el
+# movimiento: en 'noche' salia un 96% de fotogramas quietos y en 'campo' un
+# 8%, con la misma animacion. No fallaba la animacion - fallaba que un
+# monigote de tinta negra sobre un azul de noche no se ve. Si no lo detecta
+# una resta de fotogramas, tampoco lo ve quien mira.
+_FONDOS_OSCUROS = frozenset({"noche"})
 ROJO = (214, 40, 40)
 FONDOS = {
     "campo":  [(0.00, 0.40, (126, 196, 232)), (0.40, 1.00, (122, 193, 96))],
@@ -94,26 +102,32 @@ _POSES = {
     "corriendo":{"cuello": (0,-.68), "cadera": (0,-.37),
                  "brazos": [[(0,-.64),(-.20,-.56),(-.30,-.44)], [(0,-.64),(.18,-.58),(.30,-.64)]],
                  "piernas":[[(0,-.37),(-.22,-.22),(-.30,-.04)], [(0,-.37),(.16,-.18),(.30,-.10)]]},
+    # La otra mitad de la zancada. Correr no es una postura, son dos que se
+    # alternan: sin esto el monigote iba en plancha, deslizando.
+    "corriendo_b":{"cuello": (0,-.68), "cadera": (0,-.37),
+                 "brazos": [[(0,-.64),(.20,-.56),(.30,-.44)], [(0,-.64),(-.18,-.58),(-.30,-.64)]],
+                 "piernas":[[(0,-.37),(.20,-.20),(.30,-.06)],  [(0,-.37),(-.18,-.20),(-.28,-.08)]]},
 }
 
-def _cara(d, c, r, g, rnd, gesto):
+def _cara(d, c, r, g, rnd, gesto, tinta=TINTA):
     o = r*0.30
     ojo = max(3, int(r*0.10))
     for lado in (-1, 1):
         cx, cy = c[0]+lado*o, c[1]-r*0.12
         if gesto == "enfadado":
-            _linea(d, [(cx-ojo*1.6, cy-ojo*1.8), (cx+ojo*1.6, cy-ojo*0.6)][::lado], g, rnd, temblor=1)
-        d.ellipse([cx-ojo, cy-ojo, cx+ojo, cy+ojo], fill=TINTA)
+            _linea(d, [(cx-ojo*1.6, cy-ojo*1.8), (cx+ojo*1.6, cy-ojo*0.6)][::lado], g, rnd,
+                   color=tinta, temblor=1)
+        d.ellipse([cx-ojo, cy-ojo, cx+ojo, cy+ojo], fill=tinta)
     b = (c[0], c[1]+r*0.34)
     if gesto in ("sorpresa", "grito"):
         rr = r*(0.20 if gesto=="sorpresa" else 0.28)
-        _circulo(d, b, rr, g, rnd, relleno=TINTA)
+        _circulo(d, b, rr, g, rnd, relleno=tinta, color=tinta)
     elif gesto == "contento":
-        d.arc([b[0]-r*.34, b[1]-r*.34, b[0]+r*.34, b[1]+r*.20], 15, 165, fill=TINTA, width=g)
+        d.arc([b[0]-r*.34, b[1]-r*.34, b[0]+r*.34, b[1]+r*.20], 15, 165, fill=tinta, width=g)
     elif gesto == "enfadado":
-        d.arc([b[0]-r*.30, b[1]-r*.06, b[0]+r*.30, b[1]+r*.42], 195, 345, fill=TINTA, width=g)
+        d.arc([b[0]-r*.30, b[1]-r*.06, b[0]+r*.30, b[1]+r*.42], 195, 345, fill=tinta, width=g)
     else:
-        _linea(d, [(b[0]-r*.22, b[1]), (b[0]+r*.22, b[1])], g, rnd, temblor=1)
+        _linea(d, [(b[0]-r*.22, b[1]), (b[0]+r*.22, b[1])], g, rnd, color=tinta, temblor=1)
 
 
 # ---- GORROS ----------------------------------------------------------------
@@ -178,21 +192,21 @@ def _gorro(d, cab, rc, g, rnd, cual):
 
 
 def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, espejo=False,
-           pose_mezclada=None):
+           pose_mezclada=None, tinta=TINTA, relleno=(255, 255, 255)):
     p = pose_mezclada or _POSES[pose]
     s = -1 if espejo else 1
     P = lambda t: (x + t[0]*alto*s, suelo + t[1]*alto)
     g = max(5, int(alto*0.022))
     rc = alto*0.145
     cuello = P(p["cuello"]); cadera = P(p["cadera"])
-    _linea(d, [cuello, cadera], g, rnd)
+    _linea(d, [cuello, cadera], g, rnd, color=tinta)
     for m in p["brazos"] + p["piernas"]:
-        _linea(d, [P(t) for t in m], g, rnd)
+        _linea(d, [P(t) for t in m], g, rnd, color=tinta)
     cab = (cuello[0], cuello[1]-rc*0.95)
     if gorro in GORROS_DETRAS:
         _gorro(d, cab, rc, g, rnd, gorro)
-    _circulo(d, cab, rc, g, rnd)
-    _cara(d, cab, rc, g, rnd, gesto)
+    _circulo(d, cab, rc, g, rnd, relleno=relleno, color=tinta)
+    _cara(d, cab, rc, g, rnd, gesto, tinta=tinta)
     if gorro and gorro not in GORROS_DETRAS:
         _gorro(d, cab, rc, g, rnd, gorro)
     return cab
@@ -227,10 +241,16 @@ def escena(spec, w=1080, h=1920, semilla=0):
         lado = w*t.get("tam", 0.17)
         cx, cy = w*t["x"], h*t["y"]
         tachado(d, (cx-lado/2, cy-lado/2, cx+lado/2, cy+lado/2), rnd, g)
+    oscuro = spec.get("fondo") in _FONDOS_OSCUROS
+    tinta = TINTA_CLARA if oscuro else TINTA
+    relleno = (38, 44, 66) if oscuro else (255, 255, 255)
     for f in spec.get("figuras", []):
-        figura(d, w*f["x"], suelo, h*f.get("alto", 0.30), rnd,
+        alto_f = h*f.get("alto", 0.30)
+        figura(d, w*f["x"], suelo + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
+               alto_f, rnd,
                f.get("pose","de_pie"), f.get("gesto","neutro"),
-               f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"))
+               f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
+               tinta=tinta, relleno=relleno)
     return img
 
 
@@ -331,6 +351,24 @@ def _pinta_bocadillo(img, texto, apunta_x, rnd):
     return img
 
 
+# Cada cuanto se repite el movimiento. ESTE ERA EL FALLO del video #84: el
+# personaje iba de una pose a otra UNA vez, estirada a lo largo de los cinco
+# segundos del plano - y con suavizado al entrar y al salir, asi que se
+# pasaba la mayor parte del plano casi quieto. Eso no es animacion, es una
+# foto deformandose despacio. Ella lo dijo en dos palabras: "se tiene que
+# mover mas".
+#
+# Segundo y cuarto es el ritmo de un gesto humano: levantar el brazo, bajarlo.
+# En un plano de cinco segundos eso son cuatro repeticiones en vez de media.
+_SEGUNDOS_POR_CICLO = 1.25
+
+# Nadie esta nunca completamente quieto. Un personaje que no cambia de pose
+# sigue respirando y balanceandose un poco, y cada uno con su propio compas -
+# si van todos a la vez parecen un coro y canta muchisimo.
+_RESPIRACION = 0.012      # de la altura de la figura
+_SEGUNDOS_RESPIRACION = 2.3
+
+
 def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None):
     """Los fotogramas de una escena donde cada figura va de 'pose' a 'pose_fin'.
 
@@ -341,16 +379,29 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None):
     total = max(2, int(segundos*fps))
     fotogramas = []
     for n in range(total):
-        t = n/(total-1)
+        reloj = n/fps
+        # El movimiento se REPITE cada ciclo en vez de estirarse por el plano.
+        t = (reloj % _SEGUNDOS_POR_CICLO)/_SEGUNDOS_POR_CICLO
         if vaiven:
             t = 1 - abs(1 - 2*t)   # va y vuelve, para que el bucle no salte
         paso = dict(spec)
         paso["figuras"] = []
-        for f in spec.get("figuras", []):
+        for k, f in enumerate(spec.get("figuras", [])):
             g = dict(f)
             fin = f.get("pose_fin")
-            if fin:
-                g["pose_mezclada"] = _mezcla(_POSES[f.get("pose","de_pie")], _POSES[fin], t)
+            # Cada figura con su propio desfase: si el movimiento de las tres
+            # empieza en el mismo fotograma parecen marionetas de un hilo.
+            desfase = k*0.37
+            tk = (reloj/_SEGUNDOS_POR_CICLO + desfase) % 1.0
+            tk = 1 - abs(1 - 2*tk) if vaiven else tk
+            # Andar o correr se anima SOLO: son ciclos, no un gesto. Si el
+            # guion no pide a donde va, la pierna alterna igual.
+            if not fin and f.get("pose") == "corriendo":
+                fin = "corriendo_b"
+            if fin and fin != f.get("pose"):
+                g["pose_mezclada"] = _mezcla(_POSES[f.get("pose","de_pie")], _POSES[fin], tk)
+            # RESPIRACION: sube y baja un poco aunque no cambie de pose.
+            g["_bocanada"] = math.sin(2*math.pi*(reloj/_SEGUNDOS_RESPIRACION + desfase))
             paso["figuras"].append(g)
         rnd = random.Random(1000 + n//3)
         img = (interior(paso, _ANCHO_BASE, _ALTO_BASE, semilla=1000 + n//3)
@@ -370,7 +421,7 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None):
 # y una escena que no se puede dibujar es un hueco en el video. Lo que no se
 # reconoce no rompe nada, se sustituye por lo mas parecido y se apunta.
 FONDOS_VALIDOS = tuple(FONDOS)
-POSES_VALIDAS = tuple(_POSES)
+POSES_VALIDAS = tuple(p for p in _POSES if p != "corriendo_b")
 GESTOS_VALIDOS = ("neutro", "sorpresa", "contento", "enfadado", "grito")
 GORROS_VALIDOS = ("corona", "comandante", "tricornio", "sombrero", "casco",
                   "mitra", "monje", "boina", "marinero")
@@ -429,6 +480,23 @@ def limpia(spec: dict) -> dict:
 
 
 _ANCHO_BASE, _ALTO_BASE = 1080, 1920
+
+# La camara. Con las ilustraciones de IA habia al menos un zoom lento; con los
+# monigotes el plano se quedo clavado del todo, y un plano clavado se nota
+# aunque dentro haya movimiento. Un empuje del 7% y una deriva lateral: poco,
+# pero quita la sensacion de foto.
+_EMPUJE = 0.07
+
+
+def _camara(img, t):
+    """El recorte de este instante: entra despacio y deriva un poco."""
+    w, h = img.size
+    zoom = 1.0 + _EMPUJE*t
+    cw, ch = w/zoom, h/zoom
+    # La deriva va hacia el centro, asi que el plano se cierra sobre la accion.
+    x = (w-cw)*(0.5 + 0.35*math.cos(math.pi*t))
+    y = (h-ch)*0.5
+    return img.crop((int(x), int(y), int(x+cw), int(y+ch)))
 _FPS = 15
 
 
@@ -448,7 +516,8 @@ def render(spec: dict, out_path: Path, ancho: int, alto: int,
         carpeta = Path(out_path).with_suffix("")
         carpeta.mkdir(parents=True, exist_ok=True)
         for i, img in enumerate(fotogramas):
-            img.resize((ancho, alto), Image.LANCZOS).save(carpeta / f"{i:04d}.png")
+            _camara(img, i/max(1, len(fotogramas)-1)).resize(
+                (ancho, alto), Image.LANCZOS).save(carpeta / f"{i:04d}.png")
         orden = ["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(_FPS),
                  "-i", str(carpeta / "%04d.png"),
                  "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20",
@@ -457,7 +526,8 @@ def render(spec: dict, out_path: Path, ancho: int, alto: int,
         # Un fotograma suelto para la miniatura. La lista de 'retratos' la lee
         # thumbnail.py con PIL, y un mp4 ahi dentro es una excepcion: la
         # portada de un video de monigotes tiene que ser un monigote.
-        medio = fotogramas[len(fotogramas)//2].resize((ancho, alto), Image.LANCZOS)
+        medio = _camara(fotogramas[len(fotogramas)//2], 0.5).resize(
+            (ancho, alto), Image.LANCZOS)
         medio.save(Path(out_path).with_suffix(".jpg"), quality=92)
         for f in carpeta.glob("*.png"):
             f.unlink()
@@ -618,7 +688,10 @@ def interior(spec: dict, w: int, h: int, semilla: int = 0):
 
     linea_mesa = suelo - h*0.02
     for f in spec.get("figuras", []):
-        figura(d, w*f["x"], linea_mesa + h*0.075, h*f.get("alto", 0.30), rnd,
+        alto_f = h*f.get("alto", 0.30)
+        figura(d, w*f["x"],
+               linea_mesa + h*0.075 + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
+               alto_f, rnd,
                f.get("pose", "en_mesa"), f.get("gesto", "neutro"),
                f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"))
 

@@ -265,6 +265,9 @@ def candidatos(cuantos: int = 12, semilla: int | None = None) -> list[str]:
         # Y que no lo hayamos hecho ya. Sin esto la tanda repite tema: el #81
         # y el #82 salieron los dos sobre la duquesa de Alba, y un tercero
         # habria salido igual.
+        if not _es_de_aqui(t):
+            logger.info("Tema descartado, no pasa en España: %r", t[:50])
+            continue
         if _ya_hecho(t):
             logger.info("Tema descartado, ya tiene video: %r", t[:50])
             continue
@@ -273,6 +276,43 @@ def candidatos(cuantos: int = 12, semilla: int | None = None) -> list[str]:
             break
     logger.info("Temas: %s comprobados contra Wikipedia.", len(salida))
     return salida
+
+
+# Historia de America, que es historia de España en el sentido academico y no
+# es lo que espera quien abre un canal que se llama España Contada. Ya saque
+# las categorias de Wikipedia que la traian (video #80, el reparto en
+# encomienda), pero los temas ya no salen de ahi: salen de titulos de YouTube,
+# y ahi se colo "Completa De Mexico Desde Los Primeros Pueblos Hasta La
+# Independencia" -> articulo "Independencia de Mexico".
+#
+# Se mira el TITULO y tambien el articulo al que resuelve, porque el titulo
+# puede no nombrar el pais y el articulo si.
+_NO_ES_DE_AQUI = (
+    "mexico", "mejico", "peru", "colombia", "argentina", "chile", "bolivia",
+    "venezuela", "ecuador", "uruguay", "paraguay", "cuba", "guatemala",
+    "honduras", "nicaragua", "salvador", "costa rica", "panama", "dominicana",
+    "puerto rico", "filipinas", "azteca", "inca", "maya", "virreinato",
+    "nueva españa", "conquistador", "encomienda", "indigena", "amerindio",
+    "precolombino", "mesoamerica", "amazonia", "andes",
+)
+
+
+def _es_de_aqui(termino: str, articulo: str = "") -> bool:
+    """¿Esto pasa en España?
+
+    No es un filtro de calidad, es de IDENTIDAD del canal: la independencia de
+    Mexico es historia importantisima y no es lo que viene a ver quien abre
+    "España Contada". El #80 ya fue por ahi con la encomienda y lo arregle en
+    las categorias; los temas ya no salen de las categorias.
+    """
+    texto = _sin_tildes(f"{termino} {articulo}".lower())
+    return not any(malo in texto for malo in _NO_ES_DE_AQUI)
+
+
+def _sin_tildes(t: str) -> str:
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFKD", t)
+                   if not unicodedata.combining(c))
 
 
 def _ya_hecho(termino: str) -> bool:

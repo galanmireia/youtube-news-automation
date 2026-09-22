@@ -1070,6 +1070,66 @@ def _tamano_por_material(summary: str) -> tuple[str, str, float]:
             minutos)
 
 
+# Lo que un Short de monigotes ya NO usa, y que seguia entrando entero en sus
+# instrucciones: como buscar fotos reales, que palabras clave darle al banco
+# de video de archivo y como construir una diapositiva de datos. Son casi once
+# mil caracteres que el modelo tiene que leer y ponderar para nada.
+#
+# Y NO ES SOLO EL TAMAÑO DEL PROMPT: el #84 gasto 14.465 tokens de SALIDA
+# donde el #81 gasto 7.755. El doble de pensar, 0,36 $ de guion frente a 0,12.
+# O sea que el ahorro de quitar las imagenes de IA - 12 centimos - se lo
+# comio con creces el guion. Se lo vendi como ahorro sin mirarlo.
+#
+# Se recorta sobre el prompt YA CONSTRUIDO, no moviendo texto entre
+# plantillas: esas secciones llevan {language} y {channel_name} dentro, y
+# sacarlas a una variable las dejaria sin sustituir en el video largo.
+_CAMPOS_MUERTOS_EN_SHORT = (
+    '      "visual_keywords":', '      "photo_subject":',
+    '      "photo_subject_role":', '      "ai_image_prompt":', '      "slide":',
+)
+
+_FUERA_DEL_SHORT = (
+    # La seccion de fotos acaba donde empieza la de monigotes. Puse aqui
+    # "Ilustracion por IA", que es como acababa ANTES de cambiar el bloque, y
+    # en el Short ya no existe: salto el aviso y se quedaron 4.400 caracteres
+    # dentro. Para eso esta el aviso.
+    ("Fotos reales de personas y sitios concretos", 'LA ESCENA ("escena")'),
+    ("Palabras clave visuales", "DIAPOSITIVAS DE DATOS"),
+    ("DIAPOSITIVAS DE DATOS", "Texto destacado en pantalla"),
+)
+
+
+def _sin_lo_que_ya_no_usa(prompt: str) -> str:
+    """Las instrucciones de un Short, sin lo que quedo muerto al dibujar.
+
+    Si alguna marca deja de existir se avisa y se sigue: un prompt un poco mas
+    largo es un problema de dinero, y quedarse sin guion es un problema de
+    verdad.
+    """
+    fuera = 0
+    for desde, hasta in _FUERA_DEL_SHORT:
+        i = prompt.find(desde)
+        j = prompt.find(hasta, i + 1) if i >= 0 else -1
+        if i < 0 or j <= i:
+            logger.warning("No encuentro la seccion %r para quitarla del Short.", desde[:40])
+            continue
+        fuera += j - i
+        prompt = prompt[:i] + prompt[j:]
+    # Y los campos del esquema que ya nadie lee. Son cinco POR ESCENA que el
+    # modelo tiene que decidir y escribir, y la salida es lo caro.
+    lineas, campos = [], 0
+    for linea in prompt.split("\n"):
+        if any(linea.startswith(c) for c in _CAMPOS_MUERTOS_EN_SHORT):
+            campos += 1
+            continue
+        lineas.append(linea)
+    prompt = "\n".join(lineas)
+    if fuera or campos:
+        logger.info("Guion (short): fuera %s caracteres de instrucciones muertas y "
+                    "%s campos del esquema que ya no se leen.", fuera, campos)
+    return prompt
+
+
 def generate_script(news_item: dict, variant: str = "long") -> dict:
     if variant not in _VARIANT_CONFIG:
         raise ValueError(f"variant desconocida: {variant!r}")
@@ -1097,6 +1157,9 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
         summary=_trim_sources(news_item["summary"], _SOURCE_BUDGET[variant]),
         **variant_config,
     )
+    if variant == "short":
+        prompt = _sin_lo_que_ya_no_usa(prompt)
+
     # Split into the part that never changes and the story of the day, so the
     # instructions can be cached.
     #

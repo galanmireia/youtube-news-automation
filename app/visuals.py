@@ -475,6 +475,17 @@ def fetch_clips_for_scenes(
                     globo = {"texto": cita, "desde": ventana[0], "hasta": ventana[1],
                              "x": float(quien) if isinstance(quien, (int, float))
                                   else float(figs[0].get("x", 0.5) or 0.5)}
+                    logger.info("Escena %s: bocadillo \u00ab%s\u00bb de %.1fs a %.1fs.",
+                                i, cita[:36], ventana[0], ventana[1])
+                else:
+                    # ESTO ERA UN PUNTO CIEGO. El #84 salio sin que yo pudiera
+                    # saber desde el log si alguien hablaba o no, y es justo lo
+                    # que ya habia fallado en silencio dos veces.
+                    logger.warning(
+                        "Escena %s: hay cita \u00ab%s\u00bb pero las marcas de la voz no "
+                        "cuadran; sin bocadillo.", i, cita[:36])
+            elif es_vertical:
+                logger.info("Escena %s: nadie habla, sin bocadillo.", i)
             ancho_v, alto_v = _TARGET_DIMENSIONS.get(aspect_ratio, (1080, 1920))
             clip = monigotes.render(scene["escena"], out_dir / f"mono_{i:02d}.mp4",
                                     ancho_v, alto_v, duration, bocadillo=globo)
