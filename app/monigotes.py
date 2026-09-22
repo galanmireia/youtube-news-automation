@@ -37,6 +37,20 @@ from PIL import Image, ImageDraw, ImageFont
 
 logger = logging.getLogger(__name__)
 
+# Los colores de las cosas. Un perro blanco, un caballo blanco y una espada
+# blanca eran tres siluetas del mismo color, y en un movil eso es un dibujo
+# sin terminar. No hace falta mas que un color por cosa: lo que las distingue
+# es la FORMA, el color solo dice de que estan hechas.
+PARDO       = (176, 132, 92)    # el perro
+CASTAÑO     = (146, 100, 62)    # el caballo
+MADERA      = (150, 106, 66)    # cascos, ruedas
+ACERO       = (198, 202, 208)   # hojas de espada
+HIERRO      = (86, 88, 94)      # cañones
+PAPEL_VIEJO = (244, 236, 214)   # paginas
+PIEDRA        = (168, 162, 152) # murallas
+PIEDRA_CLARA  = (214, 206, 190) # iglesias
+MADERA_PUERTA = (112, 76, 48)   # portones
+
 TINTA = (24, 22, 20)
 TINTA_CLARA = (244, 238, 226)
 
@@ -218,6 +232,9 @@ _CICLOS = {
 # solo esta escrito en el prompt se difumina. Asi que si el guion no dice a
 # donde va una figura, se le pone un destino que pega con lo que hace. No es
 # inventarse la escena, es no dejarla parada.
+# Las que dan por hecho que hay una mesa delante.
+_POSES_DE_MESA = ("en_mesa", "firmando")
+
 _ACOMPAÑA = {
     "de_pie":        "señala",
     "señala":        "de_pie",
@@ -1136,17 +1153,25 @@ def _perro(d, x, y, t, rnd, g, tinta=TINTA):
     """De perfil, con hocico. El primero salia como un bicho: la cabeza era un
     circulo suelto con una raya saliendo."""
     lomo = [(x-t*.46, y-t*.34), (x-t*.10, y-t*.40), (x+t*.28, y-t*.36)]
+    # El tronco RELLENO y antes que nada. Pintando solo la cabeza quedaba un
+    # perro blanco con la cara marron, que es peor que dejarlo todo blanco.
+    d.polygon(lomo + [(x+t*.24, y-t*.14), (x-t*.40, y-t*.14)], fill=PARDO)
+    # las patas, tambien de perfil y del mismo color, para que no floten
+    for px in (-.38, -.20, .06, .22):
+        d.line([(x+t*px, y-t*.15), (x+t*px+t*.02, y)], fill=PARDO, width=max(3, g+2))
     _linea(d, lomo, g, rnd, color=tinta)
     _linea(d, [(x-t*.46, y-t*.34), (x-t*.40, y-t*.14), (x+t*.24, y-t*.14),
                (x+t*.28, y-t*.36)], g, rnd, color=tinta)
     for px in (-.38, -.20, .06, .22):
         _linea(d, [(x+t*px, y-t*.15), (x+t*px+t*.02, y)], g, rnd, color=tinta)
+    cuello_p = [(x+t*.28, y-t*.36), (x+t*.44, y-t*.58), (x+t*.56, y-t*.52), (x+t*.38, y-t*.30)]
+    d.polygon(cuello_p, fill=PARDO)
     _linea(d, [(x+t*.28, y-t*.36), (x+t*.44, y-t*.58)], g, rnd, color=tinta)
     cab = (x+t*.52, y-t*.66)
-    _circulo(d, cab, t*.15, g, rnd, relleno=(255, 255, 255), color=tinta)
+    _circulo(d, cab, t*.15, g, rnd, relleno=PARDO, color=tinta)
     hocico = [(cab[0]+t*.06, cab[1]-t*.02), (cab[0]+t*.30, cab[1]+t*.02),
               (cab[0]+t*.30, cab[1]+t*.12), (cab[0]+t*.04, cab[1]+t*.12)]
-    d.polygon(hocico, fill=(255, 255, 255)); _linea(d, hocico, g, rnd, color=tinta)
+    d.polygon(hocico, fill=PARDO); _linea(d, hocico, g, rnd, color=tinta)
     d.ellipse([cab[0]+t*.26, cab[1]+t*.01, cab[0]+t*.34, cab[1]+t*.09], fill=tinta)
     _linea(d, [(cab[0]-t*.08, cab[1]-t*.13), (cab[0]-t*.20, cab[1]+t*.14)], g, rnd, color=tinta)
     d.ellipse([cab[0]-t*.04, cab[1]-t*.06, cab[0]+t*.02, cab[1]], fill=tinta)
@@ -1156,17 +1181,21 @@ def _perro(d, x, y, t, rnd, g, tinta=TINTA):
 def _caballo(d, x, y, t, rnd, g, tinta=TINTA):
     """La cabeza era un bloque cuadrado flotando. Ahora es una cuña pegada al
     cuello, que es lo que hace que se lea como un caballo."""
-    _linea(d, [(x-t*.50, y-t*.56), (x-t*.10, y-t*.62), (x+t*.36, y-t*.58)], g, rnd, color=tinta)
+    lomo = [(x-t*.50, y-t*.56), (x-t*.10, y-t*.62), (x+t*.36, y-t*.58)]
+    d.polygon(lomo + [(x+t*.30, y-t*.30), (x-t*.44, y-t*.30)], fill=CASTAÑO)
+    for px in (-.42, -.24, .10, .28):
+        d.line([(x+t*px, y-t*.31), (x+t*px+t*.04, y)], fill=CASTAÑO, width=max(3, g+2))
+    _linea(d, lomo, g, rnd, color=tinta)
     _linea(d, [(x-t*.50, y-t*.56), (x-t*.44, y-t*.30), (x+t*.30, y-t*.30),
                (x+t*.36, y-t*.58)], g, rnd, color=tinta)
     for px in (-.42, -.24, .10, .28):
         _linea(d, [(x+t*px, y-t*.31), (x+t*px+t*.04, y)], g, rnd, color=tinta)
     cuello = [(x+t*.30, y-t*.58), (x+t*.50, y-t*1.02), (x+t*.66, y-t*1.00),
               (x+t*.50, y-t*.56)]
-    d.polygon(cuello, fill=(255, 255, 255)); _linea(d, cuello, g, rnd, color=tinta)
+    d.polygon(cuello, fill=CASTAÑO); _linea(d, cuello, g, rnd, color=tinta)
     cabeza = [(x+t*.50, y-t*1.02), (x+t*.86, y-t*1.06), (x+t*.90, y-t*.90),
               (x+t*.62, y-t*.92), (x+t*.50, y-t*1.02)]
-    d.polygon(cabeza, fill=(255, 255, 255)); _linea(d, cabeza, g, rnd, color=tinta)
+    d.polygon(cabeza, fill=CASTAÑO); _linea(d, cabeza, g, rnd, color=tinta)
     d.ellipse([x+t*.80, y-t*1.02, x+t*.86, y-t*.96], fill=tinta)
     _linea(d, [(x+t*.34, y-t*.62), (x+t*.52, y-t*1.04)], max(2, g), rnd, color=tinta, temblor=3.0)
     _linea(d, [(x-t*.50, y-t*.56), (x-t*.66, y-t*.20)], g, rnd, color=tinta, temblor=3.0)
@@ -1174,7 +1203,7 @@ def _caballo(d, x, y, t, rnd, g, tinta=TINTA):
 
 def _barco(d, x, y, t, rnd, g, tinta=TINTA):
     casco = [(x-t*.62, y-t*.28), (x+t*.62, y-t*.28), (x+t*.42, y), (x-t*.42, y), (x-t*.62, y-t*.28)]
-    _linea(d, casco, g, rnd, color=tinta)
+    d.polygon(casco, fill=MADERA); _linea(d, casco, g, rnd, color=tinta)
     _linea(d, [(x, y-t*.28), (x, y-t*1.15)], g, rnd, color=tinta)              # mastil
     vela = [(x+t*.04, y-t*1.10), (x+t*.46, y-t*.62), (x+t*.04, y-t*.40)]
     d.polygon(vela, fill=(255, 255, 255)); _linea(d, vela, g, rnd, color=tinta)
@@ -1201,6 +1230,8 @@ def _casa(d, x, y, t, rnd, g, tinta=TINTA):
 
 
 def _iglesia(d, x, y, t, rnd, g, tinta=TINTA):
+    d.rectangle([x-t*.46, y-t*.66, x+t*.46, y], fill=PIEDRA_CLARA)
+    d.rectangle([x-t*.20, y-t*1.14, x+t*.20, y-t*.64], fill=PIEDRA_CLARA)
     _linea(d, [(x-t*.46, y), (x-t*.46, y-t*.66), (x+t*.46, y-t*.66), (x+t*.46, y)],
            g, rnd, color=tinta)
     _linea(d, [(x-t*.20, y-t*.64), (x-t*.20, y-t*1.14), (x+t*.20, y-t*1.14), (x+t*.20, y-t*.64)],
@@ -1211,6 +1242,12 @@ def _iglesia(d, x, y, t, rnd, g, tinta=TINTA):
 
 
 def _castillo(d, x, y, t, rnd, g, tinta=TINTA):
+    # RELLENO. A linea suelta se veia el cielo a traves del castillo, que es
+    # el mismo fallo que ya tenian las casas de una calle.
+    d.rectangle([x-t*.60, y-t*.72, x+t*.60, y], fill=PIEDRA)
+    for k in range(6):
+        px = x - t*.60 + t*1.20*k/6
+        d.rectangle([px, y-t*.92, px+t*.10, y-t*.70], fill=PIEDRA)
     _linea(d, [(x-t*.60, y), (x-t*.60, y-t*.72), (x+t*.60, y-t*.72), (x+t*.60, y)],
            g, rnd, color=tinta)
     almena = [(x-t*.60, y-t*.72)]
@@ -1218,6 +1255,7 @@ def _castillo(d, x, y, t, rnd, g, tinta=TINTA):
         px = x - t*.60 + t*1.20*k/6
         almena += [(px, y-t*.92), (px+t*.10, y-t*.92), (px+t*.10, y-t*.72), (px+t*.20, y-t*.72)]
     _linea(d, almena, g, rnd, color=tinta)
+    d.rectangle([x-t*.14, y-t*.34, x+t*.14, y], fill=MADERA_PUERTA)
     _linea(d, [(x-t*.14, y), (x-t*.14, y-t*.34), (x+t*.14, y-t*.34), (x+t*.14, y)],
            g, rnd, color=tinta)
 
@@ -1227,7 +1265,7 @@ def _espada(d, x, y, t, rnd, g, tinta=TINTA):
     empuñadura larga - y se dibuja inclinada, que es como se sostiene."""
     hoja = [(x-t*.10, y-t*.34), (x+t*.02, y-t*.40), (x+t*.34, y-t*1.12),
             (x+t*.20, y-t*1.16), (x-t*.10, y-t*.34)]
-    d.polygon(hoja, fill=(255, 255, 255)); _linea(d, hoja, g, rnd, color=tinta)
+    d.polygon(hoja, fill=ACERO); _linea(d, hoja, g, rnd, color=tinta)
     _linea(d, [(x-t*.26, y-t*.44), (x+t*.16, y-t*.26)], max(g, int(t*.06)), rnd, color=tinta)
     _linea(d, [(x-t*.06, y-t*.32), (x-t*.18, y-t*.04)], max(g, int(t*.07)), rnd, color=tinta)
     _circulo(d, (x-t*.19, y-t*.02), t*.07, g, rnd, relleno=None, color=tinta)
@@ -1238,12 +1276,12 @@ def _canion(d, x, y, t, rnd, g, tinta=TINTA):
     ruedas, y apuntando claramente a un lado."""
     tubo = [(x-t*.34, y-t*.56), (x+t*.62, y-t*.46), (x+t*.62, y-t*.28),
             (x-t*.34, y-t*.16), (x-t*.34, y-t*.56)]
-    d.polygon(tubo, fill=(255, 255, 255)); _linea(d, tubo, g, rnd, color=tinta)
+    d.polygon(tubo, fill=HIERRO); _linea(d, tubo, g, rnd, color=tinta)
     _linea(d, [(x+t*.62, y-t*.46), (x+t*.70, y-t*.48), (x+t*.70, y-t*.26),
                (x+t*.62, y-t*.28)], g, rnd, color=tinta)
     _linea(d, [(x-t*.36, y-t*.44), (x-t*.10, y-t*.06)], g, rnd, color=tinta)
     for cx, r in ((-.26, .22), (.14, .16)):
-        _circulo(d, (x+t*cx, y-t*r), t*r, g, rnd, relleno=(255, 255, 255), color=tinta)
+        _circulo(d, (x+t*cx, y-t*r), t*r, g, rnd, relleno=MADERA, color=tinta)
 
 
 def _fuego(d, x, y, t, rnd, g, tinta=TINTA):
@@ -1273,7 +1311,7 @@ def _libro(d, x, y, t, rnd, g, tinta=TINTA):
     der = [(x+t*.02, y-t*.10), (x+t*.44, y-t*.22), (x+t*.44, y-t*.56),
            (x+t*.02, y-t*.44)]
     for hoja in (izq, der):
-        d.polygon(hoja, fill=(255, 255, 255)); _linea(d, hoja + [hoja[0]], g, rnd, color=tinta)
+        d.polygon(hoja, fill=PAPEL_VIEJO); _linea(d, hoja + [hoja[0]], g, rnd, color=tinta)
     _linea(d, [(x, y-t*.44), (x, y-t*.10)], g, rnd, color=tinta)
     for k in (1, 2):
         _linea(d, [(x-t*.36, y-t*.50+t*.08*k), (x-t*.08, y-t*.40+t*.08*k)],
@@ -1282,10 +1320,80 @@ def _libro(d, x, y, t, rnd, g, tinta=TINTA):
                max(2, g//2), rnd, color=tinta)
 
 
-def _bandera(d, x, y, t, rnd, g, tinta=TINTA):
-    _linea(d, [(x, y), (x, y-t*1.10)], g, rnd, color=tinta)
-    paño = [(x, y-t*1.06), (x+t*.56, y-t*.92), (x+t*.50, y-t*.62), (x, y-t*.66)]
-    d.polygon(paño, fill=(200, 60, 50)); _linea(d, paño, g, rnd, color=tinta)
+# ---- BANDERAS ---------------------------------------------------------------
+# Ella, viendo el #91: "hay que darles color a las banderas y esas cosas". Y
+# tenia razon de sobra: el video iba de una isla que es española medio año y
+# francesa el otro medio, y las dos banderas se dibujaban EXACTAMENTE IGUAL,
+# un paño rojo liso. La unica imagen que contaba el tema de un vistazo estaba
+# sin usar.
+#
+# Las franjas van en fracciones del paño, de arriba a abajo o de izquierda a
+# derecha, que es como estan hechas casi todas.
+ROJO_ESPAÑA  = (198, 11, 30)
+ORO_ESPAÑA   = (255, 196, 0)
+AZUL_FRANCIA = (0, 85, 164)
+ROJO_FRANCIA = (239, 65, 53)
+BLANCO       = (250, 248, 244)
+
+_BANDERAS = {
+    # (franjas, horizontal)   franjas = [(color, parte del paño), ...]
+    "bandera":           ([((170, 44, 44), 1.0)], True),
+    "bandera_espana":    ([(ROJO_ESPAÑA, .25), (ORO_ESPAÑA, .50), (ROJO_ESPAÑA, .25)], True),
+    "bandera_francia":   ([(AZUL_FRANCIA, 1/3), (BLANCO, 1/3), (ROJO_FRANCIA, 1/3)], False),
+    "bandera_blanca":    ([(BLANCO, 1.0)], True),
+    "bandera_inglaterra": ([(BLANCO, 1.0)], True),   # la cruz se pinta aparte
+}
+
+
+def _paño(d, x, y, t, rnd, g, tinta, franjas, horizontal, hacia=1):
+    """El trapo de una bandera, ondeando, con sus franjas dentro.
+
+    Se dibuja como cuatro esquinas y se reparte por dentro en trozos rectos:
+    una franja curvada seria mas bonita y a este tamaño no se notaria, y las
+    franjas rectas se leen mejor en un movil.
+    """
+    x0, x1 = x, x + hacia*t*.56
+    arriba_i, arriba_d = y - t*1.06, y - t*.92
+    abajo_i,  abajo_d  = y - t*.66,  y - t*.62
+    borde = [(x0, arriba_i), (x1, arriba_d), (x1, abajo_d), (x0, abajo_i)]
+
+    corrido = 0.0
+    for color, parte in franjas:
+        a, b = corrido, corrido + parte
+        corrido = b
+        if horizontal:
+            trozo = [(x0, arriba_i + (abajo_i-arriba_i)*a), (x1, arriba_d + (abajo_d-arriba_d)*a),
+                     (x1, arriba_d + (abajo_d-arriba_d)*b), (x0, arriba_i + (abajo_i-arriba_i)*b)]
+        else:
+            # OJO con el max() aqui: con la bandera al reves x1-x0 es NEGATIVO,
+            # y max(negativo, 1e-6) da 1e-6. Eso reventaba la interpolacion y
+            # la bandera espejada salia con el contorno y sin franjas.
+            vuelo = (x1 - x0) or 1e-6
+            xa, xb = x0 + vuelo*a, x0 + vuelo*b
+            arr = lambda xx: arriba_i + (arriba_d-arriba_i)*((xx-x0)/vuelo)
+            aba = lambda xx: abajo_i + (abajo_d-abajo_i)*((xx-x0)/vuelo)
+            trozo = [(xa, arr(xa)), (xb, arr(xb)), (xb, aba(xb)), (xa, aba(xa))]
+        d.polygon(trozo, fill=color)
+    return borde
+
+
+def _bandera_de(nombre):
+    franjas, horizontal = _BANDERAS[nombre]
+
+    def dibuja(d, x, y, t, rnd, g, tinta=TINTA):
+        _linea(d, [(x, y), (x, y-t*1.10)], g, rnd, color=tinta)
+        # El trapo ondea hacia donde HAY SITIO. Puesta en el lado derecho del
+        # plano, la bandera se salia por el borde y se veia media Francia.
+        ancho = getattr(getattr(d, "_image", None), "width", 0)
+        hacia = -1 if (ancho and x + t*.62 > ancho) else 1
+        borde = _paño(d, x, y, t, rnd, g, tinta, franjas, horizontal, hacia)
+        if nombre == "bandera_inglaterra":  # noqa: la cruz, encima del paño
+            cx, cy = x + hacia*t*.28, y - t*.84
+            d.rectangle([cx-t*.04, cy-t*.16, cx+t*.04, cy+t*.16], fill=ROJO_ESPAÑA)
+            d.rectangle([min(cx-t*.24, cx+t*.24), cy-t*.04,
+                         max(cx-t*.24, cx+t*.24), cy+t*.04], fill=ROJO_ESPAÑA)
+        _linea(d, borde, g, rnd, color=tinta)
+    return dibuja
 
 
 def _cruz(d, x, y, t, rnd, g, tinta=TINTA):
@@ -1326,12 +1434,17 @@ COSAS = {
     "perro": _perro, "caballo": _caballo, "barco": _barco, "casa": _casa,
     "iglesia": _iglesia, "castillo": _castillo, "espada": _espada,
     "canion": _canion, "fuego": _fuego, "dinero": _dinero, "libro": _libro,
-    "bandera": _bandera, "cruz": _cruz, "olla": _olla, "montaña": _montaña,
+    "cruz": _cruz, "olla": _olla, "montaña": _montaña,
     "nube": _nube, "sol": _sol,
     # El arbol ya existia pero con otra firma, y por estar aqui a None se
     # caia en silencio: el prompt lo ofrecia y limpia() lo tiraba.
     "arbol": lambda d, x, y, t, rnd, g, tinta=TINTA: arbol(d, x, y, t*1.6, rnd),
 }
+# Las banderas, todas de la misma fabrica: cambia el reparto de franjas, no el
+# dibujo. Escribir cinco funciones casi iguales es como se acaba teniendo una
+# que se actualiza y cuatro que no.
+COSAS.update({nombre: _bandera_de(nombre) for nombre in _BANDERAS})
+
 COSAS_VALIDAS = tuple(COSAS)
 
 
@@ -1738,10 +1851,12 @@ def _estante(d, x, y, ancho, rnd, g, ollas=2):
         _olla(d, px, y, ancho*0.22, rnd, max(2, g//2))
 
 
-def _estandarte(d, x, y, ancho, alto, rnd, g, color=(170, 44, 44)):
+def _estandarte(d, x, y, ancho, alto, rnd, g, color=(170, 44, 44), franja=None):
     paño = [(x-ancho/2, y), (x+ancho/2, y), (x+ancho/2, y+alto),
             (x, y+alto*0.86), (x-ancho/2, y+alto)]
     d.polygon(paño, fill=color); _linea(d, paño+[paño[0]], g, rnd, color=TINTA)
+    if franja:
+        d.rectangle([x-ancho/2, y+alto*0.34, x+ancho/2, y+alto*0.54], fill=franja)
     _linea(d, [(x-ancho*0.62, y), (x+ancho*0.62, y)], int(g*1.4), rnd, color=MADERA_OSCURA)
 
 
@@ -1826,7 +1941,14 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "ventana_arco":   _ventana_arco(d, X, h*y, T, h*tam*0.95, rnd, g)
     elif que == "chimenea":       _chimenea(d, X, suelo, T, h*tam, rnd, g)
     elif que == "trono":          _trono(d, X, suelo, T, rnd, g)
-    elif que == "estandarte":     _estandarte(d, X, h*y, T, h*tam*1.9, rnd, g)
+    elif que == "estandarte":
+        # Los dos eran del mismo rojo, asi que un salon del trono parecia una
+        # pared con dos manchas iguales. Ahora uno lleva el rojo y gualda y el
+        # otro el azul de la casa: sigue sin ser heraldica de verdad, pero ya
+        # son DOS cosas y no una repetida.
+        _estandarte(d, X, h*y, T, h*tam*1.9, rnd, g,
+                    color=ROJO_ESPAÑA if X < w/2 else (44, 62, 132),
+                    franja=ORO_ESPAÑA if X < w/2 else BLANCO)
     elif que == "cruz_grande":    _cruz(d, X, h*y, h*tam, rnd, int(g*1.6), TINTA)
     elif que == "mastil":         _mastil(d, X, suelo, h, rnd, g)
     elif que == "casas":
@@ -1920,6 +2042,30 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
     # los numeros del decorado esten bien elegidos.
     hunde = h*(0.24 if receta["delante"] else 0.06)
     pies = min(suelo + hunde, h*0.86)
+
+    # LAS COSAS. Esto faltaba ENTERO, y no se veia desde ningun log.
+    #
+    # "El fondo tambien es importante: si habla de perro dibuja un perro". Eso
+    # se hizo, y funciona... en exteriores. escena() las pinta; montar(), que
+    # es por donde pasan los nueve decorados, no las pintaba. O sea que en una
+    # taberna, una iglesia o un salon del trono el guion podia pedir el barco,
+    # la bandera o el dinero, limpia() los validaba y los devolvia, y luego
+    # nadie los dibujaba. Silencio absoluto: el video salia, nada petaba.
+    #
+    # En el #91 se ve: banderas en las escenas de campo, ninguna cosa en las
+    # de interior.
+    def _pinta_cosas(delante):
+        for c in spec.get("cosas", []):
+            dibuja = COSAS.get(c.get("que"))
+            if dibuja is None or bool(c.get("delante")) != delante:
+                continue
+            # A ras de la misma linea que pisa la gente, o donde se diga si va
+            # por el aire.
+            py = h*float(c["y"]) if c.get("y") is not None else pies
+            dibuja(d, w*float(c.get("x", 0.5)), py, h*float(c.get("tam", 0.14)),
+                   rnd, max(4, int(w*0.006)))
+
+    _pinta_cosas(delante=False)
     for f in spec.get("figuras", []):
         alto_f = h*f.get("alto", 0.30)
         figura(d, w*f["x"], pies + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
@@ -1927,8 +2073,25 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
                f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
                rasgos=REPARTO.get(f.get("quien") or ""))
 
+    # QUIEN FIRMA, FIRMA SOBRE ALGO. "en_mesa" y "firmando" son posturas de
+    # estar sentado a una mesa: los brazos se apoyan en un tablero que en la
+    # taberna o la cocina existe, y en un salon del trono no. Sin esto el que
+    # firma el tratado escribe en el aire, sentado en nada.
+    #
+    # Es el mismo asunto del +0.24 de la taberna: una postura que da por hecho
+    # un mueble del primer decorado donde la probe.
+    tiene_mesa = any(que == "mesa" for que, *_ in receta["muebles"] + receta["delante"])
+    if not tiene_mesa:
+        for f in spec.get("figuras", []):
+            if f.get("pose") in _POSES_DE_MESA or f.get("pose_fin") in _POSES_DE_MESA:
+                alto_f = h*f.get("alto", 0.30)
+                _mesa_con_cosas(d, w*f["x"] + alto_f*0.10, pies + alto_f*0.06,
+                                alto_f*0.78, rnd, max(2, g//2),
+                                papeles=1, jarras=0, alto=alto_f*0.10)
+
     for que, x, y, tam in receta["delante"]:
         _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g)
+    _pinta_cosas(delante=True)
 
     if spec.get("cartel"):
         _cartel(d, w*0.50, h*0.09, w*0.44, str(spec["cartel"])[:40], rnd, g)

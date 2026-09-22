@@ -532,6 +532,16 @@ def _comprobar_plantilla() -> None:
 
 _comprobar_plantilla()
 
+def _lista_de_cosas() -> str:
+    """Los objetos que se saben dibujar, sacados de monigotes.
+
+    Escrita a mano se habia quedado sin las cuatro banderas nuevas el mismo
+    dia que se dibujaron. Van cinco listas atadas y sigo encontrando mas.
+    """
+    from . import monigotes
+    return "[" + ", ".join(monigotes.COSAS_VALIDAS) + "]"
+
+
 def _lista_de_posturas() -> str:
     """Las posturas que el guion puede pedir, sacadas de monigotes.
 
@@ -771,8 +781,10 @@ catedral, sale un fondo liso.
     "cosas":    hasta 4 objetos, y ES DE LO QUE MAS SE NOTA. Si la narracion habla de un perro,
                 dibuja un perro; si habla de un barco ardiendo, pon el barco Y el fuego. Los
                 monigotes dicen QUIEN, el fondo dice DONDE y esto dice DE QUE. Cada uno:
-       "que":      [perro, caballo, barco, casa, iglesia, castillo, espada, canion, fuego,
-                    dinero, libro, bandera, cruz, olla, montaña, nube, sol, arbol]
+       "que":      {bloque_cosas}
+                   LAS BANDERAS TIENEN COLOR DE VERDAD, asi que usalas: si la historia
+                   enfrenta a dos paises, pon las DOS banderas en la misma escena y se
+                   entiende el conflicto sin decir nada. "bandera_blanca" es rendirse.
        "x":        0.05 a 0.95
        "tam":      0.05 a 0.34 de la altura de la pantalla (0.12 una cosa pequeña como un
                    perro, 0.20 una casa, 0.30 un castillo que domina el plano)
@@ -1565,7 +1577,8 @@ _CAMPOS_QUE_SE_LEEN_ARRIBA = ("lo_gracioso", "title", "description", "tags", "sc
 # palabras "{bloque_posturas}".
 _VARIANT_CONFIG["short"]["bloque_ilustracion"] = (
     _VARIANT_CONFIG["short"]["bloque_ilustracion"]
-    .replace("{bloque_posturas}", _lista_de_posturas()))
+    .replace("{bloque_posturas}", _lista_de_posturas())
+    .replace("{bloque_cosas}", _lista_de_cosas()))
 
 
 def _el_guion_conoce_todas_las_posturas() -> None:
@@ -1588,6 +1601,13 @@ def _el_guion_conoce_todas_las_posturas() -> None:
         raise RuntimeError(
             f"Estas posturas se saben dibujar pero el guion no sabe que existen: "
             f"{perdidas}. Se dibujarian solas si alguien las pidiera, y nadie puede.")
+    sin_ofrecer = [c for c in monigotes.COSAS_VALIDAS if c not in texto]
+    if sin_ofrecer:
+        raise RuntimeError(
+            f"Estas cosas se saben dibujar pero el guion no sabe que existen: "
+            f"{sin_ofrecer}.")
+    if "{bloque_cosas}" in texto:
+        raise RuntimeError("La lista de cosas no se ha metido en el bloque de la escena.")
 
 
 def _los_campos_estan_donde_se_leen() -> None:
