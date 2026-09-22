@@ -566,12 +566,14 @@ def limpia(spec: dict) -> dict:
                 c["x"] = round(candidato, 3)
         ocupadas.append(c["x"])
 
-    return {"interior": dentro, "cosas": cosas,
+    return _montar_escena({"interior": dentro, "cosas": cosas,
             "fondo": _una_de(spec.get("fondo"), FONDOS_VALIDOS, "liso"),
             "suelo": min(0.86, max(0.58, float(spec.get("suelo", 0.70 if dentro else 0.74)
                                               or 0.74))),
             "figuras": figuras, "tachados": tachados,
-            "arbol": spec.get("arbol") if isinstance(spec.get("arbol"), (int, float)) else None}
+            "habla_x": (float(spec["habla_x"])
+                        if isinstance(spec.get("habla_x"), (int, float)) else None),
+            "arbol": spec.get("arbol") if isinstance(spec.get("arbol"), (int, float)) else None})
 
 
 _ANCHO_BASE, _ALTO_BASE = 1080, 1920
@@ -817,23 +819,42 @@ def interior(spec: dict, w: int, h: int, semilla: int = 0):
 # Son cinco y estan pensados para cubrir cualquier escena de historia de
 # España sin repetirse: quien manda, quien obedece, quien lo cuenta, quien lo
 # sufre y quien se aprovecha.
+# YA PREPARADOS: cada uno con su nombre, su pinta y su papel escritos aqui de
+# una vez, no inventados en cada video. El guion no los describe ni los
+# elige por rasgos - los llama por su nombre y ya estan.
 REPARTO = {
-    # El que siempre esta. Es el testigo, los ojos del espectador: se asoma,
-    # se escandaliza, comenta. Sale en TODOS los videos.
     "cronista": {"alto": 0.38, "cabeza": 0.95, "ancho": 1.0,
-                 "pelo": "raya", "barba": True},
-    # La que no se calla. Bajita, redonda, moño.
+                 "pelo": "raya", "barba": True,
+                 "nombre": "Anselmo",
+                 "pinta": "barbudo, alto y flaco",
+                 "papel": "el TESTIGO. Ni manda ni obedece: esta ahi mirando y comentando "
+                          "lo que hacen los demas. Es los ojos del espectador, y por eso "
+                          "sale en TODOS los videos y casi siempre es quien suelta la "
+                          "frase del bocadillo"},
     "abuela":   {"alto": 0.25, "cabeza": 1.12, "ancho": 1.25,
-                 "pelo": "moño"},
-    # El que se mete donde no le llaman.
+                 "pelo": "moño",
+                 "nombre": "Remedios",
+                 "pinta": "bajita, redonda, con moño",
+                 "papel": "LA QUE NO SE CALLA. Dice la verdad incomoda que nadie quiere "
+                          "oir, y normalmente tiene razon"},
     "chaval":   {"alto": 0.21, "cabeza": 1.05, "ancho": 0.9,
-                 "pelo": "punta"},
-    # El que manda, o el que cree que manda. Alto y seco.
+                 "pelo": "punta",
+                 "nombre": "Perico",
+                 "pinta": "el mas pequeño, con pelos de punta",
+                 "papel": "EL QUE PREGUNTA lo que nadie se atreve, y el que se mete donde "
+                          "no le llaman"},
     "mandamas": {"alto": 0.45, "cabeza": 0.90, "ancho": 0.95,
-                 "pelo": "nada", "barba": True},
-    # El que se lleva los palos. Ancho, con un ojo tapado.
+                 "pelo": "nada", "barba": True,
+                 "nombre": "Don Severo",
+                 "pinta": "el mas alto, calvo y con barba",
+                 "papel": "EL QUE MANDA, o el que cree que manda: rey, obispo, general, "
+                          "ministro, alcalde. El que firma el papel que fastidia a todos"},
     "soldado":  {"alto": 0.32, "cabeza": 1.0, "ancho": 1.3,
-                 "pelo": "tonsura", "parche": True},
+                 "pelo": "tonsura", "parche": True,
+                 "nombre": "Bruno",
+                 "pinta": "ancho, con parche en el ojo",
+                 "papel": "EL QUE SE LLEVA LOS PALOS: soldado, marinero, campesino, minero. "
+                          "El que cumple la orden y paga las consecuencias"},
 }
 REPARTO_VALIDO = tuple(REPARTO)
 
@@ -1707,3 +1728,64 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
 
 # La lista que ve el guion ES la de las recetas, no una copia a mano.
 INTERIORES_VALIDOS = DECORADOS_VALIDOS
+
+
+# ---- MONTAR LA ESCENA --------------------------------------------------------
+# "Es muy importante montar las escenas y tener claro los personajes". En el
+# video de Carlos II se ve el problema: los monigotes estan de pie uno al lado
+# del otro MIRANDO AL FRENTE, como en una foto de orla. Nadie mira a nadie, no
+# se sabe quien habla y los demas no reaccionan.
+#
+# El guion elige la x, el espejo y el gesto de cada uno por separado y sin ver
+# el resultado, asi que sale un grupo, no una escena. Esto lo monta el codigo,
+# que es donde se puede GARANTIZAR - igual que la separacion o el tope de los
+# pies.
+
+# Lo que pone la cara de quien escucha, segun lo que pone la de quien habla.
+_REACCION = {
+    "grito":     "sorpresa",
+    "enfadado":  "sorpresa",
+    "sorpresa":  "neutro",
+    "contento":  "contento",
+    "neutro":    "neutro",
+}
+
+
+def _montar_escena(limpio: dict) -> dict:
+    """Coloca a la gente para que se vea QUIEN habla y a quien.
+
+    Tres cosas, y ninguna se le puede pedir al guion de forma fiable:
+
+    SE MIRAN. Quien habla mira hacia los demas y los demas hacia el. Un
+    monigote mirando al frente mientras otro le grita no es una escena.
+
+    EL QUE HABLA DESTACA. Un poco mas alto y hacia el centro: en un movil,
+    sin eso, no se sabe de cual sale el bocadillo aunque el rabo apunte.
+
+    Y LOS DEMAS REACCIONAN. Si alguien grita y el de al lado tiene cara
+    neutra, el plano se cae. Solo se toca a quien venia en 'neutro': si el
+    guion pidio una cara concreta, manda el guion.
+    """
+    figuras = limpio.get("figuras") or []
+    if len(figuras) < 2:
+        return limpio
+
+    habla = limpio.get("habla_x")
+    if isinstance(habla, (int, float)):
+        quien = min(figuras, key=lambda f: abs(f["x"] - float(habla)))
+    else:
+        quien = figuras[0]
+    centro = sum(f["x"] for f in figuras)/len(figuras)
+
+    for f in figuras:
+        if f is quien:
+            # Mira hacia donde esta el resto, y destaca un poco.
+            f["espejo"] = f["x"] > centro
+            f["alto"] = min(0.46, f["alto"]*1.08)
+            f["x"] = f["x"] + (centro - f["x"])*0.12
+        else:
+            f["espejo"] = f["x"] > quien["x"]
+            if f.get("gesto", "neutro") == "neutro":
+                f["gesto"] = _REACCION.get(quien.get("gesto", "neutro"), "sorpresa")
+    limpio["habla_x"] = quien["x"]
+    return limpio

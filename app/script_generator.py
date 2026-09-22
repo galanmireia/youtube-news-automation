@@ -700,16 +700,21 @@ Lepanto y mañana en un motin, el espectador lo reconoce y el canal deja de ser 
 historia" para ser "el canal ese". No los describas ni los inventes: LLAMALOS POR SU NOMBRE en
 el campo "quien" y el programa los dibuja igual que siempre.
 
-  "cronista"  - barbudo, alto y flaco. Es el TESTIGO: no manda ni obedece, esta ahi mirando y
-                comentando. TIENE QUE SALIR EN TODOS LOS VIDEOS, en al menos una escena, y casi
-                siempre es el que suelta la frase del bocadillo.
-  "mandamas"  - el mas alto, barbudo y calvo. El que manda o el que cree que manda: rey, obispo,
-                general, ministro, alcalde, el que firma el papel.
-  "abuela"    - bajita, redonda, con moño. La que no se calla y la que dice la verdad incomoda.
-  "chaval"    - el mas pequeño, pelos de punta. El que se mete donde no le llaman y el que
-                pregunta lo que nadie se atreve.
-  "soldado"   - ancho, con parche en el ojo. El que se lleva los palos: soldado, marinero,
-                campesino, el que cumple la orden.
+  "cronista" = Anselmo, barbudo, alto y flaco.
+      el TESTIGO. Ni manda ni obedece: esta ahi mirando y comentando lo que hacen los demas.
+      Es los ojos del espectador, y por eso sale en TODOS los videos y casi siempre es quien
+      suelta la frase del bocadillo
+  "abuela" = Remedios, bajita, redonda, con moño.
+      LA QUE NO SE CALLA. Dice la verdad incomoda que nadie quiere oir, y normalmente tiene
+      razon
+  "chaval" = Perico, el mas pequeño, con pelos de punta.
+      EL QUE PREGUNTA lo que nadie se atreve, y el que se mete donde no le llaman
+  "mandamas" = Don Severo, el mas alto, calvo y con barba.
+      EL QUE MANDA, o el que cree que manda: rey, obispo, general, ministro, alcalde. El que
+      firma el papel que fastidia a todos
+  "soldado" = Bruno, ancho, con parche en el ojo.
+      EL QUE SE LLEVA LOS PALOS: soldado, marinero, campesino, minero. El que cumple la
+      orden y paga las consecuencias
 
 Reparte los papeles de la historia entre ellos, como una compañia de teatro que hace una obra
 distinta cada semana. En un video sobre Lepanto el "mandamas" es don Juan de Austria y el
