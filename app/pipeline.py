@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from . import llm_usage, sonidos, storage
+from . import llm_usage, sonidos, storage, voces
 from .branding import INTRO_NARRATION
 from .config import (
     BURN_SUBTITLES,
@@ -234,6 +234,32 @@ def _generate_variant(
         _stage(variant, 3, "Generando la narracion con TTS (%s escenas)...", len(script["scenes"]))
         narration_path, scene_durations = synthesize_scenes(script["scenes"], variant_dir / "audio")
 
+    # CADA PERSONAJE CON SU VOZ.
+    #
+    # Lo que pidio: "me gustaria que cada personaje tuviera siempre su propia
+    # voz, mas aguda mas fuerte, y luego la voz de la narracion". No son cinco
+    # voces compradas: es SU voz, con el tono cambiado solo en el trozo donde
+    # habla cada uno. Sale gratis, sale igual siempre, y sobre todo el trozo
+    # no se busca - es exactamente la misma ventana que ya se calculo para el
+    # bocadillo, asi que la voz y el globo no pueden ir por separado.
+    #
+    # Solo en vertical, que es donde estan los monigotes: en un plano de fotos
+    # una voz de dibujo animado no viene de nadie.
+
+    # La de siempre se guarda aparte para los subtitulos: quien transcribe oye
+    # mejor una voz normal que una acelerada, y como el trozo cambiado dura
+    # EXACTAMENTE lo mismo, los tiempos valen para las dos.
+    narracion_limpia = narration_path
+    if _VARIANT_ASPECT_RATIO[variant] == "9:16":
+        trozos = voces.trozos_de(script["scenes"], scene_durations, marcas_narracion)
+        con_voces = voces.poner_voces(
+            narration_path, trozos, variant_dir / "audio" / "narracion_voces.mp3"
+        ) if trozos else None
+        if con_voces is not None:
+            narration_path = con_voces
+        elif trozos:
+            logger.warning("No han salido las voces de los personajes; sigo con la narracion sola.")
+
     _stage(variant, 4, "Buscando imagenes y videos para las escenas...")
     urls_de_fotos: list[str] = []
     clip_entries = fetch_clips_for_scenes(
@@ -284,7 +310,7 @@ def _generate_variant(
     # muted, so on-screen text is what carries the narration).
     _stage(variant, 6, "Transcribiendo para los subtitulos...")
     srt_path, burn_ass_path = generate_subtitles(
-        narration_path,
+        narracion_limpia,
         variant_dir / "subtitles.srt",
         variant_dir / "subtitles_burn.ass",
         width,
