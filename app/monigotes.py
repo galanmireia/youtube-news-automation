@@ -328,6 +328,24 @@ def _mezcla(a, b, t):
     }
 
 
+def _decorado(paso, semilla):
+    """El sitio donde pasa la escena, elegido por NOMBRE.
+
+    Esto faltaba y era grave: animar() llamaba siempre a interior(), que es el
+    monasterio, para cualquier interior. O sea que la taberna estaba
+    construida, probada y enseñada... y no se dibujaba nunca. El guion podia
+    pedir "taberna" y salia un refectorio.
+    """
+    dentro = paso.get("interior")
+    if dentro == "taberna":
+        return taberna(paso, _ANCHO_BASE, _ALTO_BASE, semilla=semilla)
+    if dentro:
+        # monasterio y salon_trono comparten decorado de momento: piedra,
+        # ventana y mesa. Al salon del trono le falta cara propia.
+        return interior(paso, _ANCHO_BASE, _ALTO_BASE, semilla=semilla)
+    return escena(paso, semilla=semilla)
+
+
 def _fuente(alto_img):
     from PIL import ImageFont
     import glob
@@ -433,8 +451,7 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None):
             g["_bocanada"] = math.sin(2*math.pi*(reloj/_SEGUNDOS_RESPIRACION + desfase))
             paso["figuras"].append(g)
         rnd = random.Random(1000 + n//3)
-        img = (interior(paso, _ANCHO_BASE, _ALTO_BASE, semilla=1000 + n//3)
-               if paso.get("interior") else escena(paso, semilla=1000 + n//3))
+        img = _decorado(paso, semilla=1000 + n//3)
         if bocadillo:
             ahora = n/fps
             if bocadillo["desde"] <= ahora <= bocadillo["hasta"]:
