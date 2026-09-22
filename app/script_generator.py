@@ -1015,8 +1015,20 @@ def _sin_tildes(t: str) -> str:
                    if not unicodedata.combining(c))
 
 
+# Las reglas del Short, por orden de lo que duele perderlas. Antes eran todas
+# iguales y el ultimo intento las soltaba TODAS a la vez: en el video de
+# Carlos II eso costo los bocadillos, que son lo que hace que los personajes
+# hablen - o sea la mitad del formato - mientras se seguia exigiendo que el
+# gancho no situara, que importa mucho menos.
+#
+#   3 = todo (primer intento, apuntamos alto)
+#   2 = lo que define el canal: que hable alguien, una sola cosa, la gracia
+#   1 = solo lo que revienta el video
+_TODO, _LO_QUE_DEFINE, _SOLO_LO_ROTO = 3, 2, 1
+
+
 def _que_le_pasa_al_guion(script: dict, variant: str = "long",
-                          exigente: bool = True) -> str | None:
+                          exigente=_TODO) -> str | None:
     """What is wrong with this script, or None when nothing is.
 
     Checked before anything expensive runs. Everything downstream reads
@@ -1045,9 +1057,10 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
     # articulo enciclopedico donde no habla nadie. Tres guiones pagados,
     # ningun video. Una regla nueva sin pensar que pasa cuando no se puede
     # cumplir.
-    if variant == "short" and exigente:
+    nivel = _TODO if exigente is True else (_SOLO_LO_ROTO if exigente is False else exigente)
+    if variant == "short" and nivel >= _LO_QUE_DEFINE:
         primera = (escenas[0].get("narration") or "").strip()
-        if _ABRE_SITUANDO.match(primera):
+        if nivel >= _TODO and _ABRE_SITUANDO.match(primera):
             return (f"la escena 1 abre situando ({primera[:40]}...), que es lo que "
                     "mata un Short en los dos primeros segundos")
         palabras = sum(len((e.get("narration") or "").split()) for e in escenas)
@@ -1091,14 +1104,14 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
         claves = [p for p in _sin_tildes(gracia.lower()).split()
                   if len(p) > 4 and p not in _PALABRAS_COMUNES]
         dentro = sum(1 for p in claves if p in narrado)
-        if claves and dentro < max(1, len(claves)//3):
+        if nivel >= _TODO and claves and dentro < max(1, len(claves)//3):
             return (f"dice que lo gracioso es {gracia[:60]!r}, pero eso no aparece en la "
                     "narracion: la gracia esta en la ficha y no en el video")
 
         # APRENDER: cifras, años o nombres propios. Sin datos concretos es una
         # impresion, no una curiosidad.
         concretos = len(re.findall(r"\b\d[\d.,]*\b", narrado))
-        if concretos < 2:
+        if nivel >= _TODO and concretos < 2:
             return (f"solo trae {concretos} dato(s) con cifra en toda la narracion. Una "
                     "curiosidad se sostiene sobre numeros y años concretos, no sobre "
                     "impresiones")
@@ -1332,6 +1345,13 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
     instrucciones, _, noticia = prompt.partition(_STORY_MARKER)
 
     last_error: Exception | None = None
+    # Lo que fallo en el intento anterior, para decirselo. Sin esto los tres
+    # intentos mandan el MISMO mensaje y son tres tiradas de dados: en el
+    # video de Carlos II el intento 1 fallo por no nombrar la gracia, el 2 por
+    # abrir situando - una regla distinta - y el 3 se acepto sin bocadillos.
+    # Siete minutos y 0,48 $ para acabar con monigotes mudos.
+    pega_anterior = ""
+
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         # STREAMED, and not for the progress: the SDK refuses a plain request
         # whose max_tokens is high enough that it might run past ten minutes,
@@ -1351,7 +1371,11 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
                         "cache_control": {"type": "ephemeral"},
                     }
                 ],
-                messages=[{"role": "user", "content": _STORY_MARKER + noticia}],
+                messages=[{"role": "user", "content": _STORY_MARKER + noticia + (
+                    "\n\n===== TU INTENTO ANTERIOR NO VALIO =====\n"
+                    f"{pega_anterior}\n"
+                    "Escribe el guion otra vez arreglando EXACTAMENTE eso y sin romper "
+                    "nada de lo que ya cumplias." if pega_anterior else "")}],
             ) as stream:
                 message = stream.get_final_message()
         except anthropic.APIStatusError as exc:
@@ -1410,15 +1434,20 @@ def generate_script(news_item: dict, variant: str = "long") -> dict:
         # En el ultimo intento solo se miran los fallos que revientan el
         # video; lo de calidad se acepta y se avisa. Perder un guion ya
         # pagado por una regla de estilo es el peor cambio posible.
+        # Nivel 3 en el primer intento, 2 en el segundo, 1 en el ultimo. Asi
+        # cada reintento tiene MENOS reglas compitiendo, no las mismas, y lo
+        # que se suelta primero es lo accesorio.
+        nivel = max(_SOLO_LO_ROTO, _TODO - (attempt - 1))
         ultimo = attempt >= _MAX_ATTEMPTS
-        problema = _que_le_pasa_al_guion(script, variant, exigente=not ultimo)
+        problema = _que_le_pasa_al_guion(script, variant, exigente=nivel)
         if problema:
             logger.warning("generate_script (%s): guion mal formado (%s). Intento %s.",
                            variant, problema, attempt)
             last_error = ValueError(f"Guion mal formado: {problema}")
+            pega_anterior = problema
             continue
         if ultimo:
-            pega = _que_le_pasa_al_guion(script, variant, exigente=True)
+            pega = _que_le_pasa_al_guion(script, variant, exigente=_TODO)
             if pega:
                 logger.warning(
                     "generate_script (%s): el guion sale con una pega despues de %s "
