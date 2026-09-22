@@ -701,6 +701,19 @@ catedral, sale un fondo liso.
     "interior": uno de [monasterio, taberna, salon_trono] - o quitalo y usa "fondo"
     "fondo":    uno de [campo, calle, salon, noche, liso]
     "habla_x":  0.0 a 1.0, donde esta QUIEN HABLA en esta escena (para el bocadillo)
+    "cosas":    hasta 4 objetos, y ES DE LO QUE MAS SE NOTA. Si la narracion habla de un perro,
+                dibuja un perro; si habla de un barco ardiendo, pon el barco Y el fuego. Los
+                monigotes dicen QUIEN, el fondo dice DONDE y esto dice DE QUE. Cada uno:
+       "que":      [perro, caballo, barco, casa, iglesia, castillo, espada, canion, fuego,
+                    dinero, libro, bandera, cruz, olla, montaña, nube, sol, arbol]
+       "x":        0.05 a 0.95
+       "tam":      0.05 a 0.34 de la altura de la pantalla (0.12 una cosa pequeña como un
+                   perro, 0.20 una casa, 0.30 un castillo que domina el plano)
+       "y":        SOLO para lo que va en el cielo - sol, nube -, de 0.05 a 0.30. Todo lo
+                   demas se apoya en el suelo solo, no pongas "y"
+       "delante":  true si tiene que tapar a la gente (un fuego en primer termino, un perro
+                   cruzando); por defecto va detras
+
     "figuras":  de 1 a 3 personajes, cada uno:
        "quien":    [cronista, mandamas, abuela, chaval, soldado] - OBLIGATORIO, del reparto fijo
        "x":        0.12 a 0.88, de izquierda a derecha

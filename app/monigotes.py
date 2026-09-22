@@ -254,9 +254,22 @@ def escena(spec, w=1080, h=1920, semilla=0):
         lado = w*t.get("tam", 0.17)
         cx, cy = w*t["x"], h*t["y"]
         tachado(d, (cx-lado/2, cy-lado/2, cx+lado/2, cy+lado/2), rnd, g)
+    def _pinta_cosas(delante):
+        for c in spec.get("cosas", []):
+            f = COSAS.get(c.get("que"))
+            if f is None or bool(c.get("delante")) != delante:
+                continue
+            tam = h*float(c.get("tam", 0.14))
+            # y por defecto: apoyada en el suelo. El sol y las nubes van donde
+            # se les diga, que es arriba.
+            py = h*float(c["y"]) if c.get("y") is not None else suelo
+            f(d, w*float(c.get("x", 0.5)), py, tam, rnd,
+              max(4, int(w*0.006)), TINTA_CLARA if oscuro else TINTA)
+
     oscuro = spec.get("fondo") in _FONDOS_OSCUROS
     tinta = TINTA_CLARA if oscuro else TINTA
     relleno = (38, 44, 66) if oscuro else (255, 255, 255)
+    _pinta_cosas(delante=False)
     for f in spec.get("figuras", []):
         alto_f = h*f.get("alto", 0.30)
         figura(d, w*f["x"], suelo + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
@@ -264,6 +277,7 @@ def escena(spec, w=1080, h=1920, semilla=0):
                f.get("pose","de_pie"), f.get("gesto","neutro"),
                f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
                tinta=tinta, relleno=relleno, rasgos=REPARTO.get(f.get("quien") or ""))
+    _pinta_cosas(delante=True)
     return img
 
 
@@ -443,6 +457,9 @@ INTERIORES_VALIDOS = ("monasterio", "taberna", "salon_trono")
 
 _MAX_FIGURAS = 4
 
+# Lo minimo que tienen que separarse dos cosas en horizontal, en pantallas.
+_SEPARACION = 0.13
+
 
 def _una_de(valor, validas, por_defecto):
     v = (valor or "").strip().lower()
@@ -493,7 +510,47 @@ def limpia(spec: dict) -> dict:
     # entera y el monasterio salia como campo liso.
     dentro = (spec.get("interior") or "").strip().lower()
     dentro = dentro if dentro in INTERIORES_VALIDOS else None
-    return {"interior": dentro,
+    # El tope se cuenta sobre las cosas BUENAS, no sobre lo que llega. Con el
+    # tope arriba, un "dragon" que no se sabe dibujar ocupaba el sitio de una
+    # casa que si: se pedian cinco, se colaban dos malas y se perdia la buena.
+    cosas = []
+    for c in (spec.get("cosas") if isinstance(spec.get("cosas"), list) else []):
+        if len(cosas) >= 4:
+            break
+        if not isinstance(c, dict):
+            continue
+        que = (c.get("que") or "").strip().lower()
+        if que not in COSAS or COSAS[que] is None:
+            continue
+        cosas.append({"que": que,
+                      "x": min(0.95, max(0.05, float(c.get("x", 0.5) or 0.5))),
+                      "y": (min(0.95, max(0.05, float(c["y"]))) 
+                            if c.get("y") is not None else None),
+                      "tam": min(0.34, max(0.05, float(c.get("tam", 0.14) or 0.14))),
+                      "delante": bool(c.get("delante"))})
+    # QUE NO SE PISEN. El guion elige la x de cada cosa y de cada persona sin
+    # ver el resultado, asi que dos acaban en el mismo sitio: en la primera
+    # prueba el perro salio DEBAJO del cañon. Aqui se separan, que es algo que
+    # el dibujo puede garantizar y el guion no.
+    # Se busca el hueco LIBRE mas cercano al sitio que pidio el guion. Mi
+    # primer intento empujaba a un lado y a otro segun con quien chocara, y
+    # rebotaba: el perro iba del cañon al soldado y vuelta, doce veces, y se
+    # quedaba encima del cañon igual. Buscar en vez de empujar no puede
+    # oscilar.
+    ocupadas = [f["x"] for f in figuras]
+    for c in cosas:
+        if c["y"] is not None:          # lo del cielo no estorba a nadie
+            continue
+        libre = lambda px: all(abs(o - px) >= _SEPARACION for o in ocupadas)
+        if not libre(c["x"]):
+            sitios = [0.05 + 0.02*k for k in range(46)]
+            candidato = min((p for p in sitios if libre(p)),
+                            key=lambda p: abs(p - c["x"]), default=None)
+            if candidato is not None:
+                c["x"] = round(candidato, 3)
+        ocupadas.append(c["x"])
+
+    return {"interior": dentro, "cosas": cosas,
             "fondo": _una_de(spec.get("fondo"), FONDOS_VALIDOS, "liso"),
             "suelo": min(0.86, max(0.58, float(spec.get("suelo", 0.70 if dentro else 0.74)
                                               or 0.74))),
@@ -507,7 +564,7 @@ _ANCHO_BASE, _ALTO_BASE = 1080, 1920
 # monigotes el plano se quedo clavado del todo, y un plano clavado se nota
 # aunque dentro haya movimiento. Un empuje del 7% y una deriva lateral: poco,
 # pero quita la sensacion de foto.
-_EMPUJE = 0.07
+_EMPUJE = 0.045
 
 
 def _camara(img, t):
@@ -516,7 +573,7 @@ def _camara(img, t):
     zoom = 1.0 + _EMPUJE*t
     cw, ch = w/zoom, h/zoom
     # La deriva va hacia el centro, asi que el plano se cierra sobre la accion.
-    x = (w-cw)*(0.5 + 0.35*math.cos(math.pi*t))
+    x = (w-cw)*(0.5 + 0.30*math.cos(math.pi*t))
     y = (h-ch)*0.5
     return img.crop((int(x), int(y), int(x+cw), int(y+ch)))
 _FPS = 15
@@ -814,3 +871,206 @@ def _parche(d, cab, rc, g, rnd, tinta=TINTA):
     d.ellipse([ojo[0]-r, ojo[1]-r, ojo[0]+r, ojo[1]+r], fill=tinta)
     _linea(d, [(cab[0]-rc*.95, cab[1]-rc*.42), (cab[0]+rc*.85, cab[1]-rc*.02)],
            max(2, g//2), rnd, color=tinta, temblor=1.2)
+
+
+# ---- LAS COSAS -------------------------------------------------------------
+# "Si habla de perro dibuja un perro". Es lo que le faltaba a la escena para
+# contar algo: los monigotes ponen quien, el fondo pone donde, y esto pone DE
+# QUE se esta hablando. Un plano con un barco ardiendo dice mas que tres
+# monigotes gesticulando en un campo vacio.
+#
+# Todas se dibujan apoyadas en su base, como se apoya una cosa en el suelo, y
+# con el mismo pulso tembloroso que el resto: si una sale con linea limpia
+# canta que es de otro sitio.
+
+def _perro(d, x, y, t, rnd, g, tinta=TINTA):
+    """De perfil, con hocico. El primero salia como un bicho: la cabeza era un
+    circulo suelto con una raya saliendo."""
+    lomo = [(x-t*.46, y-t*.34), (x-t*.10, y-t*.40), (x+t*.28, y-t*.36)]
+    _linea(d, lomo, g, rnd, color=tinta)
+    _linea(d, [(x-t*.46, y-t*.34), (x-t*.40, y-t*.14), (x+t*.24, y-t*.14),
+               (x+t*.28, y-t*.36)], g, rnd, color=tinta)
+    for px in (-.38, -.20, .06, .22):
+        _linea(d, [(x+t*px, y-t*.15), (x+t*px+t*.02, y)], g, rnd, color=tinta)
+    _linea(d, [(x+t*.28, y-t*.36), (x+t*.44, y-t*.58)], g, rnd, color=tinta)
+    cab = (x+t*.52, y-t*.66)
+    _circulo(d, cab, t*.15, g, rnd, relleno=(255, 255, 255), color=tinta)
+    hocico = [(cab[0]+t*.06, cab[1]-t*.02), (cab[0]+t*.30, cab[1]+t*.02),
+              (cab[0]+t*.30, cab[1]+t*.12), (cab[0]+t*.04, cab[1]+t*.12)]
+    d.polygon(hocico, fill=(255, 255, 255)); _linea(d, hocico, g, rnd, color=tinta)
+    d.ellipse([cab[0]+t*.26, cab[1]+t*.01, cab[0]+t*.34, cab[1]+t*.09], fill=tinta)
+    _linea(d, [(cab[0]-t*.08, cab[1]-t*.13), (cab[0]-t*.20, cab[1]+t*.14)], g, rnd, color=tinta)
+    d.ellipse([cab[0]-t*.04, cab[1]-t*.06, cab[0]+t*.02, cab[1]], fill=tinta)
+    _linea(d, [(x-t*.46, y-t*.34), (x-t*.64, y-t*.60)], g, rnd, color=tinta)
+
+
+def _caballo(d, x, y, t, rnd, g, tinta=TINTA):
+    """La cabeza era un bloque cuadrado flotando. Ahora es una cuña pegada al
+    cuello, que es lo que hace que se lea como un caballo."""
+    _linea(d, [(x-t*.50, y-t*.56), (x-t*.10, y-t*.62), (x+t*.36, y-t*.58)], g, rnd, color=tinta)
+    _linea(d, [(x-t*.50, y-t*.56), (x-t*.44, y-t*.30), (x+t*.30, y-t*.30),
+               (x+t*.36, y-t*.58)], g, rnd, color=tinta)
+    for px in (-.42, -.24, .10, .28):
+        _linea(d, [(x+t*px, y-t*.31), (x+t*px+t*.04, y)], g, rnd, color=tinta)
+    cuello = [(x+t*.30, y-t*.58), (x+t*.50, y-t*1.02), (x+t*.66, y-t*1.00),
+              (x+t*.50, y-t*.56)]
+    d.polygon(cuello, fill=(255, 255, 255)); _linea(d, cuello, g, rnd, color=tinta)
+    cabeza = [(x+t*.50, y-t*1.02), (x+t*.86, y-t*1.06), (x+t*.90, y-t*.90),
+              (x+t*.62, y-t*.92), (x+t*.50, y-t*1.02)]
+    d.polygon(cabeza, fill=(255, 255, 255)); _linea(d, cabeza, g, rnd, color=tinta)
+    d.ellipse([x+t*.80, y-t*1.02, x+t*.86, y-t*.96], fill=tinta)
+    _linea(d, [(x+t*.34, y-t*.62), (x+t*.52, y-t*1.04)], max(2, g), rnd, color=tinta, temblor=3.0)
+    _linea(d, [(x-t*.50, y-t*.56), (x-t*.66, y-t*.20)], g, rnd, color=tinta, temblor=3.0)
+
+
+def _barco(d, x, y, t, rnd, g, tinta=TINTA):
+    casco = [(x-t*.62, y-t*.28), (x+t*.62, y-t*.28), (x+t*.42, y), (x-t*.42, y), (x-t*.62, y-t*.28)]
+    _linea(d, casco, g, rnd, color=tinta)
+    _linea(d, [(x, y-t*.28), (x, y-t*1.15)], g, rnd, color=tinta)              # mastil
+    vela = [(x+t*.04, y-t*1.10), (x+t*.46, y-t*.62), (x+t*.04, y-t*.40)]
+    d.polygon(vela, fill=(255, 255, 255)); _linea(d, vela, g, rnd, color=tinta)
+    vela2 = [(x-t*.04, y-t*1.10), (x-t*.40, y-t*.66), (x-t*.04, y-t*.46)]
+    d.polygon(vela2, fill=(255, 255, 255)); _linea(d, vela2, g, rnd, color=tinta)
+
+
+def _casa(d, x, y, t, rnd, g, tinta=TINTA):
+    _linea(d, [(x-t*.42, y), (x-t*.42, y-t*.60), (x+t*.42, y-t*.60), (x+t*.42, y)],
+           g, rnd, color=tinta)
+    _linea(d, [(x-t*.52, y-t*.58), (x, y-t*1.00), (x+t*.52, y-t*.58)], g, rnd, color=tinta)
+    _linea(d, [(x-t*.12, y), (x-t*.12, y-t*.34), (x+t*.12, y-t*.34), (x+t*.12, y)],
+           g, rnd, color=tinta)
+
+
+def _iglesia(d, x, y, t, rnd, g, tinta=TINTA):
+    _linea(d, [(x-t*.46, y), (x-t*.46, y-t*.66), (x+t*.46, y-t*.66), (x+t*.46, y)],
+           g, rnd, color=tinta)
+    _linea(d, [(x-t*.20, y-t*.64), (x-t*.20, y-t*1.14), (x+t*.20, y-t*1.14), (x+t*.20, y-t*.64)],
+           g, rnd, color=tinta)
+    _linea(d, [(x, y-t*1.14), (x, y-t*1.46)], g, rnd, color=tinta)
+    _linea(d, [(x-t*.13, y-t*1.34), (x+t*.13, y-t*1.34)], g, rnd, color=tinta)
+    d.arc([x-t*.16, y-t*.40, x+t*.16, y+t*.06], 180, 360, fill=tinta, width=g)
+
+
+def _castillo(d, x, y, t, rnd, g, tinta=TINTA):
+    _linea(d, [(x-t*.60, y), (x-t*.60, y-t*.72), (x+t*.60, y-t*.72), (x+t*.60, y)],
+           g, rnd, color=tinta)
+    almena = [(x-t*.60, y-t*.72)]
+    for k in range(6):
+        px = x - t*.60 + t*1.20*k/6
+        almena += [(px, y-t*.92), (px+t*.10, y-t*.92), (px+t*.10, y-t*.72), (px+t*.20, y-t*.72)]
+    _linea(d, almena, g, rnd, color=tinta)
+    _linea(d, [(x-t*.14, y), (x-t*.14, y-t*.34), (x+t*.14, y-t*.34), (x+t*.14, y)],
+           g, rnd, color=tinta)
+
+
+def _espada(d, x, y, t, rnd, g, tinta=TINTA):
+    """Salia identica a la cruz. Una espada tiene PUNTA, guarda corta y
+    empuñadura larga - y se dibuja inclinada, que es como se sostiene."""
+    hoja = [(x-t*.10, y-t*.34), (x+t*.02, y-t*.40), (x+t*.34, y-t*1.12),
+            (x+t*.20, y-t*1.16), (x-t*.10, y-t*.34)]
+    d.polygon(hoja, fill=(255, 255, 255)); _linea(d, hoja, g, rnd, color=tinta)
+    _linea(d, [(x-t*.26, y-t*.44), (x+t*.16, y-t*.26)], max(g, int(t*.06)), rnd, color=tinta)
+    _linea(d, [(x-t*.06, y-t*.32), (x-t*.18, y-t*.04)], max(g, int(t*.07)), rnd, color=tinta)
+    _circulo(d, (x-t*.19, y-t*.02), t*.07, g, rnd, relleno=None, color=tinta)
+
+
+def _canion(d, x, y, t, rnd, g, tinta=TINTA):
+    """No se entendia nada. Un cañon es un TUBO que se estrecha, sobre dos
+    ruedas, y apuntando claramente a un lado."""
+    tubo = [(x-t*.34, y-t*.56), (x+t*.62, y-t*.46), (x+t*.62, y-t*.28),
+            (x-t*.34, y-t*.16), (x-t*.34, y-t*.56)]
+    d.polygon(tubo, fill=(255, 255, 255)); _linea(d, tubo, g, rnd, color=tinta)
+    _linea(d, [(x+t*.62, y-t*.46), (x+t*.70, y-t*.48), (x+t*.70, y-t*.26),
+               (x+t*.62, y-t*.28)], g, rnd, color=tinta)
+    _linea(d, [(x-t*.36, y-t*.44), (x-t*.10, y-t*.06)], g, rnd, color=tinta)
+    for cx, r in ((-.26, .22), (.14, .16)):
+        _circulo(d, (x+t*cx, y-t*r), t*r, g, rnd, relleno=(255, 255, 255), color=tinta)
+
+
+def _fuego(d, x, y, t, rnd, g, tinta=TINTA):
+    for k, (ancho, alto, col) in enumerate(((.42, .90, (232, 120, 30)),
+                                            (.26, .62, (248, 186, 60)))):
+        llama = [(x-t*ancho, y)]
+        for i in range(7):
+            f = i/6
+            llama.append((x - t*ancho + 2*t*ancho*f,
+                          y - t*alto*(0.4 + 0.6*math.sin(math.pi*f)) + rnd.uniform(-t*.06, t*.06)))
+        llama.append((x+t*ancho, y))
+        d.polygon(llama, fill=col)
+        _linea(d, llama, max(2, g//2), rnd, color=tinta, temblor=2.4)
+
+
+def _dinero(d, x, y, t, rnd, g, tinta=TINTA):
+    for i, (dx, dy, r) in enumerate(((-.22, -.10, .18), (.16, -.09, .16), (-.02, -.30, .17))):
+        c = (x+t*dx, y+t*dy)
+        _circulo(d, c, t*r, g, rnd, relleno=(236, 196, 88), color=tinta)
+
+
+def _libro(d, x, y, t, rnd, g, tinta=TINTA):
+    """Salia una pajarita: tenia las paginas al reves. Un libro abierto son
+    dos hojas que se hunden en el centro y suben por fuera."""
+    izq = [(x-t*.02, y-t*.10), (x-t*.44, y-t*.22), (x-t*.44, y-t*.56),
+           (x-t*.02, y-t*.44)]
+    der = [(x+t*.02, y-t*.10), (x+t*.44, y-t*.22), (x+t*.44, y-t*.56),
+           (x+t*.02, y-t*.44)]
+    for hoja in (izq, der):
+        d.polygon(hoja, fill=(255, 255, 255)); _linea(d, hoja + [hoja[0]], g, rnd, color=tinta)
+    _linea(d, [(x, y-t*.44), (x, y-t*.10)], g, rnd, color=tinta)
+    for k in (1, 2):
+        _linea(d, [(x-t*.36, y-t*.50+t*.08*k), (x-t*.08, y-t*.40+t*.08*k)],
+               max(2, g//2), rnd, color=tinta)
+        _linea(d, [(x+t*.08, y-t*.40+t*.08*k), (x+t*.36, y-t*.50+t*.08*k)],
+               max(2, g//2), rnd, color=tinta)
+
+
+def _bandera(d, x, y, t, rnd, g, tinta=TINTA):
+    _linea(d, [(x, y), (x, y-t*1.10)], g, rnd, color=tinta)
+    paño = [(x, y-t*1.06), (x+t*.56, y-t*.92), (x+t*.50, y-t*.62), (x, y-t*.66)]
+    d.polygon(paño, fill=(200, 60, 50)); _linea(d, paño, g, rnd, color=tinta)
+
+
+def _cruz(d, x, y, t, rnd, g, tinta=TINTA):
+    _linea(d, [(x, y), (x, y-t*.90)], max(g, int(t*.08)), rnd, color=tinta)
+    _linea(d, [(x-t*.28, y-t*.62), (x+t*.28, y-t*.62)], max(g, int(t*.08)), rnd, color=tinta)
+
+
+def _olla(d, x, y, t, rnd, g, tinta=TINTA):
+    """Era un cuenco con una raya encima. Una olla tiene ASAS y tapa."""
+    cuerpo = [(x-t*.32, y-t*.46), (x+t*.32, y-t*.46), (x+t*.26, y), (x-t*.26, y)]
+    d.polygon(cuerpo, fill=(146, 142, 136)); _linea(d, cuerpo + [cuerpo[0]], g, rnd, color=tinta)
+    for lado in (-1, 1):
+        d.arc([x+lado*t*.30-t*.12, y-t*.46, x+lado*t*.30+t*.12, y-t*.22],
+              0, 360, fill=tinta, width=g)
+    _linea(d, [(x-t*.38, y-t*.48), (x+t*.38, y-t*.48)], g, rnd, color=tinta)
+    _circulo(d, (x, y-t*.56), t*.07, g, rnd, relleno=(255, 255, 255), color=tinta)
+
+
+def _montaña(d, x, y, t, rnd, g, tinta=TINTA):
+    _linea(d, [(x-t*.80, y), (x-t*.24, y-t*.86), (x+t*.06, y-t*.46),
+               (x+t*.34, y-t*.72), (x+t*.86, y)], g, rnd, color=tinta)
+
+
+def _nube(d, x, y, t, rnd, g, tinta=TINTA):
+    for dx, r in ((-.28, .22), (0, .30), (.28, .22)):
+        _circulo(d, (x+t*dx, y), t*r, g, rnd, relleno=(255, 255, 255), color=tinta)
+
+
+def _sol(d, x, y, t, rnd, g, tinta=TINTA):
+    _circulo(d, (x, y), t*.30, g, rnd, relleno=(250, 214, 90), color=tinta)
+    for k in range(8):
+        a = k/8*2*math.pi
+        _linea(d, [(x+math.cos(a)*t*.40, y+math.sin(a)*t*.40),
+                   (x+math.cos(a)*t*.58, y+math.sin(a)*t*.58)], g, rnd, color=tinta)
+
+
+COSAS = {
+    "perro": _perro, "caballo": _caballo, "barco": _barco, "casa": _casa,
+    "iglesia": _iglesia, "castillo": _castillo, "espada": _espada,
+    "canion": _canion, "fuego": _fuego, "dinero": _dinero, "libro": _libro,
+    "bandera": _bandera, "cruz": _cruz, "olla": _olla, "montaña": _montaña,
+    "nube": _nube, "sol": _sol,
+    # El arbol ya existia pero con otra firma, y por estar aqui a None se
+    # caia en silencio: el prompt lo ofrecia y limpia() lo tiraba.
+    "arbol": lambda d, x, y, t, rnd, g, tinta=TINTA: arbol(d, x, y, t*1.6, rnd),
+}
+COSAS_VALIDAS = tuple(COSAS)
