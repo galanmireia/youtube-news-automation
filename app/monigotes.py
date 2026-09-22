@@ -336,13 +336,8 @@ def _decorado(paso, semilla):
     construida, probada y enseñada... y no se dibujaba nunca. El guion podia
     pedir "taberna" y salia un refectorio.
     """
-    dentro = paso.get("interior")
-    if dentro == "taberna":
-        return taberna(paso, _ANCHO_BASE, _ALTO_BASE, semilla=semilla)
-    if dentro:
-        # monasterio y salon_trono comparten decorado de momento: piedra,
-        # ventana y mesa. Al salon del trono le falta cara propia.
-        return interior(paso, _ANCHO_BASE, _ALTO_BASE, semilla=semilla)
+    if paso.get("interior"):
+        return montar(paso, _ANCHO_BASE, _ALTO_BASE, semilla=semilla)
     return escena(paso, semilla=semilla)
 
 
@@ -472,7 +467,9 @@ GESTOS_VALIDOS = ("neutro", "sorpresa", "contento", "enfadado", "grito")
 GORROS_VALIDOS = ("corona", "comandante", "tricornio", "sombrero", "casco",
                   "mitra", "monje", "boina", "marinero")
 OBJETOS_VALIDOS = ("sombrero", "capa")
-INTERIORES_VALIDOS = ("monasterio", "taberna", "salon_trono")
+# Se rellena abajo, con las recetas: asi no puede haber una lista de sitios
+# que ofrezco al guion y otra de sitios que se saben dibujar.
+INTERIORES_VALIDOS: tuple = ()
 
 _MAX_FIGURAS = 4
 
@@ -953,11 +950,21 @@ def _barco(d, x, y, t, rnd, g, tinta=TINTA):
 
 
 def _casa(d, x, y, t, rnd, g, tinta=TINTA):
+    """Con las paredes RELLENAS. Las dibujaba a linea suelta, asi que en una
+    calle se veia el cielo a traves de las casas."""
+    d.polygon([(x-t*.42, y), (x-t*.42, y-t*.60), (x+t*.42, y-t*.60), (x+t*.42, y)],
+              fill=(232, 222, 202))
+    d.polygon([(x-t*.52, y-t*.58), (x, y-t*1.00), (x+t*.52, y-t*.58)], fill=(168, 96, 72))
     _linea(d, [(x-t*.42, y), (x-t*.42, y-t*.60), (x+t*.42, y-t*.60), (x+t*.42, y)],
            g, rnd, color=tinta)
-    _linea(d, [(x-t*.52, y-t*.58), (x, y-t*1.00), (x+t*.52, y-t*.58)], g, rnd, color=tinta)
+    _linea(d, [(x-t*.52, y-t*.58), (x, y-t*1.00), (x+t*.52, y-t*.58), (x-t*.52, y-t*.58)],
+           g, rnd, color=tinta)
+    d.polygon([(x-t*.12, y), (x-t*.12, y-t*.34), (x+t*.12, y-t*.34), (x+t*.12, y)],
+              fill=(120, 82, 54))
     _linea(d, [(x-t*.12, y), (x-t*.12, y-t*.34), (x+t*.12, y-t*.34), (x+t*.12, y)],
            g, rnd, color=tinta)
+    d.rectangle([x+t*.18, y-t*.52, x+t*.32, y-t*.38], fill=(150, 190, 214),
+                outline=tinta, width=max(2, g//2))
 
 
 def _iglesia(d, x, y, t, rnd, g, tinta=TINTA):
@@ -1188,15 +1195,22 @@ def _ventana_al_mar(d, x, y, ancho, alto, rnd, g, barcos=2):
 
 
 def _adoquines(d, x0, y0, x1, y1, rnd, g):
+    """Con FUGA hacia el fondo. En filas rectas parecia una pared de ladrillo
+    puesta de pie, no una calle."""
     d.rectangle([x0, y0, x1, y1], fill=PIEDRA_CLARA)
+    ancho_total = x1 - x0
+    centro = (x0 + x1)/2
     fila, yy = 0, y0
     while yy < y1:
-        alto = (y1-y0)*0.06 + (yy-y0)*0.05
-        px = x0 - ((x1-x0)*0.05 if fila % 2 else 0)
-        while px < x1:
-            ancho = (x1-x0)*0.11 + (yy-y0)*0.04
-            _linea(d, [(px, yy), (px+ancho, yy), (px+ancho, yy+alto), (px, yy+alto), (px, yy)],
-                   max(2, g//2), rnd, color=(150, 144, 136), temblor=1.2)
+        f = (yy - y0)/max(1.0, y1 - y0)         # 0 al fondo, 1 delante
+        alto = (y1-y0)*(0.035 + 0.075*f)
+        # Cerca todo es mas ancho y esta mas abierto: eso es la fuga.
+        ancho = ancho_total*(0.06 + 0.10*f)
+        px = centro - ancho_total*(0.55 + 0.1*f) + (ancho/2 if fila % 2 else 0)
+        while px < x1 + ancho:
+            _linea(d, [(px, yy), (px+ancho*.92, yy+alto*.08),
+                       (px+ancho*.88, yy+alto), (px-ancho*.04, yy+alto*.92), (px, yy)],
+                   max(2, g//2), rnd, color=(150, 144, 136), temblor=1.4)
             px += ancho
         yy += alto; fila += 1
 
@@ -1403,3 +1417,274 @@ def _sembrar(d, w, h, suelo, fondo, rnd, g):
         f = rnd.uniform(0.1, 1)
         _piedra(d, w*rnd.uniform(0.03, 0.97), suelo + hondo*f,
                 h*(0.006 + 0.022*f), rnd, max(2, int(g*(0.4 + 0.6*f))))
+
+
+# ---- MOTOR DE DECORADOS ------------------------------------------------------
+# "¿Has hecho mas escenarios o solo esa? Tiene que tener muchas mas". Tiene
+# razon, y el problema no era la idea: era que monte el monasterio y la
+# taberna como funciones a medida, asi que cada sitio nuevo costaba media hora
+# y siempre habria dos.
+#
+# Aqui un decorado es una RECETA: paredes, suelo, lo que hay al fondo, los
+# muebles y lo que cuelga. Añadir un sitio son tres lineas, y todos heredan
+# gratis lo que ya funciona - el orden por capas, el resplandor de las velas,
+# la gente delante y los muebles de primer termino por encima.
+
+def _pared(d, w, y0, y1, clase, rnd, g):
+    if clase == "entramado":
+        _entramado(d, w, y0, y1, rnd, g)
+    elif clase == "piedra":
+        _pared_piedra(d, w, y1, y1, rnd)
+        d.rectangle([0, y0, w, y1], fill=PIEDRA)
+        rr = random.Random(7)
+        for _ in range(30):
+            bw = rr.uniform(w*.05, w*.13); bh = bw*rr.uniform(.32, .52)
+            bx = rr.uniform(0, w-bw); by = rr.uniform(y0, y1-bh)
+            _linea(d, [(bx,by),(bx+bw,by),(bx+bw,by+bh),(bx,by+bh),(bx,by)], max(2, g//2),
+                   rnd, color=(104, 98, 90), temblor=1.6)
+    elif clase == "encalada":
+        d.rectangle([0, y0, w, y1], fill=(238, 232, 220))
+        for _ in range(7):                      # grietas
+            x = rnd.uniform(0, w); y = rnd.uniform(y0, y1)
+            _linea(d, [(x, y), (x+rnd.uniform(-w*.04, w*.04), y+rnd.uniform(0, (y1-y0)*.2))],
+                   max(2, g//3), rnd, color=(206, 198, 184), temblor=3.0)
+    elif clase == "ladrillo":
+        d.rectangle([0, y0, w, y1], fill=LADRILLO)
+        fila = (y1-y0)/12
+        for f in range(12):
+            yy = y0 + f*fila
+            _linea(d, [(0, yy), (w, yy)], max(2, g//2), rnd, color=(126, 62, 48), temblor=1.0)
+            px = (w/8) if f % 2 else 0
+            while px < w:
+                _linea(d, [(px, yy), (px, yy+fila)], max(2, g//2), rnd,
+                       color=(126, 62, 48), temblor=1.0)
+                px += w/4
+    else:                                        # "cielo"
+        d.rectangle([0, y0, w, y1], fill=(146, 198, 232))
+
+
+def _piso(d, w, h, suelo, clase, rnd, g):
+    if clase == "tablas":
+        _tablas(d, w, suelo, h, rnd, g)
+    elif clase == "adoquines":
+        _adoquines(d, 0, suelo, w, h, rnd, g)
+    elif clase == "losas":
+        d.rectangle([0, suelo, w, h], fill=(176, 170, 160))
+        paso = (h-suelo)/5
+        for k in range(6):
+            yy = suelo + k*paso
+            _linea(d, [(0, yy), (w, yy)], max(2, g//2), rnd, color=(140, 134, 124), temblor=1.4)
+        for k in range(5):
+            _linea(d, [(w*k/4, suelo), (w*(k/4-0.25)+w*0.5, h)], max(2, g//2), rnd,
+                   color=(140, 134, 124), temblor=1.4)
+    elif clase == "tierra":
+        d.rectangle([0, suelo, w, h], fill=(166, 138, 104))
+        for _ in range(14):
+            _piedra(d, rnd.uniform(0, w), rnd.uniform(suelo, h), h*rnd.uniform(.006, .016),
+                    rnd, max(2, g//2), color=(150, 126, 96))
+    elif clase == "hierba":
+        d.rectangle([0, suelo, w, h], fill=(122, 193, 96))
+    else:
+        d.rectangle([0, suelo, w, h], fill=MADERA)
+
+
+def _puerta_arco(d, x, y, ancho, alto, rnd, g, fuera=(146, 198, 232)):
+    """Un vano con luz detras: barato y abre el plano."""
+    x0, y0, x1 = x-ancho/2, y-alto, x+ancho/2
+    d.rounded_rectangle([x0, y0, x1, y], radius=int(ancho*0.48), fill=fuera)
+    d.rectangle([x0, y-alto*0.4, x1, y], fill=fuera)
+    _linea(d, [(x0, y), (x0, y0+ancho*0.3)], int(g*1.4), rnd, color=TINTA)
+    _linea(d, [(x1, y), (x1, y0+ancho*0.3)], int(g*1.4), rnd, color=TINTA)
+    d.arc([x0, y0, x1, y0+ancho], 180, 360, fill=TINTA, width=int(g*1.4))
+
+
+def _estante(d, x, y, ancho, rnd, g, ollas=2):
+    _linea(d, [(x-ancho/2, y), (x+ancho/2, y)], int(g*1.8), rnd, color=MADERA_OSCURA)
+    for k in range(ollas):
+        px = x - ancho*0.28 + ancho*0.56*k/max(1, ollas-1) if ollas > 1 else x
+        _olla(d, px, y, ancho*0.22, rnd, max(2, g//2))
+
+
+def _estandarte(d, x, y, ancho, alto, rnd, g, color=(170, 44, 44)):
+    paño = [(x-ancho/2, y), (x+ancho/2, y), (x+ancho/2, y+alto),
+            (x, y+alto*0.86), (x-ancho/2, y+alto)]
+    d.polygon(paño, fill=color); _linea(d, paño+[paño[0]], g, rnd, color=TINTA)
+    _linea(d, [(x-ancho*0.62, y), (x+ancho*0.62, y)], int(g*1.4), rnd, color=MADERA_OSCURA)
+
+
+def _trono(d, x, y, ancho, rnd, g):
+    alto = ancho*1.5
+    respaldo = [(x-ancho/2, y), (x-ancho/2, y-alto), (x-ancho*0.28, y-alto*1.14),
+                (x, y-alto*1.0), (x+ancho*0.28, y-alto*1.14), (x+ancho/2, y-alto),
+                (x+ancho/2, y)]
+    d.polygon(respaldo, fill=MADERA_CLARA); _linea(d, respaldo+[respaldo[0]], g, rnd, color=TINTA)
+    d.rectangle([x-ancho*0.6, y-alto*0.36, x+ancho*0.6, y-alto*0.24], fill=(170, 44, 44))
+    _linea(d, [(x-ancho*0.6, y-alto*0.36), (x+ancho*0.6, y-alto*0.36)], g, rnd, color=TINTA)
+
+
+def _mastil(d, x, suelo, h, rnd, g):
+    _linea(d, [(x, suelo), (x, h*0.03)], int(g*2.4), rnd, color=MADERA_OSCURA)
+    _linea(d, [(x-h*0.14, h*0.16), (x+h*0.14, h*0.16)], int(g*1.6), rnd, color=MADERA_OSCURA)
+    vela = [(x-h*0.13, h*0.17), (x+h*0.13, h*0.17), (x+h*0.09, h*0.40), (x-h*0.09, h*0.40)]
+    d.polygon(vela, fill=(248, 244, 232)); _linea(d, vela+[vela[0]], g, rnd, color=TINTA)
+    for lado in (-1, 1):
+        _linea(d, [(x, h*0.05), (x+lado*h*0.22, suelo)], max(2, g//2), rnd, color=TINTA)
+
+
+# Cada sitio es una receta. Añadir uno son tres lineas y hereda gratis el
+# orden por capas, el resplandor de las velas y la gente delante.
+#
+#   pared / piso  : de que estan hechos
+#   fondo         : lo que hay pegado a la pared (chimenea, ventana, puerta...)
+#   muebles       : lo que hay en el suelo, DETRAS de la gente
+#   delante       : lo que tapa a la gente por abajo (la mesa, una barandilla)
+#   cuelga        : lo colgado de la pared
+#   velas         : donde hay lumbre, para el resplandor
+_DECORADOS = {
+    "taberna":      {"pared": "entramado", "piso": "tablas",
+                     "fondo": [("ventana_mar", .26, .34, .34), ("chimenea", .78, 1.0, .30)],
+                     "muebles": [("mesa_fondo", .49, .03, .24), ("taburete", .90, .10, .09)],
+                     "delante": [("mesa", .46, .34, .92)],
+                     "cuelga": [("espada", .13, .52, .10)], "velas": [(.78, -.10)]},
+    "monasterio":   {"pared": "piedra", "piso": "losas",
+                     "fondo": [("ventana_arco", .50, .36, .20)],
+                     "muebles": [("estante", .18, .06, .22)],
+                     "delante": [("mesa", .50, .30, .94)],
+                     "cuelga": [("cruz", .84, .50, .09)], "velas": [(.12, -.30), (.88, -.30)]},
+    "salon_trono":  {"pared": "piedra", "piso": "losas",
+                     "fondo": [("trono", .50, 1.0, .22), ("estandarte", .16, .22, .13),
+                               ("estandarte", .84, .22, .13)],
+                     "muebles": [], "delante": [],
+                     "cuelga": [("espada", .30, .44, .11), ("espada", .70, .44, .11)],
+                     "velas": [(.08, -.34), (.92, -.34)]},
+    "cocina":       {"pared": "encalada", "piso": "losas",
+                     "fondo": [("chimenea", .74, 1.0, .34), ("ventana_arco", .22, .34, .16)],
+                     "muebles": [("estante", .30, .30, .30)],
+                     "delante": [("mesa", .44, .32, .90)],
+                     "cuelga": [("olla", .50, .42, .06)], "velas": [(.74, -.12)]},
+    "iglesia":      {"pared": "piedra", "piso": "losas",
+                     "fondo": [("ventana_arco", .28, .30, .17), ("ventana_arco", .72, .30, .17),
+                               ("cruz_grande", .50, .58, .22)],
+                     "muebles": [("banco_fondo", .50, .30, .56)],
+                     "delante": [("banco_fondo", .50, .46, .96)],
+                     "cuelga": [], "velas": [(.20, -.26), (.80, -.26), (.50, -.10)]},
+    "calle":        {"pared": "cielo", "piso": "adoquines",
+                     "fondo": [("casas", .5, 1.0, 1.0)],
+                     "muebles": [], "delante": [], "cuelga": [], "velas": []},
+    "mercado":      {"pared": "cielo", "piso": "adoquines",
+                     "fondo": [("casas", .5, 1.0, 1.0), ("puesto", .20, 1.0, .28),
+                               ("puesto", .80, 1.0, .28)],
+                     "muebles": [("olla_suelo", .50, .06, .07)],
+                     "delante": [("mesa", .50, .34, .84)], "cuelga": [], "velas": []},
+    "cubierta":     {"pared": "cielo_mar", "piso": "tablas",
+                     "fondo": [("mastil", .50, 1.0, 1.0)],
+                     "muebles": [("olla_suelo", .84, .08, .06)],
+                     "delante": [("barandilla", .5, .30, 1.0)], "cuelga": [], "velas": []},
+    "mina":         {"pared": "roca", "piso": "tierra",
+                     "fondo": [("puntales", .5, 1.0, 1.0)],
+                     "muebles": [], "delante": [], "cuelga": [], "velas": [(.30, -.30), (.70, -.24)]},
+}
+DECORADOS_VALIDOS = tuple(_DECORADOS)
+
+
+def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
+    X, Y, T = w*x, h*y, w*tam
+    if que == "ventana_mar":      _ventana_al_mar(d, X, h*y, T, h*tam*0.55, rnd, g)
+    elif que == "ventana_arco":   _ventana_arco(d, X, h*y, T, h*tam*0.95, rnd, g)
+    elif que == "chimenea":       _chimenea(d, X, suelo, T, h*tam, rnd, g)
+    elif que == "trono":          _trono(d, X, suelo, T, rnd, g)
+    elif que == "estandarte":     _estandarte(d, X, h*y, T, h*tam*1.9, rnd, g)
+    elif que == "cruz_grande":    _cruz(d, X, h*y, h*tam, rnd, int(g*1.6), TINTA)
+    elif que == "mastil":         _mastil(d, X, suelo, h, rnd, g)
+    elif que == "casas":
+        for k in range(5):
+            px = w*(0.08 + 0.21*k)
+            _casa(d, px, suelo + h*0.005, h*rnd.uniform(0.17, 0.25), rnd, g, TINTA)
+    elif que == "puesto":
+        toldo = [(X-T*.6, suelo-h*.20), (X+T*.6, suelo-h*.20),
+                 (X+T*.5, suelo-h*.13), (X-T*.5, suelo-h*.13)]
+        d.polygon(toldo, fill=(198, 88, 76)); _linea(d, toldo+[toldo[0]], g, rnd, color=TINTA)
+        for lado in (-1, 1):
+            _linea(d, [(X+lado*T*.5, suelo-h*.14), (X+lado*T*.5, suelo)], g, rnd, color=MADERA_OSCURA)
+        _mesa_con_cosas(d, X, suelo, T*1.1, rnd, max(2, g//2), papeles=1, jarras=1, alto=h*0.045)
+    elif que == "puntales":
+        for k in range(3):
+            px = w*(0.16 + 0.34*k)
+            _linea(d, [(px, suelo), (px, h*0.10)], int(g*2.6), rnd, color=MADERA_OSCURA)
+        _linea(d, [(0, h*0.10), (w, h*0.10)], int(g*2.6), rnd, color=MADERA_OSCURA)
+
+
+def _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g):
+    X, Y, T = w*x, suelo + h*y, w*tam
+    if que == "mesa_fondo":
+        _mesa_con_cosas(d, X, Y, T, rnd, max(2, g//2), papeles=1, jarras=1, alto=h*0.035)
+    elif que == "taburete":   _taburete(d, X, Y, h*tam, rnd, g)
+    elif que == "estante":    _estante(d, X, h*y, T, rnd, g)
+    elif que == "banco_fondo":_banco(d, X, Y, T, rnd, g)
+    elif que == "olla_suelo": _olla(d, X, Y, h*tam, rnd, g)
+    elif que == "mesa":       _mesa_con_cosas(d, X, Y, T, rnd, g, alto=h*0.075)
+    elif que == "barandilla":
+        _linea(d, [(0, Y), (w, Y)], int(g*2.6), rnd, color=MADERA_OSCURA)
+        for k in range(7):
+            px = w*(0.07 + 0.145*k)
+            _linea(d, [(px, Y), (px, h)], int(g*1.8), rnd, color=MADERA_OSCURA)
+
+
+def montar(spec: dict, w: int, h: int, semilla: int = 0):
+    """Un decorado cualquiera, montado desde su receta y por capas.
+
+    El orden es el mismo para todos, y es lo que hace que un sitio nuevo
+    cueste tres lineas de receta en vez de media hora de funcion a medida:
+
+      pared -> lo del fondo -> suelo -> muebles -> GENTE -> muebles de
+      delante -> lo colgado -> marco -> resplandores
+    """
+    receta = _DECORADOS.get(spec.get("interior"))
+    if receta is None:
+        return escena(spec, w, h, semilla)
+    rnd = random.Random(semilla)
+    suelo = int(h*spec.get("suelo", 0.66))
+    img = Image.new("RGB", (w, h), (226, 214, 192))
+    d = ImageDraw.Draw(img)
+    g = max(4, int(w*0.006))
+
+    clase = receta["pared"]
+    if clase == "cielo_mar":
+        _pared(d, w, 0, suelo, "cielo", rnd, g)
+        d.rectangle([0, suelo - h*0.06, w, suelo], fill=(92, 140, 186))
+    elif clase == "roca":
+        _pared(d, w, 0, suelo, "piedra", rnd, g)
+        d.rectangle([0, 0, w, suelo], fill=(96, 86, 76))
+    else:
+        _pared(d, w, 0, suelo, clase, rnd, g)
+
+    for que, x, y, tam in receta["fondo"]:
+        _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g)
+    _piso(d, w, h, suelo, receta["piso"], rnd, g)
+    for que, x, y, tam in receta["muebles"]:
+        _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g)
+
+    for f in spec.get("figuras", []):
+        alto_f = h*f.get("alto", 0.30)
+        figura(d, w*f["x"], suelo + h*0.24 + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
+               alto_f, rnd, f.get("pose", "de_pie"), f.get("gesto", "neutro"),
+               f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
+               rasgos=REPARTO.get(f.get("quien") or ""))
+
+    for que, x, y, tam in receta["delante"]:
+        _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g)
+    for que, x, y, tam in receta["cuelga"]:
+        f = COSAS.get(que)
+        if f:
+            f(d, w*x, h*y, h*tam, rnd, max(2, g//2), TINTA)
+
+    if spec.get("cartel"):
+        _cartel(d, w*0.50, h*0.09, w*0.44, str(spec["cartel"])[:40], rnd, g)
+    for vx, vy in receta["velas"]:
+        _vela(d, w*vx, suelo + h*vy, h*0.035, rnd, max(2, g//2))
+        img = _resplandor(img, (w*vx, suelo + h*vy - h*0.03), h*0.10)
+    return img
+
+
+# La lista que ve el guion ES la de las recetas, no una copia a mano.
+INTERIORES_VALIDOS = DECORADOS_VALIDOS

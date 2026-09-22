@@ -707,8 +707,19 @@ dibujar, asi que no te inventes nada: si pides "catedral gotica al atardecer" no
 catedral, sale un fondo liso.
 
   "escena": {
-    "interior": uno de [monasterio, taberna, salon_trono] - o quitalo y usa "fondo"
-    "fondo":    uno de [campo, calle, salon, noche, liso]
+    "interior": el SITIO donde pasa, y elige siempre que puedas: un decorado da mucho mas
+                que un fondo de color. Uno de:
+                  taberna      mesas, chimenea, ventana al puerto
+                  monasterio   piedra, ventana de arco, mesa larga
+                  salon_trono  trono, estandartes, espadas en la pared
+                  cocina       fogon, estantes con ollas, mesa
+                  iglesia      arcos, cruz, bancos
+                  calle        casas, adoquines
+                  mercado      puestos con toldo, casas, adoquines
+                  cubierta     cubierta de barco, mastil, el mar detras
+                  mina         puntales de madera, tierra, oscuridad
+    "fondo":    SOLO si la escena pasa a campo abierto y ningun sitio de arriba vale:
+                [campo, calle, salon, noche, liso]
     "habla_x":  0.0 a 1.0, donde esta QUIEN HABLA en esta escena (para el bocadillo)
     "cosas":    hasta 4 objetos, y ES DE LO QUE MAS SE NOTA. Si la narracion habla de un perro,
                 dibuja un perro; si habla de un barco ardiendo, pon el barco Y el fuego. Los
