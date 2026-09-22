@@ -210,10 +210,15 @@ def _tiene_que_ver(termino: str, titulo: str) -> bool:
     return bool(propias & del_termino) if propias else True
 
 
-def _resolve(term: str) -> str | None:
+def _resolve(term: str, candidatos: list | None = None) -> str | None:
     """The real article title for a search term, or None if Wikipedia has no
     article for it. Searching rather than assuming means an entry written from
-    memory still finds its article."""
+    memory still finds its article.
+
+    Si se le pasa `candidatos`, deja ahi TODOS los titulos que devolvio la
+    busqueda, elegido y descartados. Sirve para poder enseñarselos a quien
+    pidio el tema: ver mas abajo por que eso importa mas que afinar el filtro.
+    """
     try:
         from . import research
         response = research.peticion(
@@ -225,13 +230,18 @@ def _resolve(term: str) -> str | None:
         if response is None or response.status_code != 200:
             return None
         results = response.json().get("query", {}).get("search", [])
+        elegido = None
         for resultado in results:
             titulo = resultado["title"]
-            if _tiene_que_ver(term, titulo):
-                return titulo
-            logger.info("Wikipedia devuelve %r para %r, que no tiene nada que ver.",
-                        titulo, term[:50])
-        return None
+            if candidatos is not None:
+                candidatos.append(titulo)
+            if elegido is None and _tiene_que_ver(term, titulo):
+                elegido = titulo
+                continue
+            if elegido is None:
+                logger.info("Wikipedia devuelve %r para %r, que no tiene nada que ver.",
+                            titulo, term[:50])
+        return elegido
     except (requests.RequestException, KeyError, ValueError, IndexError):
         return None
 
@@ -278,7 +288,7 @@ def ya_hecho(term: str) -> bool:
     return is_source_processed(_article_url(title))
 
 
-def fetch_topic_by_term(term: str) -> dict | None:
+def fetch_topic_by_term(term: str, candidatos: list | None = None) -> dict | None:
     """One named case, whether or not it has been made before, in the same
     shape the catalogue returns. This is what lets the same story be remade
     after a change to the script prompt: comparing two tellings of the Costa
@@ -286,7 +296,7 @@ def fetch_topic_by_term(term: str) -> dict | None:
     writing helped, and the ordinary path would skip it as already processed.
     The term is resolved through Wikipedia's search like any catalogue entry,
     so a rough name still finds its article."""
-    title = _resolve(term)
+    title = _resolve(term, candidatos)
     if title is None:
         logger.warning("No encuentro ningun articulo de Wikipedia para %r.", term)
         return None

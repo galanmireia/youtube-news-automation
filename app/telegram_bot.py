@@ -338,7 +338,9 @@ async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_
     # been made before, which is how two versions of the same story can be put
     # side by side after a change to the writing.
     args = list(context.args or [])
+    letra = ""
     if args and args[0].lower() in _GENERATE_ARG_VARIANTS:
+        letra = args[0].lower()
         variants = _GENERATE_ARG_VARIANTS[args.pop(0).lower()]
     else:
         variants = ("short", "long")
@@ -347,6 +349,44 @@ async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_
         variants[0] if len(variants) == 1 else "", "el Short y el video largo"
     )
     sobre = f" sobre {forced_topic}" if forced_topic else ""
+
+    # QUE ARTICULO VA A USAR, DICHO ANTES DE GASTAR NADA.
+    #
+    # Esto salio de pedir "Necropolis romana de Carmona" y acabar escribiendo
+    # un guion sobre "Historia de Carmona" - la historia entera del pueblo -,
+    # mientras el filtro habia descartado por el camino "Conjunto Arqueologico
+    # de Carmona", que era EXACTAMENTE el bueno.
+    #
+    # Y la leccion no es afinar el filtro: no se puede. "Conjunto Arqueologico
+    # de Carmona" y "Sociedad Arqueologica de Carmona" tienen las mismas
+    # palabras, la misma forma y el mismo parecido con lo que se pidio, y una
+    # es el yacimiento y la otra una asociacion local. Ningun umbral las
+    # separa, porque no se diferencian en las palabras sino en lo que son.
+    #
+    # Lo que si se puede es no adivinar a solas. El titulo elegido y los otros
+    # candidatos se dicen POR TELEGRAM antes de escribir una linea, que es
+    # donde ella lo lee, y no en un log que no mira nadie. Cuesta una busqueda
+    # de Wikipedia - la misma que hara el pipeline despues - y ahorra los tres
+    # intentos de guion de un tema equivocado, que son 0,60 $.
+    if forced_topic:
+        candidatos: list[str] = []
+        elegido = await asyncio.get_running_loop().run_in_executor(
+            None, lambda: topic_source.fetch_topic_by_term(forced_topic, candidatos))
+        otros = [c for c in candidatos if not elegido or c != elegido["title"]][:4]
+        # La MISMA letra que escribio ella. Sacarla de variants[0][0] daba
+        # "/generar l" para el largo, que no existe - es "v" -, y a quien no
+        # puso letra le habria cambiado la peticion de los dos videos a uno.
+        manda = f"/generar {letra} " if letra else "/generar "
+        cola = ("\n\nSi no es ese, paralo y pidelo por su nombre:\n"
+                + "\n".join(f"  {manda}{c}" for c in otros)) if otros else ""
+        if elegido is None:
+            await update.message.reply_text(
+                f"No encuentro ningun articulo que vaya de «{forced_topic}», asi que no "
+                f"hago nada." + (cola or " Prueba con el nombre propio de la cosa."))
+            return
+        await update.message.reply_text(
+            f"Voy a usar el articulo «{elegido['title']}».{cola}")
+
     if NARRATION_SOURCE == "clon":
         # Checked before anything is written. Without it the failure lands
         # after the script has been paid for and the images fetched, which
