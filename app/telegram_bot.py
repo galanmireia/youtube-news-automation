@@ -2,6 +2,7 @@ import asyncio
 import time
 from io import BytesIO
 import logging
+import unicodedata
 import re
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -911,6 +912,11 @@ async def handle_use_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 _PALABRAS_POR_MINUTO_SINTESIS = 132
 
 
+def _sin_tildes_min(texto: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", (texto or "").lower())
+                   if unicodedata.category(c) != "Mn")
+
+
 async def handle_dossier_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/dosier <tema> - builds the research for a case and measures it.
 
@@ -920,9 +926,24 @@ async def handle_dossier_command(update: Update, context: ContextTypes.DEFAULT_T
     thin says so before the script does."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
-    tema = " ".join(context.args).strip()
+    # BUSCAR DENTRO DEL DOSIER, que es la pregunta de verdad.
+    #
+    # Esto salio de querer hacer el video del vino romano de Carmona: el
+    # hallazgo fue en una casa particular, no en el yacimiento, asi que no
+    # estaba nada claro que el articulo lo mencionara - y sin eso en el dosier
+    # no hay video del vino por mucho que se pida, porque el guion solo
+    # escribe con lo que lee. La alternativa era pagar un guion para
+    # averiguarlo.
+    #
+    # Se marcan con "+" porque un nombre de articulo nunca lleva uno, asi que
+    # no hay forma de confundirlo con el tema.
+    partes = list(context.args or [])
+    buscar = [p[1:].lower() for p in partes if p.startswith("+") and len(p) > 1]
+    tema = " ".join(p for p in partes if not p.startswith("+")).strip()
     if not tema:
-        await update.message.reply_text("Dime de que caso: /dosier Gusano Morris")
+        await update.message.reply_text(
+            "Dime de que caso: /dosier Gusano Morris\n"
+            "Y para ver si algo esta dentro: /dosier Carmona +vino +urna")
         return
     await update.message.reply_text(f"Montando el dosier de *{tema}*...", parse_mode="Markdown")
     loop = asyncio.get_running_loop()
@@ -956,6 +977,18 @@ async def handle_dossier_command(update: Update, context: ContextTypes.DEFAULT_T
         for cabecera, cuerpo in zip(cabeceras, cuerpos):
             nombre = cabecera.split(" · ", 1)[-1]
             lineas.append(f"  · {nombre[:60]} — {len(cuerpo.split()):,} palabras".replace(",", "."))
+        if buscar:
+            lineas.append("")
+            plano = _sin_tildes_min(dosier)
+            for palabra in buscar:
+                veces = plano.count(_sin_tildes_min(palabra))
+                lineas.append(
+                    f"  {'SI' if veces else 'NO'}  «{palabra}» sale {veces} veces"
+                    if veces else f"  NO  «{palabra}» no sale NI UNA vez")
+            if not any(plano.count(_sin_tildes_min(x)) for x in buscar):
+                lineas.append("  → De esto no se puede hacer el video: el guion solo "
+                              "escribe con lo que hay en el dosier.")
+
         lineas.append("")
         # The comparison that matters. Material is not narration: a script
         # keeps a fraction of what it reads, because a dossier repeats itself
