@@ -659,6 +659,38 @@ video abria contando un golpe sobre un plano general de nada.""",
         "bloque_campo_sonido": "uno de [gentio, campana, fuego, pasos, espada, tormenta, mar, monedas, puerta, caballo] o cadena vacia",
         "bloque_ilustracion": """LA ESCENA ("escena"): OBLIGATORIA EN TODAS Y CADA UNA DE LAS ESCENAS.
 
+EL REPARTO. Esto es lo mas importante de todo y va antes que ninguna otra regla de dibujo.
+
+El canal tiene CINCO personajes FIJOS que salen en todos los videos, siempre con la misma pinta.
+La gente vuelve a un canal por la gente, no por el tema: si el del vigote canoso sale hoy en
+Lepanto y mañana en un motin, el espectador lo reconoce y el canal deja de ser "videos de
+historia" para ser "el canal ese". No los describas ni los inventes: LLAMALOS POR SU NOMBRE en
+el campo "quien" y el programa los dibuja igual que siempre.
+
+  "cronista"  - barbudo, alto y flaco. Es el TESTIGO: no manda ni obedece, esta ahi mirando y
+                comentando. TIENE QUE SALIR EN TODOS LOS VIDEOS, en al menos una escena, y casi
+                siempre es el que suelta la frase del bocadillo.
+  "mandamas"  - el mas alto, barbudo y calvo. El que manda o el que cree que manda: rey, obispo,
+                general, ministro, alcalde, el que firma el papel.
+  "abuela"    - bajita, redonda, con moño. La que no se calla y la que dice la verdad incomoda.
+  "chaval"    - el mas pequeño, pelos de punta. El que se mete donde no le llaman y el que
+                pregunta lo que nadie se atreve.
+  "soldado"   - ancho, con parche en el ojo. El que se lleva los palos: soldado, marinero,
+                campesino, el que cumple la orden.
+
+Reparte los papeles de la historia entre ellos, como una compañia de teatro que hace una obra
+distinta cada semana. En un video sobre Lepanto el "mandamas" es don Juan de Austria y el
+"soldado" rema encadenado; en uno sobre una epidemia el "mandamas" es el corregidor y la
+"abuela" la que entierra a los suyos. NO hace falta que el personaje se parezca al historico:
+hace falta que sea SIEMPRE EL MISMO.
+
+El gorro es el PAPEL DE HOY y cambia en cada video; el personaje es el de siempre. El mismo
+"mandamas" lleva corona en un video y mitra en otro.
+
+No uses mas de tres personajes por escena, y que el que habla sea siempre uno de ellos.
+
+
+
 Este canal se dibuja con MONIGOTES - palotes con cabeza redonda, como los de un canal de
 historia contada con dibujos malos a proposito -, y los dibuja el propio programa. Tu no
 describes una imagen: eliges de unas listas cerradas. Lo que no este en las listas no se sabe
@@ -669,9 +701,9 @@ catedral, sale un fondo liso.
     "interior": uno de [monasterio, taberna, salon_trono] - o quitalo y usa "fondo"
     "fondo":    uno de [campo, calle, salon, noche, liso]
     "habla_x":  0.0 a 1.0, donde esta QUIEN HABLA en esta escena (para el bocadillo)
-    "figuras":  de 1 a 4 personajes, cada uno:
+    "figuras":  de 1 a 3 personajes, cada uno:
+       "quien":    [cronista, mandamas, abuela, chaval, soldado] - OBLIGATORIO, del reparto fijo
        "x":        0.12 a 0.88, de izquierda a derecha
-       "alto":     0.18 a 0.46 de la pantalla (0.34 normal; 0.26 si hay cuatro)
        "pose":     [de_pie, sentado, en_mesa, brazos_arriba, señala, corriendo]
        "pose_fin": otra pose de la misma lista: el personaje SE MUEVE de una a otra
        "gesto":    [neutro, sorpresa, contento, enfadado, grito]
@@ -985,6 +1017,15 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
         if not reconocidas:
             return ("ninguna figura de ninguna escena trae pose, gesto ni gorro que se sepa "
                     "dibujar: saldrian cinco monigotes de pie mirando al frente")
+        # Y QUE SALGAN DEL REPARTO FIJO. Es lo que hace que el espectador los
+        # reconozca de un video a otro, que es de donde salen los suscriptores.
+        # Un monigote anonimo es un extra; el cronista es el canal.
+        del_reparto = {f["quien"] for e in escenas
+                       for f in monigotes.limpia(e["escena"])["figuras"] if f["quien"]}
+        if not del_reparto:
+            return ("ninguna escena usa el reparto fijo: hay que poner 'quien' con uno de "
+                    f"{', '.join(monigotes.REPARTO_VALIDO)}, o no habra nadie a quien "
+                    "reconocer de un video a otro")
     if not isinstance(script.get("tags"), list):
         return "las etiquetas no son una lista"
     for clave in ("title", "description"):

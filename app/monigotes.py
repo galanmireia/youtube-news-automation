@@ -192,12 +192,16 @@ def _gorro(d, cab, rc, g, rnd, cual):
 
 
 def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, espejo=False,
-           pose_mezclada=None, tinta=TINTA, relleno=(255, 255, 255)):
+           pose_mezclada=None, tinta=TINTA, relleno=(255, 255, 255), rasgos=None):
     p = pose_mezclada or _POSES[pose]
     s = -1 if espejo else 1
-    P = lambda t: (x + t[0]*alto*s, suelo + t[1]*alto)
-    g = max(5, int(alto*0.022))
-    rc = alto*0.145
+    # El ancho separa los brazos y las piernas del eje: la abuela es redonda y
+    # el mandamas seco, y eso se ve de lejos. Antes solo engordaba el trazo.
+    ancho = (rasgos or {}).get("ancho", 1.0)
+    P = lambda t: (x + t[0]*alto*s*ancho, suelo + t[1]*alto)
+    rasgos = rasgos or {}
+    g = max(5, int(alto*0.022*(0.6 + 0.4*rasgos.get("ancho", 1.0))))
+    rc = alto*0.145*rasgos.get("cabeza", 1.0)
     cuello = P(p["cuello"]); cadera = P(p["cadera"])
     _linea(d, [cuello, cadera], g, rnd, color=tinta)
     for m in p["brazos"] + p["piernas"]:
@@ -205,8 +209,17 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
     cab = (cuello[0], cuello[1]-rc*0.95)
     if gorro in GORROS_DETRAS:
         _gorro(d, cab, rc, g, rnd, gorro)
+    # El pelo va DETRAS de la cabeza, como la capucha: es lo que asoma por
+    # los lados. Y por debajo del gorro, que es del papel de hoy.
+    if rasgos.get("pelo", "nada") != "nada":
+        _pelo(d, cab, rc, g, rnd, rasgos["pelo"], tinta=tinta)
     _circulo(d, cab, rc, g, rnd, relleno=relleno, color=tinta)
     _cara(d, cab, rc, g, rnd, gesto, tinta=tinta)
+    # Y estos DELANTE de la cara, que es donde estan.
+    if rasgos.get("barba"):
+        _barba(d, cab, rc, g, rnd, tinta=tinta, relleno=relleno)
+    if rasgos.get("parche"):
+        _parche(d, cab, rc, g, rnd, tinta=tinta)
     if gorro and gorro not in GORROS_DETRAS:
         _gorro(d, cab, rc, g, rnd, gorro)
     return cab
@@ -250,7 +263,7 @@ def escena(spec, w=1080, h=1920, semilla=0):
                alto_f, rnd,
                f.get("pose","de_pie"), f.get("gesto","neutro"),
                f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
-               tinta=tinta, relleno=relleno)
+               tinta=tinta, relleno=relleno, rasgos=REPARTO.get(f.get("quien") or ""))
     return img
 
 
@@ -446,9 +459,18 @@ def limpia(spec: dict) -> dict:
         if not isinstance(f, dict):
             continue
         gorro = (f.get("gorro") or "").strip().lower()
+        # El personaje del reparto trae su estatura consigo: el mandamas es
+        # alto y la abuela bajita SIEMPRE, en todos los videos. Si el guion
+        # pide otra cosa se ignora, porque eso es justo lo que romperia que se
+        # les reconozca.
+        quien = (f.get("quien") or "").strip().lower()
+        quien = quien if quien in REPARTO else None
+        por_defecto = REPARTO[quien]["alto"] if quien else 0.34
         figuras.append({
+            "quien": quien,
             "x": min(0.88, max(0.12, float(f.get("x", 0.5) or 0.5))),
-            "alto": min(0.46, max(0.18, float(f.get("alto", 0.34) or 0.34))),
+            "alto": por_defecto if quien else min(
+                0.46, max(0.18, float(f.get("alto", 0.34) or 0.34))),
             "pose": _una_de(f.get("pose"), POSES_VALIDAS, "de_pie"),
             "pose_fin": (_una_de(f.get("pose_fin"), POSES_VALIDAS, "")
                          if f.get("pose_fin") else None),
@@ -693,7 +715,8 @@ def interior(spec: dict, w: int, h: int, semilla: int = 0):
                linea_mesa + h*0.075 + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
                alto_f, rnd,
                f.get("pose", "en_mesa"), f.get("gesto", "neutro"),
-               f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"))
+               f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
+               rasgos=REPARTO.get(f.get("quien") or ""))
 
     _mesa(d, linea_mesa, w, rnd, g)                      # DELANTE de la gente
     _cuenco(d, w*0.50, linea_mesa, w*0.11, rnd, g)
@@ -705,3 +728,89 @@ def interior(spec: dict, w: int, h: int, semilla: int = 0):
     for c in velas:
         img = _resplandor(img, c, h*0.075)
     return img
+
+
+# ---- EL REPARTO ------------------------------------------------------------
+# Idea suya, y es la que puede hacer el canal: "que sean los mismos entre
+# video y video, para que el espectador los reconozca aunque esten en una
+# historia diferente".
+#
+# La gente vuelve a un canal por la GENTE, no por el tema. Si siempre sale el
+# mismo viejo del bigote, aunque hoy este en Lepanto y mañana en un motin, se
+# vuelve "el canal ese del viejo". Eso no se consigue con el gorro, porque el
+# gorro es el PAPEL y cambia en cada historia: hace falta algo que no cambie
+# nunca - el pelo, el bigote, la estatura, la forma de la cabeza.
+#
+# Son cinco y estan pensados para cubrir cualquier escena de historia de
+# España sin repetirse: quien manda, quien obedece, quien lo cuenta, quien lo
+# sufre y quien se aprovecha.
+REPARTO = {
+    # El que siempre esta. Es el testigo, los ojos del espectador: se asoma,
+    # se escandaliza, comenta. Sale en TODOS los videos.
+    "cronista": {"alto": 0.38, "cabeza": 0.95, "ancho": 1.0,
+                 "pelo": "raya", "barba": True},
+    # La que no se calla. Bajita, redonda, moño.
+    "abuela":   {"alto": 0.25, "cabeza": 1.12, "ancho": 1.25,
+                 "pelo": "moño"},
+    # El que se mete donde no le llaman.
+    "chaval":   {"alto": 0.21, "cabeza": 1.05, "ancho": 0.9,
+                 "pelo": "punta"},
+    # El que manda, o el que cree que manda. Alto y seco.
+    "mandamas": {"alto": 0.45, "cabeza": 0.90, "ancho": 0.95,
+                 "pelo": "nada", "barba": True},
+    # El que se lleva los palos. Ancho, con un ojo tapado.
+    "soldado":  {"alto": 0.32, "cabeza": 1.0, "ancho": 1.3,
+                 "pelo": "tonsura", "parche": True},
+}
+REPARTO_VALIDO = tuple(REPARTO)
+
+
+def _pelo(d, cab, rc, g, rnd, cual, tinta=TINTA):
+    """Lo que no cambia nunca, por debajo del gorro del dia."""
+    x, y = cab
+    if cual == "raya":                       # dos mechones que ASOMAN
+        for lado in (-1, 1):
+            _linea(d, [(x+lado*rc*0.70, y-rc*0.78),
+                       (x+lado*rc*1.24, y-rc*0.20),
+                       (x+lado*rc*1.16, y+rc*0.46)], g, rnd, color=tinta, temblor=1.8)
+    elif cual == "moño":
+        c = (x, y-rc*1.18)
+        _circulo(d, c, rc*0.42, g, rnd, relleno=None, color=tinta)
+        _linea(d, [(x-rc*.55, y-rc*.80), (x, y-rc*.96), (x+rc*.55, y-rc*.80)], g, rnd,
+               color=tinta, temblor=1.4)
+    elif cual == "punta":
+        for k in (-1, 0, 1):
+            _linea(d, [(x+k*rc*0.42, y-rc*0.88),
+                       (x+k*rc*0.52, y-rc*1.34)], g, rnd, color=tinta, temblor=2.2)
+    elif cual == "tonsura":                  # calva con corona de pelo
+        for lado in (-1, 1):
+            _linea(d, [(x+lado*rc*0.82, y-rc*0.52),
+                       (x+lado*rc*1.22, y-rc*0.06),
+                       (x+lado*rc*1.10, y+rc*0.52)], g, rnd, color=tinta, temblor=1.8)
+
+
+def _barba(d, cab, rc, g, rnd, tinta=TINTA, relleno=(255, 255, 255)):
+    """Una barba que CUELGA por debajo de la cabeza.
+
+    Empece con bigote y no cabe: en una cara de monigote, del tamaño de una
+    moneda en pantalla, un bigote se come la boca y se lee como un
+    manchurron. Probado dos veces - primero parecian sonreir, luego parecian
+    tristes. La barba va por FUERA del circulo de la cabeza, asi que no pisa
+    ni los ojos ni la boca, y se reconoce a un metro del movil.
+    """
+    pts = []
+    for i in range(15):
+        a = i/14*math.pi                       # media vuelta por abajo
+        pts.append((cab[0] + math.cos(math.pi - a)*rc*0.92,
+                    cab[1] + math.sin(a)*rc*1.55 + rc*0.18))
+    contorno = [(cab[0]-rc*0.92, cab[1]+rc*0.18)] + pts + [(cab[0]+rc*0.92, cab[1]+rc*0.18)]
+    d.polygon(contorno, fill=relleno)
+    _linea(d, contorno, g, rnd, color=tinta, temblor=2.0)
+
+
+def _parche(d, cab, rc, g, rnd, tinta=TINTA):
+    ojo = (cab[0]-rc*0.30, cab[1]-rc*0.12)
+    r = rc*0.26
+    d.ellipse([ojo[0]-r, ojo[1]-r, ojo[0]+r, ojo[1]+r], fill=tinta)
+    _linea(d, [(cab[0]-rc*.95, cab[1]-rc*.42), (cab[0]+rc*.85, cab[1]-rc*.02)],
+           max(2, g//2), rnd, color=tinta, temblor=1.2)
