@@ -47,6 +47,12 @@ MADERA      = (150, 106, 66)    # cascos, ruedas
 ACERO       = (198, 202, 208)   # hojas de espada
 HIERRO      = (86, 88, 94)      # cañones
 PAPEL_VIEJO = (244, 236, 214)   # paginas
+# Un granate que no se confunde con el rojo de las banderas ni con la ropa
+# (que no tiene color propio, solo TINTA/blanco). Declarada aqui arriba y no
+# donde se usa por primera vez, porque _capa() la lleva como valor por
+# defecto y eso se fija al DEFINIR la funcion: puesta mas abajo en el
+# fichero, el import entero revienta con un NameError.
+CAPA_COLOR  = (94, 30, 38)
 PIEDRA        = (168, 162, 152) # murallas
 PIEDRA_CLARA  = (214, 206, 190) # iglesias
 MADERA_PUERTA = (112, 76, 48)   # portones
@@ -415,8 +421,39 @@ def _gorro(d, cab, rc, g, rnd, cual):
                    (x+rc*1.05, arriba+rc*.05)], g, rnd, color=azul)
 
 
+def _capa(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=CAPA_COLOR):
+    """La capa, colgando de los hombros por DETRAS del cuerpo.
+
+    Un trapecio ancho por abajo y estrecho arriba, del mismo color en los
+    dos lados: no hace falta mas para que se lea como tela colgando. Se
+    dibuja ANTES que el torso y los brazos, que es la misma regla de
+    siempre - lo que rodea va detras, lo que se apoya encima va delante -,
+    asi que el cuerpo y los brazos salen por encima de ella, como si la
+    llevara puesta y no pegada.
+    """
+    arriba = alto*0.06
+    abajo = cadera[1] + alto*0.32
+    pts = [(x-arriba, cuello[1]-alto*0.02), (x+arriba, cuello[1]-alto*0.02),
+           (x+alto*0.30, abajo), (x, abajo+alto*0.035), (x-alto*0.30, abajo)]
+    d.polygon(pts, fill=color)
+    _linea(d, pts + [pts[0]], g, rnd, color=tinta, temblor=1.6)
+
+
+# LO QUE UN PERSONAJE PUEDE LLEVAR PUESTO, por nombre - igual que COSAS y
+# _BANDERAS. Ella lo dijo clarisimo viendo la capa: "esto va a ser mas cosas
+# en diferentes videos, tienes que estar preparado". Asi que anadir la
+# siguiente prenda - un delantal, una venda, lo que pida la proxima historia -
+# es escribir una funcion con esta misma firma y meterla aqui, una linea.
+# Nada mas se toca: ni figura(), ni limpia(), ni el prompt, que la lee de
+# OBJETOS_VALIDOS y no de una lista copiada a mano.
+OBJETOS = {
+    "capa": _capa,
+}
+OBJETOS_VALIDOS = tuple(OBJETOS)
+
+
 def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, espejo=False,
-           pose_mezclada=None, tinta=TINTA, relleno=(255, 255, 255), rasgos=None):
+           pose_mezclada=None, tinta=TINTA, relleno=(255, 255, 255), rasgos=None, objeto=None):
     p = pose_mezclada or _POSES[pose]
     s = -1 if espejo else 1
     # El ancho separa los brazos y las piernas del eje: la abuela es redonda y
@@ -427,6 +464,9 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
     g = max(5, int(alto*0.022*(0.6 + 0.4*rasgos.get("ancho", 1.0))))
     rc = alto*0.145*rasgos.get("cabeza", 1.0)
     cuello = P(p["cuello"]); cadera = P(p["cadera"])
+    dibuja_objeto = OBJETOS.get(objeto)
+    if dibuja_objeto:
+        dibuja_objeto(d, x, cuello, cadera, alto, g, rnd, tinta=tinta)
     _linea(d, [cuello, cadera], g, rnd, color=tinta)
     for m in p["brazos"] + p["piernas"]:
         _linea(d, [P(t) for t in m], g, rnd, color=tinta)
@@ -502,7 +542,8 @@ def escena(spec, w=1080, h=1920, semilla=0):
                alto_f, rnd,
                f.get("pose","de_pie"), f.get("gesto","neutro"),
                f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
-               tinta=tinta, relleno=relleno, rasgos=REPARTO.get(f.get("quien") or ""))
+               tinta=tinta, relleno=relleno, rasgos=REPARTO.get(f.get("quien") or ""),
+               objeto=f.get("objeto"))
     _pinta_cosas(delante=True)
     return img
 
@@ -708,7 +749,9 @@ POSES_VALIDAS = tuple(p for p in _POSES if not p.endswith("_b"))
 GESTOS_VALIDOS = ("neutro", "sorpresa", "contento", "enfadado", "grito")
 GORROS_VALIDOS = ("corona", "comandante", "tricornio", "sombrero", "casco",
                   "mitra", "monje", "boina", "marinero")
-OBJETOS_VALIDOS = ("sombrero", "capa")
+# (OBJETOS_VALIDOS ya esta declarada arriba, junto a OBJETOS: el sombrero no
+# esta porque YA es un gorro, no hacia falta una segunda forma de pedir lo
+# mismo.)
 # Se rellena abajo, con las recetas: asi no puede haber una lista de sitios
 # que ofrezco al guion y otra de sitios que se saben dibujar.
 INTERIORES_VALIDOS: tuple = ()
@@ -750,6 +793,7 @@ def limpia(spec: dict) -> dict:
             "pose_fin": _destino(f),
             "gesto": _una_de(f.get("gesto"), GESTOS_VALIDOS, "neutro"),
             "gorro": gorro if gorro in GORROS_VALIDOS else None,
+            "objeto": _una_de(f.get("objeto"), OBJETOS_VALIDOS, "") or None,
             "espejo": bool(f.get("espejo")),
         })
     if not figuras:
@@ -2084,7 +2128,7 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
         figura(d, w*f["x"], pies + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
                alto_f, rnd, f.get("pose", "de_pie"), f.get("gesto", "neutro"),
                f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
-               rasgos=REPARTO.get(f.get("quien") or ""))
+               rasgos=REPARTO.get(f.get("quien") or ""), objeto=f.get("objeto"))
 
     # QUIEN FIRMA, FIRMA SOBRE ALGO. "en_mesa" y "firmando" son posturas de
     # estar sentado a una mesa: los brazos se apoyan en un tablero que en la

@@ -523,6 +523,16 @@ def _lista_de_cosas() -> str:
     return "[" + ", ".join(monigotes.COSAS_VALIDAS) + "]"
 
 
+def _lista_de_objetos() -> str:
+    """Las prendas/objetos que un personaje puede llevar puestos, sacados de
+    monigotes. Nacio de esto: OBJETOS_VALIDOS llevaba declarada en monigotes
+    sin que nada la leyera - ni el guion sabia que existia, ni limpia()
+    guardaba el campo -, asi que "capa" era una palabra que no hacia nada.
+    """
+    from . import monigotes
+    return "[" + ", ".join(monigotes.OBJETOS_VALIDOS) + "]"
+
+
 def _lista_de_posturas() -> str:
     """Las posturas que el guion puede pedir, sacadas de monigotes.
 
@@ -608,10 +618,19 @@ _VARIANT_CONFIG = {
             "hablando. Va DENTRO de la narracion, entre comillas angulares - «¡Que ardan con "
             "ella!» -, no aparte: la voz lo lee y encima sale un bocadillo justo cuando se "
             "dice.\n\n"
-            "Y MEJOR AUN, QUE SE CONTESTEN. En una escena caben DOS frases: una la dice uno "
-            "y la otra se la responde el otro. Eso ya no es una cita, es una conversacion, y "
-            "es donde esta la gracia. Cada uno sale con su propio bocadillo y con su propia "
-            "voz, mas aguda o mas grave segun quien sea.\n\n"
+            "Y TIENE QUE PESAR MAS LA CONVERSACION QUE LA NARRACION: contando el video "
+            "entero, las PALABRAS ENTRE COMILLAS tienen que ser mas que las que solo narra "
+            "la voz. No basta con que se cumpla la mitad de las escenas si encima cada cita "
+            "son tres palabras sueltas entre parrafos largos de contexto: la conversacion "
+            "tiene que llevar el peso del video, no ser un adorno encima de la narracion.\n\n"
+            "Y QUE SE CONTESTEN, NO SOLO QUE HABLEN. El Motin de Esquilache salio con dos "
+            "escenas de dialogo de verdad en once y tres mas con una frase suelta - \"alguien "
+            "habla\" se cumplio y \"conversaciones\" no. En una escena caben DOS frases: una "
+            "la dice uno y la otra se la responde el otro. Eso ya no es una cita, es una "
+            "conversacion, y es donde esta la gracia: AL MENOS DOS o TRES escenas del video "
+            "tienen que ser un ida y vuelta completo, no una interjeccion sola. Cada uno sale "
+            "con su propio bocadillo y con su propia voz, mas aguda o mas grave segun quien "
+            "sea.\n\n"
             "  Narracion de la escena, con las dos dentro:\n"
             "    Perico se asomo a la urna y pregunto lo que pensaba todo el mundo: "
             "«¿Y eso se bebe?». Remedios ni le miro: «Tu calla».\n\n"
@@ -778,7 +797,12 @@ catedral, sale un fondo liso.
 
   "escena": {
     "interior": el SITIO donde pasa, y elige siempre que puedas: un decorado da mucho mas
-                que un fondo de color. Uno de:
+                que un fondo de color. CAMBIALO entre escenas - el video de Esquilache salio
+                con 'calle' en 5 de 11 escenas y solo 3 decorados distintos de los 9 que hay,
+                y una historia que pasa entera en la calle y el mercado parece un solo dibujo
+                repetido, no un video. Cada escena es un momento distinto: si dos escenas
+                seguidas pasan en el mismo sitio, pregunta si de verdad es el mismo momento o
+                si el siguiente ya esta en otra parte. Uno de:
                   taberna      mesas, chimenea, ventana al puerto
                   monasterio   piedra, ventana de arco, mesa larga
                   salon_trono  trono, estandartes, espadas en la pared
@@ -814,6 +838,9 @@ catedral, sale un fondo liso.
        "gesto":    [neutro, sorpresa, contento, enfadado, grito]
        "gorro":    [corona, comandante, tricornio, sombrero, casco, mitra, monje, boina,
                     marinero] - o quitalo si no lleva
+       "objeto":   {bloque_objetos} - o quitalo si no lleva. SI LA NARRACION NOMBRA UNA PRENDA,
+                    PONSELA A ALGUIEN: si la escena habla de capas, alguien lleva "objeto":"capa" -
+                    no basta con que la voz la mencione, tiene que verse puesta
        "espejo":   true para que mire hacia la izquierda
     "tachados": hasta 3, cada uno {"x":.., "y":.., "tam":..}: una cruz roja encima de algo,
                 para decir "prohibido" o "se acabo" de un vistazo
@@ -849,9 +876,10 @@ COSAS QUE HACEN QUE ESTO FUNCIONE:
 EJEMPLO, para la frase «El rey prohibio las capas largas y Madrid ardio tres dias»:
   {"interior": "salon_trono", "habla_x": 0.30,
    "figuras": [{"x":0.30,"alto":0.40,"pose":"señala","pose_fin":"brazos_arriba",
-                "gesto":"enfadado","gorro":"corona"},
+                "gesto":"enfadado","gorro":"corona","objeto":"capa"},
                {"x":0.70,"alto":0.36,"pose":"de_pie","pose_fin":"sentado",
                 "gesto":"sorpresa","espejo":true}]}
+  (el rey prohibe las capas largas LLEVANDO EL PUESTA - es el chiste, no un descuido)
 
 Y EL SONIDO ("sonido"): uno de [gentio, campana, fuego, pasos, espada, tormenta, mar, monedas,
 puerta, caballo], o cadena vacia si ninguno pega. Va MUY por debajo de la voz, solo para que el
@@ -1174,6 +1202,39 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
                     f"alguien en LA MITAD por lo menos: la voz contando datos es "
                     f"informacion, dos monigotes discutiendo es una escena")
 
+        # Y QUE SE CONTESTEN, no solo que hablen. "Y mas conversaciones entre
+        # los personajes" - lo pidio dos dias seguidos, y el motivo de fondo
+        # es que la regla de arriba se cumple igual con una frase suelta que
+        # con un ida y vuelta: el Motin de Esquilache salio con 2 escenas de
+        # dialogo de verdad en 11 (2, 5) y tres mas con una sola frase (3, 7,
+        # 8) - "alguien habla" se cumplia y "conversaciones" no.
+        if nivel >= _TODO:
+            conversan = sum(1 for e in escenas
+                            if len(bocadillos.citas_de(e.get("narration", ""))) >= 2)
+            minimo = max(2, len(escenas)//4)
+            if conversan < minimo:
+                return (f"solo {conversan} escena(s) tienen un ida y vuelta de verdad (dos "
+                        f"frases, una contesta a la otra); hacen falta {minimo}. Una frase "
+                        f"suelta es una cita, dos que se contestan es una conversacion - y "
+                        f"es ahi donde esta la gracia")
+
+            # Y QUE PESE MAS LA CONVERSACION QUE LA NARRACION. Dicho tal cual:
+            # "menos narracion y mas conversacion, que la narracion sea menos
+            # que la conversacion, que creo que es lo que engancha". No basta
+            # con que hablen: las PALABRAS que se dicen entre comillas tienen
+            # que ser mas que las que solo narra la voz. Se cuenta en el
+            # video entero, no escena a escena, porque una escena de puro
+            # contexto ("En 1766...") esta bien si otras cargan el dialogo.
+            palabras_totales = sum(len((e.get("narration") or "").split()) for e in escenas)
+            palabras_citadas = sum(
+                len(c.split()) for e in escenas
+                for c in bocadillos.citas_de(e.get("narration", "")))
+            if palabras_totales and palabras_citadas < palabras_totales - palabras_citadas:
+                return (f"la conversacion son {palabras_citadas} palabras de {palabras_totales} "
+                        f"en total: la narracion sola pesa mas que lo que dicen los "
+                        f"personajes, y tiene que ser al reves. Mete mas dialogo, no mas "
+                        f"contexto")
+
         # REIR Y APRENDER, las dos mitades, cada una con su comprobacion.
         #
         # Esto sale del patron de estos dos dias: CADA regla que puse con una
@@ -1222,6 +1283,35 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
                 return ("nadie HACE nada en todo el video: todos los monigotes estan de pie, "
                         "sentados o señalando. Alguna escena tiene que dibujar la accion que "
                         "se cuenta - remando, firmando, peleando, cavando, cayendose")
+
+        # Y QUE LOS DECORADOS CAMBIEN. Motin de Esquilache salio con 'calle' en
+        # 5 de 11 escenas y solo 3 decorados distintos de los 9 que hay -
+        # "hay que mejorar las escenas y no poner siempre las mismas". El
+        # prompt ya pedia "elige siempre que puedas" para que HUBIERA un
+        # decorado, pero nunca pedia que fueran DISTINTOS, y esa mitad de la
+        # regla nunca se cumplio sola.
+        if nivel >= _TODO:
+            from collections import Counter
+            from . import monigotes
+            interiores = [monigotes.limpia(e["escena"]).get("interior")
+                         for e in escenas if isinstance(e.get("escena"), dict)]
+            interiores = [i for i in interiores if i]
+            if interiores:
+                cuenta = Counter(interiores)
+                distintos = len(cuenta)
+                mas_repetido, veces = cuenta.most_common(1)[0]
+                # Para 11 escenas hacian falta 4; salieron 3. Para 6-8, con 3
+                # ya vale - no todas las historias dan para nueve decorados.
+                minimo = min(5, max(3, -(-len(interiores)//3)))
+                if distintos < minimo:
+                    return (f"solo usa {distintos} decorados distintos en {len(interiores)} "
+                            f"escenas ({', '.join(sorted(cuenta))}). Hacen falta al menos "
+                            f"{minimo}: cada escena es un momento distinto y no puede pasar "
+                            f"siempre en el mismo sitio")
+                if veces > len(interiores)*0.4 and len(interiores) >= 6:
+                    return (f"'{mas_repetido}' sale en {veces} de {len(interiores)} escenas, "
+                            f"mas de la mitad del video en el mismo sitio. Reparte la historia "
+                            f"entre mas decorados")
 
         # Y QUE TODAS TRAIGAN SU ESCENA DE MONIGOTES. Una escena sin dibujo
         # no da un video un poco peor: cae en la cadena vieja y acaba en una
@@ -1630,7 +1720,8 @@ _CAMPOS_QUE_SE_LEEN_ARRIBA = ("lo_gracioso", "title", "description", "tags", "sc
 _VARIANT_CONFIG["short"]["bloque_ilustracion"] = (
     _VARIANT_CONFIG["short"]["bloque_ilustracion"]
     .replace("{bloque_posturas}", _lista_de_posturas())
-    .replace("{bloque_cosas}", _lista_de_cosas()))
+    .replace("{bloque_cosas}", _lista_de_cosas())
+    .replace("{bloque_objetos}", _lista_de_objetos()))
 
 
 def _el_guion_conoce_todas_las_posturas() -> None:
@@ -1660,6 +1751,13 @@ def _el_guion_conoce_todas_las_posturas() -> None:
             f"{sin_ofrecer}.")
     if "{bloque_cosas}" in texto:
         raise RuntimeError("La lista de cosas no se ha metido en el bloque de la escena.")
+    sin_ofrecer_obj = [o for o in monigotes.OBJETOS_VALIDOS if o not in texto]
+    if sin_ofrecer_obj:
+        raise RuntimeError(
+            f"Estos objetos se saben dibujar pero el guion no sabe que existen: "
+            f"{sin_ofrecer_obj}.")
+    if "{bloque_objetos}" in texto:
+        raise RuntimeError("La lista de objetos no se ha metido en el bloque de la escena.")
 
 
 def _los_campos_estan_donde_se_leen() -> None:
