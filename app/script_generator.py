@@ -411,26 +411,7 @@ DOBLE para "barras" y "proporcion": un grafico con un numero inventado miente co
 autoridad que una frase, porque parece medido. Si solo tienes una de las dos cifras que hacen
 falta para comparar, usa "cifra" y no un grafico.
 
-Texto destacado en pantalla ("on_screen_highlight"): para cada escena, un texto corto EN ESPAÑOL
-(3 a 6 palabras) con el dato o hecho mas concreto y verificable de esa narracion, para reforzar
-visualmente el mensaje cuando la escena termine usando un video generico de stock (sin foto real
-de nadie). Debe ser un dato factual de la noticia, nunca una opinion ni relleno. Ejemplos: si la
-narracion dice "el paro subio al 12% este trimestre", "on_screen_highlight": "Paro: 12% este
-trimestre"; si dice "mas de tres mil personas fueron desalojadas", "on_screen_highlight": "3.000
-personas desalojadas". Si la narracion de esa escena concreta NO da ningun dato factual o hecho
-concreto (por ejemplo, es una transicion, una reflexion, una pregunta abierta o la llamada a
-suscribirse), deja el campo como cadena vacia ("") en vez de forzar un texto vago o generico como
-"una ley" o "el analisis" - es preferible no mostrar nada a mostrar un texto que no aporta
-informacion real.
-
-PRIORIZA SIEMPRE LAS CIFRAS. Este texto puede acabar ocupando la pantalla entera, asi que tiene que
-sostenerse solo, sin la voz. Una cantidad, un plazo, una fecha, un porcentaje o un numero de
-afectados se lee de un vistazo y se recuerda; un resumen de lo que acaba de decirse no aporta nada
-porque el espectador ya lo esta oyendo. Si la escena contiene un numero, ESE es el texto destacado.
-Ejemplo real de lo que NO hay que hacer: en una noticia sobre una condena de 194.000 euros a un
-organismo publico, el texto elegido fue "Incumplio riesgos laborales" - una parafrasis de la propia
-narracion. Lo correcto era "194.000 euros de indemnizacion": la cifra es lo que sorprende y lo que
-se retiene. Entre un dato con numero y uno sin el, elige siempre el que lleva numero.
+{bloque_rotulo}
 
 Requisitos de SEO para YouTube (importante, esto determina si el video se encuentra en buscador y
 sugeridos):
@@ -730,6 +711,25 @@ video abria contando un golpe sobre un plano general de nada.""",
         # lista no se puede dibujar, asi que no se puede pedir.
         "bloque_campo_gracia": "EN UNA FRASE: que es lo que va a hacer gracia de este video, y tiene que ser un HECHO del dosier, no un chiste que te inventes. Si no sabes decirlo, el video no tiene gracia: cambia de enfoque antes de escribir",
         "bloque_campo_escena": "objeto con la escena de monigotes, OBLIGATORIO - ver LA ESCENA arriba",
+        "bloque_rotulo": """EL ROTULO ES EL GANCHO, NO UNA FICHA. Para cada escena, un texto corto EN ESPAÑOL
+(3 a 6 palabras) que se lea SOLO, sin la voz, y que enganche igual que el gancho de la escena 1 -
+no una etiqueta clinica ni el titulo de un articulo. Se puso mal una vez: la escena contaba que
+un rey quiza tuviera un cromosoma de mas, y el rotulo salio "KLINEFELTER O X FRAGIL: DOS
+HIPOTESIS" - eso es el nombre de una prueba medica, no algo que nadie mire y quiera saber mas.
+
+  MAL:  "KLINEFELTER O X FRAGIL: DOS HIPOTESIS"    (suena a informe clinico)
+  BIEN: "¿Nacio con un cromosoma de mas?"           (la misma idea, como la pregunta que engancha)
+
+  MAL:  "REPARTO SEMESTRAL DESDE 1901"              (una ficha sacada de la wikipedia)
+  BIEN: "Cambia de pais dos veces al año"           (lo raro, contado como se cuenta en el video)
+
+Si la escena tiene una cifra que sorprende, esa cifra SIGUE siendo lo primero que se pone -
+"200.000 ducados", "once meses", "184 dias" -, pero dentro de una frase que engancha, no sola
+como un dato de ficha: la cifra es la sal, no el plato entero.
+
+Si la escena de verdad no tiene nada que enganche ni ninguna cifra (una transicion, una llamada
+a suscribirse), deja el campo vacio ("") en vez de forzar un texto generico como "una ley" o "el
+analisis": es preferible no mostrar nada a mostrar una etiqueta que no engancha.""",
         "bloque_campo_sonido": "uno de [gentio, campana, fuego, pasos, espada, tormenta, mar, monedas, puerta, caballo] o cadena vacia",
         "bloque_ilustracion": """LA ESCENA ("escena"): OBLIGATORIA EN TODAS Y CADA UNA DE LAS ESCENAS.
 
@@ -885,6 +885,26 @@ conoce el caso ve un camino cualquiera y se va. Ese detalle es bueno MAS TARDE, 
 contado que paso y el espectador sabe por que esta mirando un camino.""",
         "bloque_campo_gracia": "cadena vacia",
         "bloque_campo_escena": "null, este formato no usa monigotes",
+        "bloque_rotulo": """Texto destacado en pantalla ("on_screen_highlight"): para cada escena, un texto corto EN ESPAÑOL
+(3 a 6 palabras) con el dato o hecho mas concreto y verificable de esa narracion, para reforzar
+visualmente el mensaje cuando la escena termine usando un video generico de stock (sin foto real
+de nadie). Debe ser un dato factual de la noticia, nunca una opinion ni relleno. Ejemplos: si la
+narracion dice "el paro subio al 12% este trimestre", "on_screen_highlight": "Paro: 12% este
+trimestre"; si dice "mas de tres mil personas fueron desalojadas", "on_screen_highlight": "3.000
+personas desalojadas". Si la narracion de esa escena concreta NO da ningun dato factual o hecho
+concreto (por ejemplo, es una transicion, una reflexion, una pregunta abierta o la llamada a
+suscribirse), deja el campo como cadena vacia ("") en vez de forzar un texto vago o generico como
+"una ley" o "el analisis" - es preferible no mostrar nada a mostrar un texto que no aporta
+informacion real.
+
+PRIORIZA SIEMPRE LAS CIFRAS. Este texto puede acabar ocupando la pantalla entera, asi que tiene que
+sostenerse solo, sin la voz. Una cantidad, un plazo, una fecha, un porcentaje o un numero de
+afectados se lee de un vistazo y se recuerda; un resumen de lo que acaba de decirse no aporta nada
+porque el espectador ya lo esta oyendo. Si la escena contiene un numero, ESE es el texto destacado.
+Ejemplo real de lo que NO hay que hacer: en una noticia sobre una condena de 194.000 euros a un
+organismo publico, el texto elegido fue "Incumplio riesgos laborales" - una parafrasis de la propia
+narracion. Lo correcto era "194.000 euros de indemnizacion": la cifra es lo que sorprende y lo que
+se retiene. Entre un dato con numero y uno sin el, elige siempre el que lleva numero.""",
         "bloque_campo_sonido": "cadena vacia",
         "bloque_ilustracion": """Ilustracion por IA ("ai_image_prompt"): es para las escenas ABSTRACTAS, las que no tienen nada real
 que enseñar. Si la escena nombra una persona, un lugar o una institucion con nombre propio, va
@@ -1340,6 +1360,16 @@ _CAMPOS_MUERTOS_EN_SHORT = (
     '      "photo_subject_role":', '      "ai_image_prompt":', '      "slide":',
 )
 
+# La marca de fin del ultimo tramo NO es un texto fijo: es la primera linea
+# de bloque_rotulo del Short, sacada de _VARIANT_CONFIG en vez de copiada a
+# mano. Iba escrita como "Texto destacado en pantalla" - que era el titulo de
+# esa seccion cuando el rotulo era la misma ficha factual para todos los
+# formatos - y el dia que se le dio al Short su propio bloque_rotulo (el
+# rotulo como gancho, no como ficha clinica) ese texto dejo de aparecer en el
+# prompt renderizado. El recorte se habria quedado callado - "continue" y
+# 5.000 caracteres muertos colandose en cada guion - si no fuera porque el
+# aviso de mas abajo esta para eso. Es la misma leccion de la taberna y el
+# arbol: dos textos que tienen que decir lo mismo no se escriben dos veces.
 _FUERA_DEL_SHORT = (
     # La seccion de fotos acaba donde empieza la de monigotes. Puse aqui
     # "Ilustracion por IA", que es como acababa ANTES de cambiar el bloque, y
@@ -1347,7 +1377,7 @@ _FUERA_DEL_SHORT = (
     # dentro. Para eso esta el aviso.
     ("Fotos reales de personas y sitios concretos", 'LA ESCENA ("escena")'),
     ("Palabras clave visuales", "DIAPOSITIVAS DE DATOS"),
-    ("DIAPOSITIVAS DE DATOS", "Texto destacado en pantalla"),
+    ("DIAPOSITIVAS DE DATOS", _VARIANT_CONFIG["short"]["bloque_rotulo"].split("\n", 1)[0]),
 )
 
 
