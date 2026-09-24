@@ -631,47 +631,53 @@ _VARIANT_CONFIG = {
             "tienen que ser un ida y vuelta completo, no una interjeccion sola. Cada uno sale "
             "con su propio bocadillo y con su propia voz, mas aguda o mas grave segun quien "
             "sea.\n\n"
-            "  Narracion de la escena, con las dos dentro:\n"
-            "    Perico se asomo a la urna y pregunto lo que pensaba todo el mundo: "
-            "«¿Y eso se bebe?». Remedios ni le miro: «Tu calla».\n\n"
-            "No metas mas de DOS por escena: en cuatro segundos no da tiempo a leer tres "
-            "globos.\n\n"
+            "SIN \"DIJO PERICO\" NI NADA PARECIDO. Ella lo corto asi de claro: nada de \"dijo "
+            "Perico\", \"pregunto Remedios\", \"solto\", \"penso\" - ningun verbo de habla "
+            "presentando la cita. El monigote que habla ya lo dice \"habla_x\", y el bocadillo "
+            "ya sale pegado a su cara: la narracion no tiene que anunciar quien habla, solo "
+            "poner el hecho y soltar la cita al lado, sin de por medio.\n\n"
+            "  MAL:  Perico se asomo a la urna y pregunto lo que pensaba todo el mundo: "
+            "«¿Y eso se bebe?». Remedios ni le miro: «Tu calla».\n"
+            "  BIEN: Dentro de la tumba habia cinco litros de vino de hace dos mil años. "
+            "«¿Y ESO SE BEBE?». «TU CALLA».\n\n"
+            "El hecho, un punto, y la cita suelta detras - como una viñeta de comic, no como "
+            "un dialogo de novela. Maximo DOS citas por escena: en cuatro segundos no da "
+            "tiempo a leer tres globos.\n\n"
             "EL BOCADILLO ES DONDE MAS SE RIE LA GENTE. Es lo unico del video que no dice la voz "
-            "narrando en serio: es el personaje hablando por su cuenta. Asi que que diga lo que "
-            "esa persona diria de verdad en ese momento - mezquino, cabezota, harto, muerto de "
-            "miedo, indignado por algo pequeño -, no una frase de placa conmemorativa.\n\n"
-            "  BIEN: «Pues yo de aqui no me muevo.»\n"
-            "  BIEN: «¿Y esto quien lo paga?»\n"
-            "  BIEN: «Ya te lo dije.»\n"
+            "narrando en serio o no - es el personaje HACIENDOLO DE VERDAD, a gritos si hace "
+            "falta. Que diga lo que esa persona chillaria en ese momento, exagerado, a lo bestia "
+            "- no una frase discreta ni una placa conmemorativa.\n\n"
+            "  BIEN: «¡MALDICIOOOON!» (una bruja en la hoguera)\n"
+            "  BIEN: «¡QUE VIENEN, QUE VIENEN!» (alguien huyendo)\n"
+            "  BIEN: «¡SE ACABO EL MUNDO!» (el gentio ante algo que no entiende)\n"
+            "  MAL:  «Pues yo de aqui no me muevo.» (correcto, pero demasiado discreto: esto no "
+            "es un chiste susurrado, es un dibujo animado)\n"
             "  MAL:  «Hoy comienza una nueva era para el reino.»\n\n"
             "Maximo SIETE palabras: lo que cabe en un globo y se lee de un vistazo. Y que sea "
-            "algo que esa persona pudo decir, no una cita historica textual que te inventes. Si "
-            "no sabes que dijo nadie en esa escena, no pongas comillas: un bocadillo inventado "
-            "en una frase solemne se nota.\n\n"
-            "EL TONO: DIVERTIDO. Esto no es un adorno, es lo que decide si alguien se queda "
-            "o desliza, y hasta ahora el prompt pedia justo lo contrario.\n\n"
-            "LA GRACIA NO LA PONE LA VOZ. La voz narra en serio, formal, como si estuviera "
-            "contando algo importante - y encima pasan cosas ridiculas. ESE CONTRASTE ES EL "
-            "CHISTE: dicho en serio, el detalle absurdo hace el doble de gracia que si te pones "
-            "a hacer el gracioso. Si la narracion lleva guiños, '¡atencion!', exclamaciones o "
-            "coletillas de youtuber, suena a pesado y se cae el video.\n\n"
+            "algo que esa persona pudo gritar, no una cita historica textual que te inventes. Si "
+            "no sabes que dijo nadie en esa escena, no pongas comillas.\n\n"
+            "EL TONO: TONTO Y EXAGERADO. Lo dijo ella asi, y es la regla que manda sobre todas "
+            "las demas de este bloque: \"quiero que sea mas tonto, que coja una historia y la "
+            "cuente en plan gracioso, por ejemplo en la caza de brujas poner gente chillando, "
+            "luego una bruja en la hoguera chilla maldicion, cosas asi\". No es la ironia fina "
+            "de antes - dicho en serio y que el contraste haga gracia -, es la escena entera "
+            "puesta a lo bestia: la gente CHILLA, se desmaya, sale corriendo con los brazos "
+            "como aspas. Cuanto mas escandaloso, mejor.\n\n"
             "DE DONDE SALE LA GRACIA, por orden:\n"
             "  1. EL DETALLE ABSURDO QUE ADEMAS ES VERDAD. Toda historia tiene uno: la cifra que "
             "no tiene sentido, lo que alguien se llevo al huir, la razon ridicula por la que "
             "empezo todo. Si al leer el dosier levantas una ceja, eso va dentro si o si.\n"
-            "  2. LA GENTE PORTANDOSE COMO GENTE. Nadie sabia que estaba dentro de la Historia: "
-            "discutian por dinero, por vanidad, por no dar su brazo a torcer, por no madrugar. "
-            "Los motivos pequeños son los que hacen gracia y ademas son los ciertos.\n"
-            "  3. DECIRLO CORTO Y SECO. 'Tardaron once meses en enterarse de que la guerra habia "
-            "terminado' tiene gracia. 'Debido a la incomunicacion, la noticia tardo once meses "
-            "en llegar' no tiene ninguna. La misma informacion.\n\n"
-            "LO QUE NO SE HACE: inventarse un dato porque queda gracioso, meter chistes de "
-            "ahora con calzador, reirse de quien lo paso mal - una epidemia, un naufragio o una "
-            "ejecucion se cuentan con interes, no con burla - ni explicar la gracia despues de "
-            "hacerla.\n\n"
-            "Y NO ES PARA NIÑOS. No se simplifica, no se habla como a un crio y no se ponen "
-            "tonterias. Es historia de verdad contada por alguien que se lo esta pasando bien "
-            "contandola."
+            "  2. LA REACCION EXAGERADA A ESE DETALLE. Ahi es donde va lo tonto: no se cuenta "
+            "flojito que la gente tenia miedo, se dibuja a la gente CHILLANDO - gesto \"grito\", "
+            "sonido \"gentio\" - y quien habla no comenta la situacion, la vive a gritos.\n"
+            "  3. DECIRLO CORTO Y A LO BESTIA. 'Tardaron once meses en enterarse de que la "
+            "guerra habia terminado' tiene gracia por si solo. Encima de eso, alguien puede "
+            "gritar '¡ONCE MESES, DE VERDAD!' y sigue siendo gracioso, no sobra.\n\n"
+            "LO QUE NO SE HACE: inventarse un dato porque queda gracioso, ni reirse de una "
+            "desgracia RECIENTE con victimas identificables - eso lo cubre el aviso de "
+            "sensibilidad de arriba. Una caza de brujas de hace cuatrocientos años, una guerra "
+            "ya cerrada, un naufragio de otro siglo: eso SI se cuenta a lo bestia, con el gentio "
+            "chillando y todo, que es exactamente lo que ella pidio."
         ),
         "duration_hint": "50-60 segundos",
         "scene_count_hint": (
@@ -1217,6 +1223,39 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
                         f"frases, una contesta a la otra); hacen falta {minimo}. Una frase "
                         f"suelta es una cita, dos que se contestan es una conversacion - y "
                         f"es ahi donde esta la gracia")
+
+        # SIN "DIJO PERICO". Se lo dijo clarisimo despues de leer un ejemplo mio
+        # que lo hacia: nada de un verbo de habla presentando la cita. El
+        # bocadillo ya sale pegado a la cara de quien habla - "habla_x" lo dice
+        # -, asi que la narracion no tiene que anunciarlo con "dijo", "penso",
+        # "solto", "pregunto", "grito" delante de las comillas.
+        if nivel >= _TODO:
+            patron_atribucion = re.compile(
+                r'\b(dijo|dice|solto|suelta|pregunto|pregunta|penso|piensa|exclamo|exclama|'
+                r'grito|grita|conteste|contesto|responde|respondio|murmura|murmuro|susurra|'
+                r'susurro|anadio|añadio)\b[^.!?»"]{0,25}[«"]',
+                re.IGNORECASE)
+            for e in escenas:
+                narracion = _sin_tildes(e.get("narration", ""))
+                encontrado = patron_atribucion.search(narracion)
+                if encontrado:
+                    return (f"la narracion anuncia la cita con un verbo de habla "
+                            f"({encontrado.group(0)[:40]!r}) - nada de \"dijo X\", \"penso "
+                            f"X\" ni \"grito X\" antes de las comillas. El hecho, un punto, y "
+                            f"la cita suelta detras, como una viñeta de comic")
+
+        # QUE GRITEN DE VERDAD, no solo que hablen. "Mas tonto... gente "
+        # chillando, la bruja en la hoguera chilla maldicion". Se mide sobre
+        # el gesto de las figuras, que es lo que de verdad se dibuja.
+        if nivel >= _TODO:
+            from . import monigotes
+            gritos = sum(1 for e in escenas if isinstance(e.get("escena"), dict)
+                        for f in monigotes.limpia(e["escena"])["figuras"]
+                        if f["gesto"] == "grito")
+            if gritos < 2:
+                return (f"solo {gritos} figura(s) con gesto \"grito\" en todo el video. Esto "
+                        f"es un canal TONTO Y EXAGERADO: tiene que haber gente chillando de "
+                        f"verdad, no solo hablando bajito")
 
             # Y QUE PESE MAS LA CONVERSACION QUE LA NARRACION. Dicho tal cual:
             # "menos narracion y mas conversacion, que la narracion sea menos

@@ -163,16 +163,19 @@ _TONE_HINTS = {
     # camara y bocadillos, el guion seguia recibiendo la orden escrita de ser
     # sobrio. El canal es historia de España y tiene que tener gracia.
     "topics": (
-        "cuenta la historia de España como se la contarias a alguien en una cena, no como una "
-        "clase: buscando el detalle absurdo que ademas es verdad, el motivo ridiculo por el que "
-        "la gente hizo lo que hizo y la consecuencia que no se espera nadie. Tiene que tener "
-        "GRACIA, y la gracia sale de los hechos, nunca de inventarselos: casi toda historia real "
-        "tiene dentro una cifra que no tiene sentido, una discusion por dinero o una cabezoneria "
-        "que acabo fatal, y eso es lo que se cuenta. La voz narra en serio - ese contraste entre "
-        "una voz formal y algo ridiculo es justo el chiste -, asi que nunca se hace el gracioso, "
-        "no se explica la broma y no se habla como a un niño. Y hay respeto donde toca: una "
-        "epidemia, un naufragio o una ejecucion se cuentan con interes, no con risa. Todo anclado "
-        "en lo documentado, jamas en especulacion."
+        "cuenta la historia de España en plan TONTO Y BRUTO - lo dijo asi ella viendo los "
+        "videos: \"quiero que sea mas tonto, que coja una historia y la cuente en plan "
+        "gracioso\". No es ironia fina ni un chiste discreto: es la caza de brujas con la "
+        "gente CHILLANDO y la bruja en la hoguera gritando \"¡MALDICIOOOON!\" con los brazos "
+        "en alto. Cuanto mas escandaloso y exagerado, mejor - eso SI que se lee como gracioso "
+        "en un movil, un chiste susurrado no.\n\n"
+        "La gracia sigue saliendo de un HECHO real - eso no cambia, nunca se inventa un dato "
+        "para que quede gracioso -, pero se cuenta a gritos y a lo bestia, no en voz baja. La "
+        "gente de la escena reacciona como en un dibujo animado: chilla, se desmaya, sale "
+        "corriendo con los brazos como aspas, pone los ojos como platos - no reacciona como "
+        "reaccionaria alguien de verdad, reacciona como reacciona un personaje de dibujos. "
+        "Todo anclado en lo documentado, nunca en especulacion: la exageracion va en COMO se "
+        "cuenta, no en que se cuenta."
     ),
 }
 CHANNEL_TONE_HINT = os.environ.get("CHANNEL_TONE_HINT") or _TONE_HINTS.get(
