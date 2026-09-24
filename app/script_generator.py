@@ -1768,6 +1768,218 @@ def generate_script(news_item: dict, variant: str = "long",
     raise RuntimeError(f"generate_script fallo tras {_MAX_ATTEMPTS} intentos: {last_error}") from last_error
 
 
+# GUION LITERAL: cuando ella ya trae la historia entera escrita a mano.
+#
+# generate_script() de arriba es el GUIONISTA: coge un tema y un dosier y
+# decide que contar, desde cero. Un dia trajo un guion suyo COMPLETO -dialogo
+# y acotaciones, escena a escena, "La guerra de la oreja"- y "genera el video
+# con esto" no tenia donde ir: /generar solo admite un TEMA, nunca un texto,
+# asi que su guion se uso solo como EJEMPLO DE ESTILO metido en el prompt de
+# arriba. El resultado se le parecio mucho -hasta el remate le salio casi
+# igual-, pero no era el suyo, y le costo un reintento pagado que no
+# esperaba: "jode, pero te pase el guion completo".
+#
+# Esta funcion es la otra mitad. Aqui Claude no es guionista, es TRADUCTOR:
+# no decide la historia, no inventa dialogo nuevo y no cambia una palabra
+# dentro de las comillas - solo reparte los personajes genericos del texto
+# ("el ingles", "el rey") entre el reparto fijo del canal y elige, de las
+# MISMAS listas cerradas de siempre, el decorado/postura/gesto de cada
+# escena. Pasa por las MISMAS comprobaciones que un guion escrito por Claude
+# (_que_le_pasa_al_guion): esas comprobaciones son sobre si el video SE PUEDE
+# DIBUJAR, no sobre si la historia es buena, y la historia aqui ya vino
+# decidida.
+_GUION_MARKER = "===== GUION ORIGINAL ====="
+
+_PLANTILLA_LITERAL = """Eres el TRADUCTOR TECNICO del canal de YouTube "{channel_name}" en {language}. No eres el
+guionista: la historia, los personajes y CADA FRASE de dialogo ya estan escritos por la creadora
+del canal, mas abajo, despues de "{_guion_marker}". Tu unico trabajo es traducirlo al formato JSON
+que necesita el programa de dibujo, sin decidir la historia ni inventar dialogo nuevo.
+
+REGLA PRINCIPAL, innegociable: CADA frase de dialogo del original (lo que dice un personaje, entre
+comillas o no en el texto de origen) tiene que llegar al JSON con las MISMAS PALABRAS. Puedes
+quitar emojis y banderas, puedes ponerla en MAYUSCULAS si en el original se grita, puedes repartir
+una frase larga en dos bocadillos seguidos si hace falta - pero no puedes reescribirla, suavizarla,
+resumirla ni cambiarle una palabra. Si lo haces ya no es su guion, es el tuyo, y para eso esta
+generate_script. Cada cita en el JSON va entre «» y no puede pasar de 80 caracteres contando
+espacios (es el limite tecnico del bocadillo): si una frase del original es mas larga, cortala en
+dos bocadillos seguidos sin perder ni resumir palabras.
+
+Y SIN "DIJO PERICO": aunque el original presente una frase con "el ingles dice:" o parecido, en el
+JSON esa cita va sola, sin ningun verbo de habla delante ("dijo", "penso", "grito"...) - el hecho,
+un punto si hace falta, y la cita suelta detras, como una viñeta de comic.
+
+{bloque_ortografia}
+
+EL REPARTO GENERICO SE CONVIERTE EN EL REPARTO FIJO. El original habla de "el español", "el
+ingles", "el rey", "el mensajero" - papeles genericos que cambiaran de nombre en cada guion que
+ella traiga. Tu trabajo es asignar cada papel a UNO de los cinco personajes fijos del canal (abajo
+tienes quien es cada uno) y mantener esa asignacion durante TODO el guion: si "el ingles" es
+"soldado" en la escena 2, sigue siendo "soldado" en la escena 6. Si el original mete un papel de
+mas y ya usaste los cinco, reutiliza el que menos protagonismo tenga en esa parte - nunca inventes
+un sexto personaje, el canal no lo dibuja.
+
+{bloque_ilustracion}
+
+COMO TROCEAR EN ESCENAS. El original viene troceado a su manera (con sus propias "ESCENA 1",
+"ESCENA 2"...); no hace falta copiar ese troceo exacto, hace falta respetar el ORDEN de los
+intercambios y meter MAXIMO DOS citas por escena. Si un bloque del original trae tres o mas frases
+seguidas, partelo en dos escenas; si dos bloques son un intercambio muy corto, pueden ir juntos en
+una. La narracion de cada escena es solo el pegamento entre citas - una acotacion del original
+convertida en una frase corta, o vacia si no hace falta -, nunca un resumen de lo que ya dicen las
+comillas.
+
+Cuando el original trae una acotacion de accion ("sale corriendo", "se señala la cabeza", "saca
+algo de detras de la espalda"), esa es la pista para elegir la POSTURA de la figura -
+"corriendo", "señala"...-: no la escribas dos veces, una en la narracion y otra en la postura,
+dibujala.
+
+"is_sensitive": false siempre - esto es una escena comica con monigotes, no un caso real de
+sucesos.
+
+"title", "description", "tags" y "lo_gracioso" si los escribes tu, fiel al tono del original:
+- "title": SEO para YouTube, con gancho, en {language}, maximo 90 caracteres, sin MAYUSCULAS
+  sostenidas.
+- "description": 1-2 frases sobre el tema, 3 a 5 hashtags relevantes (formato #Palabra) incluyendo
+  siempre "#Shorts", y una llamada a suscribirse a {channel_name}.
+- "tags": entre 10 y 15 palabras clave de busqueda en {language}, sin duplicados.
+- "lo_gracioso": EN UNA FRASE, que es lo que hace gracia de esta historia - tiene que ser algo que
+  de verdad este en el guion original, no una idea nueva tuya.
+
+Si conoces el hecho historico real detras de esta historia y tienes una fecha, un año o una cifra
+que de verdad aplique, puedes mencionarla en el pegamento de narracion de alguna escena (nunca
+dentro de una cita) - el video enseña algo ademas de hacer gracia. Nunca la inventes: si no la
+sabes seguro, deja la narracion sin ella.
+
+MUY IMPORTANTE - formato del JSON: NUNCA uses comillas dobles (") dentro del texto de ningun campo;
+una sin escapar rompe el JSON entero. Si necesitas entrecomillar algo dentro de un valor, usa
+comillas simples ('asi') o angulares (<<asi>>). Tampoco metas saltos de linea dentro de un valor:
+cada narracion va en una sola linea.
+
+Devuelve EXCLUSIVAMENTE un JSON con esta forma exacta, sin texto adicional ni markdown. El PRIMER
+caracter de tu respuesta tiene que ser una llave de apertura.
+
+{{
+  "title": "titulo optimizado para SEO, ver requisitos arriba",
+  "description": "descripcion con hashtags, ver requisitos arriba",
+  "is_sensitive": "false",
+  "tags": ["tag1", "tag2", "... entre 10 y 15 tags"],
+  "lo_gracioso": "una frase con lo que hace gracia de esta historia",
+  "scenes": [
+    {{
+      "narration": "EN {language}, el pegamento de esta escena Y las citas literales entre «»",
+      "escena": "objeto con la escena de monigotes, OBLIGATORIO - ver LA ESCENA arriba",
+      "sonido": "uno de [gentio, campana, fuego, pasos, espada, tormenta, mar, monedas, puerta, caballo] o cadena vacia",
+      "on_screen_highlight": "EN {language}, 3-6 palabras que enganchen si esta escena tiene un momento fuerte, o cadena vacia"
+    }}
+  ]
+}}
+
+{_guion_marker}
+{guion_original}
+"""
+
+
+def translate_literal_script(raw_text: str, variant: str = "short", parar=None) -> dict:
+    """Traduce un guion que ella ya trajo escrito -dialogo y acotaciones- al
+    JSON tecnico del render, sin inventar ni una frase nueva. Ver el bloque
+    de comentarios de arriba de _PLANTILLA_LITERAL para el porque.
+
+    Misma forma que generate_script (mismos reintentos, misma validacion -
+    _que_le_pasa_al_guion no sabe ni le importa quien escribio la historia,
+    solo mira si SE PUEDE DIBUJAR), pero con un prompt mucho mas corto: aqui
+    no hay que decidir gancho, estructura ni tono, asi que cuesta una
+    fraccion de lo que cuesta escribir un guion desde cero.
+    """
+    if variant != "short":
+        raise ValueError("un guion literal solo se dibuja en formato Short (monigotes): el largo no tiene monigotes")
+
+    prompt = _PLANTILLA_LITERAL.format(
+        channel_name=CHANNEL_NAME,
+        language=NEWS_LANGUAGE_HINT,
+        bloque_ortografia=_ORTOGRAFIA.get(NARRATION_LANG, _ORTOGRAFIA['es']),
+        bloque_ilustracion=_VARIANT_CONFIG["short"]["bloque_ilustracion"],
+        _guion_marker=_GUION_MARKER,
+        guion_original=raw_text.strip(),
+    )
+    instrucciones, _, guion = prompt.partition(_GUION_MARKER)
+
+    last_error: Exception | None = None
+    pega_anterior = ""
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        if attempt > 1 and parar is not None and parar():
+            from .pipeline import GenerationStopped
+            raise GenerationStopped(f"parada pedida antes del intento {attempt} del guion literal")
+
+        try:
+            with _client.messages.stream(
+                model=CLAUDE_MODEL,
+                max_tokens=_MAX_TOKENS,
+                system=[
+                    {
+                        "type": "text",
+                        "text": instrucciones,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+                messages=[{"role": "user", "content": _GUION_MARKER + guion + (
+                    "\n\n===== TU INTENTO ANTERIOR NO VALIO =====\n"
+                    f"{pega_anterior}\n"
+                    "Traducelo otra vez arreglando EXACTAMENTE eso, sin cambiar ni una palabra "
+                    "mas de las citas del original." if pega_anterior else "")}],
+            ) as stream:
+                message = stream.get_final_message()
+        except anthropic.APIStatusError as exc:
+            if "content filtering" in str(exc).lower():
+                logger.warning(
+                    "translate_literal_script: la API ha bloqueado la respuesta por su filtro "
+                    "de contenido en el intento %s.", attempt)
+                last_error = RuntimeError(
+                    "La API ha bloqueado la respuesta por su filtro de contenido.")
+                continue
+            raise
+        llm_usage.record(f"guion-literal-{variant}", CLAUDE_MODEL, message)
+        text_blocks = [block.text for block in message.content if block.type == "text"]
+        if not text_blocks:
+            last_error = ValueError("Claude no devolvio ningun bloque de texto en la respuesta")
+            continue
+
+        raw_json = _solo_el_json(_strip_markdown_fence(text_blocks[0]))
+        try:
+            script = json.loads(raw_json)
+        except json.JSONDecodeError as exc:
+            logger.warning(
+                "translate_literal_script: JSON invalido (%s). Respuesta cruda alrededor del "
+                "fallo: %r", exc, raw_json[max(0, exc.pos - 200):exc.pos + 200])
+            last_error = exc
+            continue
+
+        required_keys = {"title", "description", "tags", "scenes"}
+        if not required_keys.issubset(script):
+            last_error = ValueError(f"Respuesta de Claude incompleta, faltan claves: {required_keys - script.keys()}")
+            continue
+
+        nivel = max(_SOLO_LO_ROTO, _TODO - (attempt - 1))
+        ultimo = attempt >= _MAX_ATTEMPTS
+        problema = _que_le_pasa_al_guion(script, variant, exigente=nivel)
+        if problema:
+            logger.warning("translate_literal_script: guion mal formado (%s). Intento %s.",
+                           problema, attempt)
+            last_error = ValueError(f"Guion mal formado: {problema}")
+            pega_anterior = problema
+            continue
+        if ultimo:
+            pega = _que_le_pasa_al_guion(script, variant, exigente=_TODO)
+            if pega:
+                logger.warning(
+                    "translate_literal_script: el guion sale con una pega despues de %s "
+                    "intentos y se acepta igual - %s.", attempt, pega)
+
+        _log_accent_rate(script, variant)
+        return script
+
+    raise RuntimeError(f"translate_literal_script fallo tras {_MAX_ATTEMPTS} intentos: {last_error}") from last_error
+
+
 # QUE EL CAMPO ESTE DONDE SE LEE.
 #
 # Este es el fallo mas caro que he escrito y el mas silencioso. Puse

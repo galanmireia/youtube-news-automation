@@ -25,7 +25,7 @@ from . import research
 from .news_picker import pick_best_story
 from .news_source import fetch_candidate_news
 from .topic_source import fetch_candidate_topics, fetch_topic_by_term
-from .script_generator import generate_script, _trim_sources
+from .script_generator import generate_script, translate_literal_script, _trim_sources
 from .subtitles import generate_subtitles
 from .thumbnail import generate_thumbnail
 from . import real_photos
@@ -572,6 +572,67 @@ def resume_voice_job(job_file: Path, recording_path: Path) -> int:
     resumen_coste = llm_usage.report_and_reset()
     if resumen_coste:
         logger.info("[%s] %s", datos["variant"], resumen_coste)
+    return video_id
+
+
+def run_literal(
+    on_variant_done: Callable[[int], None] | None,
+    raw_text: str,
+    forced_topic: str | None = None,
+) -> list[int]:
+    """Como run_once, pero el guion no lo escribe Claude desde un tema: ya
+    viene escrito a mano - dialogo y acotaciones -, y aqui solo se TRADUCE al
+    JSON tecnico que necesita el render (reparto, decorado, postura), sin
+    tocar una palabra de las citas. Ver translate_literal_script en
+    script_generator.py para el porque de esta otra mitad.
+
+    Solo el Short: es el unico formato que dibuja monigotes, que es lo que un
+    guion literal necesita para salir en pantalla."""
+    _stop_requested.clear()
+    cleanup_finished_video_files()
+
+    variant = "short"
+    link, titulo = "", (forced_topic or "Guion literal")
+    if forced_topic:
+        chosen = fetch_topic_by_term(forced_topic)
+        if chosen:
+            link = chosen.get("link") or ""
+            titulo = chosen.get("title") or forced_topic
+    news_item = {"title": titulo, "link": link, "summary": "",
+                "source_name": "Wikipedia" if link else ""}
+
+    work_dir = Path(DATA_DIR) / f"job_{int(time.time())}"
+    work_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        _stage(variant, 1, "Traduciendo tu guion al formato del video...")
+        script = translate_literal_script(raw_text, variant=variant, parar=_stop_requested.is_set)
+
+        raw_sens = script.get("is_sensitive", False)
+        is_sensitive = (raw_sens.strip().lower() == "true"
+                        if isinstance(raw_sens, str) else bool(raw_sens))
+
+        _stage(variant, 2, "Extrayendo entidades del guion...")
+        entities = extract_entities(script["scenes"])
+        for i, scene in enumerate(script["scenes"]):
+            scene["detected_entities"] = entities.get(i, [])
+
+        video_id = _generate_variant(
+            news_item, variant, work_dir, script=script, is_sensitive=is_sensitive)
+    except GenerationStopped as exc:
+        logger.info("Generacion detenida a peticion: %s", exc)
+        shutil.rmtree(work_dir, ignore_errors=True)
+        return []
+    except Exception:
+        shutil.rmtree(work_dir, ignore_errors=True)
+        raise
+
+    resumen_coste = llm_usage.report_and_reset()
+    if resumen_coste:
+        logger.info("[%s] %s", variant, resumen_coste)
+    if on_variant_done is not None:
+        on_variant_done(video_id)
+    return [video_id]
     return video_id
 
 

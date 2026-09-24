@@ -37,6 +37,7 @@ from .pipeline import (
     pending_voice_job,
     resume_voice_job,
     run_once,
+    run_literal,
     stop_requested as pipeline_stop_requested,
 )
 from .video_builder import make_preview
@@ -437,6 +438,99 @@ async def handle_generate_command(update: Update, context: ContextTypes.DEFAULT_
     # Running it as a task lets the handler return now and the bot keep
     # answering; _pipeline_lock still stops two generations overlapping.
     context.application.create_task(_run_pipeline_and_notify(context.bot, variants, forced_topic))
+
+
+async def handle_literal_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/literal: un guion que ella ya escribio a mano - dialogo y acotaciones
+    escena a escena -, sin que Claude decida la historia.
+
+    Nacio de esto: "/generar" solo admite un TEMA, nunca un texto, asi que un
+    guion completo que trajo ("la guerra de la oreja") se metio como EJEMPLO
+    DE ESTILO en el prompt de siempre y Claude escribio uno NUEVO parecido -
+    bien, pero no el suyo, y con un reintento pagado que no esperaba. Esto es
+    la otra mitad: aqui Claude no escribe la historia, solo la TRADUCE al
+    JSON tecnico (ver translate_literal_script en script_generator.py).
+
+    Formato del mensaje: la primera linea es el tema (para el articulo de
+    Wikipedia y el titulo), y todo lo que va debajo es el guion tal cual,
+    pegado sin retocar."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    if _pipeline_lock.locked():
+        await update.message.reply_text("Ya hay una generacion en curso, espera a que termine.")
+        return
+
+    # update.message.text, no context.args: los args de Telegram parten por
+    # espacios en blanco y se unen con uno solo, y eso se comeria las lineas
+    # y los saltos de parrafo del guion que ella pega.
+    texto_completo = update.message.text or ""
+    resto = re.sub(r"^/\w+(@\w+)?\s*", "", texto_completo, count=1)
+    primera, _, guion_texto = resto.partition("\n")
+    forced_topic = primera.strip()
+    guion_texto = guion_texto.strip()
+    if not forced_topic or not guion_texto:
+        await update.message.reply_text(
+            "Formato: en la primera linea el tema (para el articulo y el titulo), y debajo "
+            "pegado el guion completo, tal cual. Ejemplo:\n\n"
+            "/literal Guerra del Asiento\n"
+            "ESCENA 1\n"
+            "«¡Me has cortado una oreja!»"
+        )
+        return
+
+    await update.message.reply_text(
+        f"Traduciendo tu guion sobre {forced_topic} al video. No se reescribe ni una frase de "
+        "dialogo: solo se reparten los personajes del reparto fijo y se elige el dibujo de cada "
+        "escena. Tardara unos minutos..."
+    )
+    context.application.create_task(_run_literal_and_notify(context.bot, guion_texto, forced_topic))
+
+
+async def _run_literal_and_notify(bot, raw_text: str, forced_topic: str | None) -> None:
+    loop = asyncio.get_running_loop()
+
+    def on_variant_done(video_id: int) -> None:
+        future = asyncio.run_coroutine_threadsafe(send_for_approval(bot, video_id), loop)
+        try:
+            future.result()
+        except Exception:
+            logger.exception("Error enviando el video %s a Telegram", video_id)
+
+    async with _pipeline_lock:
+        pulso = asyncio.create_task(_latido(bot))
+        try:
+            video_ids = await asyncio.wait_for(
+                loop.run_in_executor(None, run_literal, on_variant_done, raw_text, forced_topic),
+                timeout=_PIPELINE_TIMEOUT_SECONDS,
+            )
+            if pipeline_stop_requested():
+                await bot.send_message(
+                    chat_id=TELEGRAM_CHAT_ID,
+                    text=(
+                        f"Generacion parada. {len(video_ids)} video(s) terminados antes de parar "
+                        "siguen pendientes de tu aprobacion."
+                        if video_ids
+                        else "Generacion parada. No habia ningun video terminado todavia."
+                    ),
+                )
+        except asyncio.TimeoutError:
+            logger.error(
+                "El guion literal lleva mas de %s minutos sin terminar; se deja de esperar y se "
+                "libera el bloqueo.", _PIPELINE_TIMEOUT_SECONDS // 60,
+            )
+            await bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID,
+                text=(
+                    f"La generacion lleva mas de {_PIPELINE_TIMEOUT_SECONDS // 60} minutos "
+                    "bloqueada, asi que la doy por perdida."
+                ),
+            )
+        except Exception:
+            logger.exception("Error traduciendo/generando el guion literal")
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                                   text="Error generando el video, revisa los logs.")
+        finally:
+            pulso.cancel()
 
 
 _LATIDO_SEGUNDOS = 180
@@ -2117,6 +2211,7 @@ def build_application() -> Application:
     ).build()
     application.add_handler(CallbackQueryHandler(handle_decision))
     application.add_handler(CommandHandler("generar", handle_generate_command))
+    application.add_handler(CommandHandler("literal", handle_literal_command))
     application.add_handler(CommandHandler("reset", handle_reset_command))
     application.add_handler(CommandHandler("parar", handle_stop_command))
     application.add_handler(CommandHandler("voces", handle_voices_command))
