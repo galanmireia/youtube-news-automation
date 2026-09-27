@@ -1,4 +1,5 @@
 import io
+import math
 import logging
 import subprocess
 from pathlib import Path
@@ -397,3 +398,127 @@ def generar_careta(out_path: Path, width: int, height: int, duracion: float) -> 
         str(out_path),
     ])
     return out_path
+
+
+# LA CARETA DEL SHORT, A MITAD DEL VIDEO.
+#
+# Ella: "quiero que durante el video, no al principio, pero igual si al
+# segundo diez, en todos haga una intro de la marca España Contada y el nombre
+# de la historia". Es lo de las series: primero te enganchan y luego sale el
+# titulo. Al principio no, porque los primeros segundos de un Short deciden si
+# se quedan, y gastarlos en el nombre del canal es gastarlos en algo que
+# todavia no les importa.
+#
+# Va dibujada fotograma a fotograma y no con drawtext porque lleva a Anselmo
+# asomando por abajo y saludando, igual que en el banner del canal: el
+# personaje es la marca tanto como el nombre.
+DURACION_CARETA_SHORT = 2.4
+_FPS_CARETA = 15
+
+
+def _suave(t: float) -> float:
+    t = min(1.0, max(0.0, t))
+    return t*t*(3 - 2*t)
+
+
+def _mezcla_color(a, b, t):
+    return tuple(int(x + (y - x)*t) for x, y in zip(a, b))
+
+
+def _titulo_en_lineas(draw, texto, ancho_max, tam_inicial):
+    tam = tam_inicial
+    while tam > 24:
+        fuente = _load_font("DejaVuSans-Bold.ttf", tam)
+        lineas = _wrap_text(draw, texto, fuente, ancho_max)
+        if len(lineas) <= 3:
+            return fuente, lineas
+        tam = int(tam*0.88)
+    fuente = _load_font("DejaVuSans-Bold.ttf", tam)
+    return fuente, _wrap_text(draw, texto, fuente, ancho_max)[:3]
+
+
+def careta_short(out_path: Path, width: int, height: int, titulo: str,
+                 duracion: float = DURACION_CARETA_SHORT) -> Path:
+    """La careta del Short: la regla roja que se abre, ESPAÑA CONTADA, el
+    nombre de la historia y Anselmo saludando desde abajo. Con campana."""
+    import random
+    import re
+    import shutil
+    from . import monigotes, sonidos
+
+    titulo = re.sub(r"\s*\(.*?\)\s*", " ", titulo or "").strip().upper()
+    carpeta = Path(out_path).with_suffix("")
+    carpeta.mkdir(parents=True, exist_ok=True)
+    medio_y = int(height*0.36)
+    grosor = max(4, int(height*0.004))
+    nombre_f = _load_font("DejaVuSans-Bold.ttf", int(width*0.085))
+    pie_f = _load_font("DejaVuSans-Bold.ttf", int(width*0.032))
+    total = max(2, int(duracion*_FPS_CARETA))
+
+    for n in range(total):
+        t = n/_FPS_CARETA
+        img = Image.new("RGB", (width, height), _BACKGROUND_COLOR)
+        d = ImageDraw.Draw(img)
+
+        # La regla se abre desde el centro.
+        mitad = width*0.34*_suave(t/0.45)
+        d.rectangle([width/2 - mitad, medio_y, width/2 + mitad, medio_y + grosor],
+                    fill=_ACCENT_COLOR)
+
+        # El nombre del canal entra por encima, subiendo un poco.
+        a = _suave((t - 0.30)/0.40)
+        texto = CHANNEL_NAME.upper()
+        caja = d.textbbox((0, 0), texto, font=nombre_f)
+        d.text(((width - (caja[2]-caja[0]))/2, medio_y - (caja[3]-caja[1]) - height*0.03 + (1-a)*18),
+               texto, font=nombre_f, fill=_mezcla_color(_BACKGROUND_COLOR, TEXT_COLOR, a))
+
+        # Y el nombre de la historia, debajo y mas grande: es lo que se lee.
+        if titulo:
+            b = _suave((t - 0.65)/0.40)
+            fuente, lineas = _titulo_en_lineas(d, titulo, int(width*0.84), int(width*0.095))
+            alto_linea = fuente.size*1.18
+            y = medio_y + height*0.04 + (1-b)*18
+            for linea in lineas:
+                w_l = _text_width(d, linea, fuente)
+                d.text(((width - w_l)/2, y), linea, font=fuente,
+                       fill=_mezcla_color(_BACKGROUND_COLOR, _ACCENT_COLOR, b))
+                y += alto_linea
+            pie = "UNA HISTORIA DE"
+            w_p = _text_width(d, pie, pie_f)
+            d.text(((width - w_p)/2, medio_y - height*0.135 + (1-a)*18), pie, font=pie_f,
+                   fill=_mezcla_color(_BACKGROUND_COLOR, (170, 160, 146), a*0.9))
+
+        # Anselmo sube desde abajo y saluda, como en el banner del canal.
+        sube = _suave((t - 0.15)/0.5)
+        alto_f = height*0.40
+        suelo = height*1.10 + (1 - sube)*height*0.25
+        # Saludar es la mano en alto yendo de lado a lado. Mezclando "brazos
+        # arriba" con "señala" parecia que señalaba el titulo.
+        base = monigotes._POSES["de_pie"]
+        vaiven = math.sin(2*math.pi*t/0.55)
+        pose = {"cuello": base["cuello"], "cadera": base["cadera"], "piernas": base["piernas"],
+                "brazos": [base["brazos"][0],
+                           [(0, -.66), (.20, -.84), (.22 + .13*vaiven, -1.03)]]}
+        monigotes.figura(d, width*0.70, suelo, alto_f, random.Random(n//3), "de_pie",
+                         "contento", pose_mezclada=pose, espejo=True,
+                         tinta=monigotes.TINTA_CLARA, relleno=(107, 90, 70),
+                         rasgos=monigotes.REPARTO.get("cronista"))
+
+        # Funde al final para volver a la historia sin tiron.
+        if t > duracion - 0.25:
+            oscuro = Image.new("RGB", (width, height), _BACKGROUND_COLOR)
+            img = Image.blend(img, oscuro, _suave((t - (duracion - 0.25))/0.25))
+        img.save(carpeta/f"{n:04d}.png")
+
+    campana = carpeta/"campana.wav"
+    sonido = sonidos.pista([("campana", 0.05, 1.8)], duracion, campana, volumen=0.30)
+    orden = ["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(_FPS_CARETA),
+             "-i", str(carpeta/"%04d.png")]
+    orden += (["-i", str(sonido)] if sonido else
+              ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"])
+    orden += ["-t", f"{duracion:.3f}", "-map", "0:v", "-map", "1:a",
+              "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20", "-r", "30",
+              "-c:a", "aac", "-ar", "44100", "-ac", "2", str(out_path)]
+    _ffmpeg(orden)
+    shutil.rmtree(carpeta, ignore_errors=True)
+    return Path(out_path)

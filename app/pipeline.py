@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Callable
 
 from . import llm_usage, sonidos, storage, voces
-from .branding import INTRO_NARRATION
+from .branding import DURACION_CARETA_SHORT, INTRO_NARRATION, careta_short
 from .config import (
     BURN_SUBTITLES,
     CONTENT_MODE,
@@ -33,8 +33,8 @@ from .tts import synthesize_scenes
 from .voice_clone import sintetizar_escenas
 from .voice_align import align_recording, reading_script
 from .config import NARRATION_SOURCE
-from .video_builder import (build_video, burn_subtitles, mezclar_efectos,
-                            mix_background_music)
+from .video_builder import (build_video, burn_subtitles, desplazar_srt, insertar_careta,
+                            mezclar_efectos, mix_background_music)
 from .visuals import fetch_clips_for_scenes
 
 logger = logging.getLogger(__name__)
@@ -147,6 +147,21 @@ def _con_creditos(descripcion: str, urls: list[str]) -> str:
         f"{bloque}\n\n"
         "Textos de consulta: Wikipedia, bajo licencia CC BY-SA."
     )
+
+
+_CARETA_HACIA = 10.0     # el segundo que pidio ella
+_CARETA_DESDE = 6.0      # antes de esto aun no ha enganchado nada
+
+
+def _donde_va_la_careta(duraciones: list[float]) -> float | None:
+    """El corte entre escenas mas cercano al segundo diez. Nunca despues de
+    la ultima escena, y nunca antes de que haya pasado algo."""
+    fines, reloj = [], 0.0
+    for d in duraciones[:-1]:
+        reloj += d
+        fines.append(reloj)
+    buenos = [f for f in fines if f >= _CARETA_DESDE]
+    return min(buenos, key=lambda f: abs(f - _CARETA_HACIA)) if buenos else None
 
 
 def _generate_variant(
@@ -356,6 +371,26 @@ def _generate_variant(
             except Exception:
                 # Un efecto que no entra cuesta un efecto, no el video.
                 logger.warning("No se han podido mezclar los efectos.", exc_info=True)
+
+    # LA CARETA, A MITAD DEL SHORT. "Durante el video, no al principio, pero
+    # igual si al segundo diez, en todos": la marca y el nombre de la
+    # historia. Va en el corte entre dos escenas mas cercano al segundo diez,
+    # nunca en mitad de una frase. Aqui, despues de los efectos y antes de la
+    # musica, para que la musica siga por debajo y no se corte. Si falla, el
+    # video sale sin careta: una careta no vale un video.
+    if _VARIANT_ASPECT_RATIO[variant] == "9:16":
+        corte = _donde_va_la_careta(scene_durations)
+        if corte is not None:
+            try:
+                careta = careta_short(variant_dir / "careta.mp4", width, height,
+                                      news_item.get("title", ""))
+                final_video_path = insertar_careta(final_video_path, careta, corte,
+                                                   variant_dir / "final_con_careta.mp4",
+                                                   width, height)
+                desplazar_srt(srt_path, corte, DURACION_CARETA_SHORT)
+                logger.info("Careta del canal en el segundo %.1f.", corte)
+            except Exception:
+                logger.warning("No se ha podido meter la careta; sale sin ella.", exc_info=True)
 
     music_path = _pick_music_track()
     if music_path is not None:

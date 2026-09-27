@@ -1293,3 +1293,60 @@ def mezclar_efectos(video_path: Path, pista_path: Path, out_path: Path) -> Path:
         str(out_path),
     ])
     return out_path
+
+
+def insertar_careta(video_path: Path, careta_path: Path, en: float, out_path: Path,
+                    width: int, height: int) -> Path:
+    """La careta del canal EN MEDIO del video, en el corte entre dos escenas.
+
+    Se parte el video en ese segundo y se mete la careta entre los dos
+    trozos, con la imagen y el sonido de cada uno: la historia se para, sale
+    la careta y sigue donde estaba. Se normaliza todo (tamaño, fotogramas,
+    audio) antes de unir, porque la careta sale de otro sitio y concat no
+    perdona que dos trozos no sean iguales.
+    """
+    v = f"scale={width}:{height},fps=30,setsar=1,format=yuv420p"
+    a = "aformat=sample_rates=44100:channel_layouts=stereo"
+    filtro = (
+        "[0:v]split=2[va][vb];[0:a]asplit=2[aa][ab];"
+        f"[va]trim=0:{en:.3f},setpts=PTS-STARTPTS,{v}[v0];"
+        f"[aa]atrim=0:{en:.3f},asetpts=PTS-STARTPTS,{a}[a0];"
+        f"[1:v]setpts=PTS-STARTPTS,{v}[v1];"
+        f"[1:a]asetpts=PTS-STARTPTS,{a}[a1];"
+        f"[vb]trim=start={en:.3f},setpts=PTS-STARTPTS,{v}[v2];"
+        f"[ab]atrim=start={en:.3f},asetpts=PTS-STARTPTS,{a}[a2];"
+        "[v0][a0][v1][a1][v2][a2]concat=n=3:v=1:a=1[v][a]")
+    _run(["ffmpeg", "-y", "-i", str(video_path), "-i", str(careta_path),
+          "-filter_complex", filtro, "-map", "[v]", "-map", "[a]",
+          "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+          "-c:a", "aac", "-b:a", "192k", str(out_path)], step="careta")
+    return out_path
+
+
+def desplazar_srt(srt_path: Path, desde: float, cuanto: float) -> None:
+    """Retrasa los subtitulos que van despues de la careta.
+
+    Los incrustados ya van dentro de la imagen y se mueven solos con ella;
+    este es el .srt que se sube aparte a YouTube, y sin esto cada frase
+    saldria 2,4 segundos antes de decirse durante el resto del video.
+    """
+    import re
+    def seg(h, m, s, ms):
+        return int(h)*3600 + int(m)*60 + int(s) + int(ms)/1000
+
+    def fmt(t):
+        ms = int(round(t*1000))
+        return f"{ms//3600000:02d}:{ms//60000 % 60:02d}:{ms//1000 % 60:02d},{ms % 1000:03d}"
+
+    patron = re.compile(r"(\d+):(\d+):(\d+),(\d+) --> (\d+):(\d+):(\d+),(\d+)")
+
+    def mueve(m):
+        a, b = seg(*m.groups()[:4]), seg(*m.groups()[4:])
+        if a >= desde - 0.05:
+            a, b = a + cuanto, b + cuanto
+        elif b > desde:
+            b += cuanto
+        return f"{fmt(a)} --> {fmt(b)}"
+
+    p = Path(srt_path)
+    p.write_text(patron.sub(mueve, p.read_text(encoding="utf-8")), encoding="utf-8")

@@ -1,7 +1,7 @@
 import logging
 
 from . import storage
-from .config import PIXABAY_API_KEY, RSS_FEEDS, TTS_LANGUAGE_CODE, TTS_VOICE_NAME
+from .config import CHANNEL_NAME, PIXABAY_API_KEY, RSS_FEEDS, TTS_LANGUAGE_CODE, TTS_VOICE_NAME
 from .pipeline import cleanup_finished_video_files, note_interrupted_run, sweep_orphan_build_files
 from .telegram_bot import build_application
 
@@ -35,6 +35,11 @@ def main() -> None:
     # the code default is invisible until somebody wonders why the voice
     # changed. The voice family is what decides how natural it sounds.
     logger.info("Voz de narracion en uso: %s (%s)", TTS_VOICE_NAME, TTS_LANGUAGE_CODE)
+    # Y el nombre del canal, por lo mismo: sale en la careta, en las
+    # descripciones y en la llamada a suscribirse. El canal se llamo antes
+    # ActualiDark, y una variable vieja con ese nombre no daria ningun error:
+    # saldria el nombre de antes en cada video.
+    logger.info("Canal: %s", CHANNEL_NAME)
     sweep_orphan_build_files()
     removed = cleanup_finished_video_files()
     if removed:
