@@ -567,6 +567,20 @@ def arbol(d, x, suelo, alto, rnd):
 # en un documental. Debajo y no encima: arriba van los globos, y entre el
 # 70% y el 80% de la pantalla van los subtitulos.
 _LARGO_PAPEL = 24
+_ARTICULOS = {"el", "la", "los", "las", "un", "una"}
+
+
+def clave_de_papel(papel) -> str:
+    """El papel sin mayusculas, tildes ni articulo: "La Reina" y "reina" son
+    la misma persona. Lo usan el comprobador del guion (el mismo papel, el
+    mismo monigote) y la etiqueta (se escribe una vez por papel)."""
+    import unicodedata
+    t = unicodedata.normalize("NFKD", str(papel or "").lower())
+    palabras = "".join(c if c.isalnum() else " " for c in t
+                       if not unicodedata.combining(c)).split()
+    while palabras and palabras[0] in _ARTICULOS:
+        palabras = palabras[1:]
+    return " ".join(palabras)
 
 
 def _pinta_papeles(d, spec, w, h, pies):

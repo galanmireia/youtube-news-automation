@@ -1450,6 +1450,32 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
                     f"{', '.join(monigotes.REPARTO_VALIDO)}, o no habra nadie a quien "
                     "reconocer de un video a otro")
 
+        # EL MISMO PAPEL, EL MISMO MONIGOTE. Ella: "si sale la reina dos veces
+        # en diferentes escenas, que sea Remedios siempre". El prompt ya lo
+        # pedia, pero solo pedido: si en la escena 6 la reina es Remedios y en
+        # la 8 es Don Severo con corona, el espectador ve a dos reinas. Un
+        # monigote si puede hacer dos papeles (son cinco para toda la
+        # historia), pero un papel no puede tener dos monigotes. "La reina" y
+        # "La reina Maria Luisa" cuentan como el mismo papel.
+        quien_hace: dict[str, tuple[str, str, int]] = {}
+        for i, e in enumerate(escenas, 1):
+            for f in monigotes.limpia(e["escena"])["figuras"]:
+                clave = monigotes.clave_de_papel(f.get("papel"))
+                if not clave or not f["quien"]:
+                    continue
+                igual = next((k for k in quien_hace
+                              if k == clave or k.startswith(clave + " ")
+                              or clave.startswith(k + " ")), None)
+                if igual is None:
+                    quien_hace[clave] = (f["quien"], f["papel"], i)
+                    continue
+                antes, papel_antes, escena_antes = quien_hace[igual]
+                if antes != f["quien"]:
+                    return (f"'{papel_antes}' lo hace '{antes}' en la escena {escena_antes} "
+                            f"y '{f['quien']}' en la escena {i}: el espectador veria dos "
+                            f"personas distintas. Cada papel lo hace SIEMPRE el mismo del "
+                            f"reparto, en todas sus escenas - y escrito igual")
+
         # NINGUNA FRASE SE QUEDA SIN GLOBO. Un bocadillo admite MAX_PALABRAS
         # y una escena MAX_CITAS, y lo que se pasa de ahi no daba error: se
         # quedaba fuera en silencio y lo leia el NARRADOR, sin globo y sin la
@@ -1910,7 +1936,8 @@ ella traiga. Tu trabajo es asignar cada papel a UNO de los cinco personajes fijo
 tienes quien es cada uno) y mantener esa asignacion durante TODO el guion: si "el ingles" es
 "soldado" en la escena 2, sigue siendo "soldado" en la escena 6. Si el original mete un papel de
 mas y ya usaste los cinco, reutiliza el que menos protagonismo tenga en esa parte - nunca inventes
-un sexto personaje, el canal no lo dibuja.
+un sexto personaje, el canal no lo dibuja. Y si el original trae una linea REPARTO ("La reina la
+hace Remedios"), ese reparto manda: es ella quien ha decidido quien hace de quien.
 
 Y QUIEN ES EN LA HISTORIA VA EN "papel". Lo que el original llama a cada uno - "la reina",
 "Godoy", "el mensajero", "un portugues" - va en el "papel" de esa figura, en TODAS sus escenas,
@@ -1925,14 +1952,19 @@ COMO TROCEAR EN ESCENAS. El original viene troceado a su manera (con sus propias
 "ESCENA 2"...); no hace falta copiar ese troceo exacto, hace falta respetar el ORDEN de los
 intercambios y meter MAXIMO {max_citas} citas por escena. Si un bloque del original trae mas frases
 seguidas, partelo en dos escenas; si dos bloques son un intercambio muy corto, pueden ir juntos en
-una. La narracion de cada escena es solo el pegamento entre citas - una acotacion del original
-convertida en una frase corta, o vacia si no hace falta -, nunca un resumen de lo que ya dicen las
-comillas.
+una.
 
-Cuando el original trae una acotacion de accion ("sale corriendo", "se señala la cabeza", "saca
-algo de detras de la espalda"), esa es la pista para elegir la POSTURA de la figura -
-"corriendo", "señala"...-: no la escribas dos veces, una en la narracion y otra en la postura,
-dibujala.
+EL NARRADOR SOLO DICE LO QUE EL ORIGINAL LE DA AL NARRADOR. La "narration" de cada escena es: las
+frases de los personajes de esa escena entre «», y - solo si en ese punto el original tiene una
+linea de "Narrador:" - esa linea tal cual, sin comillas. NADA MAS. Todo lo demas del original son
+ACOTACIONES ("Godoy se gira lentamente", "Pausa dramatica", "mira a camara, confundido", "le
+observa", "sale corriendo") y las acotaciones NO SE LEEN: se DIBUJAN. Leidas en voz alta duplican
+el video y matan el ritmo de los chistes. No añadas tampoco frases tuyas para enlazar ("Godoy
+responde con calma"): si una escena no tiene linea de Narrador, su narration son solo sus «».
+
+Cada acotacion es la pista para el DIBUJO: "sale corriendo" es la postura "corriendo", "se señala
+la cabeza" es "señala", "mira a camara, confundido" es el gesto, "con una cesta" es el objeto,
+"frente a las murallas" es el decorado. Lo que el original describe tiene que VERSE.
 
 Y EL MISMO LADO EN TODA LA CONVERSACION. Si un bloque largo del original (el mismo intercambio
 entre las mismas dos personas) se reparte en varias escenas seguidas, el que hablaba a la
@@ -2030,6 +2062,9 @@ def _lineas_de_narrador(raw_text: str) -> list[str]:
         if _ETIQUETA_NARRADOR.match(limpio):
             en_narrador = True
             limpio = _ETIQUETA_NARRADOR.sub("", limpio)
+            if limpio and not _CITA_SUELTA.search(limpio):
+                citas.append(limpio)
+                continue
         elif (_CAMBIO_DE_ESCENA.match(limpio) or _ETIQUETA_PERSONAJE.match(limpio)
               or _empieza_con_simbolo(limpio)):
             en_narrador = False
@@ -2057,6 +2092,37 @@ def _narrador_no_se_cuela_en_citas(raw_text: str, script: dict) -> str | None:
                     f"dijo ningun personaje, es texto de contexto")
     return None
 
+
+
+# Y AL REVES: EL NARRADOR NO LEE LAS ACOTACIONES. En sus guiones todo lo que
+# dice el narrador va marcado "Narrador:"; lo demas que no es una cita
+# ("Godoy se gira lentamente", "Pausa", "mira a camara, confundido") es para
+# DIBUJARLO. La Guerra de las Naranjas salio con 276 palabras de narracion
+# para 138 de guion: las acotaciones leidas en voz alta, y alguna inventada
+# ("Godoy sonrie con picardia"). Asi que todo lo que la narracion diga fuera
+# de «» tiene que estar en una linea de Narrador del original.
+_ENTRE_COMILLAS = re.compile(r'[«“"][^»”"]*[»”"]')
+_FIN_DE_FRASE = re.compile(r'(?<=[.!?…])\s+|\n')
+
+
+def _normaliza_frase(texto: str) -> str:
+    t = _sin_tildes((texto or "").lower())
+    return " ".join("".join(c if c.isalnum() else " " for c in t).split())
+
+
+def _narrador_solo_dice_lo_suyo(raw_text: str, script: dict) -> str | None:
+    permitido = _normaliza_frase(" ".join(_lineas_de_narrador(raw_text)))
+    for i, e in enumerate(script.get("scenes", []), 1):
+        fuera = _ENTRE_COMILLAS.sub(" ", e.get("narration") or "")
+        for frase in _FIN_DE_FRASE.split(fuera):
+            clave = _normaliza_frase(frase)
+            if clave and clave not in permitido:
+                return (f"en la escena {i} el narrador lee \"{frase.strip()[:60]}\", y eso no "
+                        f"esta en ninguna linea de Narrador del original: es una acotacion. Las "
+                        f"acotaciones NO se leen, se DIBUJAN (postura, gesto, objeto, decorado). "
+                        f"En 'narration' solo van las frases de los personajes entre «» y, donde "
+                        f"toque, las lineas de Narrador tal cual, sin comillas")
+    return None
 
 def translate_literal_script(raw_text: str, variant: str = "short", parar=None) -> dict:
     """Traduce un guion que ella ya trajo escrito -dialogo y acotaciones- al
@@ -2142,6 +2208,7 @@ def translate_literal_script(raw_text: str, variant: str = "short", parar=None) 
         nivel = max(_SOLO_LO_ROTO, _TODO - (attempt - 1))
         ultimo = attempt >= _MAX_ATTEMPTS
         problema = (_narrador_no_se_cuela_en_citas(raw_text, script)
+                    or (nivel >= _LO_QUE_DEFINE and _narrador_solo_dice_lo_suyo(raw_text, script))
                     or _que_le_pasa_al_guion(script, variant, exigente=nivel))
         if problema:
             logger.warning("translate_literal_script: guion mal formado (%s). Intento %s.",

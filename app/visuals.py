@@ -501,7 +501,7 @@ def fetch_clips_for_scenes(
             dibujo = dict(scene["escena"])
             dibujo["figuras"] = [dict(f) for f in (dibujo.get("figuras") or []) if isinstance(f, dict)]
             for f in dibujo["figuras"]:
-                papel = (f.get("papel") or "").strip().lower()
+                papel = monigotes.clave_de_papel(f.get("papel"))
                 if papel in papeles_ya_dichos:
                     f["papel"] = None
                 elif papel:
