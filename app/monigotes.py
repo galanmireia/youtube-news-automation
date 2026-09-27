@@ -2119,12 +2119,16 @@ def _estante(d, x, y, ancho, rnd, g, ollas=2):
         _olla(d, px, y, ancho*0.22, rnd, max(2, g//2))
 
 
-def _estandarte(d, x, y, ancho, alto, rnd, g, color=(170, 44, 44), franja=None):
+def _estandarte(d, x, y, ancho, alto, rnd, g, color=(170, 44, 44), franja=None, aspa=None):
     paño = [(x-ancho/2, y), (x+ancho/2, y), (x+ancho/2, y+alto),
             (x, y+alto*0.86), (x-ancho/2, y+alto)]
     d.polygon(paño, fill=color); _linea(d, paño+[paño[0]], g, rnd, color=TINTA)
     if franja:
         d.rectangle([x-ancho/2, y+alto*0.34, x+ancho/2, y+alto*0.54], fill=franja)
+    if aspa:
+        for a, b in (((-.40, .08), (.40, .78)), ((.40, .08), (-.40, .78))):
+            _linea(d, [(x + ancho*a[0], y + alto*a[1]), (x + ancho*b[0], y + alto*b[1])],
+                   int(g*1.6), rnd, color=aspa, temblor=2.0)
     _linea(d, [(x-ancho*0.62, y), (x+ancho*0.62, y)], int(g*1.4), rnd, color=MADERA_OSCURA)
 
 
@@ -2319,12 +2323,16 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "trono":          _trono(d, X, suelo, T, rnd, g)
     elif que == "estandarte":
         # Los dos eran del mismo rojo, asi que un salon del trono parecia una
-        # pared con dos manchas iguales. Ahora uno lleva el rojo y gualda y el
-        # otro el azul de la casa: sigue sin ser heraldica de verdad, pero ya
-        # son DOS cosas y no una repetida.
-        _estandarte(d, X, h*y, T, h*tam*1.9, rnd, g,
-                    color=ROJO_ESPAÑA if X < w/2 else (44, 62, 132),
-                    franja=ORO_ESPAÑA if X < w/2 else BLANCO)
+        # pared con dos manchas iguales. Luego el de la derecha fue "el azul
+        # de la casa", azul con una franja blanca - y ella pregunto "¿que es
+        # esa bandera azul y blanca?": no era de nadie, y en pantalla parecia
+        # la de algun pais. Ahora es la cruz de Borgoña, la que ondeaba de
+        # verdad en los palacios y los ejercitos de España: rojo y gualda a un
+        # lado, aspa roja al otro, y las dos son nuestras.
+        if X < w/2:
+            _estandarte(d, X, h*y, T, h*tam*1.9, rnd, g, color=ROJO_ESPAÑA, franja=ORO_ESPAÑA)
+        else:
+            _estandarte(d, X, h*y, T, h*tam*1.9, rnd, g, color=BLANCO, aspa=ROJO_ESPAÑA)
     elif que == "cruz_grande":    _cruz(d, X, h*y, h*tam, rnd, int(g*1.6), TINTA)
     elif que == "mastil":         _mastil(d, X, suelo, h, rnd, g)
     elif que == "casas":

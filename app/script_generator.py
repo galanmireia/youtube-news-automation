@@ -1989,9 +1989,22 @@ caracter de tu respuesta tiene que ser una llave de apertura.
 # cuando aparece la etiqueta de OTRO personaje -, y toda cita entre comillas
 # que caiga dentro de ese tramo es sospechosa. Si aparece tal cual como una
 # cita con bocadillo en el JSON, se rechaza y se reintenta.
-_ETIQUETA_PERSONAJE = re.compile(r'^[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑáéíóúñ .\'-]{1,40}\s*:')
+# Lo que le quita la palabra al narrador. Ella escribe las etiquetas de
+# muchas maneras - "Don Severo:", "Anselmo, el testigo:", "🇪🇸:", "👑 «...»",
+# un "😐" suelto antes de la frase - y entre escenas pone "ESCENA 8" o "⸻".
+# Cualquiera de esas cierra el tramo del narrador; si no, una frase de
+# personaje de la escena siguiente se tomaria por narracion y el guion bueno
+# se rechazaria.
+_ETIQUETA_PERSONAJE = re.compile(r'^[^«"“:\n]{1,40}:')
 _ETIQUETA_NARRADOR = re.compile(r'^narrador\s*:?\s*', re.IGNORECASE)
-_CITA_SUELTA = re.compile(r'[«"]([^»"]{6,140})[»"]')
+_CAMBIO_DE_ESCENA = re.compile(r'^(escena\b|[⸻—–\-_*=~]+$)', re.IGNORECASE)
+_CITA_SUELTA = re.compile(r'[«"“]([^»"”]{2,140})[»"”]')
+
+
+def _empieza_con_simbolo(linea: str) -> bool:
+    """Un emoji delante ("🇬🇧 «...»", "😐") es una etiqueta de personaje."""
+    c = linea[0]
+    return not (c.isalnum() or c in '«"“¿¡(.…')
 
 
 def _lineas_de_narrador(raw_text: str) -> list[str]:
@@ -2003,7 +2016,8 @@ def _lineas_de_narrador(raw_text: str) -> list[str]:
         if _ETIQUETA_NARRADOR.match(limpio):
             en_narrador = True
             limpio = _ETIQUETA_NARRADOR.sub("", limpio)
-        elif _ETIQUETA_PERSONAJE.match(limpio):
+        elif (_CAMBIO_DE_ESCENA.match(limpio) or _ETIQUETA_PERSONAJE.match(limpio)
+              or _empieza_con_simbolo(limpio)):
             en_narrador = False
             continue
         if en_narrador:
