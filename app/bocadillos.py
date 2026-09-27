@@ -77,6 +77,22 @@ def citas_de(narracion: str) -> list[str]:
     return fuera
 
 
+def todas_las_comillas(narracion: str) -> list[str]:
+    """Todo lo que va entre comillas, SIN los topes de citas_de.
+
+    Existe para poder avisar. citas_de tira en silencio la frase de mas de
+    MAX_PALABRAS y la tercera de la escena - y una frase tirada no
+    desaparece: la sigue diciendo la voz, pero la del NARRADOR y sin globo.
+    Eso es lo que ella vio en el Motin de Esquilache ("a veces decia el
+    narrador algo que tenia que decir el personaje"): «Desde hoy: sombreros
+    mas pequeños y capas mas cortas» tiene nueve palabras. Comparando esta
+    lista con la de citas_de se sabe que se ha quedado fuera."""
+    if not narracion:
+        return []
+    return [(m.group(1) or m.group(2) or "").strip(" .,;:")
+            for m in re.finditer(r"[«“]([^»”]{2,})[»”]|\"([^\"]{2,})\"", narracion)]
+
+
 def cita_de(narracion: str) -> str:
     """La frase entrecomillada de una narracion, si la hay.
 

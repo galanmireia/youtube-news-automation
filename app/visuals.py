@@ -129,21 +129,6 @@ _MIN_ILUSTRACIONES = 3
 _MAX_ILUSTRACIONES = 14
 
 
-def _quien_dice_cada_frase(habla_x, figuras, cuantas: int) -> list[float]:
-    """En que x sale cada globo de la escena.
-
-    El guion dice quien empieza ("habla_x"); la respuesta es del OTRO, que es
-    lo que hace que se lea como una conversacion y no como alguien hablando
-    solo dos veces. Con un unico monigote en el plano, habla el mismo las dos
-    veces, que tambien pasa.
-    """
-    equis = [float(f.get("x", 0.5) or 0.5) for f in figuras] or [0.5]
-    primera = (float(habla_x) if isinstance(habla_x, (int, float)) else equis[0])
-    # El que contesta es el que esta mas lejos del que ha hablado.
-    otro = max(equis, key=lambda x: abs(x - primera)) if len(equis) > 1 else primera
-    return [primera if k % 2 == 0 else otro for k in range(cuantas)]
-
-
 def _ilustrar(scene: dict, i: int, out_dir: Path, aspect_ratio: str,
               marcas, highlight: str):
     """El dibujo de una escena, con su bocadillo si alguien habla.
@@ -486,9 +471,7 @@ def fetch_clips_for_scenes(
                 # UNA CONVERSACION, no una frase. Cada globo con SU instante y
                 # apuntando a SU monigote: el primero al que habla, el segundo
                 # al que contesta.
-                quien = scene["escena"].get("habla_x")
-                figs = scene["escena"].get("figuras") or [{}]
-                equis = _quien_dice_cada_frase(quien, figs, len(citas))
+                equis = [f["x"] for f in monigotes.quienes_dicen(scene["escena"], len(citas))]
                 cursor = 0
                 for k, frase in enumerate(citas):
                     ventana = (bocadillos.cuando_se_dice(marca[0], marca[1], frase, cursor)

@@ -870,14 +870,56 @@ def limpia(spec: dict) -> dict:
                 c["x"] = round(candidato, 3)
         ocupadas.append(c["x"])
 
+    habla_x = (float(spec["habla_x"])
+               if isinstance(spec.get("habla_x"), (int, float)) else None)
+    hablan = hablan_de(spec, figuras)
+    if hablan:
+        # Si el guion dice QUIEN habla, manda eso y no la x: la x era una
+        # forma indirecta de decir lo mismo y es la que se equivocaba.
+        habla_x = next(f["x"] for f in figuras if f["quien"] == hablan[0])
     return _montar_escena({"interior": dentro, "cosas": cosas,
             "fondo": _una_de(spec.get("fondo"), FONDOS_VALIDOS, "liso"),
             "suelo": min(0.86, max(0.58, float(spec.get("suelo", 0.70 if dentro else 0.74)
                                               or 0.74))),
             "figuras": figuras, "tachados": tachados,
-            "habla_x": (float(spec["habla_x"])
-                        if isinstance(spec.get("habla_x"), (int, float)) else None),
+            "habla_x": habla_x, "hablan": hablan,
             "arbol": spec.get("arbol") if isinstance(spec.get("arbol"), (int, float)) else None})
+
+
+def hablan_de(spec: dict, figuras: list[dict]) -> list[str] | None:
+    """La lista "hablan" del guion, si se puede usar: un nombre del reparto
+    por cada frase entrecomillada, y todos presentes en la escena."""
+    crudo = spec.get("hablan") if isinstance(spec, dict) else None
+    if not isinstance(crudo, list) or not crudo:
+        return None
+    nombres = [str(n or "").strip().lower() for n in crudo]
+    presentes = {f.get("quien") for f in figuras if f.get("quien")}
+    return nombres if all(n in presentes for n in nombres) else None
+
+
+# QUIEN DICE CADA FRASE. Una sola funcion para el globo y para la voz.
+#
+# Antes el guion solo podia decir quien habla PRIMERO ("habla_x", una
+# posicion), y la respuesta se adivinaba: "el que este mas lejos". Con dos
+# personajes que se turnan eso acierta; con tres en el plano, o con alguien
+# que dice dos frases seguidas, se equivoca - y ella lo vio en el Motin de
+# Esquilache: "se confundia quien decia quien". Encima la adivinanza estaba
+# escrita DOS veces, una en visuals para el globo y otra en voces para la
+# voz, que es como acaban no coincidiendo.
+#
+# Ahora el guion puede decirlo tal cual - "hablan": ["mandamas", "chaval"] -
+# y si no lo dice, se adivina como antes. Las dos mitades leen de aqui.
+def quienes_dicen(escena: dict, cuantas: int) -> list[dict]:
+    limpio = limpia(escena)
+    figuras = limpio["figuras"]
+    hablan = limpio.get("hablan")
+    if hablan and len(hablan) >= cuantas:
+        por_nombre = {f["quien"]: f for f in figuras if f.get("quien")}
+        return [por_nombre[n] for n in hablan[:cuantas]]
+    x = limpio.get("habla_x")
+    quien = (min(figuras, key=lambda f: abs(f["x"] - x)) if x is not None else figuras[0])
+    otro = max(figuras, key=lambda f: abs(f["x"] - quien["x"])) if len(figuras) > 1 else quien
+    return [quien if k % 2 == 0 else otro for k in range(cuantas)]
 
 
 _ANCHO_BASE, _ALTO_BASE = 1080, 1920
@@ -1392,6 +1434,36 @@ def _naranjas(d, x, y, t, rnd, g, tinta=TINTA):
     d.polygon(hoja, fill=(92, 148, 68))
 
 
+def _mapa(d, x, y, t, rnd, g, tinta=TINTA):
+    """Un mapa de pergamino con una costa y una X roja. Todo ministro que
+    declara una guerra lo hace delante de uno, y "Don Severo, con un mapa"
+    estaba en el guion sin nada que dibujar."""
+    x0, x1, y0, y1 = x - t*.46, x + t*.46, y - t*.62, y - t*.04
+    hoja = [(x0, y0), (x1, y0 + t*.03), (x1 - t*.02, y1), (x0 + t*.02, y1 - t*.02)]
+    d.polygon(hoja, fill=PAPEL_VIEJO)
+    _linea(d, hoja + [hoja[0]], g, rnd, color=tinta)
+    costa = [(x0 + t*(.10 + .08*k), y0 + t*(.12 + .10*(k % 2) + .05*k)) for k in range(9)]
+    _linea(d, costa, max(2, g//2), rnd, color=(92, 120, 160), temblor=1.8)
+    cx, cy = x + t*.18, y - t*.22
+    for sx in (-1, 1):
+        _linea(d, [(cx - t*.07, cy - sx*t*.07), (cx + t*.07, cy + sx*t*.07)], g, rnd, color=ROJO)
+
+
+def _cesta(d, x, y, t, rnd, g, tinta=TINTA):
+    """Una cesta de mimbre llena de naranjas: la que llega a la corte en vez
+    del parte de guerra, y la de cualquier escena de mercado."""
+    for dx, dy in ((-.16, -.40), (.14, -.42), (-.01, -.52)):
+        _circulo(d, (x + t*dx, y + t*dy), t*.15, g, rnd, relleno=(230, 126, 34), color=tinta)
+    cuerpo = [(x - t*.36, y - t*.40), (x + t*.36, y - t*.40), (x + t*.28, y), (x - t*.28, y)]
+    d.polygon(cuerpo, fill=(176, 132, 76))
+    _linea(d, cuerpo + [cuerpo[0]], g, rnd, color=tinta)
+    for k in (1, 2):
+        yy = y - t*.40*k/3
+        _linea(d, [(x - t*(.28 + .08*k/3), yy), (x + t*(.28 + .08*k/3), yy)],
+               max(2, g//2), rnd, color=(126, 90, 50))
+    d.arc([x - t*.34, y - t*.78, x + t*.34, y - t*.10], 180, 360, fill=tinta, width=g)
+
+
 def _pan(d, x, y, t, rnd, g, tinta=TINTA):
     """Una hogaza. Sale en cualquier motin de hambre o carestia - ya
     aparecio nombrada de pasada en Esquilache ("solo venia a comprar pan")
@@ -1471,6 +1543,68 @@ _BANDERAS = {
     "bandera_francia":   ([(AZUL_FRANCIA, 1/3), (BLANCO, 1/3), (ROJO_FRANCIA, 1/3)], False),
     "bandera_blanca":    ([(BLANCO, 1.0)], True),
     "bandera_inglaterra": ([(BLANCO, 1.0)], True),   # la cruz se pinta aparte
+    # Las que va a pedir la historia de España, no solo la guerra de las
+    # naranjas: Portugal (1801, y todas las demas), EEUU (1898, el Maine),
+    # Holanda (Flandes y los tercios), Austria (la guerra de Sucesion),
+    # Marruecos (la guerra de Africa, Annual) y la cruz de Borgoña, que es la
+    # de los tercios y los carlistas. Lo que no son franjas - la esfera de
+    # Portugal, el cuartel de EEUU, la estrella, el aspa - va en _ADORNOS.
+    "bandera_portugal":  ([((0, 102, 51), .40), ((206, 17, 38), .60)], False),
+    "bandera_eeuu":      ([(((178, 34, 52) if k % 2 == 0 else BLANCO), 1/7) for k in range(7)], True),
+    "bandera_holanda":   ([((238, 124, 20), 1/3), (BLANCO, 1/3), ((24, 64, 140), 1/3)], True),
+    "bandera_austria":   ([((200, 16, 46), 1/3), (BLANCO, 1/3), ((200, 16, 46), 1/3)], True),
+    "bandera_marruecos": ([((193, 39, 45), 1.0)], True),
+    "bandera_borgona":   ([(BLANCO, 1.0)], True),
+}
+
+
+def _en_paño(borde, u0, u1, v0, v1):
+    """Un trozo del paño en sus propias coordenadas (u a lo largo, v de
+    arriba a abajo), siguiendo la ondulacion y el espejo del trapo - asi lo
+    que va encima no se sale de la bandera cuando esta ondea al reves."""
+    (ax, ay), (bx, by), (cx, cy), (dx, dy) = borde
+
+    def p(u, v):
+        tx, ty = ax + (bx-ax)*u, ay + (by-ay)*u
+        fx, fy = dx + (cx-dx)*u, dy + (cy-dy)*u
+        return (tx + (fx-tx)*v, ty + (fy-ty)*v)
+    return [p(u0, v0), p(u1, v0), p(u1, v1), p(u0, v1)]
+
+
+def _centro_paño(borde, u, v):
+    return _en_paño(borde, u, u, v, v)[0]
+
+
+def _adorno_portugal(d, borde, t, g, rnd):
+    cx, cy = _centro_paño(borde, .40, .50)
+    _circulo(d, (cx, cy), t*.075, max(2, g//2), rnd, relleno=(255, 204, 0), color=TINTA)
+
+
+def _adorno_eeuu(d, borde, t, g, rnd):
+    d.polygon(_en_paño(borde, 0, .42, 0, 4/7), fill=(60, 59, 110))
+    for u, v in ((.10, .15), (.28, .15), (.19, .32), (.10, .47), (.28, .47)):
+        cx, cy = _centro_paño(borde, u, v)
+        d.ellipse([cx - t*.012, cy - t*.012, cx + t*.012, cy + t*.012], fill=BLANCO)
+
+
+def _adorno_marruecos(d, borde, t, g, rnd):
+    cx, cy = _centro_paño(borde, .50, .50)
+    r = t*.10
+    puntas = [(cx + r*math.sin(k*4*math.pi/5), cy - r*math.cos(k*4*math.pi/5)) for k in range(6)]
+    _linea(d, puntas, max(2, g//2), rnd, color=(0, 98, 51), temblor=0.6)
+
+
+def _adorno_borgona(d, borde, t, g, rnd):
+    # El aspa de Borgoña son dos troncos cruzados, nudosos: con temblor alto
+    # se lee como palo y no como una X de tachado.
+    for a, b in (((.10, .10), (.90, .90)), ((.90, .10), (.10, .90))):
+        _linea(d, [_centro_paño(borde, *a), _centro_paño(borde, *b)], int(g*1.7), rnd,
+               color=ROJO_ESPAÑA, temblor=2.4)
+
+
+_ADORNOS = {
+    "bandera_portugal": _adorno_portugal, "bandera_eeuu": _adorno_eeuu,
+    "bandera_marruecos": _adorno_marruecos, "bandera_borgona": _adorno_borgona,
 }
 
 
@@ -1521,6 +1655,9 @@ def _bandera_de(nombre):
             d.rectangle([cx-t*.04, cy-t*.16, cx+t*.04, cy+t*.16], fill=ROJO_ESPAÑA)
             d.rectangle([min(cx-t*.24, cx+t*.24), cy-t*.04,
                          max(cx-t*.24, cx+t*.24), cy+t*.04], fill=ROJO_ESPAÑA)
+        adorno = _ADORNOS.get(nombre)
+        if adorno:
+            adorno(d, borde, t, g, rnd)
         _linea(d, borde, g, rnd, color=tinta)
     return dibuja
 
@@ -1564,7 +1701,8 @@ COSAS = {
     "iglesia": _iglesia, "castillo": _castillo, "espada": _espada,
     "canion": _canion, "fuego": _fuego, "dinero": _dinero, "libro": _libro,
     "cruz": _cruz, "olla": _olla, "montaña": _montaña, "naranjas": _naranjas,
-    "naranjo": _naranjo, "pan": _pan, "escudo": _escudo,
+    "naranjo": _naranjo, "pan": _pan, "escudo": _escudo, "mapa": _mapa,
+    "cesta": _cesta,
     "nube": _nube, "sol": _sol,
     # El arbol ya existia pero con otra firma, y por estar aqui a None se
     # caia en silencio: el prompt lo ofrecia y limpia() lo tiraba.
@@ -2009,6 +2147,74 @@ def _mastil(d, x, suelo, h, rnd, g):
         _linea(d, [(x, h*0.05), (x+lado*h*0.22, suelo)], max(2, g//2), rnd, color=TINTA)
 
 
+MURALLA = (184, 172, 150)
+LONA = (232, 222, 196)
+
+
+def _almena(d, x0, x1, arriba, alto, rnd, g):
+    d.rectangle([x0, arriba - alto, x1, arriba], fill=MURALLA)
+    _linea(d, [(x0, arriba), (x0, arriba - alto), (x1, arriba - alto), (x1, arriba)],
+           max(2, g//2), rnd, color=TINTA)
+
+
+def _muralla(d, w, h, suelo, rnd, g):
+    """Una ciudad sitiada vista desde fuera: el lienzo de piedra de lado a
+    lado, dos torres y la puerta cerrada en medio. Sirve para cualquier
+    asedio - Olivenza y Elvas, pero tambien Numancia, Zaragoza, Gerona o
+    Granada -, que es de lo que mas hay en historia de España."""
+    arriba = suelo - h*0.17
+    d.rectangle([0, arriba, w, suelo], fill=MURALLA)
+    _linea(d, [(0, arriba), (w, arriba)], g, rnd, color=TINTA)
+    diente = w*0.05
+    px = 0.0
+    while px < w:
+        _almena(d, px, px + diente, arriba, diente*0.8, rnd, g)
+        px += diente*2
+    piedras = random.Random(11)
+    for _ in range(18):
+        bx = piedras.uniform(0, w); by = piedras.uniform(arriba + h*0.01, suelo - h*0.02)
+        _linea(d, [(bx, by), (bx + w*0.05, by)], max(2, g//3), rnd,
+               color=(140, 130, 112), temblor=1.4)
+    for tx in (0.16, 0.84):
+        x0, x1, top = w*tx - w*0.08, w*tx + w*0.08, suelo - h*0.27
+        d.rectangle([x0, top, x1, suelo], fill=MURALLA)
+        _linea(d, [(x0, suelo), (x0, top), (x1, top), (x1, suelo)], g, rnd, color=TINTA)
+        for k in range(3):
+            cx = x0 + (x1 - x0)*k*0.4
+            _almena(d, cx, cx + (x1 - x0)*0.2, top, diente*0.8, rnd, g)
+        d.rectangle([w*tx - w*0.008, top + h*0.03, w*tx + w*0.008, top + h*0.07],
+                    fill=(60, 50, 44))
+    _puerta_arco(d, w*0.5, suelo, w*0.16, h*0.13, rnd, g, fuera=(78, 58, 42))
+
+
+def _tiendas(d, w, h, suelo, rnd, g):
+    """Un campamento: tiendas de lona en fila, la del medio con banderin.
+    Toda guerra tiene un rato de esperar en el campamento, y hasta ahora eso
+    solo se podia contar en un campo vacio."""
+    for k, (tx, tam) in enumerate(((0.16, 0.20), (0.50, 0.26), (0.84, 0.20))):
+        T, X, base = w*tam, w*tx, suelo + h*0.005
+        alto = T*0.78
+        lona = [(X - T/2, base), (X, base - alto), (X + T/2, base)]
+        d.polygon(lona, fill=LONA)
+        _linea(d, lona + [lona[0]], g, rnd, color=TINTA)
+        puerta = [(X - T*0.12, base), (X, base - alto*0.55), (X + T*0.12, base)]
+        d.polygon(puerta, fill=(92, 74, 56))
+        _linea(d, puerta, max(2, g//2), rnd, color=TINTA)
+        if k == 1:
+            punta = base - alto
+            _linea(d, [(X, punta), (X, punta - h*0.06)], g, rnd, color=MADERA_OSCURA)
+            pen = [(X, punta - h*0.06), (X + T*0.22, punta - h*0.045), (X, punta - h*0.03)]
+            d.polygon(pen, fill=ROJO_ESPAÑA)
+            _linea(d, pen + [pen[0]], max(2, g//2), rnd, color=TINTA)
+
+
+def _naranjos(d, w, h, suelo, rnd, g):
+    """El naranjal: una fila de naranjos en el horizonte, con la gente
+    delante - el sitio donde se cortaron las naranjas de la guerra."""
+    for x in (0.10, 0.36, 0.64, 0.90):
+        _naranjo(d, w*x, suelo + h*0.004, h*rnd.uniform(0.10, 0.12), rnd, g)
+
+
 # Cada sitio es una receta. Añadir uno son tres lineas y hereda gratis el
 # orden por capas, el resplandor de las velas y la gente delante.
 #
@@ -2061,8 +2267,48 @@ _DECORADOS = {
     "mina":         {"pared": "roca", "piso": "tierra",
                      "fondo": [("puntales", .5, 1.0, 1.0)],
                      "muebles": [], "delante": [], "cuelga": [], "velas": [(.30, -.30), (.70, -.24)]},
+    # Los cuatro de la guerra de las naranjas, pensados para servir despues:
+    # el ministro que declara la guerra, la ciudad sitiada, el campamento
+    # donde se espera y el campo donde pasa lo que sea que pase.
+    "despacho":     {"pared": "encalada", "piso": "tablas",
+                     "fondo": [("ventana_arco", .80, .34, .15)],
+                     "muebles": [], "delante": [("mesa", .50, .32, .90)],
+                     "cuelga": [("mapa", .38, .40, .15)], "velas": [(.12, -.30)]},
+    "murallas":     {"pared": "cielo", "piso": "tierra",
+                     "fondo": [("muralla", .5, 1.0, 1.0)],
+                     "muebles": [], "delante": [], "cuelga": [], "velas": []},
+    "campamento":   {"pared": "cielo", "piso": "hierba",
+                     "fondo": [("tiendas", .5, 1.0, 1.0)],
+                     "muebles": [], "delante": [], "cuelga": [], "velas": []},
+    "naranjal":     {"pared": "cielo", "piso": "hierba",
+                     "fondo": [("naranjos", .5, 1.0, 1.0)],
+                     "muebles": [], "delante": [], "cuelga": [], "velas": []},
 }
 DECORADOS_VALIDOS = tuple(_DECORADOS)
+
+# Lo que ve el guion de cada sitio. Va aqui, al lado de las recetas, y no
+# escrito a mano en el prompt: la lista del prompt estaba tecleada y cada
+# sitio nuevo que se dibujara aqui habria sido invisible para el guion - el
+# mismo fallo que la taberna que se dibujaba y no se usaba. Al arrancar se
+# comprueba que no falte ni sobre ninguno.
+DECORADOS_EXPLICADOS = {
+    "taberna":     "mesas, chimenea, ventana al puerto",
+    "monasterio":  "piedra, ventana de arco, mesa larga",
+    "salon_trono": "trono, estandartes, espadas en la pared",
+    "cocina":      "fogon, estantes con ollas, mesa",
+    "iglesia":     "arcos, cruz, bancos",
+    "calle":       "casas, adoquines",
+    "mercado":     "puestos con toldo, casas, adoquines",
+    "cubierta":    "cubierta de barco, mastil, el mar detras",
+    "mina":        "puntales de madera, tierra, oscuridad",
+    "despacho":    "el despacho de un ministro: mesa con papeles, mapa en la pared",
+    "murallas":    "una ciudad sitiada vista desde fuera: muralla, torres, puerta",
+    "campamento":  "el campamento de un ejercito: tiendas de lona, banderin",
+    "naranjal":    "campo de naranjos con las naranjas colgando",
+}
+_sin_explicar = set(DECORADOS_VALIDOS) ^ set(DECORADOS_EXPLICADOS)
+if _sin_explicar:
+    raise RuntimeError(f"Decorados sin explicar o explicados sin receta: {sorted(_sin_explicar)}")
 
 
 def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
@@ -2092,6 +2338,9 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
         for lado in (-1, 1):
             _linea(d, [(X+lado*T*.5, suelo-h*.14), (X+lado*T*.5, suelo)], g, rnd, color=MADERA_OSCURA)
         _mesa_con_cosas(d, X, suelo, T*1.1, rnd, max(2, g//2), papeles=1, jarras=1, alto=h*0.045)
+    elif que == "muralla":        _muralla(d, w, h, suelo, rnd, g)
+    elif que == "tiendas":        _tiendas(d, w, h, suelo, rnd, g)
+    elif que == "naranjos":       _naranjos(d, w, h, suelo, rnd, g)
     elif que == "puntales":
         for k in range(3):
             px = w*(0.16 + 0.34*k)

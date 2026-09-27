@@ -138,44 +138,13 @@ def poner_voces(narracion: Path, trozos: list[tuple[str, float, float]],
 def _quienes_hablan(escena: dict, cuantas: int) -> list[str]:
     """El personaje de cada frase de la escena, en orden.
 
-    La primera es de quien dice el guion ("habla_x"); la respuesta es del
-    OTRO. Es la misma regla que usa el bocadillo para decidir a quien apunta
-    el rabo, y tiene que serlo: si la voz dijera un personaje y el globo
-    apuntara a otro, el video se contradiria a si mismo en pantalla.
+    Lo decide monigotes.quienes_dicen, la MISMA funcion que decide a quien
+    apunta el globo: si la voz dijera un personaje y el globo apuntara a
+    otro, el video se contradiria a si mismo en pantalla. Antes esta regla
+    estaba copiada aqui y en visuals, y dos copias acaban no coincidiendo.
     """
-    figuras = [f for f in (escena.get("figuras") or []) if isinstance(f, dict)]
-    if not figuras:
-        return []
-    x = escena.get("habla_x")
-    orden = figuras
-    if isinstance(x, (int, float)):
-        orden = sorted(figuras, key=lambda f: abs(float(f.get("x", 0.5) or 0.5) - float(x)))
-    primero = (orden[0].get("quien") or "").strip().lower()
-    # El que contesta es el que esta mas lejos, igual que en el bocadillo.
-    if len(orden) > 1:
-        ref = float(orden[0].get("x", 0.5) or 0.5)
-        lejos = max(figuras, key=lambda f: abs(float(f.get("x", 0.5) or 0.5) - ref))
-        segundo = (lejos.get("quien") or "").strip().lower()
-    else:
-        segundo = primero
-    return [primero if k % 2 == 0 else segundo for k in range(cuantas)]
-
-
-def _quien_habla(escena: dict) -> str:
-    """El personaje que dice la frase de esta escena.
-
-    El guion no guarda el nombre del que habla, guarda DONDE esta: `habla_x`,
-    que es lo que necesita el rabo del bocadillo para apuntarle. Asi que el
-    nombre se saca de la figura que esta en esa x - la misma que va a tener el
-    globo encima. Si no se dice quien, habla el primero.
-    """
-    figuras = [f for f in (escena.get("figuras") or []) if isinstance(f, dict)]
-    if not figuras:
-        return ""
-    x = escena.get("habla_x")
-    if isinstance(x, (int, float)):
-        figuras = sorted(figuras, key=lambda f: abs(float(f.get("x", 0.5) or 0.5) - float(x)))
-    return (figuras[0].get("quien") or "").strip().lower()
+    from .monigotes import quienes_dicen
+    return [f.get("quien") or "" for f in quienes_dicen(escena, cuantas)]
 
 
 def trozos_de(scenes: list[dict], duraciones: list[float],

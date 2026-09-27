@@ -533,6 +533,16 @@ def _lista_de_objetos() -> str:
     return "[" + ", ".join(monigotes.OBJETOS_VALIDOS) + "]"
 
 
+def _lista_de_decorados() -> str:
+    """Los sitios que se saben dibujar, sacados de las recetas de monigotes.
+
+    Estaba escrita a mano en el prompt, y cada sitio nuevo que se dibujara
+    habria sido invisible para el guion: la taberna otra vez."""
+    from . import monigotes
+    return "\n".join(f"                  {n:<12} {monigotes.DECORADOS_EXPLICADOS[n]}"
+                     for n in monigotes.DECORADOS_VALIDOS)
+
+
 def _lista_de_posturas() -> str:
     """Las posturas que el guion puede pedir, sacadas de monigotes.
 
@@ -846,23 +856,24 @@ catedral, sale un fondo liso.
   "escena": {
     "interior": el SITIO donde pasa, y elige siempre que puedas: un decorado da mucho mas
                 que un fondo de color. CAMBIALO entre escenas - el video de Esquilache salio
-                con 'calle' en 5 de 11 escenas y solo 3 decorados distintos de los 9 que hay,
-                y una historia que pasa entera en la calle y el mercado parece un solo dibujo
-                repetido, no un video. Cada escena es un momento distinto: si dos escenas
-                seguidas pasan en el mismo sitio, pregunta si de verdad es el mismo momento o
-                si el siguiente ya esta en otra parte. Uno de:
-                  taberna      mesas, chimenea, ventana al puerto
-                  monasterio   piedra, ventana de arco, mesa larga
-                  salon_trono  trono, estandartes, espadas en la pared
-                  cocina       fogon, estantes con ollas, mesa
-                  iglesia      arcos, cruz, bancos
-                  calle        casas, adoquines
-                  mercado      puestos con toldo, casas, adoquines
-                  cubierta     cubierta de barco, mastil, el mar detras
-                  mina         puntales de madera, tierra, oscuridad
+                con 'calle' en 5 de 11 escenas y solo 3 decorados distintos de todos los que
+                hay, y una historia que pasa entera en la calle y el mercado parece un solo
+                dibujo repetido, no un video. Cada escena es un momento distinto: si dos
+                escenas seguidas pasan en el mismo sitio, pregunta si de verdad es el mismo
+                momento o si el siguiente ya esta en otra parte. ELIGE EL SITIO QUE CUENTA LA
+                HISTORIA: un ministro decidiendo va en "despacho", un asedio en "murallas", la
+                espera de una guerra en "campamento" - no todo en "salon_trono" y "calle". Uno de:
+{bloque_decorados}
     "fondo":    SOLO si la escena pasa a campo abierto y ningun sitio de arriba vale:
                 [campo, calle, salon, noche, liso]
-    "habla_x":  0.0 a 1.0, donde esta QUIEN HABLA en esta escena (para el bocadillo)
+    "hablan":   QUIEN DICE CADA FRASE ENTRE «», en orden, con el nombre del reparto:
+                ["mandamas", "chaval"] si la primera la dice Don Severo y la segunda Perico.
+                Una entrada por cada frase entre comillas de la narracion de ESA escena - ni una
+                mas ni una menos - y cada nombre tiene que estar entre las figuras de la escena.
+                OBLIGATORIO en cuanto alguien habla: es lo que hace que el bocadillo apunte a
+                quien toca y que suene su voz. Si la escena no tiene ninguna frase entre «»,
+                "hablan": [].
+    "habla_x":  0.0 a 1.0, donde esta el que dice la PRIMERA frase (el mismo que "hablan"[0])
     "cosas":    hasta 4 objetos, y ES DE LO QUE MAS SE NOTA. Si la narracion habla de un perro,
                 dibuja un perro; si habla de un barco ardiendo, pon el barco Y el fuego. Los
                 monigotes dicen QUIEN, el fondo dice DONDE y esto dice DE QUE. Cada uno:
@@ -870,6 +881,7 @@ catedral, sale un fondo liso.
                    LAS BANDERAS TIENEN COLOR DE VERDAD, asi que usalas: si la historia
                    enfrenta a dos paises, pon las DOS banderas en la misma escena y se
                    entiende el conflicto sin decir nada. "bandera_blanca" es rendirse.
+                   "bandera_borgona" es la cruz roja de los tercios y de los carlistas.
        "x":        0.05 a 0.95
        "tam":      0.05 a 0.34 de la altura de la pantalla (0.12 una cosa pequeña como un
                    perro, 0.20 una casa, 0.30 un castillo que domina el plano)
@@ -918,14 +930,16 @@ COSAS QUE HACEN QUE ESTO FUNCIONE:
   que las cinco escenas sean UNA historia y no cinco dibujos sueltos.
 - LA CARA CUENTA EL CHISTE. "grito" y "enfadado" valen mas que cualquier adjetivo de la
   narracion. Una escena entera de gente con cara "neutro" no la mira nadie.
-- "habla_x" tiene que coincidir con la x del que dice la frase entrecomillada, o el bocadillo
-  saldra apuntando a otro.
+- "hablan" dice quien dice cada frase, y MANDA: el bocadillo y la voz salen de ahi. Antes
+  solo existia "habla_x" y la respuesta se adivinaba por la posicion - "el que este mas
+  lejos" -, y en el Motin de Esquilache se vio el resultado: globos apuntando al que no era.
+  Si alguien dice dos frases seguidas, su nombre va dos veces: ["mandamas", "mandamas"].
 
-EJEMPLO, para la frase «El rey prohibio las capas largas y Madrid ardio tres dias»:
-  {"interior": "salon_trono", "habla_x": 0.30,
-   "figuras": [{"x":0.30,"alto":0.40,"pose":"señala","pose_fin":"brazos_arriba",
+EJEMPLO, para la narracion «¡NADA DE CAPAS LARGAS!» «¿Y la suya, majestad?»:
+  {"interior": "salon_trono", "habla_x": 0.30, "hablan": ["mandamas", "chaval"],
+   "figuras": [{"quien":"mandamas","x":0.30,"pose":"señala","pose_fin":"brazos_arriba",
                 "gesto":"enfadado","gorro":"corona","objeto":"capa"},
-               {"x":0.70,"alto":0.36,"pose":"de_pie","pose_fin":"sentado",
+               {"quien":"chaval","x":0.70,"pose":"de_pie","pose_fin":"señala",
                 "gesto":"sorpresa","espejo":true}]}
   (el rey prohibe las capas largas LLEVANDO EL PUESTA - es el chiste, no un descuido)
 
@@ -1428,6 +1442,59 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
             return ("ninguna escena usa el reparto fijo: hay que poner 'quien' con uno de "
                     f"{', '.join(monigotes.REPARTO_VALIDO)}, o no habra nadie a quien "
                     "reconocer de un video a otro")
+
+        # NINGUNA FRASE SE QUEDA SIN GLOBO. Un bocadillo admite MAX_PALABRAS
+        # y una escena MAX_CITAS, y lo que se pasa de ahi no daba error: se
+        # quedaba fuera en silencio y lo leia el NARRADOR, sin globo y sin la
+        # voz del personaje. "A veces decia el narrador algo que tenia que
+        # decir el personaje" - en el Motin de Esquilache, «Desde hoy:
+        # sombreros mas pequeños y capas mas cortas», nueve palabras.
+        for i, e in enumerate(escenas, 1):
+            todas = bocadillos.todas_las_comillas(e.get("narration", ""))
+            largas = [c for c in todas if len(c.split()) > bocadillos.MAX_PALABRAS]
+            if largas:
+                return (f"en la escena {i} la frase «{largas[0][:50]}» tiene "
+                        f"{len(largas[0].split())} palabras y en un bocadillo caben "
+                        f"{bocadillos.MAX_PALABRAS}: asi la diria el NARRADOR, sin globo y sin la "
+                        f"voz del personaje. Partela en dos frases seguidas entre «» (y en "
+                        f"'hablan' el mismo nombre dos veces), sin cambiar ni quitar palabras")
+            if len(todas) > bocadillos.MAX_CITAS:
+                return (f"la escena {i} tiene {len(todas)} frases entre comillas y en una escena "
+                        f"caben {bocadillos.MAX_CITAS}: las de mas las diria el narrador, sin "
+                        f"globo. Pasalas a la escena siguiente")
+
+        # Y QUE SE SEPA QUIEN DICE CADA FRASE. "Se confundia con las viñetas
+        # quien decia quien", viendo el Motin de Esquilache: el guion solo
+        # podia decir quien hablaba primero, por posicion, y la respuesta se
+        # adivinaba. Ahora lo dice con nombres ("hablan"), y aqui se mira que
+        # lo diga y que cuadre - una entrada por frase, todas de gente que
+        # esta en la escena. Si falta, en el primer intento se pide; si esta
+        # pero no cuadra, tambien en el segundo, porque eso es un globo
+        # apuntando al que no es. En el ultimo se acepta y se adivina.
+        for i, e in enumerate(escenas, 1):
+            esc = e.get("escena")
+            citas_e = bocadillos.citas_de(e.get("narration", ""))
+            if not citas_e or not isinstance(esc, dict):
+                continue
+            figs = monigotes.limpia(esc)["figuras"]
+            nombres = {f["quien"] for f in figs if f.get("quien")}
+            lista = esc.get("hablan")
+            if lista is None:
+                if nivel >= _TODO and len(figs) > 1:
+                    return (f"la escena {i} tiene {len(citas_e)} frase(s) entre comillas y "
+                            f"{len(figs)} personajes, pero no dice quien dice cada una: falta "
+                            f"\"hablan\". Sin eso el bocadillo apunta a quien toca por "
+                            f"posicion, y se equivoca")
+                continue
+            if not isinstance(lista, list) or len(lista) != len(citas_e):
+                cuantos = len(lista) if isinstance(lista, list) else "algo que no es una lista"
+                return (f"la escena {i} tiene {len(citas_e)} frase(s) entre comillas pero "
+                        f"\"hablan\" trae {cuantos}: tiene que haber un nombre por cada "
+                        f"frase, en el mismo orden")
+            fuera = [n for n in lista if str(n or "").strip().lower() not in nombres]
+            if fuera:
+                return (f"en la escena {i}, \"hablan\" pone a {fuera} diciendo algo, pero no "
+                        f"estan entre las figuras de esa escena ({sorted(nombres)})")
     if not isinstance(script.get("tags"), list):
         return "las etiquetas no son una lista"
     for clave in ("title", "description"):
@@ -1800,9 +1867,11 @@ comillas o no en el texto de origen) tiene que llegar al JSON con las MISMAS PAL
 quitar emojis y banderas, puedes ponerla en MAYUSCULAS si en el original se grita, puedes repartir
 una frase larga en dos bocadillos seguidos si hace falta - pero no puedes reescribirla, suavizarla,
 resumirla ni cambiarle una palabra. Si lo haces ya no es su guion, es el tuyo, y para eso esta
-generate_script. Cada cita en el JSON va entre «» y no puede pasar de 80 caracteres contando
-espacios (es el limite tecnico del bocadillo): si una frase del original es mas larga, cortala en
-dos bocadillos seguidos sin perder ni resumir palabras.
+generate_script. Cada cita en el JSON va entre «» y NO PUEDE PASAR DE {max_palabras} PALABRAS: es
+lo que cabe en un bocadillo, y una frase mas larga no da error - la lee el NARRADOR, sin globo y
+sin la voz del personaje, que es justo lo que no puede pasar. Si una frase del original es mas
+larga, partela en dos frases seguidas entre «», sin perder ni resumir palabras, y pon a quien la
+dice dos veces en "hablan".
 
 Y SIN "DIJO PERICO": aunque el original presente una frase con "el ingles dice:" o parecido, en el
 JSON esa cita va sola, sin ningun verbo de habla delante ("dijo", "penso", "grito"...) - el hecho,
@@ -1817,7 +1886,14 @@ hubiera dicho Anselmo - con su bocadillo y su voz -, una frase de contexto conve
 nadie dijo. Asi que la regla es: SOLO va entre «» en el JSON lo que el original atribuye a un
 personaje con nombre o papel (Don Severo, el ingles, el rey...). Todo lo que el original marca
 como "Narrador:", o que no tiene ningun personaje delante, es narracion pura: va en "narration"
-tal cual pero SIN «», y esa escena no lleva bocadillo ni "habla_x" apuntando a nadie por esa frase.
+tal cual pero SIN «», y NO se apunta en "hablan" - no la dice nadie.
+
+Y QUIEN DICE CADA COSA VA EN "hablan", CON SU NOMBRE. Es lo que el original ya te dice
+("Don Severo: «...»", "Perico: «...»"), asi que no hay nada que adivinar: por cada frase entre
+«» de la escena, el nombre del reparto de quien la dice, en el mismo orden. Una frase de Don
+Severo y la respuesta de Perico son "hablan": ["mandamas", "chaval"]; dos frases seguidas de Don
+Severo son ["mandamas", "mandamas"]. Si no cuadra con el original, el bocadillo y la voz salen del
+que no es - que es exactamente lo que ella vio mal en el Motin de Esquilache.
 
 {bloque_ortografia}
 
@@ -1833,7 +1909,7 @@ un sexto personaje, el canal no lo dibuja.
 
 COMO TROCEAR EN ESCENAS. El original viene troceado a su manera (con sus propias "ESCENA 1",
 "ESCENA 2"...); no hace falta copiar ese troceo exacto, hace falta respetar el ORDEN de los
-intercambios y meter MAXIMO DOS citas por escena. Si un bloque del original trae tres o mas frases
+intercambios y meter MAXIMO {max_citas} citas por escena. Si un bloque del original trae mas frases
 seguidas, partelo en dos escenas; si dos bloques son un intercambio muy corto, pueden ir juntos en
 una. La narracion de cada escena es solo el pegamento entre citas - una acotacion del original
 convertida en una frase corta, o vacia si no hace falta -, nunca un resumen de lo que ya dicen las
@@ -1974,6 +2050,8 @@ def translate_literal_script(raw_text: str, variant: str = "short", parar=None) 
         bloque_ortografia=_ORTOGRAFIA.get(NARRATION_LANG, _ORTOGRAFIA['es']),
         bloque_ilustracion=_VARIANT_CONFIG["short"]["bloque_ilustracion"],
         _guion_marker=_GUION_MARKER,
+        max_palabras=bocadillos.MAX_PALABRAS,
+        max_citas=bocadillos.MAX_CITAS,
         guion_original=raw_text.strip(),
     )
     instrucciones, _, guion = prompt.partition(_GUION_MARKER)
@@ -2090,7 +2168,8 @@ _VARIANT_CONFIG["short"]["bloque_ilustracion"] = (
     _VARIANT_CONFIG["short"]["bloque_ilustracion"]
     .replace("{bloque_posturas}", _lista_de_posturas())
     .replace("{bloque_cosas}", _lista_de_cosas())
-    .replace("{bloque_objetos}", _lista_de_objetos()))
+    .replace("{bloque_objetos}", _lista_de_objetos())
+    .replace("{bloque_decorados}", _lista_de_decorados()))
 
 
 def _el_guion_conoce_todas_las_posturas() -> None:
@@ -2127,6 +2206,14 @@ def _el_guion_conoce_todas_las_posturas() -> None:
             f"{sin_ofrecer_obj}.")
     if "{bloque_objetos}" in texto:
         raise RuntimeError("La lista de objetos no se ha metido en el bloque de la escena.")
+    if "{bloque_decorados}" in texto:
+        raise RuntimeError("La lista de decorados no se ha metido en el bloque de la escena.")
+    sin_ofrecer_sitio = [s for s in monigotes.DECORADOS_VALIDOS
+                         if not re.search(rf"\b{re.escape(s)}\b", texto)]
+    if sin_ofrecer_sitio:
+        raise RuntimeError(
+            f"Estos decorados se saben dibujar pero el guion no sabe que existen: "
+            f"{sin_ofrecer_sitio}.")
 
 
 def _los_campos_estan_donde_se_leen() -> None:
