@@ -119,13 +119,15 @@ _POSES = {
     "en_mesa":  {"cuello": (0,-.52), "cadera": (0,-.26),
                  "brazos": [[(0,-.48),(-.16,-.40),(-.26,-.34)], [(0,-.48),(.16,-.40),(.26,-.34)]],
                  "piernas":[[(0,-.26),(.16,-.26),(.20,-.02)],   [(0,-.26),(.09,-.25),(.11,-.02)]]},
-    "corriendo":{"cuello": (0,-.68), "cadera": (0,-.37),
-                 "brazos": [[(0,-.64),(-.20,-.56),(-.30,-.44)], [(0,-.64),(.18,-.58),(.30,-.64)]],
+    # Inclinado hacia delante: el cuello va por delante de la cadera. Tieso
+    # parecia que trotaba en una cinta, no que corria.
+    "corriendo":{"cuello": (.07,-.68), "cadera": (0,-.37),
+                 "brazos": [[(.065,-.64),(-.14,-.56),(-.24,-.44)], [(.065,-.64),(.25,-.58),(.37,-.64)]],
                  "piernas":[[(0,-.37),(-.22,-.22),(-.30,-.04)], [(0,-.37),(.16,-.18),(.30,-.10)]]},
     # La otra mitad de la zancada. Correr no es una postura, son dos que se
     # alternan: sin esto el monigote iba en plancha, deslizando.
-    "corriendo_b":{"cuello": (0,-.68), "cadera": (0,-.37),
-                 "brazos": [[(0,-.64),(.20,-.56),(.30,-.44)], [(0,-.64),(-.18,-.58),(-.30,-.64)]],
+    "corriendo_b":{"cuello": (.07,-.68), "cadera": (0,-.37),
+                 "brazos": [[(.065,-.64),(.27,-.56),(.37,-.44)], [(.065,-.64),(-.11,-.58),(-.23,-.64)]],
                  "piernas":[[(0,-.37),(.20,-.20),(.30,-.06)],  [(0,-.37),(-.18,-.20),(-.28,-.08)]]},
 
     # ---- VERBOS -----------------------------------------------------------
@@ -265,7 +267,7 @@ POSES_EXPLICADAS = {
     "en_mesa":       "sentado a una mesa, los brazos encima",
     "brazos_arriba": "los brazos en alto: celebra, se indigna, se rinde",
     "señala":        "señala algo con el brazo estirado",
-    "corriendo":     "CORRE - huye, persigue, llega con la noticia",
+    "corriendo":     "CORRE Y SE DESPLAZA por el plano, hacia donde mira. SALE corriendo: pose de_pie y pose_fin corriendo (arranca y se va). LLEGA corriendo: pose corriendo y pose_fin la de cuando llega (entra y se para). Corriendo a secas: cruza el plano",
     "remando":       "REMA - cruza un rio, va en galera, escapa en barca",
     "cavando":       "CAVA o PICA - mina, entierra, desentierra, abre una zanja",
     "peleando":      "PELEA con la espada en alto - batalla, duelo, motin",
@@ -483,6 +485,18 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
     g = max(5, int(alto*0.022*(0.6 + 0.4*rasgos.get("ancho", 1.0))))
     rc = alto*0.145*rasgos.get("cabeza", 1.0)
     cuello = P(p["cuello"]); cadera = P(p["cadera"])
+    if pose == "corriendo":
+        # Lineas de velocidad y polvo DETRAS, del lado contrario al que mira:
+        # es lo que en un dibujo dice "va rapido" aunque el plano este quieto.
+        detras, gris = -s, (150, 146, 140)
+        for alto_y, largo in ((0.58, .30), (0.44, .40), (0.30, .26)):
+            y0 = suelo - alto*alto_y
+            x0 = x + detras*alto*0.20
+            _linea(d, [(x0, y0), (x0 + detras*alto*largo, y0)], max(2, int(g*0.7)), rnd,
+                   color=gris, temblor=0.8)
+        for dx, dy, r in ((0.26, 0.02, 0.040), (0.38, 0.05, 0.030)):
+            _circulo(d, (x + detras*alto*dx, suelo - alto*dy), alto*r, max(2, g//2), rnd,
+                     relleno=(222, 214, 200), color=gris)
     dibuja_objeto = OBJETOS.get(objeto)
     if dibuja_objeto:
         dibuja_objeto(d, x, cuello, cadera, alto, g, rnd, tinta=tinta)
@@ -702,6 +716,53 @@ _RESPIRACION = 0.012      # de la altura de la figura
 _SEGUNDOS_RESPIRACION = 2.3
 
 
+# CORRER ES IRSE DE SITIO. Ella: "cuando dices sale corriendo deberia parecer
+# que el monigote corre". Y no lo parecia: movia las piernas en el mismo
+# punto, tieso y a paso de trote, como en una cinta de gimnasio. Correr son
+# cuatro cosas a la vez - avanzar, ir inclinado, zancada rapida con saltito y
+# polvo detras -, y faltaban tres. La inclinacion esta en la pose; el resto,
+# aqui y en figura().
+#
+# Y segun lo que pida el guion no es la misma carrera:
+#   "de_pie" -> "corriendo"   SALE corriendo: arranca en su sitio y se va
+#   "corriendo" -> "de_pie"   LLEGA corriendo: entra y se para en su sitio
+#   "corriendo" a secas       cruza el plano corriendo
+# Hacia donde mira ("espejo") es hacia donde corre.
+_SEGUNDOS_POR_ZANCADA = 0.42
+_VELOCIDAD_CARRERA = 0.13     # pantallas por segundo
+_ARRANQUE = 0.30              # lo que tarda en arrancar o en frenar, del plano
+
+
+def _carrera(f: dict, reloj: float, segundos: float, desfase: float) -> dict | None:
+    pose, fin = f.get("pose"), f.get("pose_fin")
+    if pose != "corriendo" and fin != "corriendo":
+        return None
+    p = min(1.0, max(0.0, reloj/max(segundos, 1e-6)))
+    recorrido = min(_VELOCIDAD_CARRERA*segundos, 0.55)*(-1 if f.get("espejo") else 1)
+    x0 = f["x"]
+    zancada = (reloj/_SEGUNDOS_POR_ZANCADA + desfase) % 1.0
+    zancada = 1 - abs(1 - 2*zancada)
+    corre = {"pose": "corriendo",
+             "pose_mezclada": _mezcla(_POSES["corriendo"], _POSES["corriendo_b"], zancada),
+             # Un saltito en cada paso: negativo es hacia arriba.
+             "_bocanada": -3.0*abs(math.sin(math.pi*reloj/_SEGUNDOS_POR_ZANCADA))}
+    if pose != "corriendo":
+        if p < _ARRANQUE:
+            return {"x": x0, "pose_mezclada": _mezcla(_POSES.get(pose, _POSES["de_pie"]),
+                                                     _POSES["corriendo"], p/_ARRANQUE)}
+        x = x0 + (p - _ARRANQUE)/(1 - _ARRANQUE)*recorrido
+    elif fin and fin not in ("corriendo", "corriendo_b"):
+        if p >= 1 - _ARRANQUE:
+            return {"x": x0, "pose": fin,
+                    "pose_mezclada": _mezcla(_POSES["corriendo"], _POSES[fin],
+                                             (p - (1 - _ARRANQUE))/_ARRANQUE)}
+        x = x0 - (1 - p/(1 - _ARRANQUE))*recorrido
+    else:
+        x = x0 + (p - 0.5)*recorrido
+    corre["x"] = min(0.97, max(0.03, x))
+    return corre
+
+
 def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=None):
     """Los fotogramas de una escena donde cada figura va de 'pose' a 'pose_fin'.
 
@@ -738,6 +799,9 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
                 g["pose_mezclada"] = _mezcla(_POSES[f.get("pose","de_pie")], _POSES[fin], tk)
             # RESPIRACION: sube y baja un poco aunque no cambie de pose.
             g["_bocanada"] = math.sin(2*math.pi*(reloj/_SEGUNDOS_RESPIRACION + desfase))
+            carrera = _carrera(f, reloj, segundos, desfase)
+            if carrera:
+                g.update(carrera)
             paso["figuras"].append(g)
         rnd = random.Random(1000 + n//3)
         img = _decorado(paso, semilla=1000 + n//3)
