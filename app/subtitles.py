@@ -196,7 +196,27 @@ def _norm(word: str) -> str:
     return re.sub(r"[^a-z0-9]", "", folded)
 
 
-def _align_to_script(words: list, script_text: str) -> list:
+_COMILLAS = "«»“”\""
+
+
+def _dentro_de_cita(script_words: list[str]) -> list[bool]:
+    """Para cada palabra del guion, si va dentro de «». Una frase entre
+    comillas en un Short de monigotes ya sale en su bocadillo."""
+    dentro, abierta = [], False
+    for w in script_words:
+        if w[:1] in "«“":
+            abierta = True
+        dentro.append(abierta)
+        if abierta and ("»" in w or "”" in w):
+            abierta = False
+    return dentro
+
+
+def _sin_comillas(word: str) -> str:
+    return word.strip(_COMILLAS) if word.strip(_COMILLAS) else word
+
+
+def _align_to_script(words: list, script_text: str, sin_citas: bool = False) -> list:
     """Replaces what the transcription heard with what the script actually
     says, keeping the transcription's timings.
 
@@ -212,6 +232,12 @@ def _align_to_script(words: list, script_text: str) -> list:
     script_words = script_text.split()
     if not words or not script_words:
         return words
+    # Las «» no se leen, y en pantalla quedaban pegadas a la palabra:
+    # "«¡¡¡GUERRA!!!»" en el subtitulo. Y con sin_citas, lo que va entre «»
+    # no se subtitula: ya esta en el bocadillo, y salia dos veces a la vez.
+    dentro = _dentro_de_cita(script_words)
+    script_words = [_sin_comillas(w) for w in script_words]
+    fuera = (lambda j: not dentro[j]) if sin_citas else (lambda j: True)
 
     heard = [_norm(getattr(w, "word", "")) for w in words]
     written = [_norm(w) for w in script_words]
@@ -230,7 +256,8 @@ def _align_to_script(words: list, script_text: str) -> list:
             # Even here the script's spelling is preferable: the transcription
             # drops accents and capitals that the script has.
             for offset in range(i2 - i1):
-                aligned.append(_Word(words[i1 + offset].start, words[i1 + offset].end, script_words[j1 + offset]))
+                if fuera(j1 + offset):
+                    aligned.append(_Word(words[i1 + offset].start, words[i1 + offset].end, script_words[j1 + offset]))
             continue
         if tag == "delete" or j1 == j2:
             # Heard something the script does not have: drop it.
@@ -247,7 +274,8 @@ def _align_to_script(words: list, script_text: str) -> list:
         count = j2 - j1
         step = (end - start) / count if count else 0.0
         for k in range(count):
-            aligned.append(_Word(start + k * step, start + (k + 1) * step, script_words[j1 + k]))
+            if fuera(j1 + k):
+                aligned.append(_Word(start + k * step, start + (k + 1) * step, script_words[j1 + k]))
         replaced += count
 
     if replaced:
@@ -262,6 +290,7 @@ def generate_subtitles(
     height: int,
     language: str = NARRATION_LANG,
     script_text: str = "",
+    sin_citas: bool = False,
 ) -> tuple[Path, Path]:
     """Transcribes the narration once and writes two subtitle files from it:
     the full-sentence SRT uploaded to YouTube as a caption track (better for
@@ -280,13 +309,16 @@ def generate_subtitles(
     # What the script says beats what the transcription heard; only the
     # timings come from the transcription.
     if script_text and words:
-        words = _align_to_script(words, script_text)
+        words = _align_to_script(words, script_text, sin_citas=sin_citas)
 
     _write_srt(sentence_entries, srt_path)
     # Falls back to the sentence timings if the model returned no per-word
     # timestamps, so the burned track is never empty.
     if words:
         burn_chunks = _chunk_words(words, _BURN_MAX_WORDS, _BURN_MAX_SECONDS)
+    elif sin_citas and script_text:
+        # Todo eran citas: todo esta ya en los bocadillos.
+        burn_chunks = []
     else:
         # No per-word timings came back. Each sentence becomes a block of one
         # "word" spanning its whole span, which renders as plain static text -

@@ -335,6 +335,12 @@ def _generate_variant(
         # trusting the transcription for it burns misheard names into the
         # picture.
         script_text=" ".join(scene.get("narration", "") for scene in script["scenes"]),
+        # En un Short de monigotes lo que dicen los personajes ya sale en su
+        # bocadillo; subtitulado tambien, cada frase salia dos veces a la vez.
+        # Abajo solo queda el narrador, como en los videos de monigotes que
+        # funcionan. En el largo no hay bocadillos: ahi se subtitula todo.
+        sin_citas=(_VARIANT_ASPECT_RATIO[variant] == "9:16"
+                   and any(isinstance(e.get("escena"), dict) for e in script["scenes"])),
     )
 
     # The thumbnail is grabbed from the video, so take it before burning in

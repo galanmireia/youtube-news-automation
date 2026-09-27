@@ -609,6 +609,31 @@ def _pinta_papeles(d, spec, w, h, pies):
                font=fuente, fill=(240, 235, 220))
 
 
+# DONDE Y CUANDO, ARRIBA. Del video de monigotes de un compañero, lo mejor
+# que tenia y lo mas facil de copiar: un cartelito rojo arriba - "Olivenza",
+# "20 de mayo de 1801" - que situa al espectador sin gastar ni una palabra de
+# voz. Va del 3% al 6% del alto: los globos empiezan hacia el 7%, y los
+# subtitulos y las etiquetas estan abajo.
+_LARGO_ROTULO = 40
+
+
+def _pinta_rotulo(d, spec, w, h):
+    texto = spec.get("rotulo")
+    if not texto:
+        return
+    px = int(h*0.021)
+    fuente = _fuente_cartel(px)
+    while d.textlength(texto, font=fuente) > w*0.84 and px > h*0.013:
+        px -= 2
+        fuente = _fuente_cartel(px)
+    ancho = d.textlength(texto, font=fuente) + h*0.034
+    alto = fuente.size*1.65
+    x0, y0 = (w - ancho)/2, h*0.030
+    d.rounded_rectangle([x0, y0, x0 + ancho, y0 + alto], radius=int(alto*0.28),
+                        fill=ROJO_ESPAÑA)
+    d.text((w/2, y0 + alto/2), texto, font=fuente, fill=(255, 250, 240), anchor="mm")
+
+
 def escena(spec, w=1080, h=1920, semilla=0):
     rnd = random.Random(semilla)
     img = Image.new("RGB", (w, h), (255,255,255)); d = ImageDraw.Draw(img)
@@ -649,6 +674,7 @@ def escena(spec, w=1080, h=1920, semilla=0):
                objeto=f.get("objeto"))
     _pinta_cosas(delante=True)
     _pinta_papeles(d, spec, w, h, suelo)
+    _pinta_rotulo(d, spec, w, h)
     return img
 
 
@@ -1029,6 +1055,7 @@ def limpia(spec: dict) -> dict:
                                               or 0.74))),
             "figuras": figuras, "tachados": tachados,
             "habla_x": habla_x, "hablan": hablan,
+            "rotulo": (" ".join(str(spec.get("rotulo") or "").split())[:_LARGO_ROTULO] or None),
             "arbol": spec.get("arbol") if isinstance(spec.get("arbol"), (int, float)) else None})
 
 
@@ -2636,6 +2663,7 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
         _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g)
     _pinta_cosas(delante=True)
     _pinta_papeles(d, spec, w, h, pies)
+    _pinta_rotulo(d, spec, w, h)
 
     if spec.get("cartel"):
         _cartel(d, w*0.50, h*0.09, w*0.44, str(spec["cartel"])[:40], rnd, g)

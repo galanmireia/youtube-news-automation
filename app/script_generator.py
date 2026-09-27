@@ -874,6 +874,10 @@ catedral, sale un fondo liso.
                 quien toca y que suene su voz. Si la escena no tiene ninguna frase entre «»,
                 "hablan": [].
     "habla_x":  0.0 a 1.0, donde esta el que dice la PRIMERA frase (el mismo que "hablan"[0])
+    "rotulo":   DONDE Y CUANDO, en un cartelito rojo arriba: "Olivenza", "Mayo de 1801",
+                "Madrid, 1766", "Tratado de Badajoz · 1801". Solo en la PRIMERA escena de cada
+                sitio nuevo o de cada salto de tiempo, y "" en las demas. Corto (40 letras como
+                mucho), y solo lugares y fechas que sean de verdad - si no lo sabes, "".
     "cosas":    hasta 4 objetos, y ES DE LO QUE MAS SE NOTA. Si la narracion habla de un perro,
                 dibuja un perro; si habla de un barco ardiendo, pon el barco Y el fuego. Los
                 monigotes dicen QUIEN, el fondo dice DONDE y esto dice DE QUE. Cada uno:
@@ -1966,6 +1970,11 @@ Cada acotacion es la pista para el DIBUJO: "sale corriendo" es la postura "corri
 la cabeza" es "señala", "mira a camara, confundido" es el gesto, "con una cesta" es el objeto,
 "frente a las murallas" es el decorado. Lo que el original describe tiene que VERSE.
 
+Y EL "rotulo" SALE DEL ORIGINAL: el sitio del titulo de la escena ("ESCENA 3 — LAS MURALLAS DE
+OLIVENZA" es "Olivenza"; "ANTE ELVAS" es "Elvas") y la fecha de sus lineas de Narrador ("Mayo
+de 1801"). Juntos si coinciden: "Olivenza · Mayo de 1801". Un titulo que no es un sitio ("EL
+REMATE", "LA PAZ", "SE LIA") no da rotulo. Nunca un lugar ni una fecha que el original no diga.
+
 Y EL MISMO LADO EN TODA LA CONVERSACION. Si un bloque largo del original (el mismo intercambio
 entre las mismas dos personas) se reparte en varias escenas seguidas, el que hablaba a la
 izquierda sigue a la izquierda y el de la derecha sigue a la derecha en TODAS esas escenas - nunca
@@ -2009,7 +2018,7 @@ caracter de tu respuesta tiene que ser una llave de apertura.
       "narration": "EN {language}, el pegamento de esta escena Y las citas literales entre «»",
       "escena": "objeto con la escena de monigotes, OBLIGATORIO - ver LA ESCENA arriba",
       "sonido": "uno de [gentio, campana, fuego, pasos, espada, tormenta, mar, monedas, puerta, caballo] o cadena vacia",
-      "on_screen_highlight": "EN {language}, 3-6 palabras que enganchen si esta escena tiene un momento fuerte, o cadena vacia"
+      "on_screen_highlight": "" - siempre vacio: en monigotes lo que se lee va en los globos y en el rotulo
     }}
   ]
 }}

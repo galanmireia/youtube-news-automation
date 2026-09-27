@@ -514,7 +514,13 @@ def fetch_clips_for_scenes(
                 fijo = Path(clip).with_suffix(".jpg")
                 if retratos is not None and fijo.exists():
                     retratos.append(fijo)
-                clip_entries.append([(clip, {"caption": highlight} if highlight else None)])
+                # Sin el cartel oscuro de "dato clave" encima. En la Guerra de
+                # las Naranjas tapaba los bocadillos ("GODOY DECLARA LA
+                # GUERRA" encima de «¿CÓMO QUE Y?») y adelantaba el chiste
+                # antes de que lo dijera nadie ("LOS MENOS POSIBLES"). En un
+                # video de monigotes lo que hay que leer va en los globos, y
+                # el donde y el cuando en el rotulo rojo de arriba.
+                clip_entries.append([(clip, None)])
                 continue
             logger.warning("Escena %s: los monigotes no han salido; sigo con lo de antes.", i)
 
