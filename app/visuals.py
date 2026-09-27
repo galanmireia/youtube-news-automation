@@ -426,6 +426,9 @@ def fetch_clips_for_scenes(
     # Far enough back that the first eligible scene can use one.
     last_card_index = -_MIN_SCENES_BETWEEN_CARDS - 1
     ai_images_left = _cupo_de_ilustraciones(len(scenes), aspect_ratio)
+    # El papel de cada personaje ("LA REINA") se escribe la PRIMERA vez que
+    # sale, no en cada escena: a la tercera ya se sabe quien es.
+    papeles_ya_dichos: set[str] = set()
     logger.info("Cupo de ilustraciones por IA para este video: %s (%s escenas).",
                 ai_images_left, len(scenes))
     for i, scene in enumerate(scenes):
@@ -495,7 +498,15 @@ def fetch_clips_for_scenes(
             elif es_vertical:
                 logger.info("Escena %s: nadie habla, sin bocadillo.", i)
             ancho_v, alto_v = _TARGET_DIMENSIONS.get(aspect_ratio, (1080, 1920))
-            clip = monigotes.render(scene["escena"], out_dir / f"mono_{i:02d}.mp4",
+            dibujo = dict(scene["escena"])
+            dibujo["figuras"] = [dict(f) for f in (dibujo.get("figuras") or []) if isinstance(f, dict)]
+            for f in dibujo["figuras"]:
+                papel = (f.get("papel") or "").strip().lower()
+                if papel in papeles_ya_dichos:
+                    f["papel"] = None
+                elif papel:
+                    papeles_ya_dichos.add(papel)
+            clip = monigotes.render(dibujo, out_dir / f"mono_{i:02d}.mp4",
                                     ancho_v, alto_v, duration, bocadillos=globos or None)
             if clip is not None:
                 # A la miniatura va el FOTOGRAMA, no el mp4: thumbnail.py abre

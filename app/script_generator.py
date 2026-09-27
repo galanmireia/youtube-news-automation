@@ -892,6 +892,12 @@ catedral, sale un fondo liso.
 
     "figuras":  de 1 a 3 personajes, cada uno:
        "quien":    [cronista, mandamas, abuela, chaval, soldado] - OBLIGATORIO, del reparto fijo
+       "papel":    QUIEN ES EN ESTA HISTORIA, como le conoce el espectador: "Godoy", "La reina",
+                   "Un soldado portugues", "Esquilache". Sale escrito debajo de sus pies la
+                   primera vez que aparece: el monigote es siempre el mismo, y sin esto nadie
+                   sabe que hoy Remedios hace de reina. El MISMO texto en todas sus escenas,
+                   corto (24 letras como mucho), y NUNCA el nombre del reparto - nada de
+                   "Remedios" ni "Perico". Vacio si no hace de nadie en concreto.
        "x":        0.12 a 0.88, de izquierda a derecha
        "pose":     LO QUE ESTA HACIENDO. La lista entera esta abajo, en LAS POSTURAS
        "pose_fin": otra postura de la misma lista: el personaje SE MUEVE de una a otra
@@ -925,7 +931,8 @@ COSAS QUE HACEN QUE ESTO FUNCIONE:
   perder. NUNCA pongas la misma en las dos: "señala" -> "señala" es una foto.
 - EL GORRO ES QUIEN ES. No hay caras parecidas ni hace falta: la corona es el rey, la mitra el
   obispo, el morrion el conquistador, el tricornio el del XVIII. Si en una escena hay un rey y
-  un subdito, ponle corona a uno y al otro nada, y ya se entiende.
+  un subdito, ponle corona a uno y al otro nada, y ya se entiende. Un rey o una reina: corona
+  Y "objeto": "manto", el manto rojo con armiño, que es lo que hace que parezca de verdad.
 - MISMO PERSONAJE, MISMO GORRO Y MISMO SITIO EN TODAS LAS ESCENAS donde salga. Es lo que hace
   que las cinco escenas sean UNA historia y no cinco dibujos sueltos.
 - LA CARA CUENTA EL CHISTE. "grito" y "enfadado" valen mas que cualquier adjetivo de la
@@ -937,10 +944,10 @@ COSAS QUE HACEN QUE ESTO FUNCIONE:
 
 EJEMPLO, para la narracion «¡NADA DE CAPAS LARGAS!» «¿Y la suya, majestad?»:
   {"interior": "salon_trono", "habla_x": 0.30, "hablan": ["mandamas", "chaval"],
-   "figuras": [{"quien":"mandamas","x":0.30,"pose":"señala","pose_fin":"brazos_arriba",
-                "gesto":"enfadado","gorro":"corona","objeto":"capa"},
-               {"quien":"chaval","x":0.70,"pose":"de_pie","pose_fin":"señala",
-                "gesto":"sorpresa","espejo":true}]}
+   "figuras": [{"quien":"mandamas","papel":"Carlos III","x":0.30,"pose":"señala",
+                "pose_fin":"brazos_arriba","gesto":"enfadado","gorro":"corona","objeto":"capa"},
+               {"quien":"chaval","papel":"Un madrileño","x":0.70,"pose":"de_pie",
+                "pose_fin":"señala","gesto":"sorpresa","espejo":true}]}
   (el rey prohibe las capas largas LLEVANDO EL PUESTA - es el chiste, no un descuido)
 
 Y EL SONIDO ("sonido"): uno de [gentio, campana, fuego, pasos, espada, tormenta, mar, monedas,
@@ -1904,6 +1911,13 @@ tienes quien es cada uno) y mantener esa asignacion durante TODO el guion: si "e
 "soldado" en la escena 2, sigue siendo "soldado" en la escena 6. Si el original mete un papel de
 mas y ya usaste los cinco, reutiliza el que menos protagonismo tenga en esa parte - nunca inventes
 un sexto personaje, el canal no lo dibuja.
+
+Y QUIEN ES EN LA HISTORIA VA EN "papel". Lo que el original llama a cada uno - "la reina",
+"Godoy", "el mensajero", "un portugues" - va en el "papel" de esa figura, en TODAS sus escenas,
+porque sale escrito debajo de sus pies y es como el espectador sabe quien es. Si el original ya
+usa el nombre del reparto ("Remedios, con corona, en el trono"), el papel es el que hace en la
+historia ("La reina"), nunca "Remedios": el reparto es quien lo interpreta, no quien es. Y a un
+rey o una reina, corona y "objeto": "manto".
 
 {bloque_ilustracion}
 

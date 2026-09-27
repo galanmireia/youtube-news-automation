@@ -459,6 +459,25 @@ def _armadura(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=ARMADURA_CO
     _linea(d, [(x, cuello[1]), (x, cadera[1])], max(2, g // 2), rnd, color=tinta)
 
 
+def _manto(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(128, 24, 48)):
+    """El manto real: la capa de rey o de reina, roja, larga y con el borde
+    de armiño - blanco con motas negras -, que es lo que la distingue de la
+    capa de cualquiera. Con la corona, ya no hace falta decir quien reina."""
+    arriba, abajo = alto*0.08, cadera[1] + alto*0.40
+    pts = [(x - arriba, cuello[1] - alto*0.02), (x + arriba, cuello[1] - alto*0.02),
+           (x + alto*0.34, abajo), (x - alto*0.34, abajo)]
+    d.polygon(pts, fill=color)
+    _linea(d, pts + [pts[0]], g, rnd, color=tinta, temblor=1.4)
+    borde = alto*0.035
+    d.rectangle([x - alto*0.34, abajo - borde, x + alto*0.34, abajo + borde], fill=(250, 248, 240))
+    for k in range(7):
+        px = x - alto*0.30 + alto*0.10*k
+        d.ellipse([px - borde*0.3, abajo - borde*0.3, px + borde*0.3, abajo + borde*0.3],
+                  fill=tinta)
+    d.ellipse([x - arriba*1.4, cuello[1] - alto*0.04, x + arriba*1.4, cuello[1] + alto*0.03],
+              fill=(250, 248, 240))
+
+
 # LO QUE UN PERSONAJE PUEDE LLEVAR PUESTO, por nombre - igual que COSAS y
 # _BANDERAS. Ella lo dijo clarisimo viendo la capa: "esto va a ser mas cosas
 # en diferentes videos, tienes que estar preparado". Asi que anadir la
@@ -469,6 +488,7 @@ def _armadura(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=ARMADURA_CO
 OBJETOS = {
     "capa": _capa,
     "armadura": _armadura,
+    "manto": _manto,
 }
 OBJETOS_VALIDOS = tuple(OBJETOS)
 
@@ -539,6 +559,42 @@ def arbol(d, x, suelo, alto, rnd):
         pts.append(pts[0])
         d.line(pts, fill=(58,138,58), width=max(3,int(g*0.55)), joint="curve")
 
+# QUIEN ES CADA UNO EN ESTA HISTORIA. Ella: "los personajes tienen que ser los
+# que estamos usando, pero tiene que parecer la reina". El reparto es fijo -
+# Remedios es Remedios en todos los videos -, pero hoy hace de reina, y eso
+# el espectador no lo sabe si nadie se lo dice. Asi que el papel sale escrito
+# debajo de sus pies la primera vez que aparece, como el rotulo con el nombre
+# en un documental. Debajo y no encima: arriba van los globos, y entre el
+# 70% y el 80% de la pantalla van los subtitulos.
+_LARGO_PAPEL = 24
+
+
+def _pinta_papeles(d, spec, w, h, pies):
+    figuras = sorted((f for f in spec.get("figuras", []) if f.get("papel")),
+                     key=lambda f: f["x"])
+    if not figuras:
+        return
+    fuente = _fuente_cartel(int(h*0.021))
+    ocupado = []                              # (x0, x1, fila) de lo ya puesto
+    for f in figuras:
+        texto = f["papel"].upper()
+        ancho = d.textlength(texto, font=fuente) + h*0.028
+        alto = fuente.size*1.55
+        x0 = min(max(w*f["x"] - ancho/2, w*0.02), w*0.98 - ancho)
+        fila = 0
+        while any(fi == fila and not (x0 + ancho < a or x0 > b) for a, b, fi in ocupado):
+            fila += 1                         # dos juntos: el segundo, una fila mas abajo
+        ocupado.append((x0, x0 + ancho, fila))
+        # Nunca por encima del 81,5%: los subtitulos incrustados acaban en el
+        # 80% (MarginV = alto/5 en subtitles.py) y suben desde ahi.
+        y0 = max(pies + h*0.016, h*0.815) + fila*(alto + h*0.008)
+        d.rounded_rectangle([x0, y0, x0 + ancho, y0 + alto], radius=int(alto*0.25),
+                            fill=(26, 23, 21))
+        d.rectangle([x0, y0 + alto*0.18, x0 + h*0.005, y0 + alto*0.82], fill=(196, 30, 42))
+        d.text((x0 + h*0.016, y0 + (alto - fuente.size)/2 - fuente.size*0.08), texto,
+               font=fuente, fill=(240, 235, 220))
+
+
 def escena(spec, w=1080, h=1920, semilla=0):
     rnd = random.Random(semilla)
     img = Image.new("RGB", (w, h), (255,255,255)); d = ImageDraw.Draw(img)
@@ -578,6 +634,7 @@ def escena(spec, w=1080, h=1920, semilla=0):
                tinta=tinta, relleno=relleno, rasgos=REPARTO.get(f.get("quien") or ""),
                objeto=f.get("objeto"))
     _pinta_cosas(delante=True)
+    _pinta_papeles(d, spec, w, h, suelo)
     return img
 
 
@@ -728,6 +785,7 @@ _SEGUNDOS_RESPIRACION = 2.3
 #   "corriendo" -> "de_pie"   LLEGA corriendo: entra y se para en su sitio
 #   "corriendo" a secas       cruza el plano corriendo
 # Hacia donde mira ("espejo") es hacia donde corre.
+_SEGUNDOS_PAPEL = 2.2
 _SEGUNDOS_POR_ZANCADA = 0.42
 _VELOCIDAD_CARRERA = 0.13     # pantallas por segundo
 _ARRANQUE = 0.30              # lo que tarda en arrancar o en frenar, del plano
@@ -802,6 +860,10 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
             carrera = _carrera(f, reloj, segundos, desfase)
             if carrera:
                 g.update(carrera)
+            # La etiqueta con el papel, solo un par de segundos: lo justo para
+            # leer "LA REINA" y que no se quede tapando el suelo todo el plano.
+            if reloj > _SEGUNDOS_PAPEL:
+                g["papel"] = None
             paso["figuras"].append(g)
         rnd = random.Random(1000 + n//3)
         img = _decorado(paso, semilla=1000 + n//3)
@@ -883,6 +945,7 @@ def limpia(spec: dict) -> dict:
             "gorro": gorro if gorro in GORROS_VALIDOS else None,
             "objeto": _una_de(f.get("objeto"), OBJETOS_VALIDOS, "") or None,
             "espejo": bool(f.get("espejo")),
+            "papel": (str(f.get("papel") or "").strip()[:_LARGO_PAPEL] or None),
         })
     if not figuras:
         # Una escena sin nadie es un fondo de color. Antes que eso, alguien.
@@ -2347,9 +2410,12 @@ _DECORADOS = {
     # Los cuatro de la guerra de las naranjas, pensados para servir despues:
     # el ministro que declara la guerra, la ciudad sitiada, el campamento
     # donde se espera y el campo donde pasa lo que sea que pase.
+    # Sin mesa de primer termino: pegada al borde de abajo quedaba lejos de
+    # las manos, y el que firmaba el tratado firmaba en el aire. Sin ella, el
+    # que firma lleva su propia mesa delante (ver tiene_mesa en montar()).
     "despacho":     {"pared": "encalada", "piso": "tablas",
                      "fondo": [("ventana_arco", .80, .34, .15)],
-                     "muebles": [], "delante": [("mesa", .50, .32, .90)],
+                     "muebles": [], "delante": [],
                      "cuelga": [("mapa", .38, .40, .15)], "velas": [(.12, -.30)]},
     "murallas":     {"pared": "cielo", "piso": "tierra",
                      "fondo": [("muralla", .5, 1.0, 1.0)],
@@ -2545,13 +2611,17 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
         for f in spec.get("figuras", []):
             if f.get("pose") in _POSES_DE_MESA or f.get("pose_fin") in _POSES_DE_MESA:
                 alto_f = h*f.get("alto", 0.30)
+                # A la altura de las MANOS, que en estas posturas estan a un
+                # tercio de la figura. Estaba al 10% - una mesita a ras de
+                # suelo -, y Godoy firmaba el tratado en el aire.
                 _mesa_con_cosas(d, w*f["x"] + alto_f*0.10, pies + alto_f*0.06,
                                 alto_f*0.78, rnd, max(2, g//2),
-                                papeles=1, jarras=0, alto=alto_f*0.10)
+                                papeles=1, jarras=0, alto=alto_f*0.34)
 
     for que, x, y, tam in receta["delante"]:
         _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g)
     _pinta_cosas(delante=True)
+    _pinta_papeles(d, spec, w, h, pies)
 
     if spec.get("cartel"):
         _cartel(d, w*0.50, h*0.09, w*0.44, str(spec["cartel"])[:40], rnd, g)

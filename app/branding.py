@@ -412,7 +412,9 @@ def generar_careta(out_path: Path, width: int, height: int, duracion: float) -> 
 # Va dibujada fotograma a fotograma y no con drawtext porque lleva a Anselmo
 # asomando por abajo y saludando, igual que en el banner del canal: el
 # personaje es la marca tanto como el nombre.
-DURACION_CARETA_SHORT = 2.4
+# 4 segundos y no 2,4: con 2,4 el titulo se veia entero poco mas de un
+# segundo, y ella lo dijo viendo el #98: "no da tiempo a leer el titulo".
+DURACION_CARETA_SHORT = 4.0
 _FPS_CARETA = 15
 
 
