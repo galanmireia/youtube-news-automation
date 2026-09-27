@@ -11,7 +11,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
                           ContextTypes, MessageHandler, filters)
 
-from . import (ai_images, archivo, demanda, efemerides, fotos_propias, historia, nichos,
+from . import (ai_images, archivo, demanda, fotos_propias, historia, nichos,
                news_source, oficial,
                pipeline,
                real_photos, research, storage, tendencias, topic_source, tts,
@@ -1102,96 +1102,56 @@ async def handle_dossier_command(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def handle_catalogue_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/catalogo - comprueba que los 58 casos existen de verdad.
+    """/catalogo - RETIRADO. Ver el bloque de comentario debajo.
 
-    Los titulos del catalogo se escribieron de memoria, y un titulo mal
-    puesto no falla de forma ruidosa: falla despues, cuando ya se ha pagado
-    el guion, y devuelve un dosier vacio o - peor - el articulo equivocado.
-    "Silk Road" en español es la Ruta de la Seda.
+    Comprobaba una lista de 58 titulos escritos de memoria (el catalogo del
+    nicho de sucesos/catastrofes) contra Wikipedia, porque esa lista podia
+    tener un titulo inventado - "Silk Road" en español es la Ruta de la Seda -
+    y eso no fallaba de forma ruidosa: fallaba despues de pagar el guion.
 
-    Esto pregunta por los cincuenta y ocho de golpe (la API acepta cincuenta
-    titulos por peticion, o sea dos llamadas) y para cada uno que falte
-    propone lo que Wikipedia si tiene con ese nombre. Propone, no corrige:
-    elegir solo el primer resultado es justo como se acaba narrando la ruta
-    comercial del siglo XIV."""
+    Ese catalogo ya no existe. El catalogo del nicho actual es historia.py, y
+    ahi la comprobacion no hace falta pedirla aparte: cada titulo que devuelve
+    ya se comprobo contra Wikipedia EN EL MOMENTO de proponerlo (ver
+    historia.candidatos(), el bucle final que descarta lo que no resuelve).
+    Un /catalogo que comprobara esa lista siempre diria "todos buenos", porque
+    los malos ya se cayeron antes de llegar aqui - séria gastar una llamada
+    para confirmar algo que el propio sistema ya garantiza."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
     await update.message.reply_text(
-        f"Comprobando los {len(topic_source.CATALOGUE)} casos del catalogo...")
-    loop = asyncio.get_running_loop()
-
-    async def trabajo():
-        def comprobar():
-            titulos = list(topic_source.CATALOGUE)
-            estado = research.existen(WIKI_LANG, titulos)
-            faltan = [t for t in titulos if estado.get(t) is False]
-            # Only the ones that are definitely missing get a search; a title
-            # left out of `estado` was never answered for, and guessing a
-            # replacement for it would be inventing a problem.
-            sugerencias = {t: research.buscar(WIKI_LANG, t) for t in faltan}
-            sin_respuesta = [t for t in titulos if t not in estado]
-            return titulos, faltan, sugerencias, sin_respuesta
-
-        try:
-            titulos, faltan, sugerencias, sin_respuesta = await loop.run_in_executor(
-                None, comprobar)
-        except Exception:
-            logger.exception("Error comprobando el catalogo")
-            await context.bot.send_message(
-                chat_id=TELEGRAM_CHAT_ID, text="No he podido comprobar el catalogo. Mira los logs.")
-            return
-
-        buenos = len(titulos) - len(faltan) - len(sin_respuesta)
-        lineas = [f"*Catalogo: {buenos} de {len(titulos)} existen*"]
-        if sin_respuesta:
-            lineas.append(f"({len(sin_respuesta)} sin respuesta de Wikipedia, no comprobados)")
-        if not faltan:
-            lineas.append("\nNinguno mal. El catalogo esta limpio.")
-        else:
-            lineas.append(f"\n{len(faltan)} NO existen:")
-            for t in faltan:
-                opciones = sugerencias.get(t) or []
-                if opciones:
-                    lineas.append(f"  ✗ «{t}»\n      Wikipedia tiene: {' · '.join(opciones)}")
-                else:
-                    lineas.append(f"  ✗ «{t}»\n      Wikipedia no encuentra nada parecido.")
-
-        # Telegram cuts a message at 4096 characters, and a silent cut here
-        # would hide exactly the titles this command exists to show.
-        texto = "\n".join(lineas)
-        for i in range(0, len(texto), 3500):
-            await context.bot.send_message(
-                chat_id=TELEGRAM_CHAT_ID, text=texto[i:i + 3500], parse_mode="Markdown")
-
-    context.application.create_task(trabajo())
+        "/catalogo ya no hace falta. Era para pillar titulos inventados en el catalogo viejo "
+        "(de sucesos/catastrofes); el catalogo de historia de ahora ya comprueba cada titulo "
+        "contra Wikipedia en el momento de proponerlo, asi que no puede colarse uno falso. "
+        "Si quieres ver los temas de hoy, usa /temas."
+    )
 
 
 async def handle_calendar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/calendario [dias] - que aniversarios vienen y cuando publicarlos.
+    """/calendario [dias] - EN PAUSA. Ver el bloque de comentario debajo.
 
-    No gasta cuota ni creditos: es una lista con fechas. Existe porque la
-    ventaja de este canal frente a uno de noticias no es la velocidad, es que
-    puede saber con un año de antelacion lo que la gente va a buscar."""
+    Daba los proximos aniversarios (Chernobil el 26 de abril, el 11-M el 11 de
+    marzo...) del calendario de catastrofes/sucesos, que era el nicho
+    anterior. Ese calendario sigue existiendo en efemerides.py pero ya no es
+    lo que cuenta este canal.
+
+    No hay un equivalente todavia para historia de España: historia.py elige
+    temas por lo que funciona en YouTube ahora mismo y por categorias de
+    Wikipedia, pero NO lleva fechas (ni "un 2 de mayo paso esto"). Construir
+    ese calendario bien significa una lista de verdad de (mes, dia, año,
+    articulo de Wikipedia) de sucesos historicos españoles - y escribirla de
+    memoria es exactamente el error que ya paso una vez con el catalogo viejo
+    ("Silk Road" no existia). No lo he inventado por eso: mejor decir que no
+    esta que dar fechas o articulos que luego no cuadren."""
     if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
         return
-    dias = next((int(a) for a in (context.args or []) if a.isdigit()), efemerides.VENTANA)
-    proximas = efemerides.proximas(dias=dias)
-    if not proximas:
-        await update.message.reply_text(
-            f"No hay ningun aniversario en los proximos {dias} dias.\n"
-            "Prueba con mas margen: /calendario 60")
-        return
-
-    lineas = [f"*Aniversarios en {dias} dias*", ""]
-    for e in proximas:
-        cuando = "HOY o ya pasado" if e["urgente"] else f"publicar el {e['publicar']:%d/%m}"
-        lineas.append(
-            f"  *{e['titulo']}*\n"
-            f"     {e['aniversario']:%d/%m} · {e['cumple']} aniversario · "
-            f"faltan {e['faltan']} dias · {cuando}")
-    lineas += ["", "El calendario propone; la demanda decide. Antes de lanzar:",
-               f"/demanda {proximas[0]['titulo']}"]
-    await update.message.reply_text("\n".join(lineas[:60]), parse_mode="Markdown")
+    await update.message.reply_text(
+        "/calendario esta en pausa: daba aniversarios del canal de catastrofes/sucesos de "
+        "antes, y eso ya no pinta nada aqui. No tengo todavia un calendario de verdad de "
+        "historia de España (fechas + articulo de Wikipedia comprobado) para poner en su "
+        "lugar - lo puedo montar si me dices que sí, pero necesita construirse con cuidado "
+        "para no repetir el fallo de titulos inventados. Mientras tanto, /temas te da ideas "
+        "sin necesidad de fecha."
+    )
 
 
 async def handle_trending_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

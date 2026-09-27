@@ -83,20 +83,30 @@ _EXTRACT_CHARS = 9000
 # lo dijo mejor que yo con el festival de San Sebastian, que esta esta semana
 # y no lo ve nadie.
 #
-# Se comprueba con /catalogo, que mira si cada titulo existe de verdad en
-# Wikipedia. Esta escrito de memoria y hoy ya se demostro que eso falla.
-from .efemerides import por_cercania
+# ESTO YA NO ES EL CALENDARIO DE CATASTROFES.
+#
+# Ese calendario (efemerides.py: Costa Concordia, Caso Julen, el Challenger)
+# era del nicho anterior, "sucesos con aniversario". Este canal es Historia de
+# España contada con monigotes, y el catalogo del nicho nuevo es historia.py -
+# que ya no es una lista escrita de memoria, son las CATEGORIAS de Wikipedia
+# recorridas en vivo, asi que todo lo que devuelve existe seguro. Antes de
+# este cambio, fetch_candidate_topics() (el autopick de /generar sin tema, hoy
+# dormido porque siempre se le pasa un tema a mano) seguia tirando de
+# efemerides sin que nadie lo notara - el mismo fallo que /calendario y
+# /catalogo, solo que este no se veia porque nadie lo lanzaba.
+from . import historia
 
 
 def _catalogo() -> list[str]:
-    return por_cercania()
+    return historia.candidatos(40)
 
 
-class _CatalogoPorFecha(list):
-    """Se comporta como la lista de siempre, pero se reordena cada dia.
+class _CatalogoDinamico(list):
+    """Se comporta como la lista de siempre, pero se recalcula cada vez -
+    tira de YouTube y Wikipedia en vivo, no de una lista fija en memoria.
 
-    Hereda de list para que todo lo que ya la usaba - len(), iterar, /catalogo
-    - siga funcionando sin tocar nada."""
+    Hereda de list para que todo lo que ya la usaba - len(), iterar - siga
+    funcionando sin tocar nada."""
 
     def __iter__(self):
         return iter(_catalogo())
@@ -108,7 +118,7 @@ class _CatalogoPorFecha(list):
         return _catalogo()[i]
 
 
-CATALOGUE = _CatalogoPorFecha()
+CATALOGUE = _CatalogoDinamico()
 
 
 
