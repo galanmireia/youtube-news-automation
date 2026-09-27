@@ -813,8 +813,13 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
         for fila, globo in enumerate(bocadillos if bocadillos is not None
                                      else ([bocadillo] if bocadillo else [])):
             if globo and globo["desde"] <= ahora <= globo["hasta"]:
-                img = _pinta_bocadillo(img, globo["texto"],
-                                       img.size[0]*globo.get("x", 0.5), rnd, fila)
+                # EL GLOBO SIGUE A QUIEN HABLA. Si corre, el rabo va con el:
+                # se mira donde esta en ESTE fotograma, no donde empezo.
+                x = globo.get("x", 0.5)
+                i = globo.get("figura")
+                if isinstance(i, int) and 0 <= i < len(paso["figuras"]):
+                    x = paso["figuras"][i]["x"]
+                img = _pinta_bocadillo(img, globo["texto"], img.size[0]*x, rnd, fila)
         fotogramas.append(img)
     return fotogramas
 
@@ -976,6 +981,10 @@ def hablan_de(spec: dict, figuras: list[dict]) -> list[str] | None:
 def quienes_dicen(escena: dict, cuantas: int) -> list[dict]:
     limpio = limpia(escena)
     figuras = limpio["figuras"]
+    # Su puesto en la escena, para que el globo pueda buscarle en cada
+    # fotograma: el que corre no esta donde empezo.
+    for i, f in enumerate(figuras):
+        f["_i"] = i
     hablan = limpio.get("hablan")
     if hablan and len(hablan) >= cuantas:
         por_nombre = {f["quien"]: f for f in figuras if f.get("quien")}
