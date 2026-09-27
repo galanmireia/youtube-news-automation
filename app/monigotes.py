@@ -439,6 +439,24 @@ def _capa(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=CAPA_COLOR):
     _linea(d, pts + [pts[0]], g, rnd, color=tinta, temblor=1.6)
 
 
+ARMADURA_COLOR = (150, 150, 158)
+
+
+def _armadura(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=ARMADURA_COLOR):
+    """La coraza: a diferencia de la capa, no cuelga suelta por detras, va
+    AJUSTADA al torso - de hombro a cadera y sin volar - para un soldado o
+    caballero medieval (Reconquista, batallas de la Independencia...). Misma
+    firma que _capa, mismo hueco en figura(): las lineas del cuerpo se
+    dibujan encima despues, igual que con la capa, y se siguen viendo.
+    """
+    arriba, abajo = alto * 0.10, alto * 0.14
+    pts = [(x - arriba, cuello[1]), (x + arriba, cuello[1]),
+           (x + abajo, cadera[1]), (x - abajo, cadera[1])]
+    d.polygon(pts, fill=color)
+    _linea(d, pts + [pts[0]], g, rnd, color=tinta, temblor=1.2)
+    _linea(d, [(x, cuello[1]), (x, cadera[1])], max(2, g // 2), rnd, color=tinta)
+
+
 # LO QUE UN PERSONAJE PUEDE LLEVAR PUESTO, por nombre - igual que COSAS y
 # _BANDERAS. Ella lo dijo clarisimo viendo la capa: "esto va a ser mas cosas
 # en diferentes videos, tienes que estar preparado". Asi que anadir la
@@ -448,6 +466,7 @@ def _capa(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=CAPA_COLOR):
 # OBJETOS_VALIDOS y no de una lista copiada a mano.
 OBJETOS = {
     "capa": _capa,
+    "armadura": _armadura,
 }
 OBJETOS_VALIDOS = tuple(OBJETOS)
 
@@ -1360,6 +1379,59 @@ def _dinero(d, x, y, t, rnd, g, tinta=TINTA):
         _circulo(d, c, t*r, g, rnd, relleno=(236, 196, 88), color=tinta)
 
 
+# Nacio de la Guerra de las Naranjas: Godoy corto unas naranjas cerca de
+# Elvas y se las mando a la reina como si fueran el parte de guerra - el
+# objeto ES el chiste, igual que la capa de Esquilache. Misma pila que el
+# dinero, coloreada de naranja, con una hoja arriba para que no se lea como
+# monedas.
+def _naranjas(d, x, y, t, rnd, g, tinta=TINTA):
+    for dx, dy, r in ((-.22, -.06, .20), (.18, -.05, .19), (-.02, -.32, .19)):
+        c = (x+t*dx, y+t*dy)
+        _circulo(d, c, t*r, g, rnd, relleno=(230, 126, 34), color=tinta)
+    hoja = [(x-t*.02, y-t*.51), (x+t*.10, y-t*.58), (x+t*.03, y-t*.46)]
+    d.polygon(hoja, fill=(92, 148, 68))
+
+
+def _pan(d, x, y, t, rnd, g, tinta=TINTA):
+    """Una hogaza. Sale en cualquier motin de hambre o carestia - ya
+    aparecio nombrada de pasada en Esquilache ("solo venia a comprar pan")
+    sin que hubiera nada que dibujar para ello."""
+    cuerpo = [(x - t*.28, y), (x - t*.30, y - t*.16), (x - t*.14, y - t*.26),
+              (x + t*.14, y - t*.26), (x + t*.30, y - t*.16), (x + t*.28, y)]
+    d.polygon(cuerpo, fill=(196, 148, 84))
+    _linea(d, cuerpo + [cuerpo[0]], g, rnd, color=tinta)
+    for dx in (-.10, .02, .14):
+        _linea(d, [(x + t*dx, y - t*.22), (x + t*(dx-.05), y - t*.10)],
+               max(2, g // 2), rnd, color=tinta)
+
+
+def _escudo(d, x, y, t, rnd, g, tinta=TINTA, color=(150, 30, 34)):
+    """Escudo de gota, el de toda batalla medieval - Reconquista, batallas
+    de la Independencia. Sin esto una escena de asedio o combate cuerpo a
+    cuerpo solo tenia la espada."""
+    arriba = y - t*.62
+    pts = [(x - t*.26, arriba), (x + t*.26, arriba), (x + t*.26, y - t*.20),
+           (x, y), (x - t*.26, y - t*.20)]
+    d.polygon(pts, fill=color)
+    _linea(d, pts + [pts[0]], g, rnd, color=tinta)
+    _linea(d, [(x, arriba), (x, y - t*.05)], max(2, g // 2), rnd, color=tinta)
+
+
+# El naranjal donde Godoy las corto. Es el mismo "arbol" de siempre - mismo
+# tronco, misma copa - con naranjas colgando, porque un arbol cualquiera no
+# dice "naranjal" y la escena de cortarlas necesita que se note de que
+# arbol son.
+def _naranjo(d, x, y, t, rnd, g, tinta=TINTA):
+    alto = t * 1.6
+    arbol(d, x, y, alto, rnd)
+    copa_y = y - alto * 0.92
+    r = alto * 0.46
+    for _ in range(5):
+        fx = x + rnd.uniform(-r * .5, r * .5)
+        fy = copa_y + rnd.uniform(-r * .32, r * .36)
+        _circulo(d, (fx, fy), t * .055, g, rnd, relleno=(230, 126, 34), color=tinta)
+
+
 def _libro(d, x, y, t, rnd, g, tinta=TINTA):
     """Salia una pajarita: tenia las paginas al reves. Un libro abierto son
     dos hojas que se hunden en el centro y suben por fuera."""
@@ -1491,7 +1563,8 @@ COSAS = {
     "perro": _perro, "caballo": _caballo, "barco": _barco, "casa": _casa,
     "iglesia": _iglesia, "castillo": _castillo, "espada": _espada,
     "canion": _canion, "fuego": _fuego, "dinero": _dinero, "libro": _libro,
-    "cruz": _cruz, "olla": _olla, "montaña": _montaña,
+    "cruz": _cruz, "olla": _olla, "montaña": _montaña, "naranjas": _naranjas,
+    "naranjo": _naranjo, "pan": _pan, "escudo": _escudo,
     "nube": _nube, "sol": _sol,
     # El arbol ya existia pero con otra firma, y por estar aqui a None se
     # caia en silencio: el prompt lo ofrecia y limpia() lo tiraba.

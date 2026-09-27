@@ -1808,6 +1808,17 @@ Y SIN "DIJO PERICO": aunque el original presente una frase con "el ingles dice:"
 JSON esa cita va sola, sin ningun verbo de habla delante ("dijo", "penso", "grito"...) - el hecho,
 un punto si hace falta, y la cita suelta detras, como una viñeta de comic.
 
+OJO A QUIEN LO DICE, NO A SI TIENE COMILLAS. Ella escribe el guion con «» tanto para lo que dice
+un personaje como para las frases del narrador ("Narrador: «Madrid, 1766. La ciudad tenia un
+problema gravisimo.»") - las comillas del ORIGINAL no dicen nada sobre si algo va a bocadillo, lo
+dice QUIEN LA FIRMA. Esto paso de verdad en el Motin de Esquilache: "la gente llevaba sombreros
+demasiado grandes" era la frase del narrador situando la escena, y salio en el video como si la
+hubiera dicho Anselmo - con su bocadillo y su voz -, una frase de contexto convertida en algo que
+nadie dijo. Asi que la regla es: SOLO va entre «» en el JSON lo que el original atribuye a un
+personaje con nombre o papel (Don Severo, el ingles, el rey...). Todo lo que el original marca
+como "Narrador:", o que no tiene ningun personaje delante, es narracion pura: va en "narration"
+tal cual pero SIN «», y esa escena no lleva bocadillo ni "habla_x" apuntando a nadie por esa frase.
+
 {bloque_ortografia}
 
 EL REPARTO GENERICO SE CONVIERTE EN EL REPARTO FIJO. El original habla de "el español", "el
@@ -1832,6 +1843,13 @@ Cuando el original trae una acotacion de accion ("sale corriendo", "se señala l
 algo de detras de la espalda"), esa es la pista para elegir la POSTURA de la figura -
 "corriendo", "señala"...-: no la escribas dos veces, una en la narracion y otra en la postura,
 dibujala.
+
+Y EL MISMO LADO EN TODA LA CONVERSACION. Si un bloque largo del original (el mismo intercambio
+entre las mismas dos personas) se reparte en varias escenas seguidas, el que hablaba a la
+izquierda sigue a la izquierda y el de la derecha sigue a la derecha en TODAS esas escenas - nunca
+los cambies de sitio a mitad de una conversacion solo porque ahora es una escena nueva. Es lo que
+hace que se sepa quien es quien sin pensarlo: si Don Severo esta en x=0.30 en la primera escena de
+una discusion, sigue en x=0.30 en la segunda, la tercera y la cuarta.
 
 "is_sensitive": false siempre - esto es una escena comica con monigotes, no un caso real de
 sucesos.
@@ -1877,6 +1895,63 @@ caracter de tu respuesta tiene que ser una llave de apertura.
 {_guion_marker}
 {guion_original}
 """
+
+
+# EL BUG DE VERDAD DEL MOTIN DE ESQUILACHE.
+#
+# "Narrador: «Madrid, 1766. La ciudad tenia un problema gravisimo.» ... Zoom
+# al monigote. «La gente llevaba sombreros demasiado grandes.»" - las dos
+# frases entre comillas en SU guion, pero solo la primera lleva "Narrador:"
+# delante; la segunda es la misma voz siguiendo, sin que nadie mas haya
+# tomado la palabra todavia. Salio en el video con bocadillo y con la voz de
+# Anselmo, como si el la hubiera dicho.
+#
+# Por eso esto seria poco si solo mirara la linea que dice "Narrador:": el
+# fallo de verdad estaba en la linea DE DESPUES, la que sigue en la misma voz
+# sin repetir la etiqueta. Asi que se recorre el guion original llevando un
+# estado - "en boca del narrador" se activa en "Narrador:" y solo se apaga
+# cuando aparece la etiqueta de OTRO personaje -, y toda cita entre comillas
+# que caiga dentro de ese tramo es sospechosa. Si aparece tal cual como una
+# cita con bocadillo en el JSON, se rechaza y se reintenta.
+_ETIQUETA_PERSONAJE = re.compile(r'^[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑáéíóúñ .\'-]{1,40}\s*:')
+_ETIQUETA_NARRADOR = re.compile(r'^narrador\s*:?\s*', re.IGNORECASE)
+_CITA_SUELTA = re.compile(r'[«"]([^»"]{6,140})[»"]')
+
+
+def _lineas_de_narrador(raw_text: str) -> list[str]:
+    citas, en_narrador = [], False
+    for linea in raw_text.split("\n"):
+        limpio = linea.strip()
+        if not limpio:
+            continue
+        if _ETIQUETA_NARRADOR.match(limpio):
+            en_narrador = True
+            limpio = _ETIQUETA_NARRADOR.sub("", limpio)
+        elif _ETIQUETA_PERSONAJE.match(limpio):
+            en_narrador = False
+            continue
+        if en_narrador:
+            citas += _CITA_SUELTA.findall(limpio)
+    return citas
+
+
+def _narrador_no_se_cuela_en_citas(raw_text: str, script: dict) -> str | None:
+    lineas_narrador = _lineas_de_narrador(raw_text)
+    if not lineas_narrador:
+        return None
+    citas = [_sin_tildes(c.strip().lower()) for e in script.get("scenes", [])
+             for c in bocadillos.citas_de(e.get("narration", ""))]
+    if not citas:
+        return None
+    for linea in lineas_narrador:
+        clave = _sin_tildes(linea.strip().lower())
+        if len(clave) < 6:
+            continue
+        if any(clave in c or c in clave for c in citas):
+            return (f"la frase del narrador {linea.strip()[:50]!r} del guion original ha "
+                    f"salido como una cita con bocadillo en vez de como narracion - eso no lo "
+                    f"dijo ningun personaje, es texto de contexto")
+    return None
 
 
 def translate_literal_script(raw_text: str, variant: str = "short", parar=None) -> dict:
@@ -1960,7 +2035,8 @@ def translate_literal_script(raw_text: str, variant: str = "short", parar=None) 
 
         nivel = max(_SOLO_LO_ROTO, _TODO - (attempt - 1))
         ultimo = attempt >= _MAX_ATTEMPTS
-        problema = _que_le_pasa_al_guion(script, variant, exigente=nivel)
+        problema = (_narrador_no_se_cuela_en_citas(raw_text, script)
+                    or _que_le_pasa_al_guion(script, variant, exigente=nivel))
         if problema:
             logger.warning("translate_literal_script: guion mal formado (%s). Intento %s.",
                            problema, attempt)
