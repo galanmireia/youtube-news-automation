@@ -216,6 +216,24 @@ _POSES = {
     "dando":    {"cuello": (0,-.70), "cadera": (0,-.38),
                  "brazos": [[(0,-.66),(-.12,-.52),(-.15,-.36)], [(0,-.66),(.21,-.59),(.38,-.55)]],
                  "piernas":[[(0,-.38),(-.09,-.19),(-.11,0)],    [(0,-.38),(.09,-.19),(.11,0)]]},
+
+    # EN LA CAMA: incorporado, la espalda en el cabecero y las piernas
+    # estiradas bajo la colcha. La cama la pone montar(), pegada a quien la
+    # usa, como la mesita del que firma: el guion no tiene que cuadrar la x
+    # de la cama con la del rey. Para Farinelli y Felipe V, que no salia de
+    # ella.
+    "en_cama":  {"cuello": (0,-.66), "cadera": (0,-.34),
+                 "brazos": [[(0,-.62),(-.09,-.50),(-.01,-.40)], [(0,-.62),(.12,-.50),(.22,-.41)]],
+                 "piernas":[[(0,-.34),(.18,-.35),(.36,-.35)],  [(0,-.34),(.18,-.33),(.36,-.33)]]},
+
+    # CANTAR: los brazos abiertos como en la opera, y se mecen solos. Las
+    # notas musicales las pinta figura() al lado de la cabeza.
+    "cantando": {"cuello": (-.02,-.71), "cadera": (0,-.38),
+                 "brazos": [[(0,-.66),(-.20,-.67),(-.34,-.76)], [(0,-.66),(.20,-.67),(.34,-.76)]],
+                 "piernas":[[(0,-.38),(-.09,-.19),(-.11,0)],    [(0,-.38),(.09,-.19),(.11,0)]]},
+    "cantando_b":{"cuello": (.02,-.70), "cadera": (0,-.38),
+                 "brazos": [[(0,-.66),(-.18,-.60),(-.30,-.57)], [(0,-.66),(.18,-.60),(.30,-.57)]],
+                 "piernas":[[(0,-.38),(-.09,-.19),(-.11,0)],    [(0,-.38),(.09,-.19),(.11,0)]]},
 }
 
 # Lo que se mueve SOLO: la otra mitad de cada ciclo. El guion no tiene que
@@ -227,6 +245,7 @@ _CICLOS = {
     "peleando":  "peleando_b",
     "empujando": "empujando_b",
     "firmando":  "firmando_b",
+    "cantando":  "cantando_b",
 }
 
 
@@ -278,6 +297,8 @@ POSES_EXPLICADAS = {
     "mirando":       "OTEA a lo lejos con la mano de visera - vigia, descubre algo",
     "rezando":       "REZA con las manos juntas",
     "dando":         "ENTREGA algo, tiende la mano al otro",
+    "en_cama":       "EN LA CAMA, incorporado: la cama se dibuja sola alrededor y ocupa sitio hacia donde mira, asi que ponlo a un lado (x 0.25-0.32) y a los demas al otro (x 0.72 o mas). Para quien no se levanta, esta enfermo, lo despiertan",
+    "cantando":      "CANTA con los brazos abiertos, y le salen notas musicales",
 }
 
 
@@ -493,6 +514,22 @@ OBJETOS = {
 OBJETOS_VALIDOS = tuple(OBJETOS)
 
 
+def _nota(d, x, y, tam, g, rnd, doble=False):
+    """Una nota musical (o dos unidas): cabeza negra inclinada, palito y
+    banderin."""
+    cabezas = [(x, y)] + ([(x + tam*0.9, y - tam*0.25)] if doble else [])
+    for cx, cy in cabezas:
+        d.ellipse([cx - tam*0.34, cy - tam*0.24, cx + tam*0.34, cy + tam*0.24], fill=TINTA)
+        _linea(d, [(cx + tam*0.30, cy), (cx + tam*0.30, cy - tam*1.25)], g, rnd, temblor=0.6)
+    if doble:
+        (ax, ay), (bx, by) = cabezas
+        d.line([(ax + tam*0.30, ay - tam*1.25), (bx + tam*0.30, by - tam*1.25)],
+               fill=TINTA, width=int(g*1.8))
+    else:
+        _linea(d, [(x + tam*0.30, y - tam*1.25), (x + tam*0.62, y - tam*0.90)], g, rnd,
+               temblor=0.6)
+
+
 def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, espejo=False,
            pose_mezclada=None, tinta=TINTA, relleno=(255, 255, 255), rasgos=None, objeto=None):
     p = pose_mezclada or _POSES[pose]
@@ -517,6 +554,16 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
         for dx, dy, r in ((0.26, 0.02, 0.040), (0.38, 0.05, 0.030)):
             _circulo(d, (x + detras*alto*dx, suelo - alto*dy), alto*r, max(2, g//2), rnd,
                      relleno=(222, 214, 200), color=gris)
+    if pose == "cantando":
+        # Las notas suben y bajan con los brazos: la fase sale de por donde va
+        # la mano en el ciclo cantando/cantando_b.
+        mano = p["brazos"][1][2][1]
+        fase = min(1.0, max(0.0, (mano + 0.76) / 0.19))
+        for k, (dx, dy, tam) in enumerate(((0.22, 0.98, 0.075), (0.36, 1.06, 0.060),
+                                            (-0.24, 1.02, 0.065))):
+            sube = alto*0.05*(fase if k % 2 == 0 else 1 - fase)
+            _nota(d, x + s*alto*dx, suelo - alto*dy - sube, alto*tam, max(2, int(g*0.8)), rnd,
+                  doble=(k == 1))
     dibuja_objeto = OBJETOS.get(objeto)
     if dibuja_objeto:
         dibuja_objeto(d, x, cuello, cadera, alto, g, rnd, tinta=tinta)
@@ -634,6 +681,65 @@ def _pinta_rotulo(d, spec, w, h):
     d.text((w/2, y0 + alto/2), texto, font=fuente, fill=(255, 250, 240), anchor="mm")
 
 
+# LA CAMA VA CON QUIEN ESTA EN ELLA. Como la mesita del que firma: si la
+# postura es "en_cama" (al empezar o al acabar la escena), la cama se pinta en
+# la x de esa figura, en dos pasadas - cabecero, somier y almohada DETRAS del
+# monigote, y la colcha DELANTE, tapandole las piernas. Asi parece que esta
+# dentro, en cualquier decorado y sin que el guion cuadre nada.
+_COLCHA = (156, 32, 44)
+_EMBOZO = (246, 240, 226)
+
+
+def _camas(d, spec, h, w, pies_de, rnd, g, parte):
+    for f in spec.get("figuras", []):
+        if "en_cama" not in (f.get("pose"), f.get("pose_fin")):
+            continue
+        A = h*f.get("alto", 0.30)
+        x, pies = w*f["x"], pies_de(f)
+        s = -1 if f.get("espejo") else 1
+        cab, pie = x - s*A*0.13, x + s*A*0.46
+        izq, der = min(cab, pie), max(cab, pie)
+        if parte == "detras":
+            # Somier y patas.
+            d.rectangle([izq, pies - A*0.30, der, pies - A*0.15], fill=MADERA)
+            _linea(d, [(izq, pies - A*0.30), (der, pies - A*0.30), (der, pies - A*0.15),
+                       (izq, pies - A*0.15), (izq, pies - A*0.30)], g, rnd, temblor=1.2)
+            for px in (izq + A*0.03, der - A*0.03):
+                _linea(d, [(px, pies - A*0.15), (px, pies)], int(g*1.6), rnd,
+                       color=MADERA_OSCURA, temblor=0.8)
+            # Cabecero alto, de rey, con remate dorado; y los pies, mas bajos.
+            for bx, alto_b in ((cab, 0.80), (pie, 0.42)):
+                ancho_b = A*0.075
+                d.rounded_rectangle([bx - ancho_b, pies - A*alto_b, bx + ancho_b, pies],
+                                    radius=int(ancho_b*0.9), fill=MADERA_OSCURA,
+                                    outline=TINTA, width=max(2, g//2))
+                d.ellipse([bx - ancho_b*0.8, pies - A*(alto_b + 0.06), bx + ancho_b*0.8,
+                           pies - A*(alto_b - 0.02)], fill=ORO_ESPAÑA, outline=TINTA,
+                          width=max(2, g//2))
+            # La almohada, entre el cabecero y la espalda.
+            ax = x - s*A*0.04
+            d.rounded_rectangle([ax - A*0.10, pies - A*0.50, ax + A*0.10, pies - A*0.33],
+                                radius=int(A*0.06), fill=_EMBOZO, outline=TINTA,
+                                width=max(2, g//2))
+        else:
+            # La colcha: de la cintura a los pies, con el bulto de los pies al
+            # final y el embozo blanco doblado arriba.
+            x0, x1 = x - s*A*0.07, pie - s*A*0.05
+            arriba = pies - A*0.37
+            pts = [(x0, arriba), (x + s*A*0.30, arriba + A*0.01),
+                   (x1 - s*A*0.06, arriba - A*0.04), (x1, arriba + A*0.02),
+                   (x1, pies - A*0.12), (x0, pies - A*0.12)]
+            d.polygon(pts, fill=_COLCHA)
+            _linea(d, pts + [pts[0]], g, rnd, temblor=1.2)
+            d.rectangle([min(x0, x0 + s*A*0.16), arriba + A*0.005,
+                         max(x0, x0 + s*A*0.16), pies - A*0.125], fill=_EMBOZO)
+            _linea(d, [(x0 + s*A*0.16, arriba + A*0.01), (x0 + s*A*0.16, pies - A*0.12)],
+                   max(2, g//2), rnd, temblor=0.8)
+            # Una franja dorada, que es la cama de un rey.
+            d.line([(x0 + s*A*0.18, pies - A*0.19), (x1, pies - A*0.19)],
+                   fill=ORO_ESPAÑA, width=max(3, g))
+
+
 def escena(spec, w=1080, h=1920, semilla=0):
     rnd = random.Random(semilla)
     img = Image.new("RGB", (w, h), (255,255,255)); d = ImageDraw.Draw(img)
@@ -664,6 +770,8 @@ def escena(spec, w=1080, h=1920, semilla=0):
     tinta = TINTA_CLARA if oscuro else TINTA
     relleno = (38, 44, 66) if oscuro else (255, 255, 255)
     _pinta_cosas(delante=False)
+    g_cama = max(4, int(w*0.006))
+    _camas(d, spec, h, w, lambda f: suelo, rnd, g_cama, "detras")
     for f in spec.get("figuras", []):
         alto_f = h*f.get("alto", 0.30)
         figura(d, w*f["x"], suelo + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
@@ -672,6 +780,7 @@ def escena(spec, w=1080, h=1920, semilla=0):
                f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
                tinta=tinta, relleno=relleno, rasgos=REPARTO.get(f.get("quien") or ""),
                objeto=f.get("objeto"))
+    _camas(d, spec, h, w, lambda f: suelo, rnd, g_cama, "delante")
     _pinta_cosas(delante=True)
     _pinta_papeles(d, spec, w, h, suelo)
     _pinta_rotulo(d, spec, w, h)
@@ -2467,6 +2576,13 @@ _DECORADOS = {
     "naranjal":     {"pared": "cielo", "piso": "hierba",
                      "fondo": [("naranjos", .5, 1.0, 1.0)],
                      "muebles": [], "delante": [], "cuelga": [], "velas": []},
+    # El dormitorio de un rey, para Felipe V y Farinelli y para cualquier
+    # historia de alguien que no sale de la cama. La cama no esta aqui: la
+    # pone la postura "en_cama", pegada a quien la usa.
+    "dormitorio":   {"pared": "encalada", "piso": "tablas",
+                     "fondo": [("ventana_arco", .70, .36, .15), ("estandarte", .34, .24, .11),
+                               ("cortinas", .5, 1.0, 1.0)],
+                     "muebles": [], "delante": [], "cuelga": [], "velas": [(.52, -.30)]},
 }
 DECORADOS_VALIDOS = tuple(_DECORADOS)
 
@@ -2489,10 +2605,42 @@ DECORADOS_EXPLICADOS = {
     "murallas":    "una ciudad sitiada vista desde fuera: muralla, torres, puerta",
     "campamento":  "el campamento de un ejercito: tiendas de lona, banderin",
     "naranjal":    "campo de naranjos con las naranjas colgando",
+    "dormitorio":  "el dormitorio de un rey: cortinones rojos, tapiz, ventana de noche. La cama la pone la postura en_cama",
 }
 _sin_explicar = set(DECORADOS_VALIDOS) ^ set(DECORADOS_EXPLICADOS)
 if _sin_explicar:
     raise RuntimeError(f"Decorados sin explicar o explicados sin receta: {sorted(_sin_explicar)}")
+
+
+def _cortinas(d, w, h, suelo, rnd, g):
+    """Cortinones de palacio: la galeria de arriba con sus ondas y un cortinon
+    recogido a cada lado. Es lo que hace que el dormitorio sea el de un rey y
+    no el despacho con otra luz."""
+    rojo, oscuro = (150, 28, 40), (112, 20, 30)
+    arriba, galeria = h*0.10, h*0.155
+    for lado in (-1, 1):
+        borde = 0 if lado < 0 else w
+        dentro = borde - lado*w*0.15
+        recogido = suelo - (suelo - arriba)*0.42
+        pts = [(borde, arriba), (dentro, arriba), (borde - lado*w*0.07, recogido),
+               (borde - lado*w*0.10, suelo), (borde, suelo)]
+        d.polygon(pts, fill=rojo)
+        _linea(d, pts[1:4], g, rnd, temblor=1.2)
+        for k in (0.35, 0.65):                  # los pliegues
+            _linea(d, [(borde - lado*w*0.15*k, arriba + h*0.06),
+                       (borde - lado*w*0.07*k, recogido),
+                       (borde - lado*w*0.10*k, suelo)], max(2, g//2), rnd,
+                   color=oscuro, temblor=1)
+        d.ellipse([borde - lado*w*0.075 - w*0.02, recogido - h*0.012,
+                   borde - lado*w*0.075 + w*0.02, recogido + h*0.012], fill=ORO_ESPAÑA,
+                  outline=TINTA, width=max(2, g//2))
+    d.rectangle([0, arriba - h*0.02, w, galeria], fill=rojo)
+    ondas = 7
+    for k in range(ondas):
+        x0, x1 = w*k/ondas, w*(k + 1)/ondas
+        d.chord([x0, galeria - h*0.03, x1, galeria + h*0.03], 0, 180, fill=rojo)
+    d.line([(0, galeria - h*0.035), (w, galeria - h*0.035)], fill=ORO_ESPAÑA, width=max(3, g))
+    _linea(d, [(0, arriba - h*0.02), (w, arriba - h*0.02)], g, rnd, temblor=1)
 
 
 def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
@@ -2529,6 +2677,7 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "muralla":        _muralla(d, w, h, suelo, rnd, g)
     elif que == "tiendas":        _tiendas(d, w, h, suelo, rnd, g)
     elif que == "naranjos":       _naranjos(d, w, h, suelo, rnd, g)
+    elif que == "cortinas":       _cortinas(d, w, h, suelo, rnd, g)
     elif que == "puntales":
         for k in range(3):
             px = w*(0.16 + 0.34*k)
@@ -2633,12 +2782,15 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
                    rnd, max(4, int(w*0.006)))
 
     _pinta_cosas(delante=False)
+    _camas(d, spec, h, w, lambda f: pies, rnd, max(4, int(w*0.006)), "detras")
     for f in spec.get("figuras", []):
         alto_f = h*f.get("alto", 0.30)
         figura(d, w*f["x"], pies + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
                alto_f, rnd, f.get("pose", "de_pie"), f.get("gesto", "neutro"),
                f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
                rasgos=REPARTO.get(f.get("quien") or ""), objeto=f.get("objeto"))
+
+    _camas(d, spec, h, w, lambda f: pies, rnd, max(4, int(w*0.006)), "delante")
 
     # QUIEN FIRMA, FIRMA SOBRE ALGO. "en_mesa" y "firmando" son posturas de
     # estar sentado a una mesa: los brazos se apoyan en un tablero que en la
