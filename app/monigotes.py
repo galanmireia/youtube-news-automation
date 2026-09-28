@@ -234,6 +234,40 @@ _POSES = {
     "cantando_b":{"cuello": (.02,-.70), "cadera": (0,-.38),
                  "brazos": [[(0,-.66),(-.18,-.60),(-.30,-.57)], [(0,-.66),(.18,-.60),(.30,-.57)]],
                  "piernas":[[(0,-.38),(-.09,-.19),(-.11,0)],    [(0,-.38),(.09,-.19),(.11,0)]]},
+
+    # ANDAR: como correr pero sin prisa - erguido, paso corto, brazos que
+    # acompañan. "El mayordomo entra", "se acerca", "se va": en casi todos
+    # los guiones alguien entra o sale, y hasta ahora solo se podia correr.
+    "andando":  {"cuello": (.02,-.70), "cadera": (0,-.38),
+                 "brazos": [[(.01,-.66),(-.08,-.52),(-.12,-.38)], [(.01,-.66),(.09,-.52),(.14,-.40)]],
+                 "piernas":[[(0,-.38),(-.10,-.19),(-.15,0)],    [(0,-.38),(.09,-.20),(.15,-.02)]]},
+    "andando_b":{"cuello": (.02,-.70), "cadera": (0,-.38),
+                 "brazos": [[(.01,-.66),(.09,-.52),(.14,-.40)], [(.01,-.66),(-.08,-.52),(-.12,-.38)]],
+                 "piernas":[[(0,-.38),(.09,-.20),(.15,-.02)],  [(0,-.38),(-.10,-.19),(-.15,0)]]},
+
+    # DE RODILLAS: una rodilla en el suelo y las manos hacia arriba. Ante el
+    # rey, suplicando, pidiendo la mano, rindiendose: sale en media historia
+    # de España.
+    "de_rodillas":{"cuello": (.02,-.55), "cadera": (0,-.25),
+                 "brazos": [[(.02,-.51),(.13,-.43),(.21,-.50)], [(.02,-.51),(.11,-.40),(.19,-.46)]],
+                 "piernas":[[(0,-.25),(.15,-.25),(.15,0)],     [(0,-.25),(-.05,0),(-.21,0)]]},
+
+    # BAILAR: un brazo arriba, la cadera a un lado y un pie levantado; y al
+    # reves. Fiestas, verbenas, el que celebra.
+    "bailando": {"cuello": (-.04,-.70), "cadera": (.02,-.38),
+                 "brazos": [[(-.03,-.66),(-.17,-.80),(-.10,-.96)], [(-.03,-.66),(.20,-.62),(.31,-.71)]],
+                 "piernas":[[(.02,-.38),(-.08,-.19),(-.10,0)],  [(.02,-.38),(.15,-.23),(.09,-.07)]]},
+    "bailando_b":{"cuello": (.04,-.70), "cadera": (-.02,-.38),
+                 "brazos": [[(.03,-.66),(-.20,-.62),(-.31,-.71)], [(.03,-.66),(.17,-.80),(.10,-.96)]],
+                 "piernas":[[(-.02,-.38),(-.15,-.23),(-.09,-.07)], [(-.02,-.38),(.08,-.19),(.10,0)]]},
+
+    # APLAUDIR: las manos se separan y se juntan delante del pecho.
+    "aplaudiendo":{"cuello": (0,-.70), "cadera": (0,-.38),
+                 "brazos": [[(0,-.66),(-.14,-.56),(-.17,-.63)], [(0,-.66),(.14,-.56),(.17,-.63)]],
+                 "piernas":[[(0,-.38),(-.09,-.19),(-.11,0)],    [(0,-.38),(.09,-.19),(.11,0)]]},
+    "aplaudiendo_b":{"cuello": (0,-.70), "cadera": (0,-.38),
+                 "brazos": [[(0,-.66),(-.10,-.56),(-.015,-.61)], [(0,-.66),(.10,-.56),(.015,-.61)]],
+                 "piernas":[[(0,-.38),(-.09,-.19),(-.11,0)],    [(0,-.38),(.09,-.19),(.11,0)]]},
 }
 
 # Lo que se mueve SOLO: la otra mitad de cada ciclo. El guion no tiene que
@@ -246,6 +280,9 @@ _CICLOS = {
     "empujando": "empujando_b",
     "firmando":  "firmando_b",
     "cantando":  "cantando_b",
+    "andando":   "andando_b",
+    "bailando":  "bailando_b",
+    "aplaudiendo": "aplaudiendo_b",
 }
 
 
@@ -302,6 +339,10 @@ POSES_EXPLICADAS = {
     "dando":         "ENTREGA algo, tiende la mano al otro",
     "en_cama":       "EN LA CAMA, incorporado: la cama se dibuja sola alrededor y ocupa sitio hacia donde mira, asi que ponlo a un lado (x 0.25-0.32) y a los demas al otro (x 0.72 o mas). Para quien no se levanta, esta enfermo, lo despiertan",
     "cantando":      "CANTA con los brazos abiertos, y le salen notas musicales",
+    "andando":       "ANDA y se desplaza hacia donde mira. ENTRA andando: pose andando y pose_fin la de cuando llega. SALE andando: pose de_pie y pose_fin andando. Andando a secas: cruza el plano",
+    "de_rodillas":   "DE RODILLAS: ante el rey, suplicando, pidiendo la mano, rindiendose",
+    "bailando":      "BAILA - fiesta, verbena, celebracion",
+    "aplaudiendo":   "APLAUDE - la corte, el publico, los que celebran",
 }
 
 
@@ -393,7 +434,7 @@ def _cara(d, c, r, g, rnd, gesto, tinta=TINTA):
 # Los que ENVUELVEN la cabeza se pintan ANTES que ella, o tapan la cara. Es
 # el mismo asunto que la mesa: lo que rodea va detras, lo que se apoya encima
 # va delante. La capucha de monje tapaba la cara entera.
-GORROS_DETRAS = ("monje",)
+GORROS_DETRAS = ("monje", "peineta")
 
 
 def _gorro(d, cab, rc, g, rnd, cual):
@@ -445,6 +486,47 @@ def _gorro(d, cab, rc, g, rnd, cual):
     elif cual == "marinero":        # gorro de pico
         _linea(d, [(x-rc*1.05, arriba+rc*.05), (x, arriba-rc*.75),
                    (x+rc*1.05, arriba+rc*.05)], g, rnd, color=azul)
+    elif cual == "peluca":          # la empolvada del XVIII: Borbones, ministros, corte
+        blanco = (246, 244, 236)
+        d.chord([x-rc*1.05, y-rc*1.08, x+rc*1.05, y+rc*0.30], 180, 360, fill=blanco,
+                outline=TINTA, width=max(2, g//2))
+        for lado in (-1, 1):
+            for k in range(2):
+                cx, cy, r = x + lado*rc*1.02, y - rc*0.18 + k*rc*0.46, rc*0.27
+                d.ellipse([cx-r, cy-r, cx+r, cy+r], fill=blanco, outline=TINTA, width=max(2, g//2))
+    elif cual == "turbante":        # Al-Andalus, el sultan, el embajador
+        # Grande y abombado, con las vueltas de tela y la joya delante: pequeño
+        # parecia una gorra de marinero.
+        tela = (242, 238, 226)
+        d.ellipse([x-rc*1.30, arriba-rc*1.30, x+rc*1.30, arriba+rc*0.45],
+                  fill=tela, outline=TINTA, width=g)
+        for k in range(3):
+            y0 = arriba - rc*1.10 + rc*0.42*k
+            d.arc([x-rc*1.25, y0, x+rc*1.25, y0 + rc*0.9], 200, 340,
+                  fill=(170, 160, 140), width=max(2, g//2))
+        d.ellipse([x-rc*0.22, arriba-rc*0.62, x+rc*0.22, arriba-rc*0.18], fill=ROJO,
+                  outline=TINTA, width=max(2, g//2))
+        _linea(d, [(x, arriba-rc*0.62), (x+rc*0.25, arriba-rc*1.45)], max(2, g//2), rnd,
+               color=(40, 110, 90), temblor=0.6)
+    elif cual == "chistera":        # el XIX: politicos, banqueros, Isabel II
+        negro = (34, 32, 34)
+        d.rectangle([x-rc*0.62, arriba-rc*1.30, x+rc*0.62, arriba], fill=negro)
+        d.rectangle([x-rc*0.62, arriba-rc*0.36, x+rc*0.62, arriba-rc*0.16], fill=(150, 28, 40))
+        d.ellipse([x-rc*1.10, arriba-rc*0.14, x+rc*1.10, arriba+rc*0.14], fill=negro)
+    elif cual == "peineta":         # peineta y mantilla: la dama española
+        # La mantilla se pinta DETRAS de la cara (ver GORROS_DETRAS), cayendo
+        # por los lados hasta los hombros; la peineta asoma por encima.
+        mantilla = (36, 30, 34)
+        d.polygon([(x - rc*1.25, y + rc*1.75), (x - rc*1.30, y - rc*0.3), (x - rc*0.9, y - rc*1.05),
+                   (x, y - rc*1.25), (x + rc*0.9, y - rc*1.05), (x + rc*1.30, y - rc*0.3),
+                   (x + rc*1.25, y + rc*1.75)], fill=mantilla)
+        carey = (150, 88, 40)
+        d.pieslice([x - rc*0.95, arriba - rc*1.25, x + rc*0.95, arriba + rc*0.55], 180, 360,
+                   fill=carey, outline=TINTA, width=max(2, g//2))
+        for k in range(5):
+            a = math.pi + (k + 0.5)*math.pi/5
+            d.line([(x, arriba - rc*0.1), (x + math.cos(a)*rc*0.85, arriba - rc*0.35 + math.sin(a)*rc*0.80)],
+                   fill=(110, 60, 26), width=max(2, g//2))
 
 
 def _capa(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=CAPA_COLOR):
@@ -509,12 +591,58 @@ def _manto(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(128, 24, 48))
 # es escribir una funcion con esta misma firma y meterla aqui, una linea.
 # Nada mas se toca: ni figura(), ni limpia(), ni el prompt, que la lee de
 # OBJETOS_VALIDOS y no de una lista copiada a mano.
+def _gorguera(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(250, 248, 240)):
+    """La gorguera: el cuello de encaje blanco en rueda de los Austrias, el
+    de los cuadros de Felipe II y del Siglo de Oro. Con ella el personaje ya
+    es del XVI o del XVII sin decir nada."""
+    cx, cy, rx, ry = cuello[0], cuello[1] + alto*0.012, alto*0.15, alto*0.052
+    d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=color, outline=tinta, width=max(2, g//2))
+    for k in range(10):
+        a = k/10*2*math.pi
+        d.arc([cx + math.cos(a)*rx*0.7 - rx*0.32, cy + math.sin(a)*ry*0.7 - ry*0.5,
+               cx + math.cos(a)*rx*0.7 + rx*0.32, cy + math.sin(a)*ry*0.7 + ry*0.5],
+              0, 360, fill=(190, 186, 176), width=max(1, g//3))
+
+
+def _banda(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(40, 80, 170)):
+    """La banda cruzada al pecho con su medalla: general, rey del XIX,
+    presidente. Lo que distingue al que manda cuando ya no hay corona."""
+    ancho = alto*0.035
+    a = (x - alto*0.10, cuello[1] + alto*0.02)
+    b = (x + alto*0.10, cadera[1] + alto*0.01)
+    d.polygon([(a[0] - ancho, a[1]), (a[0] + ancho, a[1] - ancho*0.6),
+               (b[0] + ancho, b[1]), (b[0] - ancho, b[1] + ancho*0.6)], fill=color, outline=tinta)
+    m = (x + alto*0.02, (cuello[1] + cadera[1])/2)
+    r = alto*0.028
+    d.ellipse([m[0] - r, m[1] - r, m[0] + r, m[1] + r], fill=ORO_ESPAÑA, outline=tinta,
+              width=max(2, g//2))
+
+
+def _habito(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(122, 92, 62)):
+    """El habito de fraile hasta los pies, con su cordon: frailes, monjes,
+    inquisidores. Con "gorro":"monje" es la capucha y el habito entero."""
+    abajo = cadera[1] + alto*0.36
+    pts = [(x - alto*0.07, cuello[1]), (x + alto*0.07, cuello[1]),
+           (x + alto*0.20, abajo), (x - alto*0.20, abajo)]
+    d.polygon(pts, fill=color)
+    _linea(d, pts + [pts[0]], g, rnd, color=tinta, temblor=1.4)
+    d.line([(x - alto*0.10, cadera[1] - alto*0.02), (x + alto*0.10, cadera[1] - alto*0.02)],
+           fill=(236, 226, 200), width=max(3, g))
+    d.line([(x + alto*0.04, cadera[1] - alto*0.02), (x + alto*0.06, cadera[1] + alto*0.14)],
+           fill=(236, 226, 200), width=max(2, g//2))
+
+
 OBJETOS = {
     "capa": _capa,
     "armadura": _armadura,
     "manto": _manto,
+    "gorguera": _gorguera,
+    "banda": _banda,
+    "habito": _habito,
 }
 OBJETOS_VALIDOS = tuple(OBJETOS)
+# Las que van por encima de todo, cabeza incluida.
+OBJETOS_ENCIMA = ("gorguera",)
 
 
 def _nota(d, x, y, tam, g, rnd, doble=False):
@@ -568,7 +696,7 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
             _nota(d, x + s*alto*dx, suelo - alto*dy - sube, alto*tam, max(2, int(g*0.8)), rnd,
                   doble=(k == 1))
     dibuja_objeto = OBJETOS.get(objeto)
-    if dibuja_objeto:
+    if dibuja_objeto and objeto not in OBJETOS_ENCIMA:
         dibuja_objeto(d, x, cuello, cadera, alto, g, rnd, tinta=tinta)
     _linea(d, [cuello, cadera], g, rnd, color=tinta)
     for m in p["brazos"] + p["piernas"]:
@@ -589,6 +717,10 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
         _parche(d, cab, rc, g, rnd, tinta=tinta)
     if gorro and gorro not in GORROS_DETRAS:
         _gorro(d, cab, rc, g, rnd, gorro)
+    # La gorguera, la ULTIMA: la cabeza descansa sobre ella. Pintada antes que
+    # la cabeza, la cara la tapaba entera y no se veia.
+    if dibuja_objeto and objeto in OBJETOS_ENCIMA:
+        dibuja_objeto(d, x, cuello, cadera, alto, g, rnd, tinta=tinta)
     return cab
 
 def tachado(d, caja, rnd, g):
@@ -943,28 +1075,39 @@ _VELOCIDAD_CARRERA = 0.13     # pantallas por segundo
 _ARRANQUE = 0.30              # lo que tarda en arrancar o en frenar, del plano
 
 
+# Andar es lo mismo que correr - entrar, salir, cruzar -, mas despacio, con
+# el paso mas largo y sin saltito ni polvo.
+_DESPLAZAMIENTOS = {
+    # pose: (la otra mitad del paso, pantallas por segundo, segundos por paso, saltito)
+    "corriendo": ("corriendo_b", _VELOCIDAD_CARRERA, _SEGUNDOS_POR_ZANCADA, 3.0),
+    "andando":   ("andando_b", 0.07, 0.62, 0.6),
+}
+
+
 def _carrera(f: dict, reloj: float, segundos: float, desfase: float) -> dict | None:
     pose, fin = f.get("pose"), f.get("pose_fin")
-    if pose != "corriendo" and fin != "corriendo":
+    modo = pose if pose in _DESPLAZAMIENTOS else (fin if fin in _DESPLAZAMIENTOS else None)
+    if modo is None:
         return None
+    mitad, velocidad, paso, saltito = _DESPLAZAMIENTOS[modo]
     p = min(1.0, max(0.0, reloj/max(segundos, 1e-6)))
-    recorrido = min(_VELOCIDAD_CARRERA*segundos, 0.55)*(-1 if f.get("espejo") else 1)
+    recorrido = min(velocidad*segundos, 0.55)*(-1 if f.get("espejo") else 1)
     x0 = f["x"]
-    zancada = (reloj/_SEGUNDOS_POR_ZANCADA + desfase) % 1.0
+    zancada = (reloj/paso + desfase) % 1.0
     zancada = 1 - abs(1 - 2*zancada)
-    corre = {"pose": "corriendo",
-             "pose_mezclada": _mezcla(_POSES["corriendo"], _POSES["corriendo_b"], zancada),
+    corre = {"pose": modo,
+             "pose_mezclada": _mezcla(_POSES[modo], _POSES[mitad], zancada),
              # Un saltito en cada paso: negativo es hacia arriba.
-             "_bocanada": -3.0*abs(math.sin(math.pi*reloj/_SEGUNDOS_POR_ZANCADA))}
-    if pose != "corriendo":
+             "_bocanada": -saltito*abs(math.sin(math.pi*reloj/paso))}
+    if pose != modo:
         if p < _ARRANQUE:
             return {"x": x0, "pose_mezclada": _mezcla(_POSES.get(pose, _POSES["de_pie"]),
-                                                     _POSES["corriendo"], p/_ARRANQUE)}
+                                                     _POSES[modo], p/_ARRANQUE)}
         x = x0 + (p - _ARRANQUE)/(1 - _ARRANQUE)*recorrido
-    elif fin and fin not in ("corriendo", "corriendo_b"):
+    elif fin and fin not in (modo, mitad):
         if p >= 1 - _ARRANQUE:
             return {"x": x0, "pose": fin,
-                    "pose_mezclada": _mezcla(_POSES["corriendo"], _POSES[fin],
+                    "pose_mezclada": _mezcla(_POSES[modo], _POSES[fin],
                                              (p - (1 - _ARRANQUE))/_ARRANQUE)}
         x = x0 - (1 - p/(1 - _ARRANQUE))*recorrido
     else:
@@ -988,6 +1131,9 @@ EFECTOS_EXPLICADOS = {
     "zzz":      "DUERME o se muere de aburrimiento: le salen Zzz",
     "lagrimas": "LLORA a chorros",
     "mareo":    "MAREADO: estrellitas dando vueltas alrededor de la cabeza",
+    "idea":     "SE LE OCURRE ALGO: se le enciende una bombilla encima. 'Se le ilumina la cara', 'ya se', el plan",
+    "confuso":  "NO ENTIENDE NADA: le salen interrogaciones. 'Mira a camara confundido', 'se queda pensando'",
+    "enamorado":"ENAMORADO: le suben corazones. Bodas, reyes que se casan, el que se derrite",
 }
 EFECTOS_VALIDOS = tuple(EFECTOS_EXPLICADOS)
 # Que sonido lleva cada efecto, y cuanto dura. Lo usa visuals para apuntar el
@@ -1008,6 +1154,11 @@ def momento_del_efecto(efecto, segundos, globos=None) -> float:
         return max(0.3, min(segundos*0.6, tope))
     if efecto == "sorpresa":
         return 0.12
+    if efecto == "idea":
+        # La bombilla, a mitad de la primera frase: primero se ve apagada y
+        # luego se enciende, que es lo que la hace una idea y no una lampara.
+        fin = min((float(g["hasta"]) for g in (globos or []) if g), default=None)
+        return max(0.4, min(fin*0.5 if fin else segundos*0.3, segundos*0.5))
     return 0.0
 
 
@@ -1134,6 +1285,37 @@ def _adornos_de_efecto(d, f, x, y, alto, rnd):
             d.text((hx + s*rc*(1.0 + 1.6*fase), hy - rc*(1.0 + 2.2*fase)), "Z", font=fuente,
                    anchor="mm", fill=(40, 70, 140), stroke_width=max(2, g),
                    stroke_fill=(255, 255, 255))
+    elif e == "idea":
+        # La bombilla: se enciende con un destello y los rayos laten.
+        bx, by, br = hx, hy - rc*2.25, rc*0.52
+        encendida = t >= 0
+        d.ellipse([bx - br, by - br, bx + br, by + br],
+                  fill=(255, 226, 70) if encendida else (236, 236, 226), outline=TINTA, width=g)
+        d.rectangle([bx - br*0.42, by + br*0.85, bx + br*0.42, by + br*1.35],
+                    fill=(170, 170, 170), outline=TINTA, width=max(2, g//2))
+        if encendida:
+            late = 1.0 + 0.18*math.sin(reloj*9)
+            for k in range(8):
+                a = -math.pi/2 + (k - 3.5)*math.pi/7.5
+                _linea(d, [(bx + math.cos(a)*br*1.35, by + math.sin(a)*br*1.35),
+                           (bx + math.cos(a)*br*1.35*late*1.35, by + math.sin(a)*br*1.35*late*1.35)],
+                       g, rnd, color=(230, 170, 20), temblor=0.5)
+    elif e == "confuso":
+        fuente = _fuente_cartel(int(alto*0.13))
+        for k, (dx, dy) in enumerate(((-0.9, -1.9), (0.3, -2.4), (1.2, -1.8))):
+            baila = rc*0.18*math.sin(reloj*4 + k*2.1)
+            d.text((hx + dx*rc, hy + dy*rc + baila), "?", font=fuente, anchor="mm",
+                   fill=(40, 70, 150), stroke_width=max(3, g*2), stroke_fill=(255, 255, 255))
+    elif e == "enamorado":
+        for k in range(3):
+            fase = (reloj*0.7 + k/3) % 1.0
+            cx = hx + rc*(-0.9 + 0.9*k) + rc*0.3*math.sin(reloj*3 + k)
+            cy = hy - rc*(1.2 + 2.4*fase)
+            r = rc*(0.22 + 0.12*(1 - fase))
+            d.ellipse([cx - r, cy - r, cx, cy], fill=(220, 40, 70))
+            d.ellipse([cx, cy - r, cx + r, cy], fill=(220, 40, 70))
+            d.polygon([(cx - r, cy - r*0.45), (cx + r, cy - r*0.45), (cx, cy + r*0.9)],
+                      fill=(220, 40, 70))
     elif e == "lagrimas":
         # A CHORROS: dos surtidores en arco desde los ojos. Con gotitas
         # sueltas no se veia a tamaño de movil.
@@ -1254,8 +1436,24 @@ FONDOS_VALIDOS = tuple(FONDOS)
 # mano es como se perdieron la taberna y el arbol.
 POSES_VALIDAS = tuple(p for p in _POSES if not p.endswith("_b"))
 GESTOS_VALIDOS = ("neutro", "sorpresa", "contento", "enfadado", "grito")
-GORROS_VALIDOS = ("corona", "comandante", "tricornio", "sombrero", "casco",
-                  "mitra", "monje", "boina", "marinero")
+# Explicados aqui y no tecleados en el prompt, como todo lo demas: la lista
+# del prompt estaba escrita a mano y cada gorro nuevo habria sido invisible.
+GORROS_EXPLICADOS = {
+    "corona":     "rey o reina",
+    "comandante": "bicornio: general, Napoleon, oficial de 1808",
+    "tricornio":  "el del siglo XVIII: ministros, guardias, Godoy",
+    "sombrero":   "ala ancha: el del pueblo, el del motin",
+    "casco":      "morrion de conquistador o de soldado de los tercios",
+    "mitra":      "obispo, inquisidor",
+    "monje":      "capucha de fraile o monje",
+    "boina":      "el campesino, el pueblo, el XIX y XX",
+    "marinero":   "gorro de marinero",
+    "peluca":     "peluca blanca empolvada del XVIII: Borbones, cortesanos, ministros",
+    "turbante":   "Al-Andalus, sultanes, embajadores de Oriente",
+    "chistera":   "sombrero de copa del XIX: politicos, banqueros, caballeros",
+    "peineta":    "peineta y mantilla negra: la dama española",
+}
+GORROS_VALIDOS = tuple(GORROS_EXPLICADOS)
 # (OBJETOS_VALIDOS ya esta declarada arriba, junto a OBJETOS: el sombrero no
 # esta porque YA es un gorro, no hacia falta una segunda forma de pedir lo
 # mismo.)
@@ -2215,6 +2413,130 @@ def _sol(d, x, y, t, rnd, g, tinta=TINTA):
                    (x+math.cos(a)*t*.58, y+math.sin(a)*t*.58)], g, rnd, color=tinta)
 
 
+# ---- MAS COSAS, pensadas para lo que sale en la historia de España -------
+# Motines y fiestas (la multitud, el toro, la guitarra), la corte y los
+# tratados (el pergamino, la carta), los barcos y las Americas (el cofre, el
+# catalejo, el barril), y las mazmorras (la antorcha, las cadenas).
+
+def _multitud(d, x, y, t, rnd, g, tinta=TINTA):
+    """Un gentio de fondo: "aparecen cincuenta monigotes" en Esquilache no
+    tenia con que dibujarse. Pequeños, grises y con los brazos arriba, para
+    que se lean como masa y no le roben el plano a los que hablan."""
+    gris, relleno = (120, 112, 104), (236, 232, 224)
+    for k in range(9):
+        px = x + t*(-2.6 + 5.2*k/8) + t*0.10*rnd.uniform(-1, 1)
+        alto = t*(1.9 + 0.35*((k*7) % 3)/2)
+        pose = ("brazos_arriba", "señala", "brazos_arriba", "de_pie")[k % 4]
+        figura(d, px, y - t*0.02*(k % 2), alto, rnd, pose, "grito", None, k % 2 == 1,
+               tinta=gris, relleno=relleno)
+
+
+def _toro(d, x, y, t, rnd, g, tinta=TINTA):
+    """El toro, de perfil y negro: fiestas, plazas, y medio refranero."""
+    negro = (40, 34, 32)
+    d.ellipse([x - t*.62, y - t*.72, x + t*.40, y - t*.28], fill=negro)
+    for px in (-.45, -.25, .10, .28):
+        _linea(d, [(x + t*px, y - t*.36), (x + t*px, y)], int(g*1.8), rnd, color=negro, temblor=0.6)
+    d.ellipse([x + t*.30, y - t*.82, x + t*.66, y - t*.46], fill=negro)
+    marfil = (236, 226, 200)
+    for dx in (.36, .58):
+        _linea(d, [(x + t*dx, y - t*.78), (x + t*(dx - .06), y - t*.96), (x + t*(dx + .04), y - t*1.02)],
+               g, rnd, color=marfil, temblor=0.5)
+    _linea(d, [(x - t*.60, y - t*.62), (x - t*.78, y - t*.40), (x - t*.74, y - t*.26)],
+           max(2, g//2), rnd, color=negro)
+    d.ellipse([x + t*.50, y - t*.72, x + t*.56, y - t*.66], fill=(230, 60, 40))
+
+
+def _guitarra(d, x, y, t, rnd, g, tinta=TINTA):
+    """La guitarra española, de pie: fiestas, tabernas, el que canta."""
+    madera = (200, 142, 76)
+    d.ellipse([x - t*.20, y - t*.40, x + t*.20, y], fill=madera, outline=tinta, width=g)
+    d.ellipse([x - t*.15, y - t*.66, x + t*.15, y - t*.34], fill=madera, outline=tinta, width=g)
+    d.ellipse([x - t*.06, y - t*.36, x + t*.06, y - t*.24], fill=(60, 40, 24))
+    d.rectangle([x - t*.03, y - t*1.02, x + t*.03, y - t*.62], fill=(110, 72, 40), outline=tinta)
+    d.rectangle([x - t*.05, y - t*1.14, x + t*.05, y - t*1.00], fill=(90, 58, 32), outline=tinta)
+
+
+def _pergamino(d, x, y, t, rnd, g, tinta=TINTA):
+    """El pergamino enrollado por arriba y por abajo: el tratado, la bula, la
+    real cedula, el mapa del tesoro."""
+    papel = (240, 226, 186)
+    d.rectangle([x - t*.24, y - t*.86, x + t*.24, y - t*.10], fill=papel)
+    _linea(d, [(x - t*.24, y - t*.86), (x - t*.24, y - t*.10)], max(2, g//2), rnd)
+    _linea(d, [(x + t*.24, y - t*.86), (x + t*.24, y - t*.10)], max(2, g//2), rnd)
+    for yy in (y - t*.90, y - t*.08):
+        d.rounded_rectangle([x - t*.30, yy - t*.06, x + t*.30, yy + t*.06], radius=int(t*.05),
+                            fill=(214, 196, 150), outline=tinta, width=max(2, g//2))
+    for k in range(4):
+        yy = y - t*(.72 - .14*k)
+        _linea(d, [(x - t*.16, yy), (x + t*(.16 - .06*(k == 3)), yy)], max(1, g//3), rnd,
+               color=(120, 100, 70), temblor=0.8)
+    d.ellipse([x + t*.04, y - t*.30, x + t*.18, y - t*.16], fill=ROJO)
+
+
+def _cofre(d, x, y, t, rnd, g, tinta=TINTA):
+    """El cofre abierto con el oro dentro: tesoros, las Indias, el botin."""
+    madera = (130, 84, 44)
+    d.rectangle([x - t*.40, y - t*.40, x + t*.40, y], fill=madera, outline=tinta, width=g)
+    d.polygon([(x - t*.40, y - t*.40), (x - t*.34, y - t*.78), (x + t*.34, y - t*.78),
+               (x + t*.40, y - t*.40)], fill=(150, 98, 52), outline=tinta)
+    for k in range(6):
+        cx = x - t*.28 + t*.11*k
+        d.ellipse([cx - t*.07, y - t*.50, cx + t*.07, y - t*.36], fill=ORO_ESPAÑA, outline=tinta)
+    for bx in (-.30, .30):
+        d.rectangle([x + t*bx - t*.03, y - t*.40, x + t*bx + t*.03, y], fill=(200, 160, 60))
+    d.rectangle([x - t*.06, y - t*.30, x + t*.06, y - t*.18], fill=(200, 160, 60), outline=tinta)
+
+
+def _barril(d, x, y, t, rnd, g, tinta=TINTA):
+    """El barril: polvora, vino, las bodegas de un galeon."""
+    d.rounded_rectangle([x - t*.24, y - t*.62, x + t*.24, y], radius=int(t*.12),
+                        fill=(156, 104, 58), outline=tinta, width=g)
+    for yy in (.12, .50):
+        d.line([(x - t*.24, y - t*yy), (x + t*.24, y - t*yy)], fill=(80, 70, 64), width=max(3, g))
+    for dx in (-.10, .10):
+        d.line([(x + t*dx, y - t*.60), (x + t*dx, y - t*.02)], fill=(120, 78, 42), width=max(1, g//3))
+
+
+def _antorcha(d, x, y, t, rnd, g, tinta=TINTA):
+    """La antorcha: mazmorras, castillos de noche, la turba que viene."""
+    _linea(d, [(x - t*.03, y), (x + t*.03, y - t*.62)], int(g*1.6), rnd, color=(110, 72, 40))
+    llama = [(x + t*.03, y - t*1.02), (x + t*.14, y - t*.74), (x + t*.07, y - t*.60),
+             (x - t*.04, y - t*.62), (x - t*.08, y - t*.78)]
+    d.polygon(llama, fill=(250, 150, 40))
+    d.polygon([(x + t*.03, y - t*.88), (x + t*.08, y - t*.72), (x, y - t*.64)], fill=(255, 224, 90))
+
+
+def _catalejo(d, x, y, t, rnd, g, tinta=TINTA):
+    """El catalejo: el vigia, el almirante, "¡tierra a la vista!"."""
+    laton = (206, 164, 70)
+    for k, (x0, x1, r) in enumerate(((-.50, -.10, .08), (-.12, .22, .065), (.20, .48, .05))):
+        d.rectangle([x + t*x0, y - t*(.30 + r), x + t*x1, y - t*(.30 - r)],
+                    fill=laton if k != 1 else (178, 136, 56), outline=tinta, width=max(2, g//2))
+    d.ellipse([x - t*.54, y - t*.40, x - t*.46, y - t*.20], fill=(150, 190, 220), outline=tinta)
+
+
+def _carta(d, x, y, t, rnd, g, tinta=TINTA):
+    """La carta cerrada con lacre: noticias, ordenes, la declaracion de
+    guerra que llega por correo."""
+    papel = (244, 238, 222)
+    d.rectangle([x - t*.34, y - t*.46, x + t*.34, y], fill=papel, outline=tinta, width=g)
+    d.line([(x - t*.34, y - t*.46), (x, y - t*.18), (x + t*.34, y - t*.46)], fill=tinta, width=g)
+    d.ellipse([x - t*.07, y - t*.26, x + t*.07, y - t*.12], fill=ROJO, outline=tinta)
+
+
+def _cadenas(d, x, y, t, rnd, g, tinta=TINTA):
+    """Cadenas colgando de la pared, con su grillete: carceles y mazmorras."""
+    hierro = (110, 110, 116)
+    for k in range(6):
+        cy = y - t + t*0.13*k
+        if k % 2 == 0:
+            d.ellipse([x - t*.05, cy - t*.08, x + t*.05, cy + t*.08], outline=hierro, width=max(3, g))
+        else:
+            d.ellipse([x - t*.08, cy - t*.05, x + t*.08, cy + t*.05], outline=hierro, width=max(3, g))
+    d.arc([x - t*.13, y - t*.30, x + t*.13, y - t*.04], 0, 360, fill=hierro, width=max(4, int(g*1.4)))
+
+
 COSAS = {
     "perro": _perro, "caballo": _caballo, "barco": _barco, "casa": _casa,
     "iglesia": _iglesia, "castillo": _castillo, "espada": _espada,
@@ -2222,6 +2544,9 @@ COSAS = {
     "cruz": _cruz, "olla": _olla, "montaña": _montaña, "naranjas": _naranjas,
     "naranjo": _naranjo, "pan": _pan, "escudo": _escudo, "mapa": _mapa,
     "cesta": _cesta,
+    "multitud": _multitud, "toro": _toro, "guitarra": _guitarra, "pergamino": _pergamino,
+    "cofre": _cofre, "barril": _barril, "antorcha": _antorcha, "catalejo": _catalejo,
+    "carta": _carta, "cadenas": _cadenas,
     "nube": _nube, "sol": _sol,
     # El arbol ya existia pero con otra firma, y por estar aqui a None se
     # caia en silencio: el prompt lo ofrecia y limpia() lo tiraba.
@@ -2816,6 +3141,22 @@ _DECORADOS = {
                      "fondo": [("ventana_arco", .70, .36, .15), ("estandarte", .34, .24, .11),
                                ("cortinas", .5, 1.0, 1.0)],
                      "muebles": [], "delante": [], "cuelga": [], "velas": [(.52, -.30)]},
+    # Hechos sin que ningun guion los pidiera todavia, porque van a salir: el
+    # puerto de donde salen las flotas y la Armada, la mazmorra de la
+    # Inquisicion y de los presos, y la selva de las Americas.
+    "puerto":       {"pared": "cielo_mar", "piso": "tablas",
+                     "fondo": [], "muebles": [], "delante": [],
+                     "cuelga": [("barco", .22, .665, .14), ("barco", .78, .665, .10),
+                                ("barril", .06, .70, .07), ("barril", .94, .70, .06)],
+                     "velas": []},
+    "mazmorra":     {"pared": "piedra", "piso": "tierra",
+                     "fondo": [("reja", .50, .26, .16)], "muebles": [], "delante": [],
+                     "cuelga": [("antorcha", .12, .46, .10), ("antorcha", .88, .46, .10),
+                                ("cadenas", .30, .44, .12), ("cadenas", .70, .44, .12)],
+                     "velas": []},
+    "selva":        {"pared": "cielo", "piso": "hierba",
+                     "fondo": [("selva", .5, 1.0, 1.0)],
+                     "muebles": [], "delante": [], "cuelga": [], "velas": []},
 }
 DECORADOS_VALIDOS = tuple(_DECORADOS)
 
@@ -2839,6 +3180,9 @@ DECORADOS_EXPLICADOS = {
     "campamento":  "el campamento de un ejercito: tiendas de lona, banderin",
     "naranjal":    "campo de naranjos con las naranjas colgando",
     "dormitorio":  "el dormitorio de un rey: cortinones rojos, tapiz, ventana de noche. La cama la pone la postura en_cama",
+    "puerto":      "el muelle con barcos en el mar: flotas, la Armada, Colon zarpando, los que llegan",
+    "mazmorra":    "carcel de piedra con reja, cadenas y antorchas: presos, Inquisicion, cautivos",
+    "selva":       "la selva de las Americas, con palmeras: Colon, Cortes, Pizarro, expediciones",
 }
 _sin_explicar = set(DECORADOS_VALIDOS) ^ set(DECORADOS_EXPLICADOS)
 if _sin_explicar:
@@ -2876,6 +3220,37 @@ def _cortinas(d, w, h, suelo, rnd, g):
     _linea(d, [(0, arriba - h*0.02), (w, arriba - h*0.02)], g, rnd, temblor=1)
 
 
+def _reja(d, cx, cy, ancho, alto, rnd, g):
+    """El ventanuco alto con barrotes de la mazmorra, con un poco de cielo."""
+    d.rectangle([cx - ancho/2, cy - alto/2, cx + ancho/2, cy + alto/2], fill=(120, 160, 200),
+                outline=TINTA, width=g)
+    for k in range(1, 5):
+        bx = cx - ancho/2 + ancho*k/5
+        d.line([(bx, cy - alto/2), (bx, cy + alto/2)], fill=(60, 60, 64), width=max(3, g))
+
+
+def _selva(d, w, h, suelo, rnd, g):
+    """La selva de las Americas: palmeras y matas grandes. Colon, Cortes,
+    Pizarro, las expediciones."""
+    verde, oscuro, tronco = (58, 138, 64), (34, 100, 48), (132, 94, 58)
+    for k, (px, alto) in enumerate(((.10, .34), (.34, .28), (.62, .36), (.88, .30))):
+        bx, top = w*px, suelo - h*alto
+        pts = [(bx + w*0.02*math.sin(i/6*math.pi)*(1 if k % 2 else -1), suelo - (suelo - top)*i/6)
+               for i in range(7)]
+        _linea(d, pts, int(g*2.2), rnd, color=tronco, temblor=1)
+        cx, cy = pts[-1]
+        for a in range(7):
+            ang = math.pi*(1.05 + a*0.15)
+            fx, fy = cx + math.cos(ang)*w*0.13, cy + math.sin(ang)*h*0.03 + h*0.04*abs(math.cos(ang))
+            d.polygon([(cx, cy), (fx, fy), (cx + (fx - cx)*0.6, fy + h*0.015)], fill=verde, outline=oscuro)
+            fx2 = cx - math.cos(ang)*w*0.13
+            d.polygon([(cx, cy), (fx2, fy), (cx + (fx2 - cx)*0.6, fy + h*0.015)], fill=verde, outline=oscuro)
+    for k in range(7):
+        bx = w*(0.05 + 0.15*k)
+        d.pieslice([bx - w*0.09, suelo - h*0.07, bx + w*0.09, suelo + h*0.03], 180, 360,
+                   fill=oscuro if k % 2 else verde, outline=TINTA)
+
+
 def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     X, Y, T = w*x, h*y, w*tam
     if que == "ventana_mar":      _ventana_al_mar(d, X, h*y, T, h*tam*0.55, rnd, g)
@@ -2911,6 +3286,8 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "tiendas":        _tiendas(d, w, h, suelo, rnd, g)
     elif que == "naranjos":       _naranjos(d, w, h, suelo, rnd, g)
     elif que == "cortinas":       _cortinas(d, w, h, suelo, rnd, g)
+    elif que == "reja":           _reja(d, X, h*y, T, h*tam*0.7, rnd, g)
+    elif que == "selva":          _selva(d, w, h, suelo, rnd, g)
     elif que == "puntales":
         for k in range(3):
             px = w*(0.16 + 0.34*k)

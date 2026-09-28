@@ -533,6 +533,14 @@ def _lista_de_objetos() -> str:
     return "[" + ", ".join(monigotes.OBJETOS_VALIDOS) + "]"
 
 
+def _lista_de_gorros() -> str:
+    """Los gorros que se saben dibujar. Estaba tecleada en el prompt: un gorro
+    nuevo se habria dibujado y el guion no lo habria pedido nunca."""
+    from . import monigotes
+    return "\n".join(f"                     {n:<10} {monigotes.GORROS_EXPLICADOS[n]}"
+                     for n in monigotes.GORROS_VALIDOS)
+
+
 def _lista_de_efectos() -> str:
     """Los efectos que se saben animar, sacados de monigotes: la misma cura
     que las posturas, para que no haya uno que se dibuja y no se ofrece."""
@@ -914,8 +922,9 @@ catedral, sale un fondo liso.
        "pose":     LO QUE ESTA HACIENDO. La lista entera esta abajo, en LAS POSTURAS
        "pose_fin": otra postura de la misma lista: el personaje SE MUEVE de una a otra
        "gesto":    [neutro, sorpresa, contento, enfadado, grito]
-       "gorro":    [corona, comandante, tricornio, sombrero, casco, mitra, monje, boina,
-                    marinero] - o quitalo si no lleva
+       "gorro":    lo que lleva en la cabeza, que dice de que epoca es. Uno de:
+{bloque_gorros}
+                   o quitalo si no lleva
        "objeto":   {bloque_objetos} - o quitalo si no lleva. SI LA NARRACION NOMBRA UNA PRENDA,
                     PONSELA A ALGUIEN: si la escena habla de capas, alguien lleva "objeto":"capa" -
                     no basta con que la voz la mencione, tiene que verse puesta
@@ -1984,8 +1993,12 @@ la cabeza" es "señala", "mira a camara, confundido" es el gesto, "con una cesta
 Y lo que LE PASA a alguien es su "efecto": "se cae al suelo" o "se desmaya" es "caida", "salta
 de alegria" es "salto", "tiembla" es "temblor", "echa humo" o "explota de rabia" es "humo", "se
 queda de piedra" o "se entera" es "sorpresa", "se duerme" o "ronca" es "zzz", "llora" es
-"lagrimas", "se marea" es "mareo". Si el original lo dice, TIENE que llevarlo: en Farinelli el
-remate era "Farinelli se cae al suelo" y salio de pie.
+"lagrimas", "se marea" es "mareo", "se le ocurre" o "se le ilumina la cara" es "idea", "no
+entiende nada" o "mira a camara, confundido" es "confuso", "se enamora" es "enamorado". Y las
+posturas: "entra" o "se va" es "andando", "se arrodilla" es "de_rodillas", "baila" es
+"bailando", "aplauden" es "aplaudiendo"; "aparecen cincuenta monigotes" es la cosa "multitud".
+Si el original lo dice, TIENE que llevarlo: en Farinelli el remate era "Farinelli se cae al
+suelo" y salio de pie.
 
 Y EL "rotulo" SALE DEL ORIGINAL: el sitio del titulo de la escena ("ESCENA 3 — LAS MURALLAS DE
 OLIVENZA" es "Olivenza"; "ANTE ELVAS" es "Elvas") y la fecha de sus lineas de Narrador ("Mayo
@@ -2291,7 +2304,8 @@ _VARIANT_CONFIG["short"]["bloque_ilustracion"] = (
     .replace("{bloque_cosas}", _lista_de_cosas())
     .replace("{bloque_objetos}", _lista_de_objetos())
     .replace("{bloque_decorados}", _lista_de_decorados())
-    .replace("{bloque_efectos}", _lista_de_efectos()))
+    .replace("{bloque_efectos}", _lista_de_efectos())
+    .replace("{bloque_gorros}", _lista_de_gorros()))
 
 
 def _el_guion_conoce_todas_las_posturas() -> None:
@@ -2330,6 +2344,14 @@ def _el_guion_conoce_todas_las_posturas() -> None:
         raise RuntimeError("La lista de objetos no se ha metido en el bloque de la escena.")
     if "{bloque_decorados}" in texto:
         raise RuntimeError("La lista de decorados no se ha metido en el bloque de la escena.")
+    if "{bloque_gorros}" in texto:
+        raise RuntimeError("La lista de gorros no se ha metido en el bloque de la escena.")
+    sin_ofrecer_gorro = [e for e in monigotes.GORROS_VALIDOS
+                         if not re.search(rf"\b{re.escape(e)}\b", texto)]
+    if sin_ofrecer_gorro:
+        raise RuntimeError(
+            f"Estos gorros se saben dibujar pero el guion no sabe que existen: "
+            f"{sin_ofrecer_gorro}.")
     if "{bloque_efectos}" in texto:
         raise RuntimeError("La lista de efectos no se ha metido en el bloque de la escena.")
     sin_ofrecer_efecto = [e for e in monigotes.EFECTOS_VALIDOS
