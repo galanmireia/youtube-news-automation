@@ -367,6 +367,10 @@ def _generate_variant(
         nombre = (escena.get("sonido") or "").strip().lower()
         if nombre in sonidos.EFECTOS_VALIDOS:
             trozos.append((nombre, reloj, min(dura, 6.0)))
+        # Y los de los monigotes (el pum del que se cae, el boing del que
+        # salta), en el instante que apunto visuals al dibujarlos.
+        for nombre_fx, desde, dura_fx in escena.get("_sonidos_efecto") or []:
+            trozos.append((nombre_fx, reloj + max(0.0, desde), dura_fx))
         reloj += dura
     if trozos:
         pista = sonidos.pista(trozos, reloj, variant_dir / "efectos.wav")

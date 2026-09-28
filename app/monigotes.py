@@ -273,6 +273,9 @@ _ACOMPAÑA = {
     "dando":         "de_pie",
     "cargando":      "de_pie",
     "cayendose":     "de_pie",
+    # En la cama tambien se gesticula - con los brazos, sin levantarse
+    # (animar() lo compone con _en_cama_con).
+    "en_cama":       "señala",
 }
 
 
@@ -772,16 +775,16 @@ def escena(spec, w=1080, h=1920, semilla=0):
     _pinta_cosas(delante=False)
     g_cama = max(4, int(w*0.006))
     _camas(d, spec, h, w, lambda f: suelo, rnd, g_cama, "detras")
+    adornos = []
     for f in spec.get("figuras", []):
         alto_f = h*f.get("alto", 0.30)
-        figura(d, w*f["x"], suelo + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
-               alto_f, rnd,
-               f.get("pose","de_pie"), f.get("gesto","neutro"),
-               f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
-               tinta=tinta, relleno=relleno, rasgos=REPARTO.get(f.get("quien") or ""),
-               objeto=f.get("objeto"))
+        adornos.append(_dibuja_figura(
+            img, d, f, w*f["x"], suelo + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
+            alto_f, rnd, tinta=tinta, relleno=relleno,
+            rasgos=REPARTO.get(f.get("quien") or ""), objeto=f.get("objeto")))
     _camas(d, spec, h, w, lambda f: suelo, rnd, g_cama, "delante")
     _pinta_cosas(delante=True)
+    _pinta_adornos(d, adornos, rnd)
     _pinta_papeles(d, spec, w, h, suelo)
     _pinta_rotulo(d, spec, w, h)
     return img
@@ -970,6 +973,207 @@ def _carrera(f: dict, reloj: float, segundos: float, desfase: float) -> dict | N
     return corre
 
 
+# LOS EFECTOS: lo que le PASA al monigote, encima de lo que hace. Ella: "hay
+# que meterle mas efectos a los personajes, como el de caerse". En Farinelli
+# el remate era "Farinelli se cae al suelo" y no se cayo: la postura
+# "cayendose" solo lo torcia de pie. Un monigote que se cae tiene que acabar
+# EN EL SUELO, con su pum y sus estrellitas. Van aparte de la postura porque
+# se suman a ella: se puede cantar temblando o estar en la cama con Zzz.
+EFECTOS_EXPLICADOS = {
+    "caida":    "SE CAE AL SUELO de verdad: se va de espaldas, se queda tumbado con estrellitas y suena el pum. Justo al acabar la ultima frase de la escena: el remate, el desmayo, el tortazo",
+    "salto":    "SALTA de alegria dando botes con los brazos arriba (con su boing)",
+    "temblor":  "TIEMBLA de miedo o de frio, y suda",
+    "humo":     "ECHA HUMO por la cabeza de lo enfadado que esta",
+    "sorpresa": "da un respingo al empezar la escena y le sale una exclamacion roja encima",
+    "zzz":      "DUERME o se muere de aburrimiento: le salen Zzz",
+    "lagrimas": "LLORA a chorros",
+    "mareo":    "MAREADO: estrellitas dando vueltas alrededor de la cabeza",
+}
+EFECTOS_VALIDOS = tuple(EFECTOS_EXPLICADOS)
+# Que sonido lleva cada efecto, y cuanto dura. Lo usa visuals para apuntar el
+# instante exacto y pipeline para mezclarlo.
+SONIDO_DEL_EFECTO = {"caida": ("golpe", 0.9), "salto": ("boing", 0.6)}
+_DURA_CAIDA = 0.45
+
+
+def momento_del_efecto(efecto, segundos, globos=None) -> float:
+    """En que segundo de la escena empieza. La caida, al acabar la ULTIMA
+    frase - es la reaccion al remate - y si no queda hueco, hacia el final
+    igualmente, para que se vea tumbado un rato."""
+    if efecto == "caida":
+        fin = max((float(g["hasta"]) for g in (globos or []) if g), default=None)
+        tope = max(0.3, segundos - 0.9)
+        if fin is not None:
+            return max(0.3, min(fin, tope))
+        return max(0.3, min(segundos*0.6, tope))
+    if efecto == "sorpresa":
+        return 0.12
+    return 0.0
+
+
+def _efecto(f, reloj, segundos):
+    """Lo que el efecto le cambia a la figura en este instante."""
+    e = f.get("efecto")
+    if not e:
+        return {}
+    t0 = f.get("efecto_desde")
+    t0 = momento_del_efecto(e, segundos) if t0 is None else float(t0)
+    t = reloj - t0
+    s = -1 if f.get("espejo") else 1
+    out = {"_reloj": reloj, "_efecto_t": t}
+    if e == "caida" and t >= 0:
+        p = min(1.0, t/_DURA_CAIDA)
+        giro = 90*p*p                              # cae cada vez mas deprisa
+        if t > _DURA_CAIDA:                        # y rebota un poco al llegar
+            r = t - _DURA_CAIDA
+            giro = 90 - 10*math.exp(-r*8)*abs(math.sin(r*16))
+        # De espaldas, que es como se cae uno en un dibujo... salvo que por
+        # ese lado no quepa: Farinelli, pegado al borde, se cayo fuera de la
+        # pantalla y solo se veia una pierna.
+        largo = 0.95*f.get("alto", 0.3)*_ALTO_BASE/_ANCHO_BASE
+        lado = s
+        if not 0.04 <= f.get("x", 0.5) - lado*largo <= 0.96:
+            lado = -lado
+        out.update({"_giro": giro*lado, "pose": "cayendose", "pose_mezclada": None,
+                    "gesto": "sorpresa"})
+    elif e == "salto":
+        out["_dy"] = -0.13*abs(math.sin(math.pi*reloj/0.55))
+        if f.get("pose") != "en_cama":
+            out.update({"pose": "brazos_arriba", "pose_mezclada": None})
+        out["gesto"] = "contento"
+    elif e == "temblor":
+        out["_dx"] = 0.012*math.sin(2*math.pi*reloj*11)
+    elif e == "humo":
+        out["_dx"] = 0.006*math.sin(2*math.pi*reloj*7)
+        out["gesto"] = "enfadado"
+    elif e == "sorpresa" and 0 <= t < 0.35:
+        out["_dy"] = -0.10*math.sin(math.pi*t/0.35)
+    elif e == "lagrimas":
+        out["gesto"] = f.get("gesto") if f.get("gesto") in ("grito", "enfadado") else "sorpresa"
+    return out
+
+
+def _en_cama_con(nombre):
+    """Los brazos de otra postura sin salir de la cama: el rey en la cama
+    que levanta los brazos no se pone de pie para hacerlo."""
+    base, otra = _POSES["en_cama"], _POSES.get(nombre, _POSES["de_pie"])
+    dx = base["cuello"][0] - otra["cuello"][0]
+    dy = base["cuello"][1] - otra["cuello"][1]
+    return {"cuello": base["cuello"], "cadera": base["cadera"],
+            "brazos": [[(px + dx, py + dy) for px, py in b] for b in otra["brazos"]],
+            "piernas": base["piernas"]}
+
+
+def _estrella(d, cx, cy, r, g):
+    pts = []
+    for k in range(10):
+        a = -math.pi/2 + k*math.pi/5
+        rr = r if k % 2 == 0 else r*0.45
+        pts.append((cx + math.cos(a)*rr, cy + math.sin(a)*rr))
+    d.polygon(pts, fill=(255, 214, 40), outline=TINTA)
+
+
+def _adornos_de_efecto(d, f, x, y, alto, rnd):
+    """Lo que se dibuja alrededor: estrellitas, humo, Zzz, lagrimas..."""
+    e = f.get("efecto")
+    if not e:
+        return
+    reloj, t = f.get("_reloj", 0.0), f.get("_efecto_t", 0.0)
+    rasgos = REPARTO.get(f.get("quien") or "") or {}
+    s = -1 if f.get("espejo") else 1
+    p = f.get("pose_mezclada") or _POSES.get(f.get("pose") or "de_pie", _POSES["de_pie"])
+    rc = alto*0.145*rasgos.get("cabeza", 1.0)
+    hx = x + p["cuello"][0]*alto*s*rasgos.get("ancho", 1.0)
+    hy = y + p["cuello"][1]*alto - rc*0.95
+    giro = math.radians(f.get("_giro", 0.0))
+    if giro:                                   # la cabeza, donde ha caido
+        dx, dy = hx - x, hy - y
+        hx = x + dx*math.cos(giro) + dy*math.sin(giro)
+        hy = y - dx*math.sin(giro) + dy*math.cos(giro)
+    g = max(2, int(alto*0.012))
+    if e == "caida" and t >= _DURA_CAIDA or e == "mareo":
+        vuelta = reloj*5.5
+        for k in range(3):
+            a = vuelta + k*2*math.pi/3
+            _estrella(d, hx + math.cos(a)*rc*1.35, hy - rc*0.9 + math.sin(a)*rc*0.45,
+                      rc*0.28, g)
+    if e == "caida" and _DURA_CAIDA <= t < _DURA_CAIDA + 0.5:
+        # El golpe: polvo a ras de suelo y un PUM que dura medio segundo.
+        r = (t - _DURA_CAIDA)/0.5
+        cae = 1 if f.get("_giro", 0.0) > 0 else -1
+        for k in (-1, 1):
+            cx = x - cae*alto*0.45 + k*alto*(0.15 + 0.25*r)
+            _circulo(d, (cx, y - alto*0.03), alto*(0.04 + 0.03*r), g, rnd,
+                     relleno=(222, 214, 200), color=(150, 146, 140))
+        fuente = _fuente_cartel(int(alto*0.16))
+        # Alto, por encima de camas y mesas: a ras de suelo lo tapaba la colcha.
+        d.text((x - cae*alto*0.45, y - alto*0.80), "¡PUM!", font=fuente, anchor="mm",
+               fill=(210, 30, 40), stroke_width=max(3, g*2), stroke_fill=(255, 255, 255))
+    elif e == "humo":
+        for k in range(3):
+            fase = (reloj*1.3 + k/3) % 1.0
+            r = rc*(0.22 + 0.35*fase)
+            cx = hx + s*rc*(0.2 + 0.5*fase)*(1 if k % 2 else -1)
+            _circulo(d, (cx, hy - rc*1.3 - fase*alto*0.28), r, g, rnd,
+                     relleno=(200, 198, 196), color=(130, 128, 126))
+    elif e == "temblor":
+        for k, lado in enumerate((-1, 1)):
+            fase = (reloj*1.6 + k*0.5) % 1.0
+            gx, gy = hx + lado*rc*1.25, hy - rc*0.4 + fase*rc*0.9
+            d.polygon([(gx, gy - rc*0.28), (gx + rc*0.13, gy), (gx, gy + rc*0.12),
+                       (gx - rc*0.13, gy)], fill=(120, 180, 235), outline=TINTA)
+    elif e == "sorpresa" and t >= 0:
+        fuente = _fuente_cartel(int(alto*0.20))
+        d.text((hx, hy - rc*2.1), "!", font=fuente, anchor="mm", fill=(210, 30, 40),
+               stroke_width=max(3, g*2), stroke_fill=(255, 255, 255))
+    elif e == "zzz":
+        fuente_base = int(alto*0.07)
+        for k in range(3):
+            fase = (reloj*0.6 + k/3) % 1.0
+            fuente = _fuente_cartel(max(10, int(fuente_base*(0.7 + 0.8*fase))))
+            d.text((hx + s*rc*(1.0 + 1.6*fase), hy - rc*(1.0 + 2.2*fase)), "Z", font=fuente,
+                   anchor="mm", fill=(40, 70, 140), stroke_width=max(2, g),
+                   stroke_fill=(255, 255, 255))
+    elif e == "lagrimas":
+        # A CHORROS: dos surtidores en arco desde los ojos. Con gotitas
+        # sueltas no se veia a tamaño de movil.
+        for lado in (-1, 1):
+            for k in range(5):
+                fase = (reloj*1.8 + k/5) % 1.0
+                gx = hx + lado*rc*(0.30 + 1.1*fase)
+                gy = hy - rc*0.05 + rc*(2.6*fase*fase - 0.5*fase)
+                rr = rc*0.17
+                d.ellipse([gx - rr, gy - rr*1.5, gx + rr, gy + rr], fill=(80, 150, 230),
+                          outline=TINTA)
+
+
+def _dibuja_figura(img, d, f, x, y, alto, rnd, **kw):
+    """figura() con su efecto: movida, girada si se ha caido, y con sus
+    adornos. La que se cae se pinta en una capa aparte y se gira entera
+    sobre los pies, que es lo que hace que caiga y no que se tuerza."""
+    x += f.get("_dx", 0.0)*alto
+    y += f.get("_dy", 0.0)*alto
+    args = (alto, rnd, f.get("pose", "de_pie"), f.get("gesto", "neutro"), f.get("gorro"),
+            f.get("espejo", False), f.get("pose_mezclada"))
+    giro = f.get("_giro", 0.0)
+    if giro:
+        capa = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        figura(ImageDraw.Draw(capa), x, y, *args, **kw)
+        capa = capa.rotate(giro, center=(x, y), resample=Image.BICUBIC)
+        img.paste(capa, (0, 0), capa)
+    else:
+        figura(d, x, y, *args, **kw)
+    # Los adornos (el PUM, las estrellitas, el humo) NO van aqui: van al
+    # final, encima de la colcha y de las mesas de delante, que si no los
+    # tapaban. Se devuelve donde pintarlos.
+    return (f, x, y, alto)
+
+
+def _pinta_adornos(d, pendientes, rnd):
+    for f, x, y, alto in pendientes:
+        _adornos_de_efecto(d, f, x, y, alto, rnd)
+
+
 def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=None):
     """Los fotogramas de una escena donde cada figura va de 'pose' a 'pose_fin'.
 
@@ -1003,12 +1207,16 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
             if not fin:
                 fin = _CICLOS.get(f.get("pose"))
             if fin and fin != f.get("pose"):
-                g["pose_mezclada"] = _mezcla(_POSES[f.get("pose","de_pie")], _POSES[fin], tk)
+                if f.get("pose") == "en_cama" and fin != "de_pie":
+                    g["pose_mezclada"] = _mezcla(_POSES["en_cama"], _en_cama_con(fin), tk)
+                else:
+                    g["pose_mezclada"] = _mezcla(_POSES[f.get("pose","de_pie")], _POSES[fin], tk)
             # RESPIRACION: sube y baja un poco aunque no cambie de pose.
             g["_bocanada"] = math.sin(2*math.pi*(reloj/_SEGUNDOS_RESPIRACION + desfase))
             carrera = _carrera(f, reloj, segundos, desfase)
             if carrera:
                 g.update(carrera)
+            g.update(_efecto(f, reloj, segundos))
             # La etiqueta con el papel, solo un par de segundos: lo justo para
             # leer "LA REINA" y que no se quede tapando el suelo todo el plano.
             if reloj > _SEGUNDOS_PAPEL:
@@ -1095,7 +1303,32 @@ def limpia(spec: dict) -> dict:
             "objeto": _una_de(f.get("objeto"), OBJETOS_VALIDOS, "") or None,
             "espejo": bool(f.get("espejo")),
             "papel": (str(f.get("papel") or "").strip()[:_LARGO_PAPEL] or None),
+            "efecto": _una_de(f.get("efecto"), EFECTOS_VALIDOS, "") or None,
+            "efecto_desde": (float(f["efecto_desde"])
+                             if isinstance(f.get("efecto_desde"), (int, float)) else None),
         })
+        # En la cama no se lleva manto: en Farinelli el rey salio con el manto
+        # de la reina puesto encima de la colcha, un triangulo rojo gigante
+        # que tapaba la cama entera.
+        ultima = figuras[-1]
+        if "en_cama" in (ultima["pose"], ultima["pose_fin"]) and ultima["objeto"] in ("manto", "capa"):
+            ultima["objeto"] = None
+    # LA CAMA OCUPA SITIO. Se pinta hacia donde mira quien esta en ella, y
+    # en Farinelli el cantante acabo de pie encima de los pies de la cama,
+    # medio tapado: el guion no sabe cuanto mide una cama. Aqui si: el de la
+    # cama va a un lado y los demas, pasado el pie de la cama.
+    for c in [f for f in figuras if "en_cama" in (f["pose"], f["pose_fin"])][:1]:
+        lado = -1 if c["espejo"] else 1
+        largo = 0.46*c["alto"]*(_ALTO_BASE/_ANCHO_BASE)
+        c["x"] = min(c["x"], 0.30) if lado > 0 else max(c["x"], 0.70)
+        pie = c["x"] + lado*(largo + 0.13)
+        for o in figuras:
+            if o is c:
+                continue
+            if lado > 0 and o["x"] > c["x"] - 0.05:
+                o["x"] = min(0.88, max(o["x"], pie))
+            elif lado < 0 and o["x"] < c["x"] + 0.05:
+                o["x"] = max(0.12, min(o["x"], pie))
     if not figuras:
         # Una escena sin nadie es un fondo de color. Antes que eso, alguien.
         figuras = [{"x": 0.5, "alto": 0.34, "pose": "de_pie", "pose_fin": None,
@@ -2783,12 +3016,12 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
 
     _pinta_cosas(delante=False)
     _camas(d, spec, h, w, lambda f: pies, rnd, max(4, int(w*0.006)), "detras")
+    adornos = []
     for f in spec.get("figuras", []):
         alto_f = h*f.get("alto", 0.30)
-        figura(d, w*f["x"], pies + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
-               alto_f, rnd, f.get("pose", "de_pie"), f.get("gesto", "neutro"),
-               f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
-               rasgos=REPARTO.get(f.get("quien") or ""), objeto=f.get("objeto"))
+        adornos.append(_dibuja_figura(
+            img, d, f, w*f["x"], pies + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
+            alto_f, rnd, rasgos=REPARTO.get(f.get("quien") or ""), objeto=f.get("objeto")))
 
     _camas(d, spec, h, w, lambda f: pies, rnd, max(4, int(w*0.006)), "delante")
 
@@ -2814,6 +3047,7 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
     for que, x, y, tam in receta["delante"]:
         _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g)
     _pinta_cosas(delante=True)
+    _pinta_adornos(d, adornos, rnd)
     _pinta_papeles(d, spec, w, h, pies)
     _pinta_rotulo(d, spec, w, h)
 

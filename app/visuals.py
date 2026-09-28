@@ -506,6 +506,22 @@ def fetch_clips_for_scenes(
                     f["papel"] = None
                 elif papel:
                     papeles_ya_dichos.add(papel)
+                # EL EFECTO, EN SU INSTANTE. La caida va al acabar la ultima
+                # frase, que es la reaccion al remate: se calcula aqui, que es
+                # donde se saben los tiempos de los globos, y se apunta en la
+                # escena para que el pum suene justo cuando toca el suelo.
+                efecto = (f.get("efecto") or "").strip().lower()
+                if efecto in monigotes.EFECTOS_VALIDOS:
+                    f["efecto_desde"] = monigotes.momento_del_efecto(efecto, duration, globos)
+                    sonido = monigotes.SONIDO_DEL_EFECTO.get(efecto)
+                    if sonido:
+                        # El golpe del sonido esta en su segundo 0.38; el
+                        # monigote toca el suelo a los _DURA_CAIDA de empezar.
+                        ajuste = (monigotes._DURA_CAIDA - 0.38) if efecto == "caida" else 0.0
+                        scene.setdefault("_sonidos_efecto", []).append(
+                            (sonido[0], f["efecto_desde"] + ajuste, sonido[1]))
+                    logger.info("Escena %s: %s con efecto %s desde %.1fs.",
+                                i, f.get("quien") or "figura", efecto, f["efecto_desde"])
             clip = monigotes.render(dibujo, out_dir / f"mono_{i:02d}.mp4",
                                     ancho_v, alto_v, duration, bocadillos=globos or None)
             if clip is not None:

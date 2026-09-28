@@ -533,6 +533,14 @@ def _lista_de_objetos() -> str:
     return "[" + ", ".join(monigotes.OBJETOS_VALIDOS) + "]"
 
 
+def _lista_de_efectos() -> str:
+    """Los efectos que se saben animar, sacados de monigotes: la misma cura
+    que las posturas, para que no haya uno que se dibuja y no se ofrece."""
+    from . import monigotes
+    return "\n".join(f"                     {n:<10} {monigotes.EFECTOS_EXPLICADOS[n]}"
+                     for n in monigotes.EFECTOS_VALIDOS)
+
+
 def _lista_de_decorados() -> str:
     """Los sitios que se saben dibujar, sacados de las recetas de monigotes.
 
@@ -912,6 +920,10 @@ catedral, sale un fondo liso.
                     PONSELA A ALGUIEN: si la escena habla de capas, alguien lleva "objeto":"capa" -
                     no basta con que la voz la mencione, tiene que verse puesta
        "espejo":   true para que mire hacia la izquierda
+       "efecto":   LO QUE LE PASA, encima de lo que hace - es de lo que mas risa da. Uno de:
+{bloque_efectos}
+                   o quitalo si no le pasa nada. Si el guion dice que alguien se cae, se desmaya,
+                   salta de alegria, tiembla, echa humo, llora o se duerme, ESO es su efecto.
     "tachados": hasta 3, cada uno {"x":.., "y":.., "tam":..}: una cruz roja encima de algo,
                 para decir "prohibido" o "se acabo" de un vistazo
   }
@@ -1969,6 +1981,11 @@ responde con calma"): si una escena no tiene linea de Narrador, su narration son
 Cada acotacion es la pista para el DIBUJO: "sale corriendo" es la postura "corriendo", "se señala
 la cabeza" es "señala", "mira a camara, confundido" es el gesto, "con una cesta" es el objeto,
 "frente a las murallas" es el decorado. Lo que el original describe tiene que VERSE.
+Y lo que LE PASA a alguien es su "efecto": "se cae al suelo" o "se desmaya" es "caida", "salta
+de alegria" es "salto", "tiembla" es "temblor", "echa humo" o "explota de rabia" es "humo", "se
+queda de piedra" o "se entera" es "sorpresa", "se duerme" o "ronca" es "zzz", "llora" es
+"lagrimas", "se marea" es "mareo". Si el original lo dice, TIENE que llevarlo: en Farinelli el
+remate era "Farinelli se cae al suelo" y salio de pie.
 
 Y EL "rotulo" SALE DEL ORIGINAL: el sitio del titulo de la escena ("ESCENA 3 — LAS MURALLAS DE
 OLIVENZA" es "Olivenza"; "ANTE ELVAS" es "Elvas") y la fecha de sus lineas de Narrador ("Mayo
@@ -2273,7 +2290,8 @@ _VARIANT_CONFIG["short"]["bloque_ilustracion"] = (
     .replace("{bloque_posturas}", _lista_de_posturas())
     .replace("{bloque_cosas}", _lista_de_cosas())
     .replace("{bloque_objetos}", _lista_de_objetos())
-    .replace("{bloque_decorados}", _lista_de_decorados()))
+    .replace("{bloque_decorados}", _lista_de_decorados())
+    .replace("{bloque_efectos}", _lista_de_efectos()))
 
 
 def _el_guion_conoce_todas_las_posturas() -> None:
@@ -2312,6 +2330,14 @@ def _el_guion_conoce_todas_las_posturas() -> None:
         raise RuntimeError("La lista de objetos no se ha metido en el bloque de la escena.")
     if "{bloque_decorados}" in texto:
         raise RuntimeError("La lista de decorados no se ha metido en el bloque de la escena.")
+    if "{bloque_efectos}" in texto:
+        raise RuntimeError("La lista de efectos no se ha metido en el bloque de la escena.")
+    sin_ofrecer_efecto = [e for e in monigotes.EFECTOS_VALIDOS
+                          if not re.search(rf"\b{re.escape(e)}\b", texto)]
+    if sin_ofrecer_efecto:
+        raise RuntimeError(
+            f"Estos efectos se saben animar pero el guion no sabe que existen: "
+            f"{sin_ofrecer_efecto}.")
     sin_ofrecer_sitio = [s for s in monigotes.DECORADOS_VALIDOS
                          if not re.search(rf"\b{re.escape(s)}\b", texto)]
     if sin_ofrecer_sitio:

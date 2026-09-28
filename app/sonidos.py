@@ -145,7 +145,36 @@ def _caballo(seg, rng):
     return _pasos(seg, rng, por_segundo=3.6)
 
 
+def _golpe(seg, rng):
+    """El tortazo de dibujo animado: un silbido que cae y el golpe seco. Es
+    el sonido de "se cae al suelo" - sin el, la caida del monigote es muda."""
+    n = int(max(seg, 0.9)*HZ); t = np.arange(n)/HZ
+    x = np.zeros(n)
+    caer = t < 0.36
+    tono = 1400*np.exp(np.log(350/1400)*np.clip(t/0.36, 0, 1))
+    fase = 2*np.pi*np.cumsum(tono)/HZ
+    x[caer] = 0.45*np.sin(fase[caer])*np.clip(t[caer]/0.02, 0, 1)
+    ti = t - 0.38
+    dentro = ti >= 0
+    golpe = np.zeros(n)
+    golpe[dentro] = np.sin(2*np.pi*78*ti[dentro])*np.exp(-ti[dentro]/0.09)
+    polvo = _filtra(_ruido(n, rng, color=2), alto=320)
+    polvo = polvo/(np.max(np.abs(polvo)) + 1e-9)
+    polvo[~dentro] = 0
+    polvo[dentro] *= np.exp(-ti[dentro]/0.06)
+    return x + golpe*1.0 + polvo*0.7
+
+
+def _boing(seg, rng):
+    """El muelle de dibujo animado, para el que salta de alegria."""
+    n = int(max(seg, 0.5)*HZ); t = np.arange(n)/HZ
+    tono = 190*(1 + 0.35*np.sin(2*np.pi*16*t)*np.exp(-t/0.25)) * (1 + 0.5*t)
+    fase = 2*np.pi*np.cumsum(tono)/HZ
+    return np.sin(fase)*_env(n, .005, .35, 2.5)
+
+
 EFECTOS = {
+    "golpe": _golpe, "boing": _boing,
     "campana": _campana, "gentio": _gentio, "fuego": _fuego, "pasos": _pasos,
     "espada": _espada, "tormenta": _tormenta, "mar": _mar, "monedas": _monedas,
     "puerta": _puerta, "caballo": _caballo,
