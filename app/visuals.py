@@ -528,7 +528,8 @@ def fetch_clips_for_scenes(
                 # A la miniatura va el FOTOGRAMA, no el mp4: thumbnail.py abre
                 # esa lista con PIL.
                 fijo = Path(clip).with_suffix(".jpg")
-                if retratos is not None and fijo.exists():
+                # El cierre con Anselmo no vale de portada: es igual en todos.
+                if retratos is not None and fijo.exists() and not scene.get("is_cierre"):
                     retratos.append(fijo)
                 # Sin el cartel oscuro de "dato clave" encima. En la Guerra de
                 # las Naranjas tapaba los bocadillos ("GODOY DECLARA LA

@@ -10,6 +10,7 @@ from typing import Callable
 from . import llm_usage, sonidos, storage, voces
 from .branding import DURACION_CARETA_SHORT, INTRO_NARRATION, careta_short
 from .config import (
+    CHANNEL_NAME,
     BURN_SUBTITLES,
     CONTENT_MODE,
     DATA_DIR,
@@ -123,6 +124,27 @@ _INTRO_SCENE = {
 }
 
 
+# EL CIERRE DE LOS SHORTS: Anselmo, el testigo del canal, pidiendo que te
+# suscribas con la frase que eligio ella - "suscribete y hazte el chulo
+# delante de tus amigos contando historias que casi nadie sabe". En dos
+# globos de siete palabras como mucho, que es lo que cabe en uno. Va detras
+# del remate, nunca delante: el chiste es lo ultimo de la historia y esto ya
+# es el canal hablando. Con el rotulo rojo del canal arriba, y Anselmo dando
+# botes (la bombilla la tapaban los dos globos).
+_CIERRE_SHORT = {
+    "narration": "«¡Suscríbete y hazte el chulo…» «…contando historias que casi nadie sabe!»",
+    "visual_keywords": "",
+    "photo_subject": "",
+    "photo_subject_role": "",
+    "ai_image_prompt": "",
+    "on_screen_highlight": "",
+    "is_cierre": True,
+    "escena": {"interior": "calle", "rotulo": CHANNEL_NAME, "hablan": ["cronista", "cronista"],
+               "figuras": [{"quien": "cronista", "x": 0.5, "pose": "brazos_arriba",
+                            "gesto": "contento", "efecto": "salto"}]},
+}
+
+
 def _con_creditos(descripcion: str, urls: list[str]) -> str:
     """The description, with the image credits the licences require.
 
@@ -208,6 +230,13 @@ def _generate_variant(
         escenas = list(script["scenes"])
         escenas.insert(min(posicion_careta, len(escenas)), dict(_INTRO_SCENE))
         script["scenes"] = escenas
+    # El cierre con Anselmo, en los Shorts de monigotes y solo si la voz la
+    # pone el bot: una grabacion hecha a mano no lleva esa frase.
+    if (variant == "short" and recording_path is None and script["scenes"]
+            and any(isinstance(e.get("escena"), dict) for e in script["scenes"])
+            and not any(e.get("is_cierre") for e in script["scenes"])):
+        import copy
+        script["scenes"] = list(script["scenes"]) + [copy.deepcopy(_CIERRE_SHORT)]
     # Default to treating the story as sensitive if the field is somehow
     # missing/unparseable - that only disables the extra narration-based
     # real-photo lookup below, never anything the model explicitly asked for.
