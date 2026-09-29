@@ -145,6 +145,45 @@ _CIERRE_SHORT = {
 }
 
 
+# TIEMPO PARA QUE SE VEA EL EFECTO. Ella, viendo Colon: "los efectos duran
+# demasiado poco, como el de hacer zoom o caerse, casi no se aprecian; los
+# alargaria un par de segundos". Pasan al acabar la ultima frase de la
+# escena, y la escena se acababa en cuanto callaba la voz: menos de un
+# segundo para caerse, rebotar y que den vueltas las estrellas. Asi que a
+# esas escenas se les añade un silencio al final, y con el la escena dura
+# mas. Todo lo demas (globos, voces, subtitulos) va por escena y se corre
+# solo.
+_EFECTOS_CON_PAUSA = ("caida", "camara")
+_PAUSA_DEL_EFECTO = 2.0
+
+
+def _hueco_para_efectos(narration_path: Path, duraciones: list[float],
+                        escenas: list[dict], out_path: Path) -> tuple[Path, list[float]]:
+    extras = []
+    for e in escenas:
+        figuras = (e.get("escena") or {}).get("figuras") if isinstance(e.get("escena"), dict) else None
+        tiene = any(isinstance(f, dict) and (f.get("efecto") or "").strip().lower() in _EFECTOS_CON_PAUSA
+                    for f in (figuras or []))
+        extras.append(_PAUSA_DEL_EFECTO if tiene else 0.0)
+    if not any(extras) or len(duraciones) != len(escenas):
+        return narration_path, duraciones
+    from pydub import AudioSegment
+    audio = AudioSegment.from_file(narration_path)
+    nuevo, nuevas, reloj = AudioSegment.empty(), [], 0.0
+    for i, dura in enumerate(duraciones):
+        desde = int(reloj*1000)
+        hasta = len(audio) if i == len(duraciones) - 1 else int((reloj + dura)*1000)
+        nuevo += audio[desde:hasta]
+        if extras[i]:
+            nuevo += AudioSegment.silent(duration=int(extras[i]*1000), frame_rate=audio.frame_rate)
+        nuevas.append(dura + extras[i])
+        reloj += dura
+    nuevo.export(out_path, format="mp3")
+    logger.info("Pausa de %.1fs para que se vea el efecto en las escenas %s.",
+                _PAUSA_DEL_EFECTO, [i for i, x in enumerate(extras) if x])
+    return out_path, nuevas
+
+
 def _con_creditos(descripcion: str, urls: list[str]) -> str:
     """The description, with the image credits the licences require.
 
@@ -293,6 +332,14 @@ def _generate_variant(
     # La de siempre se guarda aparte para los subtitulos: quien transcribe oye
     # mejor una voz normal que una acelerada, y como el trozo cambiado dura
     # EXACTAMENTE lo mismo, los tiempos valen para las dos.
+    if _VARIANT_ASPECT_RATIO[variant] == "9:16":
+        try:
+            narration_path, scene_durations = _hueco_para_efectos(
+                narration_path, scene_durations, script["scenes"],
+                variant_dir / "audio" / "narracion_con_pausas.mp3")
+        except Exception:
+            # Sin la pausa el efecto se ve corto, pero se ve: no vale un video.
+            logger.warning("No se ha podido alargar las escenas con efecto.", exc_info=True)
     narracion_limpia = narration_path
     if _VARIANT_ASPECT_RATIO[variant] == "9:16":
         trozos = voces.trozos_de(script["scenes"], scene_durations, marcas_narracion)
