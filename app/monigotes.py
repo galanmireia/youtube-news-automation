@@ -513,6 +513,23 @@ def _gorro(d, cab, rc, g, rnd, cual):
         d.rectangle([x-rc*0.62, arriba-rc*1.30, x+rc*0.62, arriba], fill=negro)
         d.rectangle([x-rc*0.62, arriba-rc*0.36, x+rc*0.62, arriba-rc*0.16], fill=(150, 28, 40))
         d.ellipse([x-rc*1.10, arriba-rc*0.14, x+rc*1.10, arriba+rc*0.14], fill=negro)
+    elif cual == "dormir":          # gorro de dormir con borla: recien levantado, en pijama
+        # Cae hacia un lado, a rayas, con la borla colgando: se lee como
+        # "pijama" al vuelo. Colon saliendo en pijama cuando gritan tierra.
+        pts = [(x - rc*1.02, arriba + rc*0.20), (x - rc*0.55, arriba - rc*0.75),
+               (x + rc*0.45, arriba - rc*0.95), (x + rc*1.55, arriba - rc*0.05),
+               (x + rc*0.95, arriba + rc*0.25)]
+        d.polygon(pts, fill=(96, 132, 196))
+        for k in (0.30, 0.62):
+            a = (x - rc*1.02 + (x + rc*0.45 - x + rc*1.02)*k, arriba + rc*0.2 - rc*1.15*k)
+            b = (a[0] + rc*0.75, a[1] + rc*0.55)
+            d.line([a, b], fill=(236, 240, 248), width=max(3, int(g*1.4)))
+        _linea(d, pts + [pts[0]], g, rnd, temblor=1.2)
+        d.rounded_rectangle([x - rc*1.10, arriba - rc*0.05, x + rc*1.10, arriba + rc*0.32],
+                            radius=int(rc*0.14), fill=(236, 240, 248), outline=TINTA,
+                            width=max(2, g//2))
+        _circulo(d, (x + rc*1.60, arriba + rc*0.12), rc*0.26, max(2, g//2), rnd,
+                 relleno=(236, 240, 248), color=TINTA)
     elif cual == "peineta":         # peineta y mantilla: la dama española
         # La mantilla se pinta DETRAS de la cara (ver GORROS_DETRAS), cayendo
         # por los lados hasta los hombros; la peineta asoma por encima.
@@ -917,6 +934,7 @@ def escena(spec, w=1080, h=1920, semilla=0):
     _camas(d, spec, h, w, lambda f: suelo, rnd, g_cama, "delante")
     _pinta_cosas(delante=True)
     _pinta_adornos(d, adornos, rnd)
+    spec["_cabezas"] = [(fx, fy - fa*0.86, fa) for _, fx, fy, fa in adornos]
     _pinta_papeles(d, spec, w, h, suelo)
     _pinta_rotulo(d, spec, w, h)
     return img
@@ -1132,7 +1150,8 @@ EFECTOS_EXPLICADOS = {
     "lagrimas": "LLORA a chorros",
     "mareo":    "MAREADO: estrellitas dando vueltas alrededor de la cabeza",
     "idea":     "SE LE OCURRE ALGO: se le enciende una bombilla encima. 'Se le ilumina la cara', 'ya se', el plan",
-    "confuso":  "NO ENTIENDE NADA: le salen interrogaciones. 'Mira a camara confundido', 'se queda pensando'",
+    "confuso":  "NO ENTIENDE NADA: le salen interrogaciones. 'Se queda pensando', 'no entiende nada'",
+    "camara":   "MIRA A CAMARA: la camara se le acerca de golpe a la cara, al acabar la ultima frase de la escena. La reaccion: 'mira a camara indignado', 'se queda mirando a camara'",
     "enamorado":"ENAMORADO: le suben corazones. Bodas, reyes que se casan, el que se derrite",
 }
 EFECTOS_VALIDOS = tuple(EFECTOS_EXPLICADOS)
@@ -1146,7 +1165,7 @@ def momento_del_efecto(efecto, segundos, globos=None) -> float:
     """En que segundo de la escena empieza. La caida, al acabar la ULTIMA
     frase - es la reaccion al remate - y si no queda hueco, hacia el final
     igualmente, para que se vea tumbado un rato."""
-    if efecto == "caida":
+    if efecto in ("caida", "camara"):
         fin = max((float(g["hasta"]) for g in (globos or []) if g), default=None)
         tope = max(0.3, segundos - 0.9)
         if fin is not None:
@@ -1202,6 +1221,48 @@ def _efecto(f, reloj, segundos):
     elif e == "lagrimas":
         out["gesto"] = f.get("gesto") if f.get("gesto") in ("grito", "enfadado") else "sorpresa"
     return out
+
+
+def _de_noche(img):
+    """DE NOCHE: el plano entero en azul oscuro, con luna. "Todo esta oscuro"
+    en el barco de Colon, el rey que vive de noche, la conspiracion: los
+    decorados son todos de dia y la noche no se podia contar."""
+    w, h = img.size
+    capa = Image.new("RGB", (w, h), (18, 26, 64))
+    img = Image.blend(img, capa, 0.42)
+    d = ImageDraw.Draw(img)
+    cx, cy, r = w*0.82, h*0.11, w*0.055
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(250, 238, 170))
+    d.ellipse([cx - r*1.45, cy - r*1.15, cx + r*0.35, cy + r*0.95], fill=(40, 48, 92))
+    return img
+
+
+_CARA_EN_PANTALLA = 0.13  # lo que ocupa la cara al acabar el zoom, del alto
+_DURA_ZOOM = 0.22         # de golpe, como en las comedias
+
+
+def _caja_del_zoom(paso, tam):
+    """El recorte del "mira a camara": de todo el plano a su cara, de golpe.
+    La cara queda en el centro y algo por debajo, que arriba van los globos."""
+    w, h = tam
+    for k, f in enumerate(paso.get("figuras", [])):
+        if f.get("efecto") != "camara" or f.get("_efecto_t", -1) < 0:
+            continue
+        cabezas = paso.get("_cabezas") or []
+        if k >= len(cabezas):
+            return None
+        hx, hy, alto_f = cabezas[k]
+        p = min(1.0, f["_efecto_t"]/_DURA_ZOOM)
+        p = 1 - (1 - p)**3                      # entra rapido y frena
+        # Cuanto acercarse depende de lo grande que sea: con un zoom fijo, a
+        # Perico, que es bajito, se le seguia viendo la cara pequeña.
+        cara = 2*0.145*alto_f
+        zoom = min(3.0, max(1.6, _CARA_EN_PANTALLA*h/max(cara, 1)))
+        cw, ch = w/zoom, h/zoom
+        x0 = min(max(hx - cw/2, 0), w - cw)
+        y0 = min(max(hy - ch*0.45, 0), h - ch)
+        return (x0*p, y0*p, w + (x0 + cw - w)*p, h + (y0 + ch - h)*p)
+    return None
 
 
 def _en_cama_con(nombre):
@@ -1329,6 +1390,73 @@ def _adornos_de_efecto(d, f, x, y, alto, rnd):
                           outline=TINTA)
 
 
+# LO QUE SE LLEVA EN LA MANO. "Cuando coge el catalejo": las cosas estaban
+# en el suelo o flotando, nunca en la mano de nadie. Ahora una figura puede
+# llevar una, y va donde este su mano en cada fotograma - si señala, la
+# carta va con el brazo. El catalejo es especial: va al ojo, que es como se
+# usa, y el que lo lleva se pone la mano de visera.
+LLEVABLES_EXPLICADOS = {
+    "catalejo":  "el catalejo, mirando por el: '¡tierra!', el vigia, el almirante",
+    "carta":     "una carta con lacre: noticias, ordenes, la declaracion de guerra",
+    "pergamino": "un pergamino: el tratado, la ley, la bula",
+    "dinero":    "la bolsa del dinero: el premio, el soborno, los impuestos",
+    "espada":    "la espada en la mano",
+    "antorcha":  "una antorcha",
+    "libro":     "un libro",
+    "naranjas":  "naranjas",
+    "pan":       "una hogaza de pan",
+    "cesta":     "una cesta",
+    "bandera_espana": "una bandera en la mano (vale cualquier bandera_ de las cosas)",
+}
+_TAM_LLEVADO = {"espada": 0.40, "antorcha": 0.30, "bandera": 0.50, "pergamino": 0.20,
+                "carta": 0.16, "dinero": 0.18, "libro": 0.16, "cesta": 0.20}
+
+
+def _llevable(que) -> str | None:
+    que = (que or "").strip().lower()
+    if que in LLEVABLES_EXPLICADOS or (que.startswith("bandera") and que in COSAS):
+        return que if COSAS.get(que) or que == "catalejo" else None
+    return None
+
+
+def _catalejo_al_ojo(d, x, y, alto, s, g):
+    laton = (206, 164, 70)
+    tramos = ((0.00, 0.13, .030), (0.12, 0.25, .025), (0.24, 0.36, .020))
+    for k, (a, b, r) in enumerate(tramos):
+        x0, x1 = x + s*alto*a, x + s*alto*b
+        d.rectangle([min(x0, x1), y - alto*r, max(x0, x1), y + alto*r],
+                    fill=laton if k != 1 else (178, 136, 56), outline=TINTA, width=max(2, g//2))
+    punta = x + s*alto*0.36
+    d.ellipse([punta - alto*0.012, y - alto*0.02, punta + alto*0.012, y + alto*0.02],
+              fill=(150, 190, 220), outline=TINTA)
+
+
+def _pinta_llevado(d, f, x, y, alto, rnd, rasgos):
+    que = f.get("lleva")
+    if not que:
+        return
+    p = f.get("pose_mezclada") or _POSES.get(f.get("pose") or "de_pie", _POSES["de_pie"])
+    s = -1 if f.get("espejo") else 1
+    anc = (rasgos or {}).get("ancho", 1.0)
+    g = max(4, int(alto*0.018))
+    if que == "catalejo":
+        rc = alto*0.145*(rasgos or {}).get("cabeza", 1.0)
+        hx = x + p["cuello"][0]*alto*s*anc
+        hy = y + p["cuello"][1]*alto - rc*0.95
+        _catalejo_al_ojo(d, hx + s*rc*0.30, hy - rc*0.10, alto, s, g)
+        return
+    mx, my = p["brazos"][1][-1]
+    hx, hy = x + mx*alto*s*anc, y + my*alto
+    clase = "bandera" if que.startswith("bandera") else que
+    tam = alto*_TAM_LLEVADO.get(clase, 0.18)
+    dibuja = COSAS.get(que)
+    if dibuja:
+        # La mano lo coge por abajo: el palo de la bandera, la empuñadura, el
+        # borde de la carta.
+        agarre = 0.15 if clase in ("bandera", "espada", "antorcha") else 0.45
+        dibuja(d, hx, hy + tam*agarre, tam, rnd, max(3, g))
+
+
 def _dibuja_figura(img, d, f, x, y, alto, rnd, **kw):
     """figura() con su efecto: movida, girada si se ha caido, y con sus
     adornos. La que se cae se pinta en una capa aparte y se gira entera
@@ -1345,6 +1473,7 @@ def _dibuja_figura(img, d, f, x, y, alto, rnd, **kw):
         img.paste(capa, (0, 0), capa)
     else:
         figura(d, x, y, *args, **kw)
+        _pinta_llevado(d, f, x, y, alto, rnd, kw.get("rasgos"))
     # Los adornos (el PUM, las estrellitas, el humo) NO van aqui: van al
     # final, encima de la colcha y de las mesas de delante, que si no los
     # tapaban. Se devuelve donde pintarlos.
@@ -1406,6 +1535,11 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
             paso["figuras"].append(g)
         rnd = random.Random(1000 + n//3)
         img = _decorado(paso, semilla=1000 + n//3)
+        if paso.get("noche"):
+            img = _de_noche(img)
+        caja = _caja_del_zoom(paso, img.size)
+        if caja:
+            img = img.crop(tuple(int(v) for v in caja)).resize(img.size, Image.LANCZOS)
         # UNO O DOS. Dos es una conversacion: uno dice algo y el otro le
         # contesta, cada globo en SU instante y apuntando a SU monigote. Si se
         # solapan en el tiempo se pintan los dos, que es como se dibuja una
@@ -1420,7 +1554,11 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
                 i = globo.get("figura")
                 if isinstance(i, int) and 0 <= i < len(paso["figuras"]):
                     x = paso["figuras"][i]["x"]
-                img = _pinta_bocadillo(img, globo["texto"], img.size[0]*x, rnd, fila)
+                px = img.size[0]*x
+                if caja:                    # con zoom, el rabo sigue a su cara
+                    px = min(img.size[0]*0.95, max(img.size[0]*0.05,
+                             (px - caja[0])/(caja[2] - caja[0])*img.size[0]))
+                img = _pinta_bocadillo(img, globo["texto"], px, rnd, fila)
         fotogramas.append(img)
     return fotogramas
 
@@ -1452,6 +1590,7 @@ GORROS_EXPLICADOS = {
     "turbante":   "Al-Andalus, sultanes, embajadores de Oriente",
     "chistera":   "sombrero de copa del XIX: politicos, banqueros, caballeros",
     "peineta":    "peineta y mantilla negra: la dama española",
+    "dormir":     "gorro de dormir con borla: en pijama, recien levantado, en la cama",
 }
 GORROS_VALIDOS = tuple(GORROS_EXPLICADOS)
 # (OBJETOS_VALIDOS ya esta declarada arriba, junto a OBJETOS: el sombrero no
@@ -1502,6 +1641,7 @@ def limpia(spec: dict) -> dict:
             "espejo": bool(f.get("espejo")),
             "papel": (str(f.get("papel") or "").strip()[:_LARGO_PAPEL] or None),
             "efecto": _una_de(f.get("efecto"), EFECTOS_VALIDOS, "") or None,
+            "lleva": _llevable(f.get("lleva")),
             "efecto_desde": (float(f["efecto_desde"])
                              if isinstance(f.get("efecto_desde"), (int, float)) else None),
         })
@@ -1511,6 +1651,10 @@ def limpia(spec: dict) -> dict:
         ultima = figuras[-1]
         if "en_cama" in (ultima["pose"], ultima["pose_fin"]) and ultima["objeto"] in ("manto", "capa"):
             ultima["objeto"] = None
+        # El que mira por el catalejo se lo lleva al ojo con la mano de visera,
+        # y se queda asi: si luego señalara, el catalejo flotaria solo.
+        if ultima["lleva"] == "catalejo" and ultima["pose"] in ("de_pie", "señala", "mirando"):
+            ultima["pose"], ultima["pose_fin"] = "mirando", None
     # LA CAMA OCUPA SITIO. Se pinta hacia donde mira quien esta en ella, y
     # en Farinelli el cantante acabo de pie encima de los pies de la cama,
     # medio tapado: el guion no sabe cuanto mide una cama. Aqui si: el de la
@@ -1596,6 +1740,7 @@ def limpia(spec: dict) -> dict:
             "figuras": figuras, "tachados": tachados,
             "habla_x": habla_x, "hablan": hablan,
             "rotulo": (" ".join(str(spec.get("rotulo") or "").split())[:_LARGO_ROTULO] or None),
+            "noche": bool(spec.get("noche")),
             "arbol": spec.get("arbol") if isinstance(spec.get("arbol"), (int, float)) else None})
 
 
@@ -3425,6 +3570,7 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
         _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g)
     _pinta_cosas(delante=True)
     _pinta_adornos(d, adornos, rnd)
+    spec["_cabezas"] = [(fx, fy - fa*0.86, fa) for _, fx, fy, fa in adornos]
     _pinta_papeles(d, spec, w, h, pies)
     _pinta_rotulo(d, spec, w, h)
 

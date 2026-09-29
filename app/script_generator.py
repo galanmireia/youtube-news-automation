@@ -541,6 +541,12 @@ def _lista_de_gorros() -> str:
                      for n in monigotes.GORROS_VALIDOS)
 
 
+def _lista_de_llevables() -> str:
+    from . import monigotes
+    return "\n".join(f"                     {n:<14} {monigotes.LLEVABLES_EXPLICADOS[n]}"
+                     for n in monigotes.LLEVABLES_EXPLICADOS)
+
+
 def _lista_de_efectos() -> str:
     """Los efectos que se saben animar, sacados de monigotes: la misma cura
     que las posturas, para que no haya uno que se dibuja y no se ofrece."""
@@ -890,6 +896,8 @@ catedral, sale un fondo liso.
                 quien toca y que suene su voz. Si la escena no tiene ninguna frase entre «»,
                 "hablan": [].
     "habla_x":  0.0 a 1.0, donde esta el que dice la PRIMERA frase (el mismo que "hablan"[0])
+    "noche":    true si la escena pasa DE NOCHE ("es de noche", "todo esta oscuro"): el plano
+                sale en azul oscuro con luna. Quitalo si es de dia.
     "rotulo":   DONDE Y CUANDO, en un cartelito rojo arriba: "Olivenza", "Mayo de 1801",
                 "Madrid, 1766", "Tratado de Badajoz · 1801". Solo en la PRIMERA escena de cada
                 sitio nuevo o de cada salto de tiempo, y "" en las demas. Corto (40 letras como
@@ -929,6 +937,11 @@ catedral, sale un fondo liso.
                     PONSELA A ALGUIEN: si la escena habla de capas, alguien lleva "objeto":"capa" -
                     no basta con que la voz la mencione, tiene que verse puesta
        "espejo":   true para que mire hacia la izquierda
+       "lleva":    LO QUE TIENE EN LA MANO, y va con su mano aunque se mueva. Uno de:
+{bloque_llevables}
+                   o quitalo si no lleva nada. Si el guion dice que alguien coge, mira por,
+                   enseña o sujeta algo, ESO es lo que lleva: un catalejo en el suelo no es
+                   mirar por el catalejo.
        "efecto":   LO QUE LE PASA, encima de lo que hace - es de lo que mas risa da. Uno de:
 {bloque_efectos}
                    o quitalo si no le pasa nada. Si el guion dice que alguien se cae, se desmaya,
@@ -1993,8 +2006,11 @@ la cabeza" es "señala", "mira a camara, confundido" es el gesto, "con una cesta
 Y lo que LE PASA a alguien es su "efecto": "se cae al suelo" o "se desmaya" es "caida", "salta
 de alegria" es "salto", "tiembla" es "temblor", "echa humo" o "explota de rabia" es "humo", "se
 queda de piedra" o "se entera" es "sorpresa", "se duerme" o "ronca" es "zzz", "llora" es
-"lagrimas", "se marea" es "mareo", "se le ocurre" o "se le ilumina la cara" es "idea", "no
-entiende nada" o "mira a camara, confundido" es "confuso", "se enamora" es "enamorado". Y las
+"lagrimas", "en pijama" es el gorro "dormir", "se marea" es "mareo", "se le ocurre" o "se le ilumina la cara" es "idea", "no
+entiende nada" es "confuso", "mira a camara" es "camara" (la camara se le acerca a la cara), "se
+enamora" es "enamorado". Y lo que tiene en la mano va en "lleva": "mira con el catalejo" es
+"lleva":"catalejo", "se mete el premio en el bolsillo" es "lleva":"dinero", "con la espada en la
+mano" es "lleva":"espada", "lee una carta" es "lleva":"carta". Y las
 posturas: "entra" o "se va" es "andando", "se arrodilla" es "de_rodillas", "baila" es
 "bailando", "aplauden" es "aplaudiendo"; "aparecen cincuenta monigotes" es la cosa "multitud".
 Si el original lo dice, TIENE que llevarlo: en Farinelli el remate era "Farinelli se cae al
@@ -2305,7 +2321,8 @@ _VARIANT_CONFIG["short"]["bloque_ilustracion"] = (
     .replace("{bloque_objetos}", _lista_de_objetos())
     .replace("{bloque_decorados}", _lista_de_decorados())
     .replace("{bloque_efectos}", _lista_de_efectos())
-    .replace("{bloque_gorros}", _lista_de_gorros()))
+    .replace("{bloque_gorros}", _lista_de_gorros())
+    .replace("{bloque_llevables}", _lista_de_llevables()))
 
 
 def _el_guion_conoce_todas_las_posturas() -> None:
@@ -2344,6 +2361,12 @@ def _el_guion_conoce_todas_las_posturas() -> None:
         raise RuntimeError("La lista de objetos no se ha metido en el bloque de la escena.")
     if "{bloque_decorados}" in texto:
         raise RuntimeError("La lista de decorados no se ha metido en el bloque de la escena.")
+    if "{bloque_llevables}" in texto:
+        raise RuntimeError("La lista de lo que se lleva en la mano no se ha metido en el bloque.")
+    sin_llevar = [e for e in monigotes.LLEVABLES_EXPLICADOS
+                  if not re.search(rf"\b{re.escape(e)}\b", texto)]
+    if sin_llevar:
+        raise RuntimeError(f"Se saben llevar en la mano pero el guion no lo sabe: {sin_llevar}.")
     if "{bloque_gorros}" in texto:
         raise RuntimeError("La lista de gorros no se ha metido en el bloque de la escena.")
     sin_ofrecer_gorro = [e for e in monigotes.GORROS_VALIDOS
