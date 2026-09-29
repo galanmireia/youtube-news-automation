@@ -2133,15 +2133,30 @@ def _narrador_no_se_cuela_en_citas(raw_text: str, script: dict) -> str | None:
     lineas_narrador = _lineas_de_narrador(raw_text)
     if not lineas_narrador:
         return None
-    citas = [_sin_tildes(c.strip().lower()) for e in script.get("scenes", [])
-             for c in bocadillos.citas_de(e.get("narration", ""))]
+    # POR PALABRAS ENTERAS, no por letras. Comparaba texto suelto y el «Sí.»
+    # de Colon "estaba dentro" de "...habia llegado a Asia" (a-SI-a): tiro tres
+    # veces un guion que estaba bien, 0,75 $ a la basura. Ahora cuenta si la
+    # linea del narrador entera esta en un globo, o si un globo es un trozo
+    # grande de la linea del narrador (una linea larga partida en dos globos).
+    def palabras(t):
+        return _normaliza_frase(t).split()
+
+    def dentro(corta, larga):
+        n = len(corta)
+        return n > 0 and any(larga[i:i + n] == corta for i in range(len(larga) - n + 1))
+
+    citas = [palabras(c) for e in script.get("scenes", [])
+             for c in bocadillos.todas_las_comillas(e.get("narration", ""))]
     if not citas:
         return None
     for linea in lineas_narrador:
-        clave = _sin_tildes(linea.strip().lower())
-        if len(clave) < 6:
+        clave = palabras(linea)
+        if len(clave) < 2:
             continue
-        if any(clave in c or c in clave for c in citas):
+        # Un trozo cuenta si es grande: en la oreja, el mensajero dice «Por una
+        # oreja.» y esas tres palabras tambien estan en la frase del narrador.
+        trozo = max(4, int(len(clave)*0.35 + 0.999))
+        if any(dentro(clave, c) or (len(c) >= trozo and dentro(c, clave)) for c in citas):
             return (f"la frase del narrador {linea.strip()[:50]!r} del guion original ha "
                     f"salido como una cita con bocadillo en vez de como narracion - eso no lo "
                     f"dijo ningun personaje, es texto de contexto")
