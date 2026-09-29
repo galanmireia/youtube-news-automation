@@ -1127,7 +1127,10 @@ def _strip_markdown_fence(text: str) -> str:
 # several thousand tokens of JSON before the model has thought about
 # anything, and a reply cut off mid-object does not parse at all. An
 # unused ceiling costs nothing.
-_MAX_TOKENS = 32000
+# Y subido otra vez: el Colon de ella, 17 escenas con su dibujo cada una,
+# llego a 32000 tokens de salida y se corto a medias - otro intento pagado
+# para nada. Sonnet 5 admite 128K en streaming, que es como se llama.
+_MAX_TOKENS = 64000
 _MAX_ATTEMPTS = 3
 
 # How much of the dossier each variant is allowed to read.
@@ -1243,7 +1246,7 @@ _TODO, _LO_QUE_DEFINE, _SOLO_LO_ROTO = 3, 2, 1
 
 
 def _que_le_pasa_al_guion(script: dict, variant: str = "long",
-                          exigente=_TODO) -> str | None:
+                          exigente=_TODO, literal: bool = False) -> str | None:
     """What is wrong with this script, or None when nothing is.
 
     Checked before anything expensive runs. Everything downstream reads
@@ -1273,9 +1276,16 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
     # ningun video. Una regla nueva sin pensar que pasa cuando no se puede
     # cumplir.
     nivel = _TODO if exigente is True else (_SOLO_LO_ROTO if exigente is False else exigente)
+    # LAS DE ESTILO NO VALEN PARA SU GUION. Que abra sin situar, que griten,
+    # que haya cifras, cinco decorados distintos, verbos... son reglas para
+    # cuando la historia la escribe Claude. Con /literal la historia es suya:
+    # Colon se rechazo por "solo 3 decorados distintos en 17 escenas", que son
+    # los tres sitios que tiene su guion, y eso costo un intento entero. Las
+    # tecnicas (quien dice cada frase, frases largas, el narrador) siguen.
+    estilo = nivel >= _TODO and not literal
     if variant == "short" and nivel >= _LO_QUE_DEFINE:
         primera = (escenas[0].get("narration") or "").strip()
-        if nivel >= _TODO and _ABRE_SITUANDO.match(primera):
+        if estilo and _ABRE_SITUANDO.match(primera):
             return (f"la escena 1 abre situando ({primera[:40]}...), que es lo que "
                     "mata un Short en los dos primeros segundos")
         palabras = sum(len((e.get("narration") or "").split()) for e in escenas)
@@ -1304,7 +1314,7 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
         # arriba y el video seguia siendo una voz contando datos. Esto solo en
         # el primer intento - un video con un bocadillo es peor que uno con
         # cuatro, pero es infinitamente mejor que ninguno.
-        if nivel >= _TODO and hablan * 2 < len(escenas):
+        if estilo and hablan * 2 < len(escenas):
             return (f"solo hablan {hablan} de {len(escenas)} escenas. Tiene que hablar "
                     f"alguien en LA MITAD por lo menos: la voz contando datos es "
                     f"informacion, dos monigotes discutiendo es una escena")
@@ -1315,7 +1325,7 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
         # con un ida y vuelta: el Motin de Esquilache salio con 2 escenas de
         # dialogo de verdad en 11 (2, 5) y tres mas con una sola frase (3, 7,
         # 8) - "alguien habla" se cumplia y "conversaciones" no.
-        if nivel >= _TODO:
+        if estilo:
             conversan = sum(1 for e in escenas
                             if len(bocadillos.citas_de(e.get("narration", ""))) >= 2)
             minimo = max(2, len(escenas)//4)
@@ -1330,7 +1340,7 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
         # bocadillo ya sale pegado a la cara de quien habla - "habla_x" lo dice
         # -, asi que la narracion no tiene que anunciarlo con "dijo", "penso",
         # "solto", "pregunto", "grito" delante de las comillas.
-        if nivel >= _TODO:
+        if estilo:
             patron_atribucion = re.compile(
                 r'\b(dijo|dice|solto|suelta|pregunto|pregunta|penso|piensa|exclamo|exclama|'
                 r'grito|grita|conteste|contesto|responde|respondio|murmura|murmuro|susurra|'
@@ -1348,7 +1358,7 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
         # QUE GRITEN DE VERDAD, no solo que hablen. "Mas tonto... gente "
         # chillando, la bruja en la hoguera chilla maldicion". Se mide sobre
         # el gesto de las figuras, que es lo que de verdad se dibuja.
-        if nivel >= _TODO:
+        if estilo:
             from . import monigotes
             gritos = sum(1 for e in escenas if isinstance(e.get("escena"), dict)
                         for f in monigotes.limpia(e["escena"])["figuras"]
@@ -1394,14 +1404,14 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
         claves = [p for p in _sin_tildes(gracia.lower()).split()
                   if len(p) > 4 and p not in _PALABRAS_COMUNES]
         dentro = sum(1 for p in claves if p in narrado)
-        if nivel >= _TODO and claves and dentro < max(1, len(claves)//3):
+        if estilo and claves and dentro < max(1, len(claves)//3):
             return (f"dice que lo gracioso es {gracia[:60]!r}, pero eso no aparece en la "
                     "narracion: la gracia esta en la ficha y no en el video")
 
         # APRENDER: cifras, años o nombres propios. Sin datos concretos es una
         # impresion, no una curiosidad.
         concretos = len(re.findall(r"\b\d[\d.,]*\b", narrado))
-        if nivel >= _TODO and concretos < 2:
+        if estilo and concretos < 2:
             return (f"solo trae {concretos} dato(s) con cifra en toda la narracion. Una "
                     "curiosidad se sostiene sobre numeros y años concretos, no sobre "
                     "impresiones")
@@ -1412,7 +1422,7 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
         # pero eso solo da movimiento; esto pide que el movimiento SIGNIFIQUE
         # algo. Un video entero de gente de pie señalando cosas cumple todas
         # las demas reglas y sigue sin enseñar nada pasando.
-        if nivel >= _TODO:
+        if estilo:
             from . import monigotes
             verbos = {f["pose"] for e in escenas if isinstance(e.get("escena"), dict)
                       for f in monigotes.limpia(e["escena"])["figuras"]} & set(monigotes._CICLOS)
@@ -1430,7 +1440,7 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
         # prompt ya pedia "elige siempre que puedas" para que HUBIERA un
         # decorado, pero nunca pedia que fueran DISTINTOS, y esa mitad de la
         # regla nunca se cumplio sola.
-        if nivel >= _TODO:
+        if estilo:
             from collections import Counter
             from . import monigotes
             interiores = [monigotes.limpia(e["escena"]).get("interior")
@@ -2279,7 +2289,7 @@ def translate_literal_script(raw_text: str, variant: str = "short", parar=None) 
         ultimo = attempt >= _MAX_ATTEMPTS
         problema = (_narrador_no_se_cuela_en_citas(raw_text, script)
                     or (nivel >= _LO_QUE_DEFINE and _narrador_solo_dice_lo_suyo(raw_text, script))
-                    or _que_le_pasa_al_guion(script, variant, exigente=nivel))
+                    or _que_le_pasa_al_guion(script, variant, exigente=nivel, literal=True))
         if problema:
             logger.warning("translate_literal_script: guion mal formado (%s). Intento %s.",
                            problema, attempt)
