@@ -67,6 +67,12 @@ def _write_srt(entries: list[tuple[float, float, str]], out_path: Path) -> Path:
     return out_path
 
 
+# Mas de esto sin hablar y el cartel se cierra.
+_HUECO_MAXIMO = 0.7
+# Y ninguna palabra se queda en pantalla mas de esto despues de decirse.
+_COLA_MAXIMA = 0.8
+
+
 def _chunk_words(
     words: list, max_words: int, max_seconds: float, max_chars: int = _BURN_MAX_CHARS
 ) -> list[list]:
@@ -87,6 +93,13 @@ def _chunk_words(
         # unless it would leave the chunk empty: a single word longer than the
         # budget has nowhere else to go.
         if current and len(_join(current + [word])) > max_chars:
+            flush()
+        # Y ANTES DE UN SILENCIO. Desde que lo que dicen los personajes no se
+        # subtitula, entre dos frases del narrador puede haber cuarenta
+        # segundos de dialogo, y en Colon "la viera." y "Colón" (la frase
+        # siguiente) acabaron en el mismo cartel: se quedo en pantalla desde
+        # el segundo 16 hasta el 55.
+        if current and word.start - current[-1].end > _HUECO_MAXIMO:
             flush()
         current.append(word)
         if len(current) >= max_words or (current[-1].end - current[0].start) >= max_seconds:
@@ -173,6 +186,7 @@ def write_ass(chunks: list[list], out_path: Path, width: int, height: int) -> Pa
             # the block would flicker away early.
             inicio = word.start
             fin = chunk[-1].end if i == len(chunk) - 1 else chunk[i + 1].start
+            fin = min(fin, word.end + _COLA_MAXIMA)
             if fin <= inicio:
                 continue
             pintadas = [

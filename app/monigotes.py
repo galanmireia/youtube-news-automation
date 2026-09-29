@@ -1493,7 +1493,6 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
     animacion dibujada a mano de toda la vida.
     """
     total = max(2, int(segundos*fps))
-    fotogramas = []
     for n in range(total):
         reloj = n/fps
         # El movimiento se REPITE cada ciclo en vez de estirarse por el plano.
@@ -1559,8 +1558,9 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
                     px = min(img.size[0]*0.95, max(img.size[0]*0.05,
                              (px - caja[0])/(caja[2] - caja[0])*img.size[0]))
                 img = _pinta_bocadillo(img, globo["texto"], px, rnd, fila)
-        fotogramas.append(img)
-    return fotogramas
+        # De uno en uno, no la lista entera: 15 fotogramas por segundo a
+        # 1080x1920 son 90 MB por segundo de escena en memoria.
+        yield img
 
 
 # ---- LO QUE EL GUION PUEDE PEDIR -------------------------------------------
@@ -1816,14 +1816,22 @@ def render(spec: dict, out_path: Path, ancho: int, alto: int,
     """
     try:
         limpio = limpia(spec)
-        segundos = max(1.0, min(12.0, float(segundos)))
-        fotogramas = animar(limpio, segundos=segundos, fps=_FPS,
-                            bocadillo=bocadillo, bocadillos=bocadillos)
+        # EL TOPE ERA DE 12 SEGUNDOS, y una escena mas larga se rellenaba
+        # repitiendo su principio: en Colon, la escena del «¡AHÍ!» y las dos
+        # frases del narrador duraba 15 s y el «¡AHÍ!» volvia a salir justo
+        # antes de la careta. El tope estaba por la memoria - todos los
+        # fotogramas de la escena a la vez -, y ahora se guardan de uno en uno.
+        segundos = max(1.0, min(40.0, float(segundos)))
+        total = max(2, int(segundos*_FPS))
         carpeta = Path(out_path).with_suffix("")
         carpeta.mkdir(parents=True, exist_ok=True)
-        for i, img in enumerate(fotogramas):
-            _camara(img, i/max(1, len(fotogramas)-1)).resize(
-                (ancho, alto), Image.LANCZOS).save(carpeta / f"{i:04d}.png")
+        medio = None
+        for i, img in enumerate(animar(limpio, segundos=segundos, fps=_FPS,
+                                       bocadillo=bocadillo, bocadillos=bocadillos)):
+            cuadro = _camara(img, i/max(1, total-1)).resize((ancho, alto), Image.LANCZOS)
+            cuadro.save(carpeta / f"{i:04d}.png")
+            if i == total//2:
+                medio = cuadro
         orden = ["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(_FPS),
                  "-i", str(carpeta / "%04d.png"),
                  "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20",
@@ -1832,9 +1840,8 @@ def render(spec: dict, out_path: Path, ancho: int, alto: int,
         # Un fotograma suelto para la miniatura. La lista de 'retratos' la lee
         # thumbnail.py con PIL, y un mp4 ahi dentro es una excepcion: la
         # portada de un video de monigotes tiene que ser un monigote.
-        medio = _camara(fotogramas[len(fotogramas)//2], 0.5).resize(
-            (ancho, alto), Image.LANCZOS)
-        medio.save(Path(out_path).with_suffix(".jpg"), quality=92)
+        if medio is not None:
+            medio.save(Path(out_path).with_suffix(".jpg"), quality=92)
         for f in carpeta.glob("*.png"):
             f.unlink()
         carpeta.rmdir()
