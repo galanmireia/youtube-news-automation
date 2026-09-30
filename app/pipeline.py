@@ -153,7 +153,9 @@ _CIERRE_SHORT = {
 # esas escenas se les añade un silencio al final, y con el la escena dura
 # mas. Todo lo demas (globos, voces, subtitulos) va por escena y se corre
 # solo.
-_EFECTOS_CON_PAUSA = ("caida", "camara")
+# El zoom ya no: entra mientras se dice la frase, y la pausa despues eran
+# dos segundos de cara quieta en silencio ("demasiados parones").
+_EFECTOS_CON_PAUSA = ("caida",)
 _PAUSA_DEL_EFECTO = 2.0
 
 

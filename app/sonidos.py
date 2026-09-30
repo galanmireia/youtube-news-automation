@@ -173,8 +173,16 @@ def _boing(seg, rng):
     return np.sin(fase)*_env(n, .005, .35, 2.5)
 
 
+def _zas(seg, rng):
+    """El tortazo: un chasquido seco y brillante, casi todo ruido agudo."""
+    n = int(max(seg, 0.3)*HZ)
+    x = _filtra(_ruido(n, rng), bajo=1500)*_env(n, .001, .05, 6)
+    t = np.arange(n)/HZ
+    return x + 0.3*np.sin(2*np.pi*220*t)*np.exp(-t/0.03)
+
+
 EFECTOS = {
-    "golpe": _golpe, "boing": _boing,
+    "golpe": _golpe, "boing": _boing, "zas": _zas,
     "campana": _campana, "gentio": _gentio, "fuego": _fuego, "pasos": _pasos,
     "espada": _espada, "tormenta": _tormenta, "mar": _mar, "monedas": _monedas,
     "puerta": _puerta, "caballo": _caballo,

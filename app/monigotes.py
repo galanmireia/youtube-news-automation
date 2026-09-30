@@ -265,6 +265,15 @@ _POSES = {
     "aplaudiendo":{"cuello": (0,-.70), "cadera": (0,-.38),
                  "brazos": [[(0,-.66),(-.14,-.56),(-.17,-.63)], [(0,-.66),(.14,-.56),(.17,-.63)]],
                  "piernas":[[(0,-.38),(-.09,-.19),(-.11,0)],    [(0,-.38),(.09,-.19),(.11,0)]]},
+    # EL TORTAZO, por dentro: la mano arriba y atras, y luego a la cara del
+    # otro. No se ofrecen al guion (acaban en _b): las mueve animar() cuando
+    # alguien recibe una "bofetada".
+    "alzada_b": {"cuello": (-.03,-.70), "cadera": (0,-.38),
+                 "brazos": [[(-.02,-.66),(-.13,-.52),(-.16,-.37)], [(-.02,-.66),(-.06,-.90),(-.16,-1.08)]],
+                 "piernas":[[(0,-.38),(-.09,-.19),(-.11,0)],    [(0,-.38),(.11,-.19),(.15,0)]]},
+    "bofeton_b":{"cuello": (.06,-.69), "cadera": (0,-.38),
+                 "brazos": [[(.04,-.65),(-.10,-.52),(-.14,-.37)], [(.04,-.65),(.26,-.82),(.46,-.94)]],
+                 "piernas":[[(0,-.38),(-.12,-.19),(-.16,0)],    [(0,-.38),(.12,-.19),(.18,0)]]},
     "aplaudiendo_b":{"cuello": (0,-.70), "cadera": (0,-.38),
                  "brazos": [[(0,-.66),(-.10,-.56),(-.015,-.61)], [(0,-.66),(.10,-.56),(.015,-.61)]],
                  "piernas":[[(0,-.38),(-.09,-.19),(-.11,0)],    [(0,-.38),(.09,-.19),(.11,0)]]},
@@ -1165,7 +1174,7 @@ EFECTOS_EXPLICADOS = {
     "zzz":      "DUERME o se muere de aburrimiento: le salen Zzz",
     "lagrimas": "LLORA a chorros",
     "mareo":    "MAREADO: estrellitas dando vueltas alrededor de la cabeza",
-    "bofetada": "LE DAN UNA BOFETADA al empezar la escena: la cabeza sacudida, un ¡ZAS! y luego estrellitas de mareo. Va en el que la RECIBE",
+    "bofetada": "LE DAN UNA BOFETADA: el que esta mas cerca se le acerca y le pega, suena el ¡ZAS!, se le va la cabeza y se queda con estrellitas. Va en el que la RECIBE, y el que la da tiene que estar en la escena",
     "idea":     "SE LE OCURRE ALGO: se le enciende una bombilla encima. 'Se le ilumina la cara', 'ya se', el plan",
     "confuso":  "NO ENTIENDE NADA: le salen interrogaciones. 'Se queda pensando', 'no entiende nada'",
     "camara":   "MIRA A CAMARA: la camara se le acerca de golpe a la cara, al acabar la ultima frase de la escena. La reaccion: 'mira a camara indignado', 'se queda mirando a camara'",
@@ -1174,7 +1183,7 @@ EFECTOS_EXPLICADOS = {
 EFECTOS_VALIDOS = tuple(EFECTOS_EXPLICADOS)
 # Que sonido lleva cada efecto, y cuanto dura. Lo usa visuals para apuntar el
 # instante exacto y pipeline para mezclarlo.
-SONIDO_DEL_EFECTO = {"caida": ("golpe", 0.9), "salto": ("boing", 0.6)}
+SONIDO_DEL_EFECTO = {"caida": ("golpe", 0.9), "salto": ("boing", 0.6), "bofetada": ("zas", 0.4)}
 _DURA_CAIDA = 0.45
 
 
@@ -1182,13 +1191,29 @@ def momento_del_efecto(efecto, segundos, globos=None) -> float:
     """En que segundo de la escena empieza. La caida, al acabar la ULTIMA
     frase - es la reaccion al remate - y si no queda hueco, hacia el final
     igualmente, para que se vea tumbado un rato."""
-    if efecto in ("caida", "camara"):
+    if efecto == "camara":
+        # MIENTRAS dice su frase mirando a camara, no despues: el zoom al
+        # acabar la frase dejaba dos segundos de silencio con la cara quieta,
+        # "demasiados parones cuando enfoca".
+        ultimo = max((g for g in (globos or []) if g), key=lambda g: float(g["hasta"]), default=None)
+        if ultimo is not None:
+            return max(0.2, min(float(ultimo["desde"]), segundos - 0.8))
+        return max(0.2, min(segundos*0.4, segundos - 0.8))
+    if efecto == "bofetada":
+        # Entre la primera frase y la segunda ("Señora, eso no se hace" /
+        # TORTAZO / "Manos blancas no ofenden"), o al poco de empezar, que al
+        # que la da le hace falta medio segundo para llegar.
+        orden = sorted((g for g in (globos or []) if g), key=lambda g: float(g["desde"]))
+        if len(orden) >= 2:
+            return max(0.6, min(float(orden[0]["hasta"]) + 0.1, segundos - 0.8))
+        return min(0.6, max(0.3, segundos - 0.8))
+    if efecto == "caida":
         fin = max((float(g["hasta"]) for g in (globos or []) if g), default=None)
         tope = max(0.3, segundos - 0.9)
         if fin is not None:
             return max(0.3, min(fin, tope))
         return max(0.3, min(segundos*0.6, tope))
-    if efecto in ("sorpresa", "bofetada"):
+    if efecto == "sorpresa":
         return 0.12
     if efecto == "idea":
         # La bombilla, a mitad de la primera frase: primero se ve apagada y
@@ -1235,7 +1260,7 @@ def _efecto(f, reloj, segundos):
         out["gesto"] = "enfadado"
     elif e == "bofetada" and 0 <= t < 0.5:
         # El tortazo: la cabeza se va hacia un lado y vuelve, rapido.
-        out["_dx"] = 0.05*math.sin(math.pi*t/0.5)*math.exp(-t*3)*(-s)
+        out["_dx"] = 0.10*math.sin(math.pi*t/0.5)*math.exp(-t*3)*(-s)
         out["gesto"] = "sorpresa"
     elif e == "sorpresa" and 0 <= t < 0.35:
         out["_dy"] = -0.10*math.sin(math.pi*t/0.35)
@@ -1286,6 +1311,48 @@ def _caja_del_zoom(paso, tam):
     return None
 
 
+def _coreografia_del_tortazo(spec, paso, reloj, segundos):
+    """El que da la bofetada existe: es el mas cercano al que la recibe. Se
+    le acerca, levanta la mano y le pega justo en el instante del efecto.
+    Antes solo se veia el ZAS encima de Calomarde y Luisa Carlota quieta en
+    la otra punta: "no se entiende lo de la bofetada"."""
+    figs = paso.get("figuras", [])
+    for k, victima in enumerate(figs):
+        if victima.get("efecto") != "bofetada":
+            continue
+        otros = [(abs(o["x"] - victima["x"]), j) for j, o in enumerate(figs) if j != k]
+        if not otros:
+            continue
+        j = min(otros)[1]
+        quien, x0 = figs[j], spec["figuras"][j]["x"]
+        t0 = victima.get("efecto_desde")
+        t0 = momento_del_efecto("bofetada", segundos) if t0 is None else float(t0)
+        lado = 1 if victima["x"] >= x0 else -1      # hacia donde esta la victima
+        destino = victima["x"] - lado*0.15
+        llegar = max(0.2, t0 - 0.30)
+        p = min(1.0, max(0.0, reloj/llegar))
+        p = p*p*(3 - 2*p)
+        quien["x"] = x0 + (destino - x0)*p
+        quien["espejo"] = lado < 0
+        quien["efecto"] = None
+        if reloj < llegar:
+            quien["pose"], quien["pose_mezclada"] = "andando", _mezcla(
+                _POSES["andando"], _POSES["andando_b"], (reloj/0.3) % 1.0)
+        elif reloj < t0:                            # la mano arriba
+            quien["pose_mezclada"] = _mezcla(_POSES["de_pie"], _POSES["alzada_b"],
+                                             (reloj - llegar)/max(t0 - llegar, 0.05))
+        elif reloj < t0 + 0.12:                     # ¡ZAS!
+            quien["pose_mezclada"] = _mezcla(_POSES["alzada_b"], _POSES["bofeton_b"],
+                                             (reloj - t0)/0.12)
+        else:
+            quien["pose_mezclada"] = _mezcla(_POSES["bofeton_b"], _POSES["de_pie"],
+                                             min(1.0, (reloj - t0 - 0.12)/0.5))
+        quien["gesto"] = "enfadado"
+        # Y la cabeza de la victima se va hacia el otro lado del golpe.
+        if victima.get("_dx"):
+            victima["_dx"] = abs(victima["_dx"])*lado
+
+
 def _en_cama_con(nombre):
     """Los brazos de otra postura sin salir de la cama: el rey en la cama
     que levanta los brazos no se pone de pie para hacerlo."""
@@ -1324,6 +1391,21 @@ def _adornos_de_efecto(d, f, x, y, alto, rnd):
         hx = x + dx*math.cos(giro) + dy*math.sin(giro)
         hy = y - dx*math.sin(giro) + dy*math.cos(giro)
     g = max(2, int(alto*0.012))
+    if e == "bofetada" and 0 <= t < 0.35:
+        # El impacto en la mejilla, del lado de donde viene la mano: una
+        # estrella amarilla grande. Sin ella no se leia como un golpe.
+        de_donde = -1 if f.get("_dx", 0.0) > 0 else 1
+        cx, cy, r = hx + de_donde*rc*0.95, hy + rc*0.05, rc*(0.9 - t)
+        pts = []
+        for k in range(16):
+            a = k*math.pi/8
+            rr = r if k % 2 == 0 else r*0.45
+            pts.append((cx + math.cos(a)*rr, cy + math.sin(a)*rr))
+        d.polygon(pts, fill=(255, 220, 40), outline=(210, 30, 40))
+        for k in range(3):                           # lineas del manotazo
+            yy = cy - rc*0.5 + k*rc*0.5
+            d.line([(cx + de_donde*rc*1.1, yy), (cx + de_donde*rc*2.2, yy - rc*0.25)],
+                   fill=TINTA, width=max(2, g))
     if e == "bofetada" and 0 <= t < 0.6:
         fuente = _fuente_cartel(int(alto*0.15))
         d.text((hx + s*rc*1.8, hy - rc*0.9), "¡ZAS!", font=fuente, anchor="mm",
@@ -1557,6 +1639,7 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
             if reloj > _SEGUNDOS_PAPEL:
                 g["papel"] = None
             paso["figuras"].append(g)
+        _coreografia_del_tortazo(spec, paso, reloj, segundos)
         rnd = random.Random(1000 + n//3)
         img = _decorado(paso, semilla=1000 + n//3)
         if paso.get("noche"):
