@@ -1132,6 +1132,10 @@ def _strip_markdown_fence(text: str) -> str:
 # para nada. Sonnet 5 admite 128K en streaming, que es como se llama.
 _MAX_TOKENS = 64000
 _MAX_ATTEMPTS = 3
+# Para traducir su guion al formato, no para escribir uno: ver
+# translate_literal_script. Si con "low" empezaran a fallar las
+# comprobaciones y a repetirse intentos, subir a "medium".
+_ESFUERZO_LITERAL = "low"
 
 # How much of the dossier each variant is allowed to read.
 #
@@ -2241,6 +2245,14 @@ def translate_literal_script(raw_text: str, variant: str = "short", parar=None) 
             with _client.messages.stream(
                 model=CLAUDE_MODEL,
                 max_tokens=_MAX_TOKENS,
+                # ESFUERZO BAJO. "Tenemos que tener mas cuidado, este mes hemos
+                # gastado bastante." Casi todo lo que cuesta un guion literal es
+                # lo que Claude escribe, y sin decirle nada piensa al maximo
+                # antes de contestar - y ese pensar se paga como salida. Aqui
+                # no hay historia que inventar: es pasar su guion al formato,
+                # y lo que salga mal lo pillan las comprobaciones de despues.
+                # Solo en /literal; /generar sigue pensando lo que haga falta.
+                output_config={"effort": _ESFUERZO_LITERAL},
                 system=[
                     {
                         "type": "text",
