@@ -2020,7 +2020,8 @@ la cabeza" es "señala", "mira a camara, confundido" es el gesto, "con una cesta
 Y lo que LE PASA a alguien es su "efecto": "se cae al suelo" o "se desmaya" es "caida", "salta
 de alegria" es "salto", "tiembla" es "temblor", "echa humo" o "explota de rabia" es "humo", "se
 queda de piedra" o "se entera" es "sorpresa", "se duerme" o "ronca" es "zzz", "llora" es
-"lagrimas", "en pijama" es el gorro "dormir", "se marea" es "mareo", "se le ocurre" o "se le ilumina la cara" es "idea", "no
+"lagrimas", "le pega una bofetada" o "un tortazo" es "bofetada" en el que la RECIBE, "una
+corona enorme" o "que le tapa la cara" es el gorro "corona_grande", "en pijama" es el gorro "dormir", "se marea" es "mareo", "se le ocurre" o "se le ilumina la cara" es "idea", "no
 entiende nada" es "confuso", "mira a camara" es "camara" (la camara se le acerca a la cara), "se
 enamora" es "enamorado". Y lo que tiene en la mano va en "lleva": "mira con el catalejo" es
 "lleva":"catalejo", "se mete el premio en el bolsillo" es "lleva":"dinero", "con la espada en la

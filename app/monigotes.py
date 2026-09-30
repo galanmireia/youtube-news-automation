@@ -442,7 +442,23 @@ def _gorro(d, cab, rc, g, rnd, cual):
     arriba = y - rc*0.88          # donde apoya, en la coronilla
     oro, rojo, azul = (214,164,40), ROJO, (58,84,150)
 
-    if cual == "corona":
+    if cual == "corona_grande":
+        # La de la reina niña: le queda enorme, se le cae hasta los ojos y va
+        # torcida. "Una corona que casi le tapa la cara."
+        b, alto_c = rc*1.35, rc*1.05
+        base = y - rc*0.30                    # a la altura de las cejas
+        inc = rc*0.28                         # torcida: un lado mas bajo
+        pts = [(x-b, base + inc), (x-b*.55, base - alto_c + inc*.5), (x-b*.15, base - alto_c*.35),
+               (x, base - alto_c*1.05), (x+b*.15, base - alto_c*.35),
+               (x+b*.55, base - alto_c - inc*.5), (x+b, base - inc)]
+        d.polygon(pts + [(x+b, base - inc + rc*.30), (x-b, base + inc + rc*.30)], fill=(236, 186, 40))
+        _linea(d, pts + [(x+b, base - inc + rc*.30), (x-b, base + inc + rc*.30), pts[0]], g, rnd,
+               color=(150, 110, 20))
+        for k, px in enumerate((-.55, 0, .55)):
+            d.ellipse([x + b*px - rc*.12, base - rc*.02 + inc*(-px) - rc*.12 + rc*.15,
+                       x + b*px + rc*.12, base - rc*.02 + inc*(-px) + rc*.12 + rc*.15],
+                      fill=(ROJO, (40, 110, 200), ROJO)[k])
+    elif cual == "corona":
         b = rc*0.95
         _linea(d, [(x-b, arriba), (x-b*.5, arriba-rc*.62), (x, arriba-rc*.05),
                    (x+b*.5, arriba-rc*.62), (x+b, arriba)], g, rnd, color=oro)
@@ -1149,6 +1165,7 @@ EFECTOS_EXPLICADOS = {
     "zzz":      "DUERME o se muere de aburrimiento: le salen Zzz",
     "lagrimas": "LLORA a chorros",
     "mareo":    "MAREADO: estrellitas dando vueltas alrededor de la cabeza",
+    "bofetada": "LE DAN UNA BOFETADA al empezar la escena: la cabeza sacudida, un ¡ZAS! y luego estrellitas de mareo. Va en el que la RECIBE",
     "idea":     "SE LE OCURRE ALGO: se le enciende una bombilla encima. 'Se le ilumina la cara', 'ya se', el plan",
     "confuso":  "NO ENTIENDE NADA: le salen interrogaciones. 'Se queda pensando', 'no entiende nada'",
     "camara":   "MIRA A CAMARA: la camara se le acerca de golpe a la cara, al acabar la ultima frase de la escena. La reaccion: 'mira a camara indignado', 'se queda mirando a camara'",
@@ -1171,7 +1188,7 @@ def momento_del_efecto(efecto, segundos, globos=None) -> float:
         if fin is not None:
             return max(0.3, min(fin, tope))
         return max(0.3, min(segundos*0.6, tope))
-    if efecto == "sorpresa":
+    if efecto in ("sorpresa", "bofetada"):
         return 0.12
     if efecto == "idea":
         # La bombilla, a mitad de la primera frase: primero se ve apagada y
@@ -1216,6 +1233,10 @@ def _efecto(f, reloj, segundos):
     elif e == "humo":
         out["_dx"] = 0.006*math.sin(2*math.pi*reloj*7)
         out["gesto"] = "enfadado"
+    elif e == "bofetada" and 0 <= t < 0.5:
+        # El tortazo: la cabeza se va hacia un lado y vuelve, rapido.
+        out["_dx"] = 0.05*math.sin(math.pi*t/0.5)*math.exp(-t*3)*(-s)
+        out["gesto"] = "sorpresa"
     elif e == "sorpresa" and 0 <= t < 0.35:
         out["_dy"] = -0.10*math.sin(math.pi*t/0.35)
     elif e == "lagrimas":
@@ -1303,7 +1324,11 @@ def _adornos_de_efecto(d, f, x, y, alto, rnd):
         hx = x + dx*math.cos(giro) + dy*math.sin(giro)
         hy = y - dx*math.sin(giro) + dy*math.cos(giro)
     g = max(2, int(alto*0.012))
-    if e == "caida" and t >= _DURA_CAIDA or e == "mareo":
+    if e == "bofetada" and 0 <= t < 0.6:
+        fuente = _fuente_cartel(int(alto*0.15))
+        d.text((hx + s*rc*1.8, hy - rc*0.9), "¡ZAS!", font=fuente, anchor="mm",
+               fill=(210, 30, 40), stroke_width=max(3, g*2), stroke_fill=(255, 255, 255))
+    if e == "caida" and t >= _DURA_CAIDA or e == "mareo" or (e == "bofetada" and t >= 0.5):
         vuelta = reloj*5.5
         for k in range(3):
             a = vuelta + k*2*math.pi/3
@@ -1578,6 +1603,7 @@ GESTOS_VALIDOS = ("neutro", "sorpresa", "contento", "enfadado", "grito")
 # del prompt estaba escrita a mano y cada gorro nuevo habria sido invisible.
 GORROS_EXPLICADOS = {
     "corona":     "rey o reina",
+    "corona_grande": "una corona que le queda ENORME, torcida y tapandole los ojos: el rey o la reina niño",
     "comandante": "bicornio: general, Napoleon, oficial de 1808",
     "tricornio":  "el del siglo XVIII: ministros, guardias, Godoy",
     "sombrero":   "ala ancha: el del pueblo, el del motin",
@@ -1662,15 +1688,23 @@ def limpia(spec: dict) -> dict:
     for c in [f for f in figuras if "en_cama" in (f["pose"], f["pose_fin"])][:1]:
         lado = -1 if c["espejo"] else 1
         largo = 0.46*c["alto"]*(_ALTO_BASE/_ANCHO_BASE)
-        c["x"] = min(c["x"], 0.30) if lado > 0 else max(c["x"], 0.70)
+        # Pegada al borde si hay mas gente: con tres personajes (el rey en la
+        # cama y dos al lado) no cabian sin montarse uno encima del otro.
+        hay_mas = len(figuras) > 2
+        c["x"] = (min(c["x"], 0.22 if hay_mas else 0.30) if lado > 0
+                  else max(c["x"], 0.78 if hay_mas else 0.70))
         pie = c["x"] + lado*(largo + 0.13)
+        otros = []
         for o in figuras:
             if o is c:
                 continue
             if lado > 0 and o["x"] > c["x"] - 0.05:
-                o["x"] = min(0.88, max(o["x"], pie))
+                o["x"] = min(0.88, max(o["x"], pie)); otros.append(o)
             elif lado < 0 and o["x"] < c["x"] + 0.05:
-                o["x"] = max(0.12, min(o["x"], pie))
+                o["x"] = max(0.12, min(o["x"], pie)); otros.append(o)
+        # Y separados entre ellos: empujados todos al pie de la cama acababan
+        # uno encima del otro (Luisa Carlota tapando a Calomarde).
+        _reparte(otros, desde=min(pie, 0.88) if lado > 0 else max(pie, 0.12), lado=lado)
     if not figuras:
         # Una escena sin nadie es un fondo de color. Antes que eso, alguien.
         figuras = [{"x": 0.5, "alto": 0.34, "pose": "de_pie", "pose_fin": None,
@@ -1686,6 +1720,21 @@ def limpia(spec: dict) -> dict:
     # entera y el monasterio salia como campo liso.
     dentro = (spec.get("interior") or "").strip().lower()
     dentro = dentro if dentro in INTERIORES_VALIDOS else None
+    # EN EL SALON DEL TRONO, EL QUE SE SIENTA SE SIENTA EN EL TRONO. La reina
+    # niña salia sentada en el suelo delante de un pupitre (sentado se anima
+    # hacia en_mesa, y sin mesa en el decorado se pinta una). En el trono no
+    # se escribe: sin mesita, y en el centro, que es donde esta el trono.
+    if dentro == "salon_trono":
+        sentados = [f for f in figuras if f["pose"] == "sentado"]
+        for f in sentados:
+            if f["pose_fin"] in _POSES_DE_MESA:
+                f["pose_fin"] = None
+        if sentados:
+            sentados[0]["x"] = 0.50
+            izq = [f for f in figuras if f is not sentados[0] and f["x"] <= 0.5]
+            der = [f for f in figuras if f is not sentados[0] and f["x"] > 0.5]
+            _reparte(der, desde=0.70, lado=1)
+            _reparte(izq, desde=0.30, lado=-1)
     # El tope se cuenta sobre las cosas BUENAS, no sobre lo que llega. Con el
     # tope arriba, un "dragon" que no se sabe dibujar ocupaba el sitio de una
     # casa que si: se pedian cinco, se colaban dos malas y se perdia la buena.
@@ -1742,6 +1791,15 @@ def limpia(spec: dict) -> dict:
             "rotulo": (" ".join(str(spec.get("rotulo") or "").split())[:_LARGO_ROTULO] or None),
             "noche": bool(spec.get("noche")),
             "arbol": spec.get("arbol") if isinstance(spec.get("arbol"), (int, float)) else None})
+
+
+def _reparte(figs, desde, lado, hueco=0.15):
+    """Pone las figuras de un lado en fila, sin pisarse, a partir de 'desde'."""
+    figs = sorted(figs, key=lambda f: f["x"]*lado)
+    x = desde
+    for f in figs:
+        f["x"] = round(min(0.90, max(0.10, max(f["x"]*lado, x*lado)*lado)), 3)
+        x = f["x"] + lado*hueco
 
 
 def hablan_de(spec: dict, figuras: list[dict]) -> list[str] | None:
