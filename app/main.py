@@ -6,6 +6,10 @@ from .pipeline import cleanup_finished_video_files, note_interrupted_run, sweep_
 from .telegram_bot import build_application
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# httpx apunta cada consulta a Telegram con la URL entera, y la URL lleva el
+# token del bot: cada diez segundos la clave salia escrita en los logs de
+# Railway. Solo sus avisos y errores.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 

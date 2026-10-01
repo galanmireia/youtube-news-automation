@@ -3210,6 +3210,24 @@ def _pared(d, w, y0, y1, clase, rnd, g):
                 _linea(d, [(px, yy), (px, yy+fila)], max(2, g//2), rnd,
                        color=(126, 62, 48), temblor=1.0)
                 px += w/4
+    elif clase == "papel":
+        # El papel pintado de un piso de toda la vida: rayas y florecitas, y
+        # un zocalo de madera abajo. Es lo que dice "casa de alquiler de
+        # siempre" sin que haga falta un cartel.
+        d.rectangle([0, y0, w, y1], fill=(226, 206, 160))
+        franja = w/9
+        for k in range(10):
+            d.rectangle([k*franja, y0, k*franja + franja*0.42, y1], fill=(214, 190, 140))
+        rr = random.Random(11)
+        for k in range(10):
+            for f in range(9):
+                fx = k*franja + franja*0.71 + rr.uniform(-2, 2)
+                fy = y0 + (f + 0.5 + 0.5*(k % 2))*(y1 - y0)/9
+                r = w*0.007
+                d.ellipse([fx-r, fy-r, fx+r, fy+r], fill=(176, 92, 78))
+        zocalo = y1 - (y1 - y0)*0.10
+        d.rectangle([0, zocalo, w, y1], fill=MADERA)
+        _linea(d, [(0, zocalo), (w, zocalo)], g, rnd, temblor=1.0)
     else:                                        # "cielo"
         d.rectangle([0, y0, w, y1], fill=(146, 198, 232))
 
@@ -3450,6 +3468,14 @@ _DECORADOS = {
     "selva":        {"pared": "cielo", "piso": "hierba",
                      "fondo": [("selva", .5, 1.0, 1.0)],
                      "muebles": [], "delante": [], "cuelga": [], "velas": []},
+    # El piso de alquiler de toda la vida: papel pintado, visillos, el cuadro,
+    # el reloj y el aparador con la radio. Para la renta antigua, y para
+    # cualquier historia que pase en una casa normal y no en un palacio.
+    "piso":         {"pared": "papel", "piso": "tablas",
+                     "fondo": [("ventana_piso", .70, .30, .26), ("cuadro", .30, .25, .15),
+                               ("reloj", .11, .29, .07)],
+                     "muebles": [("aparador", .88, .02, .20)], "delante": [],
+                     "cuelga": [], "velas": []},
 }
 DECORADOS_VALIDOS = tuple(_DECORADOS)
 
@@ -3476,6 +3502,7 @@ DECORADOS_EXPLICADOS = {
     "puerto":      "el muelle con barcos en el mar: flotas, la Armada, Colon zarpando, los que llegan",
     "mazmorra":    "carcel de piedra con reja, cadenas y antorchas: presos, Inquisicion, cautivos",
     "selva":       "la selva de las Americas, con palmeras: Colon, Cortes, Pizarro, expediciones",
+    "piso":        "un piso de alquiler normal del siglo XX: papel pintado, ventana con visillos, cuadro, reloj de pared, aparador con radio. Caseros, inquilinos, familias",
 }
 _sin_explicar = set(DECORADOS_VALIDOS) ^ set(DECORADOS_EXPLICADOS)
 if _sin_explicar:
@@ -3544,6 +3571,83 @@ def _selva(d, w, h, suelo, rnd, g):
                    fill=oscuro if k % 2 else verde, outline=TINTA)
 
 
+def _ventana_piso(d, cx, cy, ancho, alto, rnd, g):
+    """Ventana de piso con cuarterones y visillos, y los tejados de enfrente."""
+    izq, der, arr, aba = cx-ancho/2, cx+ancho/2, cy-alto/2, cy+alto/2
+    d.rectangle([izq, arr, der, aba], fill=(150, 196, 228))
+    for k in range(3):                          # los tejados de enfrente
+        tx = izq + ancho*(0.18 + 0.32*k)
+        d.rectangle([tx - ancho*0.14, aba - alto*0.30, tx + ancho*0.14, aba], fill=(210, 170, 130))
+        d.polygon([(tx - ancho*0.17, aba - alto*0.30), (tx, aba - alto*0.42),
+                   (tx + ancho*0.17, aba - alto*0.30)], fill=(170, 74, 58))
+    _linea(d, [(izq, arr), (der, arr), (der, aba), (izq, aba), (izq, arr)], g, rnd, temblor=1.0)
+    _linea(d, [(cx, arr), (cx, aba)], g, rnd, temblor=1.0)
+    _linea(d, [(izq, cy), (der, cy)], max(2, g//2), rnd, temblor=1.0)
+    for lado in (-1, 1):                        # los visillos recogidos
+        borde = izq if lado < 0 else der
+        pts = [(borde, arr), (borde - lado*ancho*0.22, arr), (borde - lado*ancho*0.08, cy),
+               (borde - lado*ancho*0.16, aba), (borde, aba)]
+        d.polygon(pts, fill=(246, 242, 232))
+        _linea(d, pts[1:4], max(2, g//2), rnd, color=(190, 182, 168), temblor=1.2)
+    d.rectangle([izq - ancho*0.06, aba, der + ancho*0.06, aba + alto*0.06], fill=MADERA_CLARA,
+                outline=TINTA, width=max(2, g//2))
+
+
+def _cuadro(d, cx, cy, ancho, rnd, g):
+    """El cuadro del salon: un paisaje con su marco dorado, un poco torcido."""
+    alto = ancho*0.72
+    marco = ancho*0.09
+    d.polygon([(cx-ancho/2, cy-alto/2+ancho*0.02), (cx+ancho/2, cy-alto/2-ancho*0.02),
+               (cx+ancho/2, cy+alto/2-ancho*0.02), (cx-ancho/2, cy+alto/2+ancho*0.02)],
+              fill=ORO_ESPAÑA, outline=TINTA)
+    i0, i1 = cx-ancho/2+marco, cx+ancho/2-marco
+    j0, j1 = cy-alto/2+marco, cy+alto/2-marco
+    d.rectangle([i0, j0, i1, j1], fill=(170, 210, 232))
+    d.polygon([(i0, j1), (i0 + (i1-i0)*0.35, j0 + (j1-j0)*0.35), (i0 + (i1-i0)*0.6, j1)],
+              fill=(110, 140, 96))
+    d.polygon([(i0 + (i1-i0)*0.4, j1), (i0 + (i1-i0)*0.72, j0 + (j1-j0)*0.25), (i1, j1)],
+              fill=(88, 120, 80))
+    r = (i1-i0)*0.09
+    d.ellipse([i1 - r*3, j0 + r, i1 - r, j0 + r*3], fill=(248, 220, 110))
+    _linea(d, [(cx, cy-alto/2-ancho*0.22), (cx-ancho*0.3, cy-alto/2), (cx+ancho*0.3, cy-alto/2),
+               (cx, cy-alto/2-ancho*0.22)], max(2, g//2), rnd, temblor=1.0)
+
+
+def _reloj_pared(d, cx, cy, ancho, rnd, g):
+    """Reloj de pendulo colgado: el tiempo que pasa, que es de lo que va."""
+    alto = ancho*2.4
+    d.rounded_rectangle([cx-ancho/2, cy-alto*0.30, cx+ancho/2, cy+alto*0.70],
+                        radius=int(ancho*0.18), fill=MADERA_OSCURA, outline=TINTA, width=g)
+    r = ancho*0.36
+    d.ellipse([cx-r, cy-r, cx+r, cy+r], fill=(246, 240, 224), outline=TINTA, width=max(2, g//2))
+    _linea(d, [(cx, cy), (cx, cy - r*0.72)], max(2, g//2), rnd, temblor=0.6)
+    _linea(d, [(cx, cy), (cx + r*0.5, cy + r*0.2)], max(2, g//2), rnd, temblor=0.6)
+    vy = cy + alto*0.42
+    d.rectangle([cx-ancho*0.30, cy + r*1.3, cx+ancho*0.30, cy + alto*0.62], fill=(70, 50, 30))
+    _linea(d, [(cx, cy + r*1.3), (cx + ancho*0.08, vy)], max(2, g//2), rnd, color=ORO_ESPAÑA,
+           temblor=0.6)
+    rp = ancho*0.11
+    d.ellipse([cx + ancho*0.08 - rp, vy - rp, cx + ancho*0.08 + rp, vy + rp], fill=ORO_ESPAÑA)
+
+
+def _aparador(d, x, y, ancho, rnd, g):
+    """El aparador del salon con su radio encima."""
+    alto = ancho*0.62
+    d.rectangle([x-ancho/2, y-alto, x+ancho/2, y], fill=MADERA, outline=TINTA, width=g)
+    for k in (-1, 1):
+        d.rectangle([x + k*ancho*0.25 - ancho*0.21, y-alto*0.86, x + k*ancho*0.25 + ancho*0.21,
+                     y-alto*0.12], outline=MADERA_OSCURA, width=max(2, g//2))
+        d.ellipse([x + k*ancho*0.06 - g, y-alto*0.5 - g, x + k*ancho*0.06 + g, y-alto*0.5 + g],
+                  fill=ORO_ESPAÑA)
+    rw, rh = ancho*0.38, ancho*0.28                 # la radio
+    d.rounded_rectangle([x-rw/2, y-alto-rh, x+rw/2, y-alto], radius=int(rh*0.45),
+                        fill=(140, 92, 52), outline=TINTA, width=max(2, g//2))
+    d.rectangle([x-rw*0.36, y-alto-rh*0.70, x+rw*0.10, y-alto-rh*0.25], fill=(232, 214, 170))
+    for k in (0.24, 0.38):
+        rr = rh*0.10
+        d.ellipse([x+rw*k-rr, y-alto-rh*0.48-rr, x+rw*k+rr, y-alto-rh*0.48+rr], fill=TINTA)
+
+
 def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     X, Y, T = w*x, h*y, w*tam
     if que == "ventana_mar":      _ventana_al_mar(d, X, h*y, T, h*tam*0.55, rnd, g)
@@ -3581,6 +3685,9 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "cortinas":       _cortinas(d, w, h, suelo, rnd, g)
     elif que == "reja":           _reja(d, X, h*y, T, h*tam*0.7, rnd, g)
     elif que == "selva":          _selva(d, w, h, suelo, rnd, g)
+    elif que == "ventana_piso":   _ventana_piso(d, X, h*y, T, h*tam*0.62, rnd, g)
+    elif que == "cuadro":         _cuadro(d, X, h*y, T, rnd, g)
+    elif que == "reloj":          _reloj_pared(d, X, h*y, T, rnd, g)
     elif que == "puntales":
         for k in range(3):
             px = w*(0.16 + 0.34*k)
@@ -3597,6 +3704,7 @@ def _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "banco_fondo":_banco(d, X, Y, T, rnd, g)
     elif que == "olla_suelo": _olla(d, X, Y, h*tam, rnd, g)
     elif que == "mesa":       _mesa_con_cosas(d, X, Y, T, rnd, g, alto=h*0.075)
+    elif que == "aparador":   _aparador(d, X, Y, T, rnd, g)
     elif que == "barandilla":
         _linea(d, [(0, Y), (w, Y)], int(g*2.6), rnd, color=MADERA_OSCURA)
         for k in range(7):
