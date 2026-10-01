@@ -226,6 +226,14 @@ _POSES = {
                  "brazos": [[(0,-.62),(-.09,-.50),(-.01,-.40)], [(0,-.62),(.12,-.50),(.22,-.41)]],
                  "piernas":[[(0,-.34),(.18,-.35),(.36,-.35)],  [(0,-.34),(.18,-.33),(.36,-.33)]]},
 
+    # EN CAMILLA: el mismo cuerpo que en la cama (el respaldo de la camilla
+    # va levantado), pero sobre la camilla de ambulancia, y RODANDO: la
+    # sacan de casa. Para Maricarmen, y para cualquier herido o enfermo al
+    # que se llevan.
+    "en_camilla": {"cuello": (0,-.66), "cadera": (0,-.34),
+                   "brazos": [[(0,-.62),(-.09,-.50),(-.01,-.40)], [(0,-.62),(.07,-.48),(.14,-.40)]],
+                   "piernas":[[(0,-.34),(.18,-.35),(.36,-.35)],  [(0,-.34),(.18,-.33),(.36,-.33)]]},
+
     # CANTAR: los brazos abiertos como en la opera, y se mecen solos. Las
     # notas musicales las pinta figura() al lado de la cabeza.
     "cantando": {"cuello": (-.02,-.71), "cadera": (0,-.38),
@@ -346,6 +354,7 @@ POSES_EXPLICADAS = {
     "mirando":       "OTEA a lo lejos con la mano de visera - vigia, descubre algo",
     "rezando":       "REZA con las manos juntas",
     "dando":         "ENTREGA algo, tiende la mano al otro",
+    "en_camilla":    "SE LA LLEVAN EN CAMILLA: tumbado en una camilla de ambulancia que sale rodando hacia donde mira. Para el que sacan de casa, el herido, el enfermo, el desahuciado",
     "en_cama":       "EN LA CAMA, incorporado: la cama se dibuja sola alrededor y ocupa sitio hacia donde mira, asi que ponlo a un lado (x 0.25-0.32) y a los demas al otro (x 0.72 o mas). Para quien no se levanta, esta enfermo, lo despiertan",
     "cantando":      "CANTA con los brazos abiertos, y le salen notas musicales",
     "andando":       "ANDA y se desplaza hacia donde mira. ENTRA andando: pose andando y pose_fin la de cuando llega. SALE andando: pose de_pie y pose_fin andando. Andando a secas: cruza el plano",
@@ -876,17 +885,21 @@ def _pinta_rotulo(d, spec, w, h):
 # la x de esa figura, en dos pasadas - cabecero, somier y almohada DETRAS del
 # monigote, y la colcha DELANTE, tapandole las piernas. Asi parece que esta
 # dentro, en cualquier decorado y sin que el guion cuadre nada.
+_ACOSTADAS = ("en_cama", "en_camilla")
 _COLCHA = (156, 32, 44)
 _EMBOZO = (246, 240, 226)
 
 
 def _camas(d, spec, h, w, pies_de, rnd, g, parte):
     for f in spec.get("figuras", []):
-        if "en_cama" not in (f.get("pose"), f.get("pose_fin")):
+        if not {f.get("pose"), f.get("pose_fin")} & set(_ACOSTADAS):
             continue
         A = h*f.get("alto", 0.30)
         x, pies = w*f["x"], pies_de(f)
         s = -1 if f.get("espejo") else 1
+        if "en_camilla" in (f.get("pose"), f.get("pose_fin")):
+            _camilla(d, x, pies, A, s, rnd, g, parte)
+            continue
         cab, pie = x - s*A*0.13, x + s*A*0.46
         izq, der = min(cab, pie), max(cab, pie)
         if parte == "detras":
@@ -928,6 +941,46 @@ def _camas(d, spec, h, w, pies_de, rnd, g, parte):
             # Una franja dorada, que es la cama de un rey.
             d.line([(x0 + s*A*0.18, pies - A*0.19), (x1, pies - A*0.19)],
                    fill=ORO_ESPAÑA, width=max(3, g))
+
+
+def _camilla(d, x, pies, A, s, rnd, g, parte):
+    """La camilla de ambulancia: tubo de metal, ruedas, colchoneta y sabana
+    blanca con su manta azul. Mas baja y mas fina que la cama del rey."""
+    cab, pie = x - s*A*0.13, x + s*A*0.46
+    izq, der = min(cab, pie), max(cab, pie)
+    metal, oscuro = (176, 182, 190), (90, 96, 104)
+    if parte == "detras":
+        tablero = pies - A*0.20
+        d.rectangle([izq, tablero - A*0.10, der, tablero], fill=(236, 238, 240))
+        _linea(d, [(izq, tablero), (der, tablero)], int(g*1.4), rnd, color=oscuro, temblor=0.6)
+        for px in (izq + A*0.06, der - A*0.06):         # patas en X y ruedas
+            _linea(d, [(px - A*0.05, tablero), (px + A*0.05, pies - A*0.03)], g, rnd,
+                   color=metal, temblor=0.6)
+            _linea(d, [(px + A*0.05, tablero), (px - A*0.05, pies - A*0.03)], g, rnd,
+                   color=metal, temblor=0.6)
+            for dx in (-A*0.05, A*0.05):
+                r = A*0.028
+                d.ellipse([px + dx - r, pies - r*2, px + dx + r, pies], fill=TINTA)
+        # el respaldo levantado y la almohada
+        ax = x - s*A*0.04
+        d.rounded_rectangle([ax - A*0.10, pies - A*0.50, ax + A*0.10, pies - A*0.30],
+                            radius=int(A*0.06), fill=_EMBOZO, outline=TINTA, width=max(2, g//2))
+        _linea(d, [(der + A*0.04 if s < 0 else izq - A*0.04, tablero - A*0.12),
+                   (der + A*0.04 if s < 0 else izq - A*0.04, tablero - A*0.02)],
+               int(g*1.2), rnd, color=oscuro, temblor=0.6)      # el asa de empujar
+    else:
+        x0, x1 = x - s*A*0.07, pie - s*A*0.05
+        arriba = pies - A*0.37
+        pts = [(x0, arriba), (x + s*A*0.30, arriba + A*0.01),
+               (x1 - s*A*0.06, arriba - A*0.03), (x1, arriba + A*0.02),
+               (x1, pies - A*0.20), (x0, pies - A*0.20)]
+        d.polygon(pts, fill=(120, 170, 210))
+        _linea(d, pts + [pts[0]], g, rnd, temblor=1.2)
+        d.rectangle([min(x0, x0 + s*A*0.14), arriba + A*0.005,
+                     max(x0, x0 + s*A*0.14), pies - A*0.205], fill=_EMBOZO)
+        for k in (0.30, 0.42):                       # las correas
+            cx = x + s*A*k
+            d.line([(cx, arriba), (cx, pies - A*0.20)], fill=TINTA, width=max(3, g))
 
 
 def escena(spec, w=1080, h=1920, semilla=0):
@@ -1137,6 +1190,7 @@ _DESPLAZAMIENTOS = {
     # pose: (la otra mitad del paso, pantallas por segundo, segundos por paso, saltito)
     "corriendo": ("corriendo_b", _VELOCIDAD_CARRERA, _SEGUNDOS_POR_ZANCADA, 3.0),
     "andando":   ("andando_b", 0.07, 0.62, 0.6),
+    "en_camilla": ("en_camilla", 0.06, 0.62, 0.0),
 }
 
 
@@ -1263,7 +1317,7 @@ def _efecto(f, reloj, segundos):
                     "gesto": "sorpresa"})
     elif e == "salto":
         out["_dy"] = -0.13*abs(math.sin(math.pi*reloj/0.55))
-        if f.get("pose") != "en_cama":
+        if f.get("pose") not in _ACOSTADAS:
             out.update({"pose": "brazos_arriba", "pose_mezclada": None})
         out["gesto"] = "contento"
     elif e == "temblor":
@@ -1775,7 +1829,7 @@ def limpia(spec: dict) -> dict:
         # de la reina puesto encima de la colcha, un triangulo rojo gigante
         # que tapaba la cama entera.
         ultima = figuras[-1]
-        if "en_cama" in (ultima["pose"], ultima["pose_fin"]) and ultima["objeto"] in ("manto", "capa"):
+        if {ultima["pose"], ultima["pose_fin"]} & set(_ACOSTADAS) and ultima["objeto"] in ("manto", "capa"):
             ultima["objeto"] = None
         # El que mira por el catalejo se lo lleva al ojo con la mano de visera,
         # y se queda asi: si luego señalara, el catalejo flotaria solo.

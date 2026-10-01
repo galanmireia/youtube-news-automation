@@ -2027,7 +2027,8 @@ enamora" es "enamorado". Y lo que tiene en la mano va en "lleva": "mira con el c
 "lleva":"catalejo", "se mete el premio en el bolsillo" es "lleva":"dinero", "con la espada en la
 mano" es "lleva":"espada", "lee una carta" es "lleva":"carta". Y las
 posturas: "entra" o "se va" es "andando", "se arrodilla" es "de_rodillas", "baila" es
-"bailando", "aplauden" es "aplaudiendo"; "aparecen cincuenta monigotes" es la cosa "multitud".
+"bailando", "aplauden" es "aplaudiendo", "sale en camilla" o "se lo llevan en camilla" es
+"en_camilla"; "aparecen cincuenta monigotes" es la cosa "multitud".
 Si el original lo dice, TIENE que llevarlo: en Farinelli el remate era "Farinelli se cae al
 suelo" y salio de pie.
 
