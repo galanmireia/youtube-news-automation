@@ -49,7 +49,15 @@ def _sin_tildes(texto: str) -> str:
                    if unicodedata.category(c) != "Mn")
 
 
-MAX_CITAS = 2   # una frase y su respuesta: mas no cabe en cuatro segundos
+# Cuantas frases con globo y voz de personaje caben en una escena. Era 2 ("una
+# frase y su respuesta: mas no cabe en cuatro segundos"), de cuando las
+# escenas duraban cuatro segundos. Ahora la escena dura lo que dura su voz, y
+# sus guiones traen conversaciones de seis o siete frases en el mismo sitio:
+# con 2, en el #106 (Maricarmen) el traductor no partio las escenas, el tercer
+# intento se acepto igual y de cada escena hablaron dos y el resto lo leyo el
+# NARRADOR. "No hablan, solo narra". Los globos y las voces ya iban frase a
+# frase, con su instante cada una, asi que el tope era lo unico que lo impedia.
+MAX_CITAS = 8
 
 
 def citas_de(narracion: str) -> list[str]:

@@ -1293,7 +1293,10 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
             return (f"la escena 1 abre situando ({primera[:40]}...), que es lo que "
                     "mata un Short en los dos primeros segundos")
         palabras = sum(len((e.get("narration") or "").split()) for e in escenas)
-        if palabras > _PALABRAS_MAXIMAS_SHORT:
+        # Su guion dura lo que ella haya escrito: el tope es para los que
+        # escribe Claude. En el #106 se aviso de "265 palabras" de un guion
+        # que era exactamente el suyo.
+        if palabras > _PALABRAS_MAXIMAS_SHORT and not literal:
             return (f"{palabras} palabras de narracion para un Short, que son "
                     f"unos {palabras / 2.2:.0f} segundos; el tope son "
                     f"{_PALABRAS_MAXIMAS_SHORT}")
@@ -1908,7 +1911,7 @@ def generate_script(news_item: dict, variant: str = "long",
             pega_anterior = problema
             continue
         if ultimo:
-            pega = _que_le_pasa_al_guion(script, variant, exigente=_TODO)
+            pega = _que_le_pasa_al_guion(script, variant, exigente=_TODO, literal=True)
             if pega:
                 logger.warning(
                     "generate_script (%s): el guion sale con una pega despues de %s "
@@ -2210,6 +2213,41 @@ def _narrador_solo_dice_lo_suyo(raw_text: str, script: dict) -> str | None:
                         f"toque, las lineas de Narrador tal cual, sin comillas")
     return None
 
+def _quita_acotaciones_leidas(raw_text: str, script: dict) -> list[str]:
+    """Saca de la narracion las acotaciones del original que el modelo ha
+    puesto a leer ("El politico mira a camara.", "Todos se quedan callados.").
+
+    Se rechazaba el guion entero y se pagaba otro intento: en el #106 se
+    fueron dos de tres intentos (0,19 $) por una frase de acotacion cada uno.
+    Arreglarlo aqui es seguro porque solo se quita lo que esta TAL CUAL en el
+    original y NO en una linea de Narrador: eso es una acotacion seguro. Lo
+    que no esta en el original (una frase inventada, una linea de Narrador
+    reescrita) no se toca y lo sigue rechazando _narrador_solo_dice_lo_suyo,
+    para no perder en silencio algo que el narrador si tenia que decir."""
+    permitido = _normaliza_frase(" ".join(_lineas_de_narrador(raw_text)))
+    original = _normaliza_frase(raw_text)
+    quitadas = []
+    trozos_de_cita = re.compile(r'([«“"][^»”"]*[»”"])')
+    for e in script.get("scenes", []):
+        narracion = e.get("narration") or ""
+        partes = trozos_de_cita.split(narracion)
+        for k in range(0, len(partes), 2):           # las pares: fuera de comillas
+            buenas = []
+            for frase in _FIN_DE_FRASE.split(partes[k]):
+                clave = _normaliza_frase(frase)
+                if clave and clave not in permitido and clave in original:
+                    quitadas.append(frase.strip())
+                else:
+                    buenas.append(frase)
+            # Si se queda vacio entre dos citas, el hueco se queda: «A» «B».
+            partes[k] = " ".join(buenas) if any(b.strip() for b in buenas) else (
+                " " if partes[k] else "")
+        nueva = " ".join("".join(partes).split())
+        if nueva != " ".join(narracion.split()):
+            e["narration"] = nueva
+    return quitadas
+
+
 def translate_literal_script(raw_text: str, variant: str = "short", parar=None) -> dict:
     """Traduce un guion que ella ya trajo escrito -dialogo y acotaciones- al
     JSON tecnico del render, sin inventar ni una frase nueva. Ver el bloque
@@ -2301,6 +2339,11 @@ def translate_literal_script(raw_text: str, variant: str = "short", parar=None) 
 
         nivel = max(_SOLO_LO_ROTO, _TODO - (attempt - 1))
         ultimo = attempt >= _MAX_ATTEMPTS
+        quitadas = _quita_acotaciones_leidas(raw_text, script)
+        if quitadas:
+            logger.info("translate_literal_script: %s acotaciones quitadas de la narracion "
+                        "(se dibujan, no se leen): %s", len(quitadas),
+                        "; ".join(q[:40] for q in quitadas))
         problema = (_narrador_no_se_cuela_en_citas(raw_text, script)
                     or (nivel >= _LO_QUE_DEFINE and _narrador_solo_dice_lo_suyo(raw_text, script))
                     or _que_le_pasa_al_guion(script, variant, exigente=nivel, literal=True))
@@ -2311,7 +2354,7 @@ def translate_literal_script(raw_text: str, variant: str = "short", parar=None) 
             pega_anterior = problema
             continue
         if ultimo:
-            pega = _que_le_pasa_al_guion(script, variant, exigente=_TODO)
+            pega = _que_le_pasa_al_guion(script, variant, exigente=_TODO, literal=True)
             if pega:
                 logger.warning(
                     "translate_literal_script: el guion sale con una pega despues de %s "

@@ -1736,7 +1736,10 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
                 if caja:                    # con zoom, el rabo sigue a su cara
                     px = min(img.size[0]*0.95, max(img.size[0]*0.05,
                              (px - caja[0])/(caja[2] - caja[0])*img.size[0]))
-                img = _pinta_bocadillo(img, globo["texto"], px, rnd, fila)
+                # Arriba y abajo, alternando: la tercera frase vuelve arriba,
+                # que la primera ya se ha ido. Con fila tal cual, desde que
+                # caben ocho frases por escena, la quinta caia fuera del plano.
+                img = _pinta_bocadillo(img, globo["texto"], px, rnd, fila % 2)
         # De uno en uno, no la lista entera: 15 fotogramas por segundo a
         # 1080x1920 son 90 MB por segundo de escena en memoria.
         yield img
