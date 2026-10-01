@@ -660,6 +660,18 @@ def _banda(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(40, 80, 170))
               width=max(2, g//2))
 
 
+def _banda_espana(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA):
+    """La banda con los colores de España: rojo, gualda, rojo. Para cuando
+    sale España en persona, o el que va de patriota. Una bandera en la mano,
+    con los brazos abajo, le tapaba la cara."""
+    _banda(d, x, cuello, cadera, alto, g, rnd, tinta, color=ROJO_ESPAÑA)
+    ancho = alto*0.017
+    a = (x - alto*0.10, cuello[1] + alto*0.02)
+    b = (x + alto*0.10, cadera[1] + alto*0.01)
+    d.polygon([(a[0] - ancho, a[1]), (a[0] + ancho, a[1] - ancho*0.6),
+               (b[0] + ancho, b[1]), (b[0] - ancho, b[1] + ancho*0.6)], fill=ORO_ESPAÑA)
+
+
 def _habito(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(122, 92, 62)):
     """El habito de fraile hasta los pies, con su cordon: frailes, monjes,
     inquisidores. Con "gorro":"monje" es la capucha y el habito entero."""
@@ -680,6 +692,7 @@ OBJETOS = {
     "manto": _manto,
     "gorguera": _gorguera,
     "banda": _banda,
+    "banda_espana": _banda_espana,
     "habito": _habito,
 }
 OBJETOS_VALIDOS = tuple(OBJETOS)
@@ -2901,6 +2914,23 @@ def _camara_tv(d, x, y, t, rnd, g, tinta=TINTA):
            fill=(240, 240, 240))
 
 
+def _tienda(d, x, y, t, rnd, g, tinta=TINTA):
+    """Tienda de campaña de las de ahora, la iglu de colores: la acampada.
+    La del campamento del ejercito es otra (lona y palo), esta es de Sol."""
+    colores = ((60, 130, 200), (230, 140, 40), (80, 160, 90), (200, 70, 70))
+    color = colores[int(x) % len(colores)]
+    ancho, alto = t*1.3, t*0.75
+    caja = [x - ancho/2, y - alto, x + ancho/2, y + alto]   # media elipse: la cupula
+    d.chord(caja, 180, 360, fill=color)
+    d.arc(caja, 180, 360, fill=tinta, width=g)
+    _linea(d, [(x - ancho/2, y), (x + ancho/2, y)], g, rnd, color=tinta, temblor=1.0)
+    _linea(d, [(x - ancho*0.30, y - alto*0.80), (x, y - alto), (x + ancho*0.30, y - alto*0.80)],
+           max(2, g//2), rnd, color=tinta, temblor=1.0)
+    puerta = [(x - ancho*0.16, y), (x, y - alto*0.62), (x + ancho*0.16, y)]
+    d.polygon(puerta, fill=(40, 36, 34))
+    _linea(d, puerta, max(2, g//2), rnd, color=tinta, temblor=1.0)
+
+
 COSAS = {
     "perro": _perro, "caballo": _caballo, "barco": _barco, "casa": _casa,
     "iglesia": _iglesia, "castillo": _castillo, "espada": _espada,
@@ -2912,6 +2942,7 @@ COSAS = {
     "cofre": _cofre, "barril": _barril, "antorcha": _antorcha, "catalejo": _catalejo,
     "carta": _carta, "cadenas": _cadenas,
     "pancarta": _pancarta, "movil": _movil, "periodico": _periodico, "camara_tv": _camara_tv,
+    "tienda": _tienda,
     "nube": _nube, "sol": _sol,
     # El arbol ya existia pero con otra firma, y por estar aqui a None se
     # caia en silencio: el prompt lo ofrecia y limpia() lo tiraba.
