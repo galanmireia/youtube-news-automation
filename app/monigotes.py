@@ -1514,9 +1514,13 @@ LLEVABLES_EXPLICADOS = {
     "pan":       "una hogaza de pan",
     "cesta":     "una cesta",
     "bandera_espana": "una bandera en la mano (vale cualquier bandera_ de las cosas)",
+    "pancarta":  "una pancarta de manifestacion: protestas, la vivienda, las huelgas",
+    "movil":     "un movil en la mano: el Bizum, la foto, el que lo graba todo",
+    "periodico": "un periodico: ultima hora, la noticia, el que lo lee en alto",
 }
 _TAM_LLEVADO = {"espada": 0.40, "antorcha": 0.30, "bandera": 0.50, "pergamino": 0.20,
-                "carta": 0.16, "dinero": 0.18, "libro": 0.16, "cesta": 0.20}
+                "carta": 0.16, "dinero": 0.18, "libro": 0.16, "cesta": 0.20,
+                "pancarta": 0.60, "movil": 0.16, "periodico": 0.26}
 
 
 def _llevable(que) -> str | None:
@@ -1560,7 +1564,7 @@ def _pinta_llevado(d, f, x, y, alto, rnd, rasgos):
     if dibuja:
         # La mano lo coge por abajo: el palo de la bandera, la empuñadura, el
         # borde de la carta.
-        agarre = 0.15 if clase in ("bandera", "espada", "antorcha") else 0.45
+        agarre = 0.15 if clase in ("bandera", "espada", "antorcha", "pancarta") else 0.45
         dibuja(d, hx, hy + tam*agarre, tam, rnd, max(3, g))
 
 
@@ -2830,6 +2834,73 @@ def _cadenas(d, x, y, t, rnd, g, tinta=TINTA):
     d.arc([x - t*.13, y - t*.30, x + t*.13, y - t*.04], 0, 360, fill=hierro, width=max(4, int(g*1.4)))
 
 
+# Lo de la vivienda: la manifestacion, el Bizum, la noticia del final y el
+# politico que viene con su camara. Sirven igual para cualquier protesta,
+# cualquier "ultima hora" y cualquier rueda de prensa.
+def _pancarta(d, x, y, t, rnd, g, tinta=TINTA):
+    """Pancarta de manifestacion: un palo y un carton con letras rojas."""
+    _linea(d, [(x, y), (x, y - t*1.05)], g, rnd, color=MADERA_OSCURA)
+    ancho, alto = t*0.95, t*0.48
+    x0, y0 = x - ancho/2, y - t*1.25
+    d.rectangle([x0, y0, x0 + ancho, y0 + alto], fill=(250, 248, 240))
+    _linea(d, [(x0, y0), (x0 + ancho, y0), (x0 + ancho, y0 + alto), (x0, y0 + alto), (x0, y0)],
+           g, rnd, color=tinta, temblor=1.2)
+    texto = "¡VIVIENDA!"
+    px = int(alto*0.42)
+    for _ in range(10):
+        f = _fuente_cartel(px)
+        if d.textlength(texto, font=f) <= ancho*0.86 or px <= 10:
+            break
+        px = int(px*0.88)
+    d.text((x - d.textlength(texto, font=f)/2, y0 + alto*0.26), texto, font=f, fill=ROJO_ESPAÑA)
+
+
+def _movil(d, x, y, t, rnd, g, tinta=TINTA):
+    """Un movil con la pantalla encendida y un Bizum entrando."""
+    ancho, alto = t*0.50, t*0.90
+    x0, y0 = x - ancho/2, y - alto
+    d.rounded_rectangle([x0, y0, x0 + ancho, y], radius=int(ancho*0.16), fill=(40, 40, 46),
+                        outline=tinta, width=max(2, g//2))
+    m = ancho*0.10
+    d.rectangle([x0 + m, y0 + m*1.6, x0 + ancho - m, y - m*1.6], fill=(120, 200, 230))
+    d.rounded_rectangle([x0 + m*1.6, y0 + alto*0.30, x0 + ancho - m*1.6, y0 + alto*0.46],
+                        radius=int(m), fill=(80, 190, 120))
+
+
+def _periodico(d, x, y, t, rnd, g, tinta=TINTA):
+    """El periodico abierto: titular gordo y columnas. La ultima hora."""
+    ancho, alto = t*1.05, t*0.75
+    x0, y0 = x - ancho/2, y - alto
+    d.rectangle([x0, y0, x0 + ancho, y], fill=(236, 232, 220))
+    _linea(d, [(x0, y0), (x0 + ancho, y0), (x0 + ancho, y), (x0, y), (x0, y0)],
+           max(2, g//2), rnd, color=tinta, temblor=1.0)
+    _linea(d, [(x, y0), (x, y)], max(2, g//3), rnd, color=(160, 156, 146), temblor=0.6)
+    for lado in (0, 1):
+        cx0 = x0 + ancho*(0.06 + 0.5*lado)
+        d.rectangle([cx0, y0 + alto*0.10, cx0 + ancho*0.38, y0 + alto*0.24], fill=tinta)
+        for k in range(4):
+            yy = y0 + alto*(0.38 + 0.14*k)
+            _linea(d, [(cx0, yy), (cx0 + ancho*0.38, yy)], max(2, g//3), rnd,
+                   color=(120, 116, 108), temblor=0.6)
+
+
+def _camara_tv(d, x, y, t, rnd, g, tinta=TINTA):
+    """Camara de television en su tripode, con el pilotito rojo de grabando."""
+    for dx in (-0.30, 0.0, 0.30):
+        _linea(d, [(x, y - t*0.55), (x + t*dx, y)], g, rnd, color=tinta)
+    cw, ch = t*0.62, t*0.34
+    cx0, cy0 = x - cw*0.55, y - t*0.55 - ch
+    d.rounded_rectangle([cx0, cy0, cx0 + cw, cy0 + ch], radius=int(ch*0.18), fill=(54, 54, 62),
+                        outline=tinta, width=g)
+    d.rectangle([cx0 + cw, cy0 + ch*0.22, cx0 + cw + t*0.16, cy0 + ch*0.78], fill=(30, 30, 36),
+                outline=tinta, width=max(2, g//2))
+    r = ch*0.12
+    d.ellipse([cx0 + cw*0.12 - r, cy0 + ch*0.25 - r, cx0 + cw*0.12 + r, cy0 + ch*0.25 + r],
+              fill=(230, 40, 40))
+    d.text((cx0 + cw*0.30, cy0 + ch*0.28), "TV", font=_fuente_cartel(int(ch*0.42)),
+           fill=(240, 240, 240))
+
+
 COSAS = {
     "perro": _perro, "caballo": _caballo, "barco": _barco, "casa": _casa,
     "iglesia": _iglesia, "castillo": _castillo, "espada": _espada,
@@ -2840,6 +2911,7 @@ COSAS = {
     "multitud": _multitud, "toro": _toro, "guitarra": _guitarra, "pergamino": _pergamino,
     "cofre": _cofre, "barril": _barril, "antorcha": _antorcha, "catalejo": _catalejo,
     "carta": _carta, "cadenas": _cadenas,
+    "pancarta": _pancarta, "movil": _movil, "periodico": _periodico, "camara_tv": _camara_tv,
     "nube": _nube, "sol": _sol,
     # El arbol ya existia pero con otra firma, y por estar aqui a None se
     # caia en silencio: el prompt lo ofrecia y limpia() lo tiraba.
