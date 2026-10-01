@@ -475,6 +475,7 @@ def fetch_clips_for_scenes(
                 # apuntando a SU monigote: el primero al que habla, el segundo
                 # al que contesta.
                 dicen = monigotes.quienes_dicen(scene["escena"], len(citas))
+                a_quien = monigotes.a_quien_dicen(scene["escena"], len(citas))
                 equis = [f["x"] for f in dicen]
                 cursor = 0
                 for k, frase in enumerate(citas):
@@ -485,7 +486,7 @@ def fetch_clips_for_scenes(
                     cursor = bocadillos.donde_se_dice(marca[0], frase, cursor) + len(frase)
                     globos.append({"texto": frase, "desde": ventana[0],
                                    "hasta": ventana[1], "x": equis[k],
-                                   "figura": dicen[k]["_i"]})
+                                   "figura": dicen[k]["_i"], "a": a_quien[k]})
                     logger.info("Escena %s: bocadillo %s \u00ab%s\u00bb de %.1fs a %.1fs (x=%.2f).",
                                 i, k + 1, frase[:36], ventana[0], ventana[1], equis[k])
                 if not globos:

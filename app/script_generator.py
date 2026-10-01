@@ -895,6 +895,11 @@ catedral, sale un fondo liso.
                 OBLIGATORIO en cuanto alguien habla: es lo que hace que el bocadillo apunte a
                 quien toca y que suene su voz. Si la escena no tiene ninguna frase entre «»,
                 "hablan": [].
+    "a_quien":  A QUIEN SE DIRIGE cada frase entre «», en el mismo orden que "hablan": el nombre
+                del reparto si la frase va a uno en concreto que esta en la escena (el original
+                dice que le señala, le mira o le habla: "España señala al politico. España: «Y tu
+                quieres salir en la tele»"), o "" si va a todos o a nadie. El que habla le
+                señala mientras lo dice. Ej: ["mandamas", "chaval", ""].
     "habla_x":  0.0 a 1.0, donde esta el que dice la PRIMERA frase (el mismo que "hablan"[0])
     "noche":    true si la escena pasa DE NOCHE ("es de noche", "todo esta oscuro"): el plano
                 sale en azul oscuro con luna. Quitalo si es de dia.
@@ -2039,6 +2044,10 @@ mano" es "lleva":"espada", "lee una carta" es "lleva":"carta". Y las
 posturas: "entra" o "se va" es "andando", "se arrodilla" es "de_rodillas", "baila" es
 "bailando", "aplauden" es "aplaudiendo", "sale en camilla" o "se lo llevan en camilla" es
 "en_camilla"; "aparecen cincuenta monigotes" es la cosa "multitud".
+"una acampada" o "llena de tiendas de campaña" es el decorado "acampada" (las tiendas ya van
+dibujadas en el sitio); "una ambulancia" es la cosa "ambulancia", y si alguien sale en camilla
+en esa escena, la camilla va sola hasta la ambulancia. "España señala al politico" antes de una
+frase es "a_quien" de esa frase: el politico.
 Si el original lo dice, TIENE que llevarlo: en Farinelli el remate era "Farinelli se cae al
 suelo" y salio de pie.
 

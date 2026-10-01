@@ -1201,6 +1201,13 @@ def _carrera(f: dict, reloj: float, segundos: float, desfase: float) -> dict | N
         return None
     mitad, velocidad, paso, saltito = _DESPLAZAMIENTOS[modo]
     p = min(1.0, max(0.0, reloj/max(segundos, 1e-6)))
+    if isinstance(f.get("_hacia"), (int, float)):
+        # Va a un sitio concreto (la camilla a la ambulancia) y llega con
+        # tiempo de verse alli: en el 70% de la escena, frenando al final.
+        q = min(1.0, p/0.70)
+        q = 1 - (1 - q)**2
+        return {"pose": modo, "pose_mezclada": None, "_bocanada": 0.0,
+                "x": f["x"] + (f["_hacia"] - f["x"])*q}
     recorrido = min(velocidad*segundos, 0.55)*(-1 if f.get("espejo") else 1)
     x0 = f["x"]
     zancada = (reloj/paso + desfase) % 1.0
@@ -1710,6 +1717,7 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
             if reloj > _SEGUNDOS_PAPEL:
                 g["papel"] = None
             paso["figuras"].append(g)
+        _señala_a_quien(paso, bocadillos, reloj)
         _coreografia_del_tortazo(spec, paso, reloj, segundos)
         rnd = random.Random(1000 + n//3)
         img = _decorado(paso, semilla=1000 + n//3)
@@ -1932,6 +1940,7 @@ def limpia(spec: dict) -> dict:
                 c["x"] = round(candidato, 3)
         ocupadas.append(c["x"])
 
+    _camilla_a_la_ambulancia(figuras, cosas)
     habla_x = (float(spec["habla_x"])
                if isinstance(spec.get("habla_x"), (int, float)) else None)
     hablan = hablan_de(spec, figuras)
@@ -1944,7 +1953,7 @@ def limpia(spec: dict) -> dict:
             "suelo": min(0.86, max(0.58, float(spec.get("suelo", 0.70 if dentro else 0.74)
                                               or 0.74))),
             "figuras": figuras, "tachados": tachados,
-            "habla_x": habla_x, "hablan": hablan,
+            "habla_x": habla_x, "hablan": hablan, "a_quien": a_quien_de(spec, figuras),
             "rotulo": (" ".join(str(spec.get("rotulo") or "").split())[:_LARGO_ROTULO] or None),
             "noche": bool(spec.get("noche")),
             "arbol": spec.get("arbol") if isinstance(spec.get("arbol"), (int, float)) else None})
@@ -1968,6 +1977,76 @@ def hablan_de(spec: dict, figuras: list[dict]) -> list[str] | None:
     nombres = [str(n or "").strip().lower() for n in crudo]
     presentes = {f.get("quien") for f in figuras if f.get("quien")}
     return nombres if all(n in presentes for n in nombres) else None
+
+
+def _camilla_a_la_ambulancia(figuras, cosas):
+    """Si en la escena hay camilla y ambulancia, la camilla va A la
+    ambulancia: la ambulancia a la derecha con las puertas abiertas hacia la
+    camilla, y la camilla rueda hasta ellas. "La ambulancia cogiendo a
+    Maricarmen de la camilla": rodando hacia ningun sitio no se entendia."""
+    amb = next((c for c in cosas if c.get("que") == "ambulancia"), None)
+    cam = next((f for f in figuras if f.get("pose") == "en_camilla"), None)
+    if not (amb and cam):
+        return
+    amb["tam"] = min(float(amb.get("tam") or 0.12), 0.12)
+    amb["x"] = 0.70
+    amb.pop("y", None)
+    proporcion = _ALTO_BASE/_ANCHO_BASE
+    puertas = amb["x"] - 1.15*amb["tam"]*proporcion
+    cam["espejo"] = False
+    cam["x"] = 0.16
+    cam["_hacia"] = round(max(cam["x"], puertas - 0.46*cam["alto"]*proporcion), 3)
+    for f in figuras:                     # los demas, que no tapen el camino
+        if f is not cam and 0.10 < f["x"] < puertas:
+            f["x"] = 0.92 if f["x"] > 0.5 else 0.06
+
+
+def a_quien_de(spec: dict, figuras: list[dict]) -> list[str] | None:
+    """La lista "a_quien" del guion: a quien se dirige cada frase, si se
+    dirige a alguien en concreto que esta en la escena ("" si no)."""
+    crudo = spec.get("a_quien") if isinstance(spec, dict) else None
+    if not isinstance(crudo, list) or not crudo:
+        return None
+    presentes = {f.get("quien") for f in figuras if f.get("quien")}
+    nombres = [str(n or "").strip().lower() for n in crudo]
+    return [n if n in presentes else "" for n in nombres]
+
+
+def a_quien_dicen(escena: dict, cuantas: int) -> list[int | None]:
+    """El puesto en la escena de a quien va cada frase, o None. Sale de la
+    MISMA limpia() que quienes_dicen, asi que los puestos coinciden."""
+    limpio = limpia(escena)
+    lista = limpio.get("a_quien") or []
+    puesto = {f.get("quien"): i for i, f in enumerate(limpio["figuras"]) if f.get("quien")}
+    return [puesto.get(lista[k]) if k < len(lista) and lista[k] else None
+            for k in range(cuantas)]
+
+
+# SEÑALA A QUIEN LE HABLA. "Lo unico que le falta es señalar a cada uno": en
+# el #107 España le decia "tu quieres recuperar tu piso", "tu quieres que se
+# quede", "y tu quieres salir en la tele" a tres personas distintas, y en
+# pantalla no se sabia a cual. Mientras dura su globo, el que habla se gira
+# hacia el otro y le señala, y el señalado da un respingo con cara de
+# sorpresa: con tres en el plano, el respingo es lo que dice a cual.
+def _señala_a_quien(paso, globos, reloj):
+    figs = paso.get("figuras") or []
+    for globo in globos or []:
+        i, a = (globo or {}).get("figura"), (globo or {}).get("a")
+        if not (isinstance(i, int) and isinstance(a, int) and i != a
+                and 0 <= i < len(figs) and 0 <= a < len(figs)):
+            continue
+        desde, hasta = float(globo["desde"]), float(globo["hasta"])
+        if not desde - 0.15 <= reloj <= hasta + 0.35:
+            continue
+        habla, otro = figs[i], figs[a]
+        if habla.get("pose") in _ACOSTADAS or habla.get("pose") in _DESPLAZAMIENTOS:
+            continue
+        habla.update({"pose": "señala", "pose_mezclada": None,
+                      "espejo": otro["x"] < habla["x"]})
+        otro["gesto"] = "sorpresa"
+        dentro = reloj - desde
+        if 0 <= dentro <= 0.4:
+            otro["_dy"] = otro.get("_dy", 0.0) - 0.035*math.sin(math.pi*dentro/0.4)
 
 
 # QUIEN DICE CADA FRASE. Una sola funcion para el globo y para la voz.
@@ -2988,6 +3067,44 @@ def _tienda(d, x, y, t, rnd, g, tinta=TINTA):
     _linea(d, puerta, max(2, g//2), rnd, color=tinta, temblor=1.0)
 
 
+def _ambulancia(d, x, y, t, rnd, g, tinta=TINTA):
+    """La ambulancia, de lado, con las puertas de atras abiertas: es donde
+    acaba la camilla. x es el centro, y el suelo."""
+    largo, alto = t*2.3, t*1.05
+    x0, x1 = x - largo/2, x + largo/2
+    techo = y - alto
+    blanco, rojo, cristal = (246, 246, 242), (214, 40, 40), (150, 196, 228)
+    # caja de atras y cabina (la cabina al lado derecho, mas baja)
+    d.rounded_rectangle([x0, techo, x0 + largo*0.70, y - t*0.14], radius=int(t*0.06),
+                        fill=blanco, outline=tinta, width=g)
+    cab = [(x0 + largo*0.70, techo + alto*0.22), (x0 + largo*0.86, techo + alto*0.22),
+           (x1, techo + alto*0.55), (x1, y - t*0.14), (x0 + largo*0.70, y - t*0.14)]
+    d.polygon(cab, fill=blanco)
+    _linea(d, cab + [cab[0]], g, rnd, color=tinta, temblor=1.0)
+    d.polygon([(x0 + largo*0.73, techo + alto*0.28), (x0 + largo*0.85, techo + alto*0.28),
+               (x0 + largo*0.95, techo + alto*0.53), (x0 + largo*0.73, techo + alto*0.53)],
+              fill=cristal, outline=tinta)
+    # franja roja y la cruz
+    d.rectangle([x0, y - t*0.42, x1, y - t*0.32], fill=rojo)
+    cx, cy, r = x0 + largo*0.35, techo + alto*0.36, t*0.17
+    d.rectangle([cx - r, cy - r*0.32, cx + r, cy + r*0.32], fill=rojo)
+    d.rectangle([cx - r*0.32, cy - r, cx + r*0.32, cy + r], fill=rojo)
+    # la sirena azul
+    d.rectangle([x0 + largo*0.30, techo - t*0.10, x0 + largo*0.42, techo], fill=(60, 110, 230),
+                outline=tinta, width=max(2, g//2))
+    # las puertas de atras abiertas, a la izquierda
+    for k, ancho in ((0, t*0.30), (1, t*0.22)):
+        px = x0 - ancho*(0.6 + 0.5*k)
+        d.polygon([(x0, techo + t*0.04), (px, techo + t*0.10 + k*t*0.05),
+                   (px, y - t*0.20 - k*t*0.04), (x0, y - t*0.16)], fill=(236, 236, 232),
+                  outline=tinta)
+    # ruedas
+    for rx in (x0 + largo*0.18, x0 + largo*0.84):
+        rr = t*0.16
+        d.ellipse([rx - rr, y - rr*2, rx + rr, y], fill=(40, 40, 44), outline=tinta, width=g)
+        d.ellipse([rx - rr*0.45, y - rr*1.45, rx + rr*0.45, y - rr*0.55], fill=(170, 170, 176))
+
+
 COSAS = {
     "perro": _perro, "caballo": _caballo, "barco": _barco, "casa": _casa,
     "iglesia": _iglesia, "castillo": _castillo, "espada": _espada,
@@ -2999,7 +3116,7 @@ COSAS = {
     "cofre": _cofre, "barril": _barril, "antorcha": _antorcha, "catalejo": _catalejo,
     "carta": _carta, "cadenas": _cadenas,
     "pancarta": _pancarta, "movil": _movil, "periodico": _periodico, "camara_tv": _camara_tv,
-    "tienda": _tienda,
+    "tienda": _tienda, "ambulancia": _ambulancia,
     "nube": _nube, "sol": _sol,
     # El arbol ya existia pero con otra firma, y por estar aqui a None se
     # caia en silencio: el prompt lo ofrecia y limpia() lo tiraba.
@@ -3628,6 +3745,13 @@ _DECORADOS = {
     "selva":        {"pared": "cielo", "piso": "hierba",
                      "fondo": [("selva", .5, 1.0, 1.0)],
                      "muebles": [], "delante": [], "cuelga": [], "velas": []},
+    # La plaza tomada: las casas, las tiendas de campaña ya plantadas y las
+    # pancartas. Las tiendas iban como "cosas" y en el #107 el guion no las
+    # pidio: si el sitio ES una acampada, las tiendas son del sitio.
+    "acampada":     {"pared": "cielo", "piso": "adoquines",
+                     "fondo": [("casas", .5, 1.0, 1.0)],
+                     "muebles": [("acampada", .5, 0, 1.0)], "delante": [], "cuelga": [],
+                     "velas": []},
     # El piso de alquiler de toda la vida: papel pintado, visillos, el cuadro,
     # el reloj y el aparador con la radio. Para la renta antigua, y para
     # cualquier historia que pase en una casa normal y no en un palacio.
@@ -3662,6 +3786,7 @@ DECORADOS_EXPLICADOS = {
     "puerto":      "el muelle con barcos en el mar: flotas, la Armada, Colon zarpando, los que llegan",
     "mazmorra":    "carcel de piedra con reja, cadenas y antorchas: presos, Inquisicion, cautivos",
     "selva":       "la selva de las Americas, con palmeras: Colon, Cortes, Pizarro, expediciones",
+    "acampada":    "una plaza de ciudad tomada por una acampada: tiendas de campaña de colores y pancartas. Protestas, la Puerta del Sol, el 15-M, sentadas",
     "piso":        "un piso de alquiler normal del siglo XX: papel pintado, ventana con visillos, cuadro, reloj de pared, aparador con radio. Caseros, inquilinos, familias",
 }
 _sin_explicar = set(DECORADOS_VALIDOS) ^ set(DECORADOS_EXPLICADOS)
@@ -3865,6 +3990,15 @@ def _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "olla_suelo": _olla(d, X, Y, h*tam, rnd, g)
     elif que == "mesa":       _mesa_con_cosas(d, X, Y, T, rnd, g, alto=h*0.075)
     elif que == "aparador":   _aparador(d, X, Y, T, rnd, g)
+    elif que == "acampada":
+        rr = random.Random(5)
+        for k in range(7):                                # fila de atras, mas pequeñas
+            _tienda(d, w*(0.07 + 0.145*k) + rr.uniform(-10, 10), suelo + h*0.035,
+                    h*rr.uniform(0.060, 0.075), rnd, max(2, g//2))
+        for px in (0.03, 0.97):                           # y dos delante, en los bordes
+            _tienda(d, w*px, suelo + h*0.11, h*0.095, rnd, g)
+        for px in (0.30, 0.70):
+            _pancarta(d, w*px, suelo - h*0.02, h*0.10, rnd, max(2, g//2))
     elif que == "barandilla":
         _linea(d, [(0, Y), (w, Y)], int(g*2.6), rnd, color=MADERA_OSCURA)
         for k in range(7):
