@@ -2009,6 +2009,13 @@ intercambios y meter MAXIMO {max_citas} citas por escena. Si un bloque del origi
 seguidas, partelo en dos escenas; si dos bloques son un intercambio muy corto, pueden ir juntos en
 una.
 
+Y SALEN TODOS LOS QUE LA ESCENA NOMBRA, no solo los que hablan. Si en ese trozo del original
+alguien mira, señala o se dirige a otro ("España mira al propietario", "Tu quieres recuperar tu
+piso"), o dice "todos", "salen los cuatro", esos personajes van en "figuras" aunque no digan
+nada - hasta 4. En el video de la vivienda España le hablaba a tres personas una por una y en
+pantalla solo estaban ella y uno: le hablaba al aire. "España señala al politico" es la postura
+"señala" de España, con el politico en la escena.
+
 EL NARRADOR SOLO DICE LO QUE EL ORIGINAL LE DA AL NARRADOR. La "narration" de cada escena es: las
 frases de los personajes de esa escena entre «», y - solo si en ese punto el original tiene una
 linea de "Narrador:" - esa linea tal cual, sin comillas. NADA MAS. Todo lo demas del original son
