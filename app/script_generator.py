@@ -2274,6 +2274,84 @@ def _quita_acotaciones_leidas(raw_text: str, script: dict) -> list[str]:
     return quitadas
 
 
+_CITA = re.compile(r"«([^»]*)»")
+
+
+def _parte_en_dos(frase: str) -> tuple[str, str]:
+    """Parte una frase en dos trozos de palabras, por la puntuacion mas
+    cercana a la mitad (o por la mitad si no hay), sin cambiar ni una palabra."""
+    palabras = frase.split()
+    mitad = len(palabras) / 2
+    cortes = [i for i in range(1, len(palabras)) if palabras[i - 1][-1:] in ",.;:!?…"]
+    corte = min(cortes, key=lambda i: abs(i - mitad)) if cortes else int(round(mitad))
+    if not cortes or abs(corte - mitad) > len(palabras) / 3:
+        corte = int(round(mitad))
+    return " ".join(palabras[:corte]), " ".join(palabras[corte:])
+
+
+def _arregla_bocadillos(script: dict) -> list[str]:
+    """Lo que antes tiraba un intento entero, arreglado sin volver a pagar:
+    una frase de mas de MAX_PALABRAS se parte en dos globos seguidos del mismo
+    personaje, y una escena con mas de MAX_CITAS frases se parte en dos
+    escenas iguales. En Juana la Loca se fueron dos intentos (0,12 $) por
+    "Eso no significa que pueda fiarme de nadie" (8 palabras) y por una
+    escena con 9 frases. Devuelve lo que ha hecho, para el log."""
+    hecho = []
+    escenas_nuevas = []
+    for e in script.get("scenes", []):
+        esc = e.get("escena") if isinstance(e.get("escena"), dict) else None
+        hablan = list(esc.get("hablan") or []) if esc else []
+        a_quien = list(esc.get("a_quien") or []) if esc else []
+        partes, k = [], 0
+        def trocea(m):
+            nonlocal k
+            frase = m.group(1).strip()
+            limpia = frase.strip(" .,;:")
+            if len(limpia.split()) <= bocadillos.MAX_PALABRAS:
+                k += 1
+                return m.group(0)
+            uno, dos = _parte_en_dos(frase)
+            hecho.append(f"frase partida en dos: «{frase[:40]}»")
+            for lista in (hablan, a_quien):
+                if k < len(lista):
+                    lista.insert(k, lista[k])
+            k += 2
+            return f"«{uno}…» «…{dos}»"
+        narracion = _CITA.sub(trocea, e.get("narration") or "")
+        e["narration"] = narracion
+        if esc is not None:
+            if esc.get("hablan") is not None:
+                esc["hablan"] = hablan
+            if esc.get("a_quien") is not None:
+                esc["a_quien"] = a_quien
+        citas = list(_CITA.finditer(narracion))
+        if len(citas) <= bocadillos.MAX_CITAS or esc is None:
+            escenas_nuevas.append(e)
+            continue
+        # Se parte por la mitad de las frases, despues de un cierre de «».
+        corte = (len(citas) + 1) // 2
+        pos = citas[corte - 1].end()
+        import copy
+        primera, segunda = copy.deepcopy(e), copy.deepcopy(e)
+        primera["narration"] = narracion[:pos].strip()
+        segunda["narration"] = narracion[pos:].strip()
+        for trozo, desde, hasta in ((primera, 0, corte), (segunda, corte, None)):
+            te = trozo["escena"]
+            if te.get("hablan") is not None:
+                te["hablan"] = hablan[desde:hasta]
+            if te.get("a_quien") is not None:
+                te["a_quien"] = a_quien[desde:hasta]
+        # El rotulo, al empezar; los efectos (la caida, el zoom), al acabar.
+        segunda["escena"].pop("rotulo", None)
+        for f in primera["escena"].get("figuras") or []:
+            if isinstance(f, dict):
+                f.pop("efecto", None)
+        hecho.append(f"escena de {len(citas)} frases partida en dos")
+        escenas_nuevas.extend([primera, segunda])
+    script["scenes"] = escenas_nuevas
+    return hecho
+
+
 def translate_literal_script(raw_text: str, variant: str = "short", parar=None) -> dict:
     """Traduce un guion que ella ya trajo escrito -dialogo y acotaciones- al
     JSON tecnico del render, sin inventar ni una frase nueva. Ver el bloque
@@ -2365,6 +2443,9 @@ def translate_literal_script(raw_text: str, variant: str = "short", parar=None) 
 
         nivel = max(_SOLO_LO_ROTO, _TODO - (attempt - 1))
         ultimo = attempt >= _MAX_ATTEMPTS
+        arreglos = _arregla_bocadillos(script)
+        if arreglos:
+            logger.info("translate_literal_script: %s", "; ".join(arreglos))
         quitadas = _quita_acotaciones_leidas(raw_text, script)
         if quitadas:
             logger.info("translate_literal_script: %s acotaciones quitadas de la narracion "
