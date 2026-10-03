@@ -1570,7 +1570,7 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
             if not citas_e or not isinstance(esc, dict):
                 continue
             figs = monigotes.limpia(esc)["figuras"]
-            nombres = {f["quien"] for f in figs if f.get("quien")}
+            nombres = {monigotes.nombre_de(f) for f in figs} - {""}
             lista = esc.get("hablan")
             if lista is None:
                 if nivel >= _TODO and len(figs) > 1:
@@ -1584,7 +1584,8 @@ def _que_le_pasa_al_guion(script: dict, variant: str = "long",
                 return (f"la escena {i} tiene {len(citas_e)} frase(s) entre comillas pero "
                         f"\"hablan\" trae {cuantos}: tiene que haber un nombre por cada "
                         f"frase, en el mismo orden")
-            fuera = [n for n in lista if str(n or "").strip().lower() not in nombres]
+            fuera = [n for n in lista if str(n or "").strip().lower() not in nombres
+                     and monigotes.clave_de_papel(n) not in nombres]
             if fuera:
                 return (f"en la escena {i}, \"hablan\" pone a {fuera} diciendo algo, pero no "
                         f"estan entre las figuras de esa escena ({sorted(nombres)})")
@@ -1981,6 +1982,13 @@ personaje con nombre o papel (Don Severo, el ingles, el rey...). Todo lo que el 
 como "Narrador:", o que no tiene ningun personaje delante, es narracion pura: va en "narration"
 tal cual pero SIN «», y NO se apunta en "hablan" - no la dice nadie.
 
+Y SI HABLA ALGUIEN QUE NO ES DE LOS CINCO - una segunda mujer (Remedios es la unica del
+reparto), una monja, un desconocido que dice una frase -, su figura va SIN "quien" y con su
+"papel" ("Una mujer", "La monja"), y en "hablan" y "a_quien" se le nombra por ese papel. A una
+mujer, "objeto": "vestido" (o "luto" si es viuda); a una monja, "gorro": "toca" y "objeto":
+"habito". Habla con la voz del narrador. Nunca le des a una mujer del original uno de los
+hombres del reparto.
+
 Y QUIEN DICE CADA COSA VA EN "hablan", CON SU NOMBRE. Es lo que el original ya te dice
 ("Don Severo: «...»", "Perico: «...»"), asi que no hay nada que adivinar: por cada frase entre
 «» de la escena, el nombre del reparto de quien la dice, en el mismo orden. Una frase de Don
@@ -2043,7 +2051,9 @@ enamora" es "enamorado". Y lo que tiene en la mano va en "lleva": "mira con el c
 mano" es "lleva":"espada", "lee una carta" es "lleva":"carta". Y las
 posturas: "entra" o "se va" es "andando", "se arrodilla" es "de_rodillas", "baila" es
 "bailando", "aplauden" es "aplaudiendo", "sale en camilla" o "se lo llevan en camilla" es
-"en_camilla"; "aparecen cincuenta monigotes" es la cosa "multitud".
+"en_camilla"; "aparecen cincuenta monigotes" es la cosa "multitud". "Carga el ataud" o "con
+el ataud" es "lleva": "ataud" (al hombro), y un ataud en el suelo es la cosa "ataud". "De
+noche" es "noche": true.
 "una acampada" o "llena de tiendas de campaña" es el decorado "acampada" (las tiendas ya van
 dibujadas en el sitio); "una ambulancia" es la cosa "ambulancia", y si alguien sale en camilla
 en esa escena, la camilla va sola hasta la ambulancia. "España señala al politico" antes de una

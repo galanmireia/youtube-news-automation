@@ -452,7 +452,7 @@ def _cara(d, c, r, g, rnd, gesto, tinta=TINTA):
 # Los que ENVUELVEN la cabeza se pintan ANTES que ella, o tapan la cara. Es
 # el mismo asunto que la mesa: lo que rodea va detras, lo que se apoya encima
 # va delante. La capucha de monje tapaba la cara entera.
-GORROS_DETRAS = ("monje", "peineta")
+GORROS_DETRAS = ("monje", "peineta", "toca")
 
 
 def _gorro(d, cab, rc, g, rnd, cual):
@@ -564,6 +564,15 @@ def _gorro(d, cab, rc, g, rnd, cual):
                             width=max(2, g//2))
         _circulo(d, (x + rc*1.60, arriba + rc*0.12), rc*0.26, max(2, g//2), rnd,
                  relleno=(236, 240, 248), color=TINTA)
+    elif cual == "toca":            # la toca de monja: velo negro y la cara enmarcada en blanco
+        # Detras de la cabeza (GORROS_DETRAS): primero el velo negro hasta
+        # los hombros, luego el blanco un poco mas grande que la cara, y la
+        # cara se pinta encima - queda el aro blanco alrededor.
+        d.polygon([(x - rc*1.30, y + rc*1.85), (x - rc*1.35, y - rc*0.2), (x - rc*0.95, y - rc*1.15),
+                   (x, y - rc*1.35), (x + rc*0.95, y - rc*1.15), (x + rc*1.35, y - rc*0.2),
+                   (x + rc*1.30, y + rc*1.85)], fill=(28, 26, 30))
+        d.ellipse([x - rc*1.16, y - rc*1.16, x + rc*1.16, y + rc*1.22], fill=(248, 248, 244),
+                  outline=TINTA, width=max(2, g//2))
     elif cual == "peineta":         # peineta y mantilla: la dama española
         # La mantilla se pinta DETRAS de la cara (ver GORROS_DETRAS), cayendo
         # por los lados hasta los hombros; la peineta asoma por encima.
@@ -695,6 +704,25 @@ def _habito(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(122, 92, 62)
            fill=(236, 226, 200), width=max(2, g//2))
 
 
+def _vestido(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(150, 50, 70)):
+    """Vestido largo de mujer, con la falda abierta hasta los pies. Remedios
+    era la unica mujer del reparto: con esto cualquier figura es una mujer
+    (la que se cruza Juana, la vecina, la criada)."""
+    abajo = cadera[1] + alto*0.34
+    pts = [(x - alto*0.06, cuello[1] + alto*0.01), (x + alto*0.06, cuello[1] + alto*0.01),
+           (x + alto*0.07, cadera[1] - alto*0.04), (x + alto*0.24, abajo),
+           (x - alto*0.24, abajo), (x - alto*0.07, cadera[1] - alto*0.04)]
+    d.polygon(pts, fill=color)
+    _linea(d, pts + [pts[0]], g, rnd, color=tinta, temblor=1.4)
+    d.line([(x - alto*0.075, cadera[1] - alto*0.04), (x + alto*0.075, cadera[1] - alto*0.04)],
+           fill=tinta, width=max(2, g//2))
+
+
+def _luto(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA):
+    """El mismo vestido, negro: la viuda. Juana de luto por Felipe."""
+    _vestido(d, x, cuello, cadera, alto, g, rnd, tinta, color=(34, 32, 36))
+
+
 OBJETOS = {
     "capa": _capa,
     "armadura": _armadura,
@@ -703,6 +731,8 @@ OBJETOS = {
     "banda": _banda,
     "banda_espana": _banda_espana,
     "habito": _habito,
+    "vestido": _vestido,
+    "luto": _luto,
 }
 OBJETOS_VALIDOS = tuple(OBJETOS)
 # Las que van por encima de todo, cabeza incluida.
@@ -1591,6 +1621,7 @@ LLEVABLES_EXPLICADOS = {
     "pancarta":  "una pancarta de manifestacion: protestas, la vivienda, las huelgas",
     "movil":     "un movil en la mano: el Bizum, la foto, el que lo graba todo",
     "periodico": "un periodico: ultima hora, la noticia, el que lo lee en alto",
+    "ataud":     "el ataud AL HOMBRO, como quien carga un muerto: Juana la Loca, entierros, el cortejo",
 }
 _TAM_LLEVADO = {"espada": 0.40, "antorcha": 0.30, "bandera": 0.50, "pergamino": 0.20,
                 "carta": 0.16, "dinero": 0.18, "libro": 0.16, "cesta": 0.20,
@@ -1624,6 +1655,13 @@ def _pinta_llevado(d, f, x, y, alto, rnd, rasgos):
     s = -1 if f.get("espejo") else 1
     anc = (rasgos or {}).get("ancho", 1.0)
     g = max(4, int(alto*0.018))
+    if que == "ataud":
+        # Al hombro, no en la mano: tumbado sobre el hombro, un poco por
+        # detras de la cabeza, y se mueve con el que lo carga (corre, se cae).
+        cx = x + p["cuello"][0]*alto*s*anc
+        cy = y + p["cuello"][1]*alto + alto*0.03
+        _ataud(d, cx - s*alto*0.12, cy, alto*0.42, rnd, max(3, int(alto*0.012)))
+        return
     if que == "catalejo":
         rc = alto*0.145*(rasgos or {}).get("cabeza", 1.0)
         hx = x + p["cuello"][0]*alto*s*anc
@@ -1642,6 +1680,11 @@ def _pinta_llevado(d, f, x, y, alto, rnd, rasgos):
         dibuja(d, hx, hy + tam*agarre, tam, rnd, max(3, g))
 
 
+# Lo que se lleva al hombro va DETRAS del cuerpo: el ataud pintado encima le
+# tapaba la cara al que lo cargaba.
+_LLEVADOS_DETRAS = ("ataud",)
+
+
 def _dibuja_figura(img, d, f, x, y, alto, rnd, **kw):
     """figura() con su efecto: movida, girada si se ha caido, y con sus
     adornos. La que se cae se pinta en una capa aparte y se gira entera
@@ -1653,12 +1696,21 @@ def _dibuja_figura(img, d, f, x, y, alto, rnd, **kw):
     giro = f.get("_giro", 0.0)
     if giro:
         capa = Image.new("RGBA", img.size, (0, 0, 0, 0))
-        figura(ImageDraw.Draw(capa), x, y, *args, **kw)
+        dc = ImageDraw.Draw(capa)
+        # Lo que lleva cae con el: el ataud de Juana se cae con quien lo carga.
+        if f.get("lleva") in _LLEVADOS_DETRAS:
+            _pinta_llevado(dc, f, x, y, alto, rnd, kw.get("rasgos"))
+        figura(dc, x, y, *args, **kw)
+        if f.get("lleva") not in _LLEVADOS_DETRAS:
+            _pinta_llevado(dc, f, x, y, alto, rnd, kw.get("rasgos"))
         capa = capa.rotate(giro, center=(x, y), resample=Image.BICUBIC)
         img.paste(capa, (0, 0), capa)
     else:
+        if f.get("lleva") in _LLEVADOS_DETRAS:
+            _pinta_llevado(d, f, x, y, alto, rnd, kw.get("rasgos"))
         figura(d, x, y, *args, **kw)
-        _pinta_llevado(d, f, x, y, alto, rnd, kw.get("rasgos"))
+        if f.get("lleva") not in _LLEVADOS_DETRAS:
+            _pinta_llevado(d, f, x, y, alto, rnd, kw.get("rasgos"))
     # Los adornos (el PUM, las estrellitas, el humo) NO van aqui: van al
     # final, encima de la colcha y de las mesas de delante, que si no los
     # tapaban. Se devuelve donde pintarlos.
@@ -1781,6 +1833,7 @@ GORROS_EXPLICADOS = {
     "turbante":   "Al-Andalus, sultanes, embajadores de Oriente",
     "chistera":   "sombrero de copa del XIX: politicos, banqueros, caballeros",
     "peineta":    "peineta y mantilla negra: la dama española",
+    "toca":       "toca de monja, velo negro y la cara enmarcada en blanco: monjas, abadesas, conventos",
     "dormir":     "gorro de dormir con borla: en pijama, recien levantado, en la cama",
 }
 GORROS_VALIDOS = tuple(GORROS_EXPLICADOS)
@@ -1947,7 +2000,7 @@ def limpia(spec: dict) -> dict:
     if hablan:
         # Si el guion dice QUIEN habla, manda eso y no la x: la x era una
         # forma indirecta de decir lo mismo y es la que se equivocaba.
-        habla_x = next(f["x"] for f in figuras if f["quien"] == hablan[0])
+        habla_x = next(f["x"] for f in figuras if nombre_de(f) == hablan[0])
     return _montar_escena({"interior": dentro, "cosas": cosas,
             "fondo": _una_de(spec.get("fondo"), FONDOS_VALIDOS, "liso"),
             "suelo": min(0.86, max(0.58, float(spec.get("suelo", 0.70 if dentro else 0.74)
@@ -1968,14 +2021,23 @@ def _reparte(figs, desde, lado, hueco=0.15):
         x = f["x"] + lado*hueco
 
 
+def nombre_de(f: dict) -> str:
+    """Como se nombra a una figura en "hablan" y "a_quien": su personaje del
+    reparto o, si no es de los cinco (la mujer con la que se cruza Juana, la
+    monja), su papel. Remedios era la unica mujer: con dos mujeres en una
+    historia, la segunda no podia decir nada."""
+    return f.get("quien") or clave_de_papel(f.get("papel"))
+
+
 def hablan_de(spec: dict, figuras: list[dict]) -> list[str] | None:
     """La lista "hablan" del guion, si se puede usar: un nombre del reparto
     por cada frase entrecomillada, y todos presentes en la escena."""
     crudo = spec.get("hablan") if isinstance(spec, dict) else None
     if not isinstance(crudo, list) or not crudo:
         return None
-    nombres = [str(n or "").strip().lower() for n in crudo]
-    presentes = {f.get("quien") for f in figuras if f.get("quien")}
+    presentes = {nombre_de(f) for f in figuras} - {""}
+    nombres = [n if n in presentes else clave_de_papel(n)
+               for n in (str(n or "").strip().lower() for n in crudo)]
     return nombres if all(n in presentes for n in nombres) else None
 
 
@@ -2007,8 +2069,9 @@ def a_quien_de(spec: dict, figuras: list[dict]) -> list[str] | None:
     crudo = spec.get("a_quien") if isinstance(spec, dict) else None
     if not isinstance(crudo, list) or not crudo:
         return None
-    presentes = {f.get("quien") for f in figuras if f.get("quien")}
+    presentes = {nombre_de(f) for f in figuras} - {""}
     nombres = [str(n or "").strip().lower() for n in crudo]
+    nombres = [n if n in presentes else clave_de_papel(n) for n in nombres]
     return [n if n in presentes else "" for n in nombres]
 
 
@@ -2017,7 +2080,7 @@ def a_quien_dicen(escena: dict, cuantas: int) -> list[int | None]:
     MISMA limpia() que quienes_dicen, asi que los puestos coinciden."""
     limpio = limpia(escena)
     lista = limpio.get("a_quien") or []
-    puesto = {f.get("quien"): i for i, f in enumerate(limpio["figuras"]) if f.get("quien")}
+    puesto = {nombre_de(f): i for i, f in enumerate(limpio["figuras"]) if nombre_de(f)}
     return [puesto.get(lista[k]) if k < len(lista) and lista[k] else None
             for k in range(cuantas)]
 
@@ -2070,7 +2133,7 @@ def quienes_dicen(escena: dict, cuantas: int) -> list[dict]:
         f["_i"] = i
     hablan = limpio.get("hablan")
     if hablan and len(hablan) >= cuantas:
-        por_nombre = {f["quien"]: f for f in figuras if f.get("quien")}
+        por_nombre = {nombre_de(f): f for f in figuras if nombre_de(f)}
         return [por_nombre[n] for n in hablan[:cuantas]]
     x = limpio.get("habla_x")
     quien = (min(figuras, key=lambda f: abs(f["x"] - x)) if x is not None else figuras[0])
@@ -3050,6 +3113,27 @@ def _camara_tv(d, x, y, t, rnd, g, tinta=TINTA):
            fill=(240, 240, 240))
 
 
+def _ataud(d, x, y, t, rnd, g, tinta=TINTA):
+    """El ataud, tumbado: la caja de madera oscura con su tapa, mas ancha
+    por los hombros, y una cruz dorada. x es el centro, y la base."""
+    largo, alto = t*1.6, t*0.38
+    x0, x1 = x - largo/2, x + largo/2
+    caja = [(x0, y - alto*0.15), (x0 + largo*0.22, y - alto), (x1, y - alto*0.80), (x1, y),
+            (x0 + largo*0.22, y), (x0, y - alto*0.15)]
+    d.polygon(caja, fill=(86, 52, 30))
+    _linea(d, caja, g, rnd, color=tinta, temblor=1.0)
+    tapa = [(x0 - t*0.03, y - alto*0.30), (x0 + largo*0.22, y - alto*1.18),
+            (x1 + t*0.03, y - alto*0.98), (x1 + t*0.03, y - alto*0.78)]
+    d.polygon(tapa + [(x0 + largo*0.22, y - alto*0.90)], fill=(110, 70, 40))
+    _linea(d, tapa, max(2, g//2), rnd, color=tinta, temblor=1.0)
+    cx, cy = x0 + largo*0.56, y - alto*0.52
+    d.line([(cx - t*0.12, cy), (cx + t*0.12, cy)], fill=ORO_ESPAÑA, width=max(3, g))
+    d.line([(cx - t*0.04, cy - t*0.10), (cx - t*0.04, cy + t*0.10)], fill=ORO_ESPAÑA, width=max(3, g))
+    for px in (x0 + largo*0.30, x0 + largo*0.80):           # las asas
+        d.line([(px - t*0.05, y - alto*0.45), (px + t*0.05, y - alto*0.45)], fill=(200, 170, 90),
+               width=max(2, g//2))
+
+
 def _tienda(d, x, y, t, rnd, g, tinta=TINTA):
     """Tienda de campaña de las de ahora, la iglu de colores: la acampada.
     La del campamento del ejercito es otra (lona y palo), esta es de Sol."""
@@ -3116,7 +3200,7 @@ COSAS = {
     "cofre": _cofre, "barril": _barril, "antorcha": _antorcha, "catalejo": _catalejo,
     "carta": _carta, "cadenas": _cadenas,
     "pancarta": _pancarta, "movil": _movil, "periodico": _periodico, "camara_tv": _camara_tv,
-    "tienda": _tienda, "ambulancia": _ambulancia,
+    "tienda": _tienda, "ambulancia": _ambulancia, "ataud": _ataud,
     "nube": _nube, "sol": _sol,
     # El arbol ya existia pero con otra firma, y por estar aqui a None se
     # caia en silencio: el prompt lo ofrecia y limpia() lo tiraba.
