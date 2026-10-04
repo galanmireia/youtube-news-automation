@@ -2053,7 +2053,8 @@ posturas: "entra" o "se va" es "andando", "se arrodilla" es "de_rodillas", "bail
 "bailando", "aplauden" es "aplaudiendo", "sale en camilla" o "se lo llevan en camilla" es
 "en_camilla"; "aparecen cincuenta monigotes" es la cosa "multitud". "Carga el ataud" o "con
 el ataud" es "lleva": "ataud" (al hombro), y un ataud en el suelo es la cosa "ataud". "De
-noche" es "noche": true.
+noche" es "noche": true. "Mira el calendario" es la cosa "calendario" colgada en la pared
+("y": 0.30, "tam": 0.12), o "lleva": "calendario" si lo tiene en la mano.
 "una acampada" o "llena de tiendas de campaña" es el decorado "acampada" (las tiendas ya van
 dibujadas en el sitio); "una ambulancia" es la cosa "ambulancia", y si alguien sale en camilla
 en esa escena, la camilla va sola hasta la ambulancia. "España señala al politico" antes de una

@@ -1621,9 +1621,10 @@ LLEVABLES_EXPLICADOS = {
     "pancarta":  "una pancarta de manifestacion: protestas, la vivienda, las huelgas",
     "movil":     "un movil en la mano: el Bizum, la foto, el que lo graba todo",
     "periodico": "un periodico: ultima hora, la noticia, el que lo lee en alto",
+    "calendario": "una hoja de calendario (OCTUBRE, el 15 grande y el 4 tachado) en la mano: fechas, el cambio de calendario de 1582",
     "ataud":     "el ataud AL HOMBRO, como quien carga un muerto: Juana la Loca, entierros, el cortejo",
 }
-_TAM_LLEVADO = {"espada": 0.40, "antorcha": 0.30, "bandera": 0.50, "pergamino": 0.20,
+_TAM_LLEVADO = {"calendario": 0.32, "espada": 0.40, "antorcha": 0.30, "bandera": 0.50, "pergamino": 0.20,
                 "carta": 0.16, "dinero": 0.18, "libro": 0.16, "cesta": 0.20,
                 "pancarta": 0.60, "movil": 0.16, "periodico": 0.26}
 
@@ -3134,6 +3135,34 @@ def _ataud(d, x, y, t, rnd, g, tinta=TINTA):
                width=max(2, g//2))
 
 
+def _calendario(d, x, y, t, rnd, g, tinta=TINTA):
+    """La hoja del calendario: OCTUBRE en rojo, un 15 enorme y el 4 de ayer
+    tachado en la esquina. Para los diez dias que desaparecieron en 1582, y
+    para cualquier fecha que importe."""
+    ancho, alto = t*0.80, t*0.95
+    x0, y0 = x - ancho/2, y - alto
+    d.rectangle([x0, y0, x0 + ancho, y], fill=(250, 248, 240), outline=tinta, width=max(2, g//2))
+    d.rectangle([x0, y0, x0 + ancho, y0 + alto*0.24], fill=ROJO_ESPAÑA)
+    for k in range(4):                                   # las anillas
+        ax = x0 + ancho*(0.2 + 0.2*k)
+        d.line([(ax, y0 - alto*0.05), (ax, y0 + alto*0.05)], fill=tinta, width=max(2, g//2))
+    def escribe(texto, px, cx, cy, color):
+        for _ in range(10):
+            f = _fuente_cartel(px)
+            if d.textlength(texto, font=f) <= ancho*0.84 or px <= 8:
+                break
+            px = int(px*0.88)
+        caja = d.textbbox((0, 0), texto, font=f)
+        d.text((cx - (caja[2] - caja[0])/2, cy - (caja[3] - caja[1])/2 - caja[1]), texto,
+               font=f, fill=color)
+    escribe("OCTUBRE", int(alto*0.15), x, y0 + alto*0.12, (255, 255, 255))
+    escribe("15", int(alto*0.48), x, y0 + alto*0.60, tinta)
+    cx, cy = x0 + ancho*0.18, y0 + alto*0.34                # el 4, tachado
+    escribe("4", int(alto*0.14), cx, cy, (120, 116, 108))
+    d.line([(cx - alto*0.07, cy + alto*0.06), (cx + alto*0.07, cy - alto*0.06)],
+           fill=ROJO_ESPAÑA, width=max(3, g))
+
+
 def _tienda(d, x, y, t, rnd, g, tinta=TINTA):
     """Tienda de campaña de las de ahora, la iglu de colores: la acampada.
     La del campamento del ejercito es otra (lona y palo), esta es de Sol."""
@@ -3200,7 +3229,7 @@ COSAS = {
     "cofre": _cofre, "barril": _barril, "antorcha": _antorcha, "catalejo": _catalejo,
     "carta": _carta, "cadenas": _cadenas,
     "pancarta": _pancarta, "movil": _movil, "periodico": _periodico, "camara_tv": _camara_tv,
-    "tienda": _tienda, "ambulancia": _ambulancia, "ataud": _ataud,
+    "tienda": _tienda, "ambulancia": _ambulancia, "ataud": _ataud, "calendario": _calendario,
     "nube": _nube, "sol": _sol,
     # El arbol ya existia pero con otra firma, y por estar aqui a None se
     # caia en silencio: el prompt lo ofrecia y limpia() lo tiraba.
