@@ -2251,9 +2251,16 @@ def _quita_acotaciones_leidas(raw_text: str, script: dict) -> list[str]:
     que no esta en el original (una frase inventada, una linea de Narrador
     reescrita) no se toca y lo sigue rechazando _narrador_solo_dice_lo_suyo,
     para no perder en silencio algo que el narrador si tenia que decir."""
-    permitido = _normaliza_frase(" ".join(_lineas_de_narrador(raw_text)))
+    lineas_narrador = _lineas_de_narrador(raw_text)
+    permitido = _normaliza_frase(" ".join(lineas_narrador))
     original = _normaliza_frase(raw_text)
-    quitadas = []
+    # Lo que en el original dice un PERSONAJE. En los diez dias de 1582 el
+    # modelo escribio las frases sin «», esto las tomo por acotaciones y se
+    # quedo la narracion vacia: tres intentos tirados. Una frase que es de un
+    # personaje no se quita nunca; se le devuelven las comillas.
+    dialogos = ({_normaliza_frase(q) for q in bocadillos.todas_las_comillas(raw_text)}
+                - {_normaliza_frase(l) for l in lineas_narrador} - {""})
+    quitadas, recomilladas = [], []
     trozos_de_cita = re.compile(r'([«“"][^»”"]*[»”"])')
     for e in script.get("scenes", []):
         narracion = e.get("narration") or ""
@@ -2262,7 +2269,10 @@ def _quita_acotaciones_leidas(raw_text: str, script: dict) -> list[str]:
             buenas = []
             for frase in _FIN_DE_FRASE.split(partes[k]):
                 clave = _normaliza_frase(frase)
-                if clave and clave not in permitido and clave in original:
+                if clave and clave in dialogos:
+                    buenas.append(f"«{frase.strip()}»")
+                    recomilladas.append(frase.strip())
+                elif clave and clave not in permitido and clave in original:
                     quitadas.append(frase.strip())
                 else:
                     buenas.append(frase)
@@ -2272,6 +2282,9 @@ def _quita_acotaciones_leidas(raw_text: str, script: dict) -> list[str]:
         nueva = " ".join("".join(partes).split())
         if nueva != " ".join(narracion.split()):
             e["narration"] = nueva
+    if recomilladas:
+        logger.info("translate_literal_script: %s frases de personaje venian sin «» y se les "
+                    "devuelven: %s", len(recomilladas), "; ".join(q[:30] for q in recomilladas))
     return quitadas
 
 
