@@ -715,14 +715,12 @@ def run_literal(
     cleanup_finished_video_files()
 
     variant = "short"
-    link, titulo = "", (forced_topic or "Guion literal")
-    if forced_topic:
-        chosen = fetch_topic_by_term(forced_topic)
-        if chosen:
-            link = chosen.get("link") or ""
-            titulo = chosen.get("title") or forced_topic
-    news_item = {"title": titulo, "link": link, "summary": "",
-                "source_name": "Wikipedia" if link else ""}
+    # EL TITULO ES EL SUYO, tal cual. Se buscaba en Wikipedia y se ponia el
+    # nombre del articulo que saliera: "Juana la Loca y el ataud" dio "Pio XI",
+    # y la careta del video - la que ella pone de miniatura - salio con PIO XI
+    # en grande. Su guion no necesita un articulo: ya trae la historia.
+    titulo = forced_topic or "Guion literal"
+    news_item = {"title": titulo, "link": "", "summary": "", "source_name": ""}
 
     work_dir = Path(DATA_DIR) / f"job_{int(time.time())}"
     work_dir.mkdir(parents=True, exist_ok=True)

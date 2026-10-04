@@ -3885,7 +3885,7 @@ DECORADOS_EXPLICADOS = {
     "taberna":     "mesas, chimenea, ventana al puerto",
     "monasterio":  "piedra, ventana de arco, mesa larga",
     "salon_trono": "trono, estandartes, espadas en la pared",
-    "cocina":      "fogon, estantes con ollas, mesa",
+    "cocina":      "fogon, estantes con ollas, mesa: la casa de la gente corriente de cualquier siglo antiguo",
     "iglesia":     "arcos, cruz, bancos",
     "calle":       "casas, adoquines",
     "mercado":     "puestos con toldo, casas, adoquines",
@@ -3900,7 +3900,7 @@ DECORADOS_EXPLICADOS = {
     "mazmorra":    "carcel de piedra con reja, cadenas y antorchas: presos, Inquisicion, cautivos",
     "selva":       "la selva de las Americas, con palmeras: Colon, Cortes, Pizarro, expediciones",
     "acampada":    "una plaza de ciudad tomada por una acampada: tiendas de campaña de colores y pancartas. Protestas, la Puerta del Sol, el 15-M, sentadas",
-    "piso":        "un piso de alquiler normal del siglo XX: papel pintado, ventana con visillos, cuadro, reloj de pared, aparador con radio. Caseros, inquilinos, familias",
+    "piso":        "un piso de alquiler normal del siglo XX (tiene RADIO: NUNCA para historias de antes de 1900; una casa antigua es la cocina): papel pintado, visillos, cuadro, reloj de pared. Caseros, inquilinos, familias de ahora",
 }
 _sin_explicar = set(DECORADOS_VALIDOS) ^ set(DECORADOS_EXPLICADOS)
 if _sin_explicar:
