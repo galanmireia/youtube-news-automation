@@ -2051,7 +2051,9 @@ enamora" es "enamorado". Y lo que tiene en la mano va en "lleva": "mira con el c
 mano" es "lleva":"espada", "lee una carta" es "lleva":"carta". Y las
 posturas: "entra" o "se va" es "andando", "se arrodilla" es "de_rodillas", "baila" es
 "bailando", "aplauden" es "aplaudiendo", "sale en camilla" o "se lo llevan en camilla" es
-"en_camilla"; "aparecen cincuenta monigotes" es la cosa "multitud". "Carga el ataud" o "con
+"en_camilla"; "aparecen cincuenta monigotes" es la cosa "multitud". "Se saca una corona del
+bolsillo y se la pone" es "efecto": "corona" (con su "gorro" de corona); un emperador lleva
+"gorro": "corona_imperial". "Carga el ataud" o "con
 el ataud" es "lleva": "ataud" (al hombro), y un ataud en el suelo es la cosa "ataud". "De
 noche" es "noche": true. "Mira el calendario" es la cosa "calendario" colgada en la pared
 ("y": 0.30, "tam": 0.12), o "lleva": "calendario" si lo tiene en la mano.

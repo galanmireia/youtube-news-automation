@@ -480,6 +480,23 @@ def _gorro(d, cab, rc, g, rnd, cual):
         b = rc*0.95
         _linea(d, [(x-b, arriba), (x-b*.5, arriba-rc*.62), (x, arriba-rc*.05),
                    (x+b*.5, arriba-rc*.62), (x+b, arriba)], g, rnd, color=oro)
+    elif cual == "corona_imperial":  # cerrada: arcos, terciopelo rojo y cruz. El emperador
+        b = rc*1.0
+        base = arriba + rc*0.05
+        d.pieslice([x-b*0.9, base-rc*1.15, x+b*0.9, base+rc*0.55], 180, 360, fill=(170, 24, 40))
+        for k in (-0.55, 0, 0.55):                       # los arcos
+            d.arc([x-b*0.9*abs(k) - rc*0.12 if k else x-rc*0.12, base-rc*1.15,
+                   x+b*0.9*abs(k) + rc*0.12 if k else x+rc*0.12, base+rc*0.55], 180, 360,
+                  fill=oro, width=g)
+        d.rounded_rectangle([x-b, base-rc*0.28, x+b, base+rc*0.05], radius=int(rc*0.08),
+                            fill=oro, outline=TINTA, width=max(2, g//2))
+        for k, color in ((-0.6, rojo), (0, azul), (0.6, rojo)):   # las piedras
+            r = rc*0.09
+            d.ellipse([x+b*k-r, base-rc*0.17-r, x+b*k+r, base-rc*0.17+r], fill=color)
+        cy = base - rc*1.05                               # la bola y la cruz
+        d.ellipse([x-rc*0.13, cy-rc*0.13, x+rc*0.13, cy+rc*0.13], fill=oro, outline=TINTA)
+        d.line([(x, cy-rc*0.13), (x, cy-rc*0.55)], fill=oro, width=g)
+        d.line([(x-rc*0.18, cy-rc*0.38), (x+rc*0.18, cy-rc*0.38)], fill=oro, width=g)
     elif cual == "comandante":      # bicornio: el de Napoleon, se lee al vuelo
         _linea(d, [(x-rc*1.45, arriba-rc*.10), (x-rc*.30, arriba-rc*.95),
                    (x+rc*.30, arriba-rc*.95), (x+rc*1.45, arriba-rc*.10),
@@ -1282,6 +1299,7 @@ EFECTOS_EXPLICADOS = {
     "idea":     "SE LE OCURRE ALGO: se le enciende una bombilla encima. 'Se le ilumina la cara', 'ya se', el plan",
     "confuso":  "NO ENTIENDE NADA: le salen interrogaciones. 'Se queda pensando', 'no entiende nada'",
     "camara":   "MIRA A CAMARA: la camara se le acerca de golpe a la cara, al acabar la ultima frase de la escena. La reaccion: 'mira a camara indignado', 'se queda mirando a camara'",
+    "corona":   "SE SACA UNA CORONA DEL BOLSILLO Y SE LA PONE: empieza sin nada en la cabeza y acaba coronado (con el 'gorro' que lleve, corona si no). El que se proclama rey, 'ya tengo hasta la corona'",
     "enamorado":"ENAMORADO: le suben corazones. Bodas, reyes que se casan, el que se derrite",
 }
 EFECTOS_VALIDOS = tuple(EFECTOS_EXPLICADOS)
@@ -1289,6 +1307,7 @@ EFECTOS_VALIDOS = tuple(EFECTOS_EXPLICADOS)
 # instante exacto y pipeline para mezclarlo.
 SONIDO_DEL_EFECTO = {"caida": ("golpe", 0.9), "salto": ("boing", 0.6), "bofetada": ("zas", 0.4)}
 _DURA_CAIDA = 0.45
+_DURA_CORONA = 1.0        # del bolsillo a la cabeza
 
 
 def momento_del_efecto(efecto, segundos, globos=None) -> float:
@@ -1319,6 +1338,12 @@ def momento_del_efecto(efecto, segundos, globos=None) -> float:
         return max(0.3, min(segundos*0.6, tope))
     if efecto == "sorpresa":
         return 0.12
+    if efecto == "corona":
+        # Mientras dice su primera frase: "De hecho, ya tengo hasta la corona".
+        orden = sorted((g for g in (globos or []) if g), key=lambda g: float(g["desde"]))
+        if orden:
+            return max(0.2, min(float(orden[0]["desde"]) + 0.2, segundos - 1.2))
+        return max(0.2, min(segundos*0.3, segundos - 1.2))
     if efecto == "idea":
         # La bombilla, a mitad de la primera frase: primero se ve apagada y
         # luego se enciende, que es lo que la hace una idea y no una lampara.
@@ -1370,6 +1395,20 @@ def _efecto(f, reloj, segundos):
         out["_dy"] = -0.10*math.sin(math.pi*t/0.35)
     elif e == "lagrimas":
         out["gesto"] = f.get("gesto") if f.get("gesto") in ("grito", "enfadado") else "sorpresa"
+    elif e == "corona":
+        # Sin nada en la cabeza hasta que se la pone. Saca la corona del
+        # bolsillo (la mano abajo), la sube con los brazos y al llegar arriba
+        # ya es su gorro.
+        out["_corona"] = f.get("gorro") if (f.get("gorro") or "").startswith("corona") else "corona"
+        if t < _DURA_CORONA:
+            out["gorro"] = None
+            if t > 0.30:
+                q = min(1.0, (t - 0.30)/(_DURA_CORONA - 0.30))
+                out["pose_mezclada"] = _mezcla(_POSES["de_pie"], _POSES["brazos_arriba"], q)
+        else:
+            out["gorro"] = out["_corona"]
+            if t < _DURA_CORONA + 0.6:
+                out["gesto"] = "contento"
     return out
 
 
@@ -1495,6 +1534,24 @@ def _adornos_de_efecto(d, f, x, y, alto, rnd):
         hx = x + dx*math.cos(giro) + dy*math.sin(giro)
         hy = y - dx*math.sin(giro) + dy*math.cos(giro)
     g = max(2, int(alto*0.012))
+    if e == "corona" and 0 <= t < _DURA_CORONA + 0.4:
+        if t < _DURA_CORONA:
+            mx, my = p["brazos"][1][-1]
+            mano = (x + mx*alto*s*rasgos.get("ancho", 1.0), y + my*alto)
+            cima = (hx, hy)
+            q = 0.0 if t < 0.30 else min(1.0, (t - 0.30)/(_DURA_CORONA - 0.30))
+            q = q*q*(3 - 2*q)
+            cx = mano[0] + (cima[0] - mano[0])*q
+            cy = mano[1] + (cima[1] - mano[1])*q
+            tam = rc*(0.55 + 0.45*q)              # en la mano, mas pequeña
+            _gorro(d, (cx, cy), tam, g, rnd, f.get("_corona") or "corona")
+        else:                                     # el destello al ponersela
+            r = rc*(0.5 + (t - _DURA_CORONA)*1.5)
+            for k in range(8):
+                a = k*math.pi/4
+                d.line([(hx + math.cos(a)*r*0.6, hy - rc*0.9 + math.sin(a)*r*0.6),
+                        (hx + math.cos(a)*r, hy - rc*0.9 + math.sin(a)*r)],
+                       fill=(255, 210, 60), width=max(2, g))
     if e == "bofetada" and 0 <= t < 0.35:
         # El impacto en la mejilla, del lado de donde viene la mano: una
         # estrella amarilla grande. Sin ella no se leia como un golpe.
@@ -1821,6 +1878,7 @@ GESTOS_VALIDOS = ("neutro", "sorpresa", "contento", "enfadado", "grito")
 # del prompt estaba escrita a mano y cada gorro nuevo habria sido invisible.
 GORROS_EXPLICADOS = {
     "corona":     "rey o reina",
+    "corona_imperial": "corona CERRADA de emperador, con arcos, terciopelo rojo y cruz: emperadores (Carlos V, Alfonso VII emperador de Hispania), el rey de mas rango cuando hay dos reyes",
     "corona_grande": "una corona que le queda ENORME, torcida y tapandole los ojos: el rey o la reina niño",
     "comandante": "bicornio: general, Napoleon, oficial de 1808",
     "tricornio":  "el del siglo XVIII: ministros, guardias, Godoy",
