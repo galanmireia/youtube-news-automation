@@ -1,4 +1,6 @@
+import hashlib
 import logging
+import os
 
 from . import storage
 from .config import CHANNEL_NAME, PIXABAY_API_KEY, RSS_FEEDS, TTS_LANGUAGE_CODE, TTS_VOICE_NAME
@@ -49,7 +51,26 @@ def main() -> None:
     if removed:
         logger.info("Limpieza al arrancar: %s directorios de videos ya terminados eliminados.", removed)
     application = build_application()
-    application.run_polling()
+    # DORMIR CUANDO NO SE USA. Preguntando a Telegram cada diez segundos
+    # (polling) el bot nunca se dormia: estaba encendido las 24 horas con 1 GB
+    # de memoria, que es casi todo lo que costaba Railway. Con dominio publico
+    # es al reves: Telegram llama al bot cuando ella escribe, Railway lo
+    # despierta, y si no hay nada que hacer se vuelve a dormir y no gasta.
+    # Sin dominio (en local, o si se quita) sigue como antes.
+    dominio = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "").strip()
+    if dominio:
+        from .config import TELEGRAM_BOT_TOKEN
+        # La ruta y el secreto salen del token: nadie que no lo tenga puede
+        # mandarle mensajes falsos al bot, y no hace falta otra variable.
+        huella = hashlib.sha256(TELEGRAM_BOT_TOKEN.encode()).hexdigest()
+        ruta, secreto = huella[:24], huella[24:56]
+        puerto = int(os.environ.get("PORT", "8080"))
+        logger.info("Modo webhook: Telegram avisa al bot (se duerme cuando no se usa).")
+        application.run_webhook(listen="0.0.0.0", port=puerto, url_path=ruta,
+                                webhook_url=f"https://{dominio}/{ruta}", secret_token=secreto)
+    else:
+        logger.info("Modo polling: el bot pregunta a Telegram cada pocos segundos.")
+        application.run_polling()
 
 
 if __name__ == "__main__":

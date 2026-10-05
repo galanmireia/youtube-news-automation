@@ -9,6 +9,6 @@ Pillow>=10.4.0
 google-api-python-client>=2.147.0
 google-auth>=2.35.0
 google-auth-oauthlib>=1.2.1
-python-telegram-bot[job-queue]>=21.6
+python-telegram-bot[job-queue,webhooks]>=21.6
 google-genai>=1.0.0
 opencv-python-headless>=4.8

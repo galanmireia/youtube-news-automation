@@ -2165,6 +2165,25 @@ async def _warn_if_run_was_interrupted(application: Application) -> None:
         logger.exception("No se pudo avisar de la generacion interrumpida")
 
 
+# QUE NO SE DUERMA A MITAD DE UN VIDEO. Con el servicio en modo "dormir" de
+# Railway, el contenedor se apaga cuando lleva 5-10 minutos sin mandar nada a
+# internet - y montar con ffmpeg son varios minutos seguidos sin red. Mientras
+# haya una generacion en marcha, cada dos minutos se le manda a Telegram el
+# "subiendo video..." del chat: es trafico de salida, asi que no se duerme, y
+# de paso se ve en el chat que esta trabajando. Sin generacion, no manda nada
+# y Railway lo duerme.
+_SEGUNDOS_ENTRE_LATIDOS = 120
+
+
+async def _latido_mientras_trabaja(context) -> None:
+    if not _pipeline_lock.locked():
+        return
+    try:
+        await context.bot.send_chat_action(chat_id=TELEGRAM_CHAT_ID, action="upload_video")
+    except Exception:
+        logger.warning("No se pudo mandar el latido a Telegram", exc_info=True)
+
+
 def build_application() -> Application:
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(
         _warn_if_run_was_interrupted
@@ -2222,6 +2241,8 @@ def build_application() -> Application:
     # spend the month's allowance in under a week, on topics nobody chose,
     # while she is asleep. Automating that is a decision worth making on
     # purpose rather than inheriting from a default.
+    application.job_queue.run_repeating(
+        _latido_mientras_trabaja, interval=_SEGUNDOS_ENTRE_LATIDOS, first=_SEGUNDOS_ENTRE_LATIDOS)
     if NARRATION_SOURCE in ("voz", "clon"):
         logger.info(
             "Narracion por %s: el generador automatico queda desactivado. "
