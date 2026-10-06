@@ -1299,6 +1299,7 @@ EFECTOS_EXPLICADOS = {
     "idea":     "SE LE OCURRE ALGO: se le enciende una bombilla encima. 'Se le ilumina la cara', 'ya se', el plan",
     "confuso":  "NO ENTIENDE NADA: le salen interrogaciones. 'Se queda pensando', 'no entiende nada'",
     "camara":   "MIRA A CAMARA: la camara se le acerca de golpe a la cara, al acabar la ultima frase de la escena. La reaccion: 'mira a camara indignado', 'se queda mirando a camara'",
+    "sudor":    "SUDA A CHORROS: le saltan gotas de la cabeza todo el rato. Calor, esfuerzo, nervios, el que acaba de hacer deporte",
     "corona":   "SE SACA UNA CORONA DEL BOLSILLO Y SE LA PONE: empieza sin nada en la cabeza y acaba coronado (con el 'gorro' que lleve, corona si no). El que se proclama rey, 'ya tengo hasta la corona'",
     "enamorado":"ENAMORADO: le suben corazones. Bodas, reyes que se casan, el que se derrite",
 }
@@ -1534,6 +1535,16 @@ def _adornos_de_efecto(d, f, x, y, alto, rnd):
         hx = x + dx*math.cos(giro) + dy*math.sin(giro)
         hy = y - dx*math.sin(giro) + dy*math.cos(giro)
     g = max(2, int(alto*0.012))
+    if e == "sudor":
+        # Gotas que salen de la frente hacia los lados y caen, en bucle.
+        for k in range(5):
+            fase = (reloj*1.3 + k/5) % 1.0
+            lado = -1 if k % 2 else 1
+            ax = hx + lado*rc*(0.55 + 0.9*fase)
+            ay = hy - rc*0.6 + rc*(-0.4*math.sin(math.pi*fase) + 1.6*fase*fase)
+            r = rc*0.15
+            d.polygon([(ax, ay - r*1.8), (ax + r, ay), (ax, ay + r), (ax - r, ay)], fill=(110, 180, 235),
+                      outline=(60, 120, 180))
     if e == "corona" and 0 <= t < _DURA_CORONA + 0.4:
         if t < _DURA_CORONA:
             mx, my = p["brazos"][1][-1]
@@ -1678,10 +1689,13 @@ LLEVABLES_EXPLICADOS = {
     "pancarta":  "una pancarta de manifestacion: protestas, la vivienda, las huelgas",
     "movil":     "un movil en la mano: el Bizum, la foto, el que lo graba todo",
     "periodico": "un periodico: ultima hora, la noticia, el que lo lee en alto",
+    "pelota":    "una pelota en la mano: el juego de pelota, el partido",
+    "vaso":      "un vaso de agua en la mano: el que bebe, el que pide agua",
+    "maletin":   "el maletin negro del medico: medicos, curanderos, boticarios",
     "calendario": "una hoja de calendario (OCTUBRE, el 15 grande y el 4 tachado) en la mano: fechas, el cambio de calendario de 1582",
     "ataud":     "el ataud AL HOMBRO, como quien carga un muerto: Juana la Loca, entierros, el cortejo",
 }
-_TAM_LLEVADO = {"calendario": 0.32, "espada": 0.40, "antorcha": 0.30, "bandera": 0.50, "pergamino": 0.20,
+_TAM_LLEVADO = {"pelota": 0.14, "vaso": 0.17, "maletin": 0.22, "calendario": 0.32, "espada": 0.40, "antorcha": 0.30, "bandera": 0.50, "pergamino": 0.20,
                 "carta": 0.16, "dinero": 0.18, "libro": 0.16, "cesta": 0.20,
                 "pancarta": 0.60, "movil": 0.16, "periodico": 0.26}
 
@@ -3221,6 +3235,40 @@ def _calendario(d, x, y, t, rnd, g, tinta=TINTA):
            fill=ROJO_ESPAÑA, width=max(3, g))
 
 
+def _pelota(d, x, y, t, rnd, g, tinta=TINTA):
+    """La pelota del juego de pelota: de cuero, con su costura."""
+    r = t*0.32
+    cy = y - r
+    d.ellipse([x - r, cy - r, x + r, cy + r], fill=(238, 228, 205), outline=tinta, width=max(2, g//2))
+    d.arc([x - r*0.6, cy - r, x + r*1.4, cy + r], 120, 240, fill=(150, 90, 50), width=max(2, g//2))
+
+
+def _vaso(d, x, y, t, rnd, g, tinta=TINTA):
+    """Un vaso de agua bien fria, con sus gotitas por fuera."""
+    alto, arriba, abajo = t*0.70, t*0.46, t*0.34
+    pts = [(x - arriba/2, y - alto), (x + arriba/2, y - alto), (x + abajo/2, y), (x - abajo/2, y)]
+    d.polygon(pts, fill=(225, 238, 245))
+    agua = [(x - arriba*0.46, y - alto*0.75), (x + arriba*0.46, y - alto*0.75),
+            (x + abajo/2 - g/2, y - g/2), (x - abajo/2 + g/2, y - g/2)]
+    d.polygon(agua, fill=(120, 185, 230))
+    _linea(d, pts + [pts[0]], max(2, g//2), rnd, color=tinta, temblor=0.8)
+    for k in (-0.18, 0.14):                       # las gotas de lo fria que esta
+        gx, gy, r = x + t*k, y - alto*0.45, t*0.035
+        d.ellipse([gx - r, gy - r, gx + r, gy + r*1.6], fill=(150, 205, 240))
+
+
+def _maletin(d, x, y, t, rnd, g, tinta=TINTA):
+    """El maletin negro del medico, con su asa y su cierre."""
+    ancho, alto = t*0.95, t*0.55
+    x0, y0 = x - ancho/2, y - alto
+    d.arc([x - ancho*0.18, y0 - alto*0.35, x + ancho*0.18, y0 + alto*0.25], 180, 360,
+          fill=tinta, width=max(3, g))
+    d.rounded_rectangle([x0, y0, x0 + ancho, y], radius=int(alto*0.25), fill=(40, 34, 30),
+                        outline=tinta, width=max(2, g//2))
+    d.line([(x0, y0 + alto*0.35), (x0 + ancho, y0 + alto*0.35)], fill=(80, 70, 62), width=max(2, g//2))
+    d.rectangle([x - ancho*0.06, y0 + alto*0.25, x + ancho*0.06, y0 + alto*0.45], fill=ORO_ESPAÑA)
+
+
 def _tienda(d, x, y, t, rnd, g, tinta=TINTA):
     """Tienda de campaña de las de ahora, la iglu de colores: la acampada.
     La del campamento del ejercito es otra (lona y palo), esta es de Sol."""
@@ -3288,6 +3336,7 @@ COSAS = {
     "carta": _carta, "cadenas": _cadenas,
     "pancarta": _pancarta, "movil": _movil, "periodico": _periodico, "camara_tv": _camara_tv,
     "tienda": _tienda, "ambulancia": _ambulancia, "ataud": _ataud, "calendario": _calendario,
+    "pelota": _pelota, "vaso": _vaso, "maletin": _maletin,
     "nube": _nube, "sol": _sol,
     # El arbol ya existia pero con otra firma, y por estar aqui a None se
     # caia en silencio: el prompt lo ofrecia y limpia() lo tiraba.
