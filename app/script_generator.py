@@ -2310,6 +2310,65 @@ def _parte_en_dos(frase: str) -> tuple[str, str]:
     return " ".join(palabras[:corte]), " ".join(palabras[corte:])
 
 
+_LINEA_REPARTO = re.compile(r"^\s*(.+?)\s+[—–-]+\s+(Anselmo|Remedios|Perico|Don Severo|Bruno)\b",
+                            re.IGNORECASE | re.MULTILINE)
+
+
+def _respeta_el_reparto(raw_text: str, script: dict) -> list[str]:
+    """SI ELLA DICE QUIEN HACE DE QUIEN, ESO MANDA. En Felipe el Hermoso
+    escribio "Medico — Anselmo" y el medico salio con la cara y la voz de
+    Bruno: la regla estaba en el prompt y el modelo se la salto. No hace
+    falta otro intento: el papel de la figura dice quien es, y se le cambia
+    el 'quien' (y su nombre en hablan/a_quien) en todas sus escenas.
+    Solo si el monigote correcto no lo esta usando ya otro personaje."""
+    from . import monigotes
+    por_nombre = {monigotes.clave_de_papel(v.get("nombre")): k for k, v in monigotes.REPARTO.items()}
+    pedido = {}
+    for m in _LINEA_REPARTO.finditer(raw_text or ""):
+        palabras = {w for w in monigotes.clave_de_papel(m.group(1)).split() if len(w) > 3}
+        quien = por_nombre.get(monigotes.clave_de_papel(m.group(2)))
+        if palabras and quien:
+            pedido[frozenset(palabras)] = quien
+    if not pedido:
+        return []
+    escenas = [sc.get("escena") or {} for sc in script.get("scenes", [])]
+
+    def toca(f):
+        mias = {w for w in monigotes.clave_de_papel(f.get("papel")).split() if len(w) > 3}
+        if not mias:
+            return None
+        sitio = [q for pal, q in pedido.items() if mias <= pal or pal <= mias]
+        return sitio[0] if len(set(sitio)) == 1 else None
+
+    cambios = {}
+    for e in escenas:
+        for f in e.get("figuras") or []:
+            debe = toca(f)
+            if debe and f.get("quien") and f["quien"] != debe:
+                cambios.setdefault(monigotes.clave_de_papel(f.get("papel")), (f["quien"], debe))
+    # Todos a la vez, que a veces es un cambio de papeles (Afonso hacia de
+    # Don Severo y Alfonso VII de Bruno): uno solo no cabria nunca.
+    def final(f):
+        c = cambios.get(monigotes.clave_de_papel(f.get("papel")))
+        return c[1] if c and f.get("quien") == c[0] else f.get("quien")
+
+    vale = {papel: c for papel, c in cambios.items()
+            if not any(final(f) == c[1] and monigotes.clave_de_papel(f.get("papel")) != papel
+                       for e in escenas for f in e.get("figuras") or [])}
+    for e in escenas:
+        renombra = {}
+        for f in e.get("figuras") or []:
+            c = vale.get(monigotes.clave_de_papel(f.get("papel")))
+            if c and f.get("quien") == c[0]:
+                renombra[c[0]] = c[1]
+                f["quien"] = c[1]
+        for campo in ("hablan", "a_quien"):
+            if renombra and isinstance(e.get(campo), list):
+                e[campo] = [renombra.get(n, n) for n in e[campo]]
+    return [f"{papel}: {era} -> {debe} (lo pide el REPARTO del guion)"
+            for papel, (era, debe) in vale.items()]
+
+
 def _arregla_bocadillos(script: dict) -> list[str]:
     """Lo que antes tiraba un intento entero, arreglado sin volver a pagar:
     una frase de mas de MAX_PALABRAS se parte en dos globos seguidos del mismo
@@ -2464,7 +2523,7 @@ def translate_literal_script(raw_text: str, variant: str = "short", parar=None) 
 
         nivel = max(_SOLO_LO_ROTO, _TODO - (attempt - 1))
         ultimo = attempt >= _MAX_ATTEMPTS
-        arreglos = _arregla_bocadillos(script)
+        arreglos = _respeta_el_reparto(raw_text, script) + _arregla_bocadillos(script)
         if arreglos:
             logger.info("translate_literal_script: %s", "; ".join(arreglos))
         quitadas = _quita_acotaciones_leidas(raw_text, script)
