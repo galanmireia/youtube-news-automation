@@ -2056,7 +2056,11 @@ bolsillo y se la pone" es "efecto": "corona" (con su "gorro" de corona); un empe
 "gorro": "corona_imperial". "Carga el ataud" o "con
 el ataud" es "lleva": "ataud" (al hombro), y un ataud en el suelo es la cosa "ataud". "De
 noche" es "noche": true. "Suda", "sudando" es "efecto": "sudor"; "bebe un vaso de agua" es
-"lleva": "vaso"; "juega a pelota" es "lleva": "pelota"; el medico con su bolsa, "lleva": "maletin". "Mira el calendario" es la cosa "calendario" colgada en la pared
+"lleva": "vaso"; "juega a pelota" es "lleva": "pelota"; el medico con su bolsa, "lleva": "maletin" (y si
+"entra corriendo con su maletin", "pose": "corriendo", "pose_fin": "de_pie" y el maletin en la mano). "LE
+DA un vaso de agua", "le entrega la carta": el que lo da va con "lleva": "vaso" y "efecto": "entrega", y el
+que lo recibe SIN "lleva" en esa escena: se lo pasa de una mano a otra delante de todos, y si es un vaso el
+otro se lo bebe de golpe (no hace falta pedirlo aparte). "Mira el calendario" es la cosa "calendario" colgada en la pared
 ("y": 0.30, "tam": 0.12), o "lleva": "calendario" si lo tiene en la mano.
 "una acampada" o "llena de tiendas de campaña" es el decorado "acampada" (las tiendas ya van
 dibujadas en el sitio); "una ambulancia" es la cosa "ambulancia", y si alguien sale en camilla

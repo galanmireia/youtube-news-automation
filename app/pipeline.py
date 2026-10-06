@@ -127,7 +127,7 @@ _INTRO_SCENE = {
 # EL CIERRE DE LOS SHORTS: Anselmo, el testigo del canal, pidiendo que te
 # suscribas con la frase que eligio ella - "suscribete y hazte el chulo
 # delante de tus amigos contando historias que casi nadie sabe". En dos
-# globos de siete palabras como mucho, que es lo que cabe en uno. Va detras
+# globos de diez palabras como mucho, que es lo que cabe en uno. Va detras
 # del remate, nunca delante: el chiste es lo ultimo de la historia y esto ya
 # es el canal hablando. Con el rotulo rojo del canal arriba, y Anselmo dando
 # botes (la bombilla la tapaban los dos globos).

@@ -217,6 +217,12 @@ _POSES = {
                  "brazos": [[(0,-.66),(-.12,-.52),(-.15,-.36)], [(0,-.66),(.21,-.59),(.38,-.55)]],
                  "piernas":[[(0,-.38),(-.09,-.19),(-.11,0)],    [(0,-.38),(.09,-.19),(.11,0)]]},
 
+    # BEBER: la mano con el vaso en la boca. La pone la entrega del vaso: el
+    # que lo recibe se lo bebe de golpe.
+    "bebiendo_b":{"cuello": (-.02,-.70), "cadera": (0,-.38),
+                 "brazos": [[(0,-.66),(-.12,-.52),(-.15,-.36)], [(0,-.66),(.17,-.68),(.10,-.78)]],
+                 "piernas":[[(0,-.38),(-.09,-.19),(-.11,0)],    [(0,-.38),(.09,-.19),(.11,0)]]},
+
     # EN LA CAMA: incorporado, la espalda en el cabecero y las piernas
     # estiradas bajo la colcha. La cama la pone montar(), pegada a quien la
     # usa, como la mesita del que firma: el guion no tiene que cuadrar la x
@@ -1301,6 +1307,7 @@ EFECTOS_EXPLICADOS = {
     "camara":   "MIRA A CAMARA: la camara se le acerca de golpe a la cara, al acabar la ultima frase de la escena. La reaccion: 'mira a camara indignado', 'se queda mirando a camara'",
     "sudor":    "SUDA A CHORROS: le saltan gotas de la cabeza todo el rato. Calor, esfuerzo, nervios, el que acaba de hacer deporte",
     "corona":   "SE SACA UNA CORONA DEL BOLSILLO Y SE LA PONE: empieza sin nada en la cabeza y acaba coronado (con el 'gorro' que lleve, corona si no). El que se proclama rey, 'ya tengo hasta la corona'",
+    "entrega":  "LE DA A OTRO LO QUE LLEVA: va con su 'lleva' (el vaso, la carta, la corona), se acerca al que esta mas cerca, estira el brazo y se lo pasa; desde ahi lo tiene el otro. Si es un vaso, el otro se lo bebe de golpe. Va en el que lo DA. 'El sirviente le da un vaso de agua', 'le entrega la carta'",
     "enamorado":"ENAMORADO: le suben corazones. Bodas, reyes que se casan, el que se derrite",
 }
 EFECTOS_VALIDOS = tuple(EFECTOS_EXPLICADOS)
@@ -1345,6 +1352,10 @@ def momento_del_efecto(efecto, segundos, globos=None) -> float:
         if orden:
             return max(0.2, min(float(orden[0]["desde"]) + 0.2, segundos - 1.2))
         return max(0.2, min(segundos*0.3, segundos - 1.2))
+    if efecto == "entrega":
+        # Nada mas empezar: que se vea el vaso pasar de una mano a otra antes
+        # de que el que lo recibe diga su frase.
+        return min(0.6, max(0.2, segundos*0.2))
     if efecto == "idea":
         # La bombilla, a mitad de la primera frase: primero se ve apagada y
         # luego se enciende, que es lo que la hace una idea y no una lampara.
@@ -1495,6 +1506,74 @@ def _coreografia_del_tortazo(spec, paso, reloj, segundos):
         # Y la cabeza de la victima se va hacia el otro lado del golpe.
         if victima.get("_dx"):
             victima["_dx"] = abs(victima["_dx"])*lado
+
+
+_LLEGA_ENTREGA = 0.45     # lo que tarda en acercarse con el brazo estirado
+_PASA_ENTREGA = 0.25      # las dos manos juntas: aqui cambia de dueño
+_BEBE = 1.0               # el trago, de golpe
+
+
+def _coreografia_de_la_entrega(spec, paso, reloj, segundos):
+    """EL QUE DA Y EL QUE RECIBE. "El sirviente le da un vaso de agua": el
+    vaso tiene que pasar de una mano a otra, y no aparecer en la de Felipe.
+    El que lo da se acerca al que tiene mas cerca con el brazo estirado,
+    el otro estira el suyo, y en cuanto se juntan las manos el vaso es del
+    otro. Si es un vaso, se lo bebe de golpe."""
+    figs = paso.get("figuras", [])
+    for k, da in enumerate(figs):
+        if spec["figuras"][k].get("efecto") != "entrega" or not spec["figuras"][k].get("lleva"):
+            continue
+        otros = [(abs(o["x"] - da["x"]), j) for j, o in enumerate(figs) if j != k]
+        if not otros:
+            continue
+        j = min(otros)[1]
+        recibe, x0 = figs[j], spec["figuras"][k]["x"]
+        que = spec["figuras"][k]["lleva"]
+        t0 = da.get("efecto_desde")
+        t0 = momento_del_efecto("entrega", segundos) if t0 is None else float(t0)
+        t = reloj - t0
+        lado = 1 if recibe["x"] >= x0 else -1
+        # Las manos se juntan: el brazo de "dando" llega a 0.38 del alto de
+        # cada uno, asi que se para a esa distancia y no encima del otro.
+        alcance = 0.38*(da.get("alto", 0.3) + recibe.get("alto", 0.3))*_ALTO_BASE/_ANCHO_BASE
+        destino = recibe["x"] - lado*max(0.12, min(alcance*0.85, abs(recibe["x"] - x0)))
+        da["espejo"] = lado < 0
+        da["efecto"] = None
+        if t < 0:
+            da["lleva"] = que
+            recibe["lleva"] = recibe.get("lleva") if recibe.get("lleva") != que else None
+            continue
+        p = min(1.0, t/_LLEGA_ENTREGA)
+        p = p*p*(3 - 2*p)
+        da["x"] = x0 + (destino - x0)*p
+        tiende = _mezcla(_POSES["de_pie"], _POSES["dando"], p)
+        if t < _LLEGA_ENTREGA + _PASA_ENTREGA:
+            da["lleva"], da["pose"], da["pose_mezclada"] = que, "dando", tiende
+            if recibe.get("pose") not in _ACOSTADAS + _POSES_DE_MESA:
+                q = p
+                recibe["espejo"] = lado > 0
+                recibe["pose_mezclada"] = _mezcla(_POSES["de_pie"], _POSES["dando"], q)
+            continue
+        # Ya es del otro: el que lo daba baja el brazo.
+        t1 = t - _LLEGA_ENTREGA - _PASA_ENTREGA
+        da["lleva"] = None
+        da["pose_mezclada"] = _mezcla(_POSES["dando"], _POSES["de_pie"], min(1.0, t1/0.4))
+        recibe["lleva"] = que
+        if recibe.get("pose") in _ACOSTADAS + _POSES_DE_MESA:
+            continue
+        recibe["espejo"] = lado > 0
+        if que == "vaso" and t1 < 0.25 + _BEBE + 0.3:
+            # A la boca, el trago y abajo otra vez.
+            if t1 < 0.25:
+                recibe["pose_mezclada"] = _mezcla(_POSES["dando"], _POSES["bebiendo_b"], t1/0.25)
+            elif t1 < 0.25 + _BEBE:
+                recibe["pose_mezclada"] = _POSES["bebiendo_b"]
+                recibe["_dy"] = recibe.get("_dy", 0.0) - 0.01*abs(math.sin(math.pi*(t1 - 0.25)/0.33))
+            else:
+                recibe["pose_mezclada"] = _mezcla(_POSES["bebiendo_b"], _POSES["de_pie"],
+                                                  (t1 - 0.25 - _BEBE)/0.3)
+        elif t1 < 0.4:
+            recibe["pose_mezclada"] = _mezcla(_POSES["dando"], _POSES["de_pie"], t1/0.4)
 
 
 def _en_cama_con(nombre):
@@ -1843,6 +1922,7 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
             paso["figuras"].append(g)
         _señala_a_quien(paso, bocadillos, reloj)
         _coreografia_del_tortazo(spec, paso, reloj, segundos)
+        _coreografia_de_la_entrega(spec, paso, reloj, segundos)
         rnd = random.Random(1000 + n//3)
         img = _decorado(paso, semilla=1000 + n//3)
         if paso.get("noche"):

@@ -33,8 +33,10 @@ _ROJO = ACCENT_COLOR
 _FUENTE = "DejaVuSans-Bold.ttf"
 
 # Una frase de bocadillo es corta por definicion: lo que cabe en un globo y se
-# lee de un vistazo. Mas larga que esto no es un bocadillo, es un parrafo.
-MAX_PALABRAS = 7
+# lee de un vistazo. Diez palabras caben en tres lineas del globo; partir una
+# frase como «¡No me quites mas sangre, que ya me estoy muriendo!» en dos globos
+# suena raro, asi que el tope deja entera una frase dicha de un tiron.
+MAX_PALABRAS = 10
 
 
 def _fuente(px: int) -> ImageFont.FreeTypeFont:
