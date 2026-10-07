@@ -746,6 +746,26 @@ def _luto(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA):
     _vestido(d, x, cuello, cadera, alto, g, rnd, tinta, color=(34, 32, 36))
 
 
+def _mano_vendada(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA):
+    """No se pinta aqui: va en la MANO, y la mano depende de la postura. La
+    pinta figura() despues de los brazos (ver _venda_en_la_mano)."""
+
+
+def _venda_en_la_mano(d, mano, alto, g, rnd, tinta=TINTA):
+    """La mano izquierda de Cervantes en Lepanto: una bola de venda blanca
+    con sus vueltas y una mancha roja pequeña. Sin la mancha parecia un
+    guante; con mas sangre, el video ya no seria para todos los publicos."""
+    x, y = mano
+    r = alto*0.075
+    caja = [x - r, y - r*0.85, x + r, y + r*0.85]
+    d.rounded_rectangle(caja, radius=int(r*0.6), fill=(250, 248, 240), outline=tinta,
+                        width=max(2, g//2))
+    for k in (-0.4, 0.05, 0.5):
+        _linea(d, [(x - r*0.85, y + r*k - r*0.2), (x + r*0.85, y + r*k + r*0.2)],
+               max(2, g//3), rnd, color=(190, 184, 172), temblor=0.4)
+    d.ellipse([x + r*0.05, y - r*0.35, x + r*0.45, y + r*0.0], fill=(200, 40, 40))
+
+
 OBJETOS = {
     "capa": _capa,
     "armadura": _armadura,
@@ -756,6 +776,7 @@ OBJETOS = {
     "habito": _habito,
     "vestido": _vestido,
     "luto": _luto,
+    "mano_vendada": _mano_vendada,
 }
 OBJETOS_VALIDOS = tuple(OBJETOS)
 # Las que van por encima de todo, cabeza incluida.
@@ -818,6 +839,9 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
     _linea(d, [cuello, cadera], g, rnd, color=tinta)
     for m in p["brazos"] + p["piernas"]:
         _linea(d, [P(t) for t in m], g, rnd, color=tinta)
+    if objeto == "mano_vendada":
+        # La otra mano, la que no coge las cosas: la izquierda.
+        _venda_en_la_mano(d, P(p["brazos"][0][-1]), alto, g, rnd, tinta=tinta)
     cab = (cuello[0], cuello[1]-rc*0.95)
     if gorro in GORROS_DETRAS:
         _gorro(d, cab, rc, g, rnd, gorro)
@@ -4000,6 +4024,10 @@ _DECORADOS = {
                      "fondo": [("mastil", .50, 1.0, 1.0)],
                      "muebles": [("olla_suelo", .84, .08, .06)],
                      "delante": [("barandilla", .5, .30, 1.0)], "cuelga": [], "velas": []},
+    "batalla_naval": {"pared": "cielo_mar", "piso": "tablas",
+                     "fondo": [("batalla_naval", .5, 1.0, 1.0), ("mastil", .50, 1.0, 1.0)],
+                     "muebles": [],
+                     "delante": [("barandilla", .5, .30, 1.0)], "cuelga": [], "velas": []},
     "mina":         {"pared": "roca", "piso": "tierra",
                      "fondo": [("puntales", .5, 1.0, 1.0)],
                      "muebles": [], "delante": [], "cuelga": [], "velas": [(.30, -.30), (.70, -.24)]},
@@ -4077,6 +4105,7 @@ DECORADOS_EXPLICADOS = {
     "calle":       "casas, adoquines",
     "mercado":     "puestos con toldo, casas, adoquines",
     "cubierta":    "cubierta de barco, mastil, el mar detras",
+    "batalla_naval": "LA CUBIERTA DE UNA GALERA EN PLENA BATALLA: galeras en el mar con humo de cañonazos, fogonazos y una ardiendo. Lepanto, la Armada Invencible, Trafalgar, cualquier combate en el mar",
     "mina":        "puntales de madera, tierra, oscuridad",
     "despacho":    "el despacho de un ministro: mesa con papeles, mapa en la pared",
     "murallas":    "una ciudad sitiada vista desde fuera: muralla, torres, puerta",
@@ -4233,6 +4262,46 @@ def _aparador(d, x, y, ancho, rnd, g):
         d.ellipse([x+rw*k-rr, y-alto-rh*0.48-rr, x+rw*k+rr, y-alto-rh*0.48+rr], fill=TINTA)
 
 
+def _galera(d, x, y, t, rnd, g, s=1):
+    """Una galera de lejos: casco largo y bajo, la fila de remos y una vela
+    latina. Distinta del barco de Colon, que es alto y de velas cuadradas."""
+    casco = [(x - t*0.9, y - t*0.16), (x + t*0.9, y - t*0.22), (x + t*0.7, y), (x - t*0.75, y)]
+    d.polygon(casco, fill=MADERA); _linea(d, casco + [casco[0]], max(2, g//2), rnd, color=TINTA)
+    for k in range(7):
+        rx = x - t*0.6 + k*t*0.2
+        _linea(d, [(rx, y - t*0.05), (rx - s*t*0.10, y + t*0.16)], max(1, g//3), rnd, color=TINTA,
+               temblor=0.3)
+    _linea(d, [(x, y - t*0.18), (x, y - t*0.95)], max(2, g//2), rnd, color=MADERA_OSCURA)
+    vela = [(x - s*t*0.45, y - t*0.30), (x + s*t*0.55, y - t*1.05), (x + s*t*0.10, y - t*0.30)]
+    d.polygon(vela, fill=(248, 244, 232)); _linea(d, vela + [vela[0]], max(2, g//2), rnd, color=TINTA)
+
+
+def _batalla_naval(d, w, h, suelo, rnd, g):
+    """LEPANTO al fondo: galeras en el horizonte, humo de los cañonazos, un
+    fogonazo y una galera ardiendo. Sin esto la cubierta era la de Colon con
+    otra gente: no se veia ninguna batalla."""
+    mar = suelo - h*0.06
+    rr = random.Random(11)
+    for k, (px, t) in enumerate(((0.09, 0.080), (0.29, 0.062), (0.50, 0.050),
+                                 (0.71, 0.064), (0.91, 0.082))):
+        X, T = w*px, h*t
+        # El humo detras de cada galera: bolas grises que suben.
+        for j in range(4):
+            r = T*rr.uniform(0.35, 0.55)*(1 + j*0.25)
+            cx, cy = X + rr.uniform(-T*0.4, T*0.4), mar - T*(0.9 + j*0.55)
+            d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(150, 146, 140, 255))
+        _galera(d, X, mar + T*0.10, T, rnd, g, s=1 if px < 0.5 else -1)
+        if k in (1, 3):                               # fogonazo de cañon
+            fx = X + (T*0.95 if px < 0.5 else -T*0.95)
+            puntas = []
+            for a in range(10):
+                rad = T*(0.45 if a % 2 else 0.22)
+                ang = a*math.pi/5
+                puntas.append((fx + math.cos(ang)*rad, mar - T*0.05 + math.sin(ang)*rad))
+            d.polygon(puntas, fill=(255, 196, 60), outline=(220, 90, 30))
+    COSAS["fuego"](d, w*0.91, mar - h*0.05, h*0.08, rnd, max(2, g//2))
+
+
 def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     X, Y, T = w*x, h*y, w*tam
     if que == "ventana_mar":      _ventana_al_mar(d, X, h*y, T, h*tam*0.55, rnd, g)
@@ -4253,6 +4322,7 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
             _estandarte(d, X, h*y, T, h*tam*1.9, rnd, g, color=BLANCO, aspa=ROJO_ESPAÑA)
     elif que == "cruz_grande":    _cruz(d, X, h*y, h*tam, rnd, int(g*1.6), TINTA)
     elif que == "mastil":         _mastil(d, X, suelo, h, rnd, g)
+    elif que == "batalla_naval":  _batalla_naval(d, w, h, suelo, rnd, g)
     elif que == "casas":
         for k in range(5):
             px = w*(0.08 + 0.21*k)
