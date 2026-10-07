@@ -533,6 +533,68 @@ async def _run_literal_and_notify(bot, raw_text: str, forced_topic: str | None) 
             pulso.cancel()
 
 
+async def handle_largo_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/largo [minutos] tema: la historia larga del Short del dia, contada
+    despacio para dormir (ver app/largo.py). Entrada con su voz clonada y el
+    resto con la voz de Google."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    if _pipeline_lock.locked():
+        await update.message.reply_text("Ya hay una generacion en curso, espera a que termine.")
+        return
+    from . import largo
+    texto = re.sub(r"^/\w+(@\w+)?\s*", "", update.message.text or "", count=1).strip()
+    minutos = 10
+    m = re.match(r"^(\d{1,3})\s+(.+)$", texto, re.S)
+    if m:
+        minutos, texto = int(m.group(1)), m.group(2).strip()
+    tema = texto.splitlines()[0].strip() if texto else ""
+    if not tema:
+        await update.message.reply_text(
+            "Formato: /largo [minutos] tema. Ejemplo:\n\n/largo 10 Batalla de Lepanto\n\n"
+            "Sin minutos son 10.")
+        return
+    minutos = max(3, min(largo._MINUTOS_MAX, minutos))
+    await update.message.reply_text(
+        f"Empiezo el video largo de «{tema}», unos {minutos} minutos. Primero el guion por "
+        "capitulos, luego tu voz en la entrada y la de Google en el resto, y al final los "
+        "dibujos. Tardara un buen rato; te lo mando aqui cuando este.")
+    context.application.create_task(_run_largo_and_notify(context.bot, tema, minutos))
+
+
+async def _run_largo_and_notify(bot, tema: str, minutos: int) -> None:
+    from .largo import run_largo
+    loop = asyncio.get_running_loop()
+
+    def on_done(video_id: int) -> None:
+        future = asyncio.run_coroutine_threadsafe(send_for_approval(bot, video_id), loop)
+        try:
+            future.result()
+        except Exception:
+            logger.exception("Error enviando el video %s a Telegram", video_id)
+
+    async with _pipeline_lock:
+        pulso = asyncio.create_task(_latido(bot))
+        try:
+            video_ids = await asyncio.wait_for(
+                loop.run_in_executor(None, run_largo, on_done, tema, minutos),
+                # Una hora de video tarda mas en montarse que un Short.
+                timeout=max(_PIPELINE_TIMEOUT_SECONDS, minutos*4*60),
+            )
+            if pipeline_stop_requested() and not video_ids:
+                await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="Video largo parado.")
+        except asyncio.TimeoutError:
+            logger.error("El video largo no ha terminado a tiempo; se libera el bloqueo.")
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                                   text="El video largo lleva demasiado tiempo; lo doy por perdido.")
+        except Exception:
+            logger.exception("Error generando el video largo")
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                                   text="Error generando el video largo, revisa los logs.")
+        finally:
+            pulso.cancel()
+
+
 _LATIDO_SEGUNDOS = 180
 
 
@@ -2191,6 +2253,7 @@ def build_application() -> Application:
     application.add_handler(CallbackQueryHandler(handle_decision))
     application.add_handler(CommandHandler("generar", handle_generate_command))
     application.add_handler(CommandHandler("literal", handle_literal_command))
+    application.add_handler(CommandHandler("largo", handle_largo_command))
     application.add_handler(CommandHandler("reset", handle_reset_command))
     application.add_handler(CommandHandler("parar", handle_stop_command))
     application.add_handler(CommandHandler("voces", handle_voices_command))
