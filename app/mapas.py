@@ -207,6 +207,36 @@ def mapa(spec: dict, ancho: int = 1920, alto: int = 1080, progreso: float = 1.0)
     return img.filter(ImageFilter.SMOOTH)
 
 
+def mapa_animado(spec: dict, ancho: int, alto: int, pasos: int):
+    """El mapa con sus rutas dibujandose, en `pasos`+1 dibujos. Las costas
+    (mil poligonos) se pintan UNA vez; cada dibujo es esa base mas las
+    flechas hasta donde vayan. Pintando el mapa entero cada vez, un plano de
+    diez segundos tardaba ocho en montarse."""
+    sin_flechas = dict(spec)
+    sin_flechas["flechas"] = []
+    base = mapa(sin_flechas, ancho, alto)
+    lugares = [l for l in spec.get("lugares") or [] if _coord(l)]
+    zonas = [z for z in spec.get("zonas") or [] if _coord(z)]
+    caja = _encuadre([_coord(l) for l in lugares] + [_coord(z) for z in zonas], ancho, alto)
+    sitio = {str(l.get("nombre", "")).strip().lower(): _proyecta(*_coord(l), caja, ancho, alto)
+             for l in lugares}
+    flechas = spec.get("flechas") or []
+    for k in range(pasos + 1):
+        progreso = k/max(1, pasos)
+        img = base.copy()
+        d = ImageDraw.Draw(img)
+        for n, f in enumerate(flechas):
+            a = sitio.get(str(f.get("de", "")).strip().lower())
+            b = sitio.get(str(f.get("a", "")).strip().lower())
+            tramo = min(1.0, max(0.0, progreso*len(flechas) - n))
+            if not a or not b or tramo <= 0:
+                continue
+            fin = (a[0] + (b[0] - a[0])*tramo, a[1] + (b[1] - a[1])*tramo)
+            _flecha(d, a, fin, COLORES.get(f.get("color") or "rojo", COLORES["rojo"]),
+                    max(3, int(alto*0.007)))
+        yield img
+
+
 def _coord(sitio):
     try:
         lat, lon = float(sitio.get("lat")), float(sitio.get("lon"))

@@ -1920,7 +1920,8 @@ def _pinta_adornos(d, pendientes, rnd):
         _adornos_de_efecto(d, f, x, y, alto, rnd)
 
 
-def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=None, tam=None):
+def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=None, tam=None,
+           calma=1.0):
     """Los fotogramas de una escena donde cada figura va de 'pose' a 'pose_fin'.
 
     El temblor de la linea cambia cada tres fotogramas y no cada uno: cada uno
@@ -1942,7 +1943,9 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
             # Cada figura con su propio desfase: si el movimiento de las tres
             # empieza en el mismo fotograma parecen marionetas de un hilo.
             desfase = k*0.37
-            tk = (reloj/_SEGUNDOS_POR_CICLO + desfase) % 1.0
+            # calma > 1: el vaiven entre postura y postura va mas despacio
+            # (el video largo, que es para dormirse; en el Short, 1).
+            tk = (reloj/(_SEGUNDOS_POR_CICLO*calma) + desfase) % 1.0
             tk = 1 - abs(1 - 2*tk) if vaiven else tk
             # Los verbos se animan SOLOS: correr, remar, cavar, pelear,
             # empujar y firmar no son gestos, son ciclos. Si el guion no pide

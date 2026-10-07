@@ -40,12 +40,22 @@ FPS = 25
 # Palabras por minuto de la voz de Google contando despacio. Medido por
 # encima: sirve para repartir el guion, no para cronometrar - el tiempo de
 # verdad sale de medir el audio.
-_PALABRAS_MINUTO = 140
+_PALABRAS_MINUTO = 120
 # Un plano dura lo que tarda en decirse su texto: 50-85 palabras son 25-40
 # segundos. Menos y parece un trailer; mas y el dibujo se queda muerto.
-_PALABRAS_PLANO = (50, 85)
-_PAUSA_PLANO = 0.7          # segundos de silencio entre planos
-_PAUSA_CAPITULO = 1.6       # y entre capitulos, que se note el cambio
+# Ella, viendo el primero de Lepanto: "tarda demasiado en cambiar de escena,
+# no puede estar casi un minuto con el mismo mapa... los primeros minutos le
+# tienen que enganchar". Eran planos de 50-85 palabras (30-45 segundos). Ahora
+# una o dos frases, 10-15 segundos, y el dibujo cambia con cada una.
+_PALABRAS_PLANO = (18, 35)
+_PAUSA_PLANO = 0.35         # segundos de silencio entre planos
+_PAUSA_CAPITULO = 1.2       # y entre capitulos, que se note el cambio
+# Los dibujos se pintan a 12,5 por segundo y el video va a 25: cada dibujo
+# dura dos fotogramas, como la animacion hecha a mano ("en doses"), y cuesta
+# la mitad de montar.
+_FPS_DIBUJO = 12.5
+# El vaiven de los monigotes, mas lento que en los Shorts: es para dormirse.
+_CALMA = 2.4
 _ZOOM = 1.07                # el zoom lento de cada plano, de 1 a esto
 _MINUTOS_MAX = 75
 
@@ -92,6 +102,7 @@ Haz el INDICE. Devuelve SOLO este JSON:
   "titulo_youtube": "titulo para YouTube, que se busque y se entienda, sin clickbait (max 90 caracteres)",
   "descripcion": "descripcion para YouTube: 3-5 parrafos que resuman la historia con fechas y nombres, y al final: 📜 Historias de España contadas despacio, para escuchar tranquilo o para dormir.",
   "tags": ["15-20 etiquetas"],
+  "gancho": "LA APERTURA, antes de la presentadora: el momento mas impactante o curioso de la historia contado en 50-70 palabras, para que quien empieza el video se quede los primeros minutos (sin destripar el final, en presente, muy visual)",
   "entrada": "lo que dice la PRESENTADORA al empezar, con su propia voz: 50-70 palabras. Saluda ('Hola, bienvenido a {canal}'), dice de que va la historia de esta noche en una o dos frases, e invita a ponerse comodo. Calida, tranquila, en segunda persona.",
   "reparto": {{"mandamas": "a quien hace", "soldado": "...", "cronista": "...", "abuela": "...", "chaval": "..."}},
   "capitulos": [
@@ -121,6 +132,10 @@ montar el video, asi que pidelo sin miedo - pero usa entretanto lo mas parecido 
 "sonido": un ruido de fondo suave para ese plano, uno de [gentio, campana, fuego, pasos, espada,
 tormenta, mar, monedas, puerta, caballo], o "" (lo normal). Solo donde pegue de verdad: "mar" en
 el puerto o la galera, "espada" en la batalla, "campana" en la iglesia.
+
+PLANOS CORTOS: una o dos frases cada uno ({pmin}-{pmax} palabras, 10-15 segundos de voz). El
+dibujo cambia con CADA plano, asi que pocos planos seguidos con el mismo decorado, y nunca dos
+mapas o dos pantallas de datos seguidos.
 
 "visual" es lo que se ve mientras se dice ese plano. Uno de estos tipos:
 
@@ -233,7 +248,28 @@ def escribe_guion(tema: str, minutos: int, parar=None) -> dict:
             raise LargoError(f"el capitulo {i + 1} ha salido vacio")
         hechos.append({"titulo": c.get("titulo", ""), "planos": planos})
     plan["capitulos"] = hechos
+    # LA APERTURA: el gancho, en planos aun mas cortos, que va antes de la
+    # presentadora. Si falla, el video sale sin ella: no vale un video.
+    if plan.get("gancho"):
+        try:
+            ap = _pregunta(sistema, _PIDE_CAPITULO.format(
+                indice=indice, n="0 - LA APERTURA (va antes de todo, sin cartel de capitulo)",
+                titulo="Apertura", resumen=plan["gancho"], palabras=70, pmin=10, pmax=22,
+                anterior="\nEs lo PRIMERO que ve quien abre el video: lo mas visual y emocionante, "
+                         "planos muy cortos, y que acabe dejando ganas de saber como paso.\n",
+                cierre=""), "largo-apertura")
+            planos = [p for p in ap.get("planos") or []
+                      if isinstance(p, dict) and str(p.get("narracion", "")).strip()]
+            if planos:
+                plan["apertura"] = {"titulo": "Apertura", "planos": planos}
+        except Exception:
+            logger.warning("largo: sin apertura.", exc_info=True)
     return plan
+
+
+def _secciones(guion: dict) -> list[dict]:
+    """La apertura (si hay) y los capitulos, en orden."""
+    return ([guion["apertura"]] if guion.get("apertura") else []) + list(guion.get("capitulos") or [])
 
 
 # ---------------------------------------------------------------------------
@@ -390,62 +426,61 @@ def _ffmpeg(args: list[str], paso: str, timeout: int = 1800) -> None:
         raise LargoError(f"ffmpeg ({paso}): {r.stderr[-800:]}")
 
 
-def _plano_en_video(png: Path, fotogramas: int, hacia_dentro: bool, destino: Path) -> None:
-    """La imagen fija con un zoom lentisimo. Se agranda al doble antes del
-    zoom: zoompan mueve el encuadre de pixel en pixel y, sobre la imagen a su
-    tamaño, a esa velocidad el dibujo tiembla."""
-    paso = (_ZOOM - 1)/max(1, fotogramas)
-    z = (f"min(1+{paso:.7f}*on,{_ZOOM})" if hacia_dentro
-         else f"max({_ZOOM}-{paso:.7f}*on,1)")
-    _ffmpeg(["-i", str(png), "-vf",
-             f"scale={ANCHO*2}:{ALTO*2}:flags=lanczos,"
-             f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={fotogramas}"
-             f":s={ANCHO}x{ALTO}:fps={FPS},format=yuv420p",
-             "-frames:v", str(fotogramas), "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
-             "-r", str(FPS), "-g", str(FPS*10), str(destino)], "plano")
-
-
-_ANIMA = 6.0    # segundos de movimiento al empezar cada escena; luego, quieta con zoom
-
-
-def _apagado(img: Image.Image) -> Image.Image:
-    return ImageEnhance.Brightness(img.convert("RGB")).enhance(0.9)
-
-
-def _escena_animada(visual: dict, fotogramas: int, hacia_dentro: bool, carpeta: Path,
-                    i: int) -> tuple[list[Path], list[tuple[str, float, float]], Image.Image]:
-    """LOS MONIGOTES SE MUEVEN, como en los Shorts: van de una postura a otra,
-    respiran, y les pasan sus efectos (el salto, la caida, el sudor...) con su
-    sonido. Ella: "los efectos y todo". Solo los primeros segundos del plano -
-    una hora entera animada tardaria horas en montarse -, y luego el ultimo
-    fotograma se queda con el zoom lento hasta que acaba la voz."""
-    e = _spec_escena((visual or {}).get("escena") or visual or {})
-    segundos = min(_ANIMA, fotogramas/FPS)
-    carpeta_f = carpeta / f"anim_{i:03d}"
-    carpeta_f.mkdir(exist_ok=True)
-    n = 0
+def _tuberia(fotos, fotogramas: int, destino: Path, zoom: bool, hacia_dentro: bool = True) -> None:
+    """Los dibujos, uno detras de otro y sin pasar por disco, a un trozo de
+    video de `fotogramas` a 25 por segundo. Se pintan a 12,5: ffmpeg repite
+    cada uno. Si se acaban antes, se repite el ultimo. Con `zoom`, el
+    acercamiento lentisimo (para lo que no se mueve solo: mapas, datos,
+    carteles); se agranda antes al doble porque zoompan avanza de pixel en
+    pixel y, a esta velocidad, el dibujo temblaria."""
+    entrada = int(math.ceil(fotogramas/(FPS/_FPS_DIBUJO))) + 2
+    filtro = f"fps={FPS}"
+    if zoom:
+        paso = (_ZOOM - 1)/max(1, fotogramas)
+        z = (f"min(1+{paso:.7f}*on,{_ZOOM})" if hacia_dentro else f"max({_ZOOM}-{paso:.7f}*on,1)")
+        filtro += (f",scale={ANCHO*2}:{ALTO*2}:flags=bilinear,zoompan=z='{z}':x='iw/2-(iw/zoom/2)'"
+                   f":y='ih/2-(ih/zoom/2)':d=1:s={ANCHO}x{ALTO}:fps={FPS}")
+    # Un poco mas apagado que en los Shorts: es para la noche.
+    filtro += ",eq=brightness=-0.035,setsar=1,format=yuv420p"
+    proc = subprocess.Popen(
+        ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
+         "-s", f"{ANCHO}x{ALTO}", "-r", str(_FPS_DIBUJO), "-i", "-", "-vf", filtro,
+         "-frames:v", str(fotogramas), "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
+         "-r", str(FPS), "-g", str(FPS*10), str(destino)],
+        stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     ultimo = None
-    for n, img in enumerate(monigotes.animar(e, segundos=segundos, fps=FPS, tam=(ANCHO, ALTO)), start=1):
-        ultimo = _apagado(img if img.size == (ANCHO, ALTO) else img.resize((ANCHO, ALTO)))
-        ultimo.save(carpeta_f / f"{n:04d}.jpg", quality=92)
-    partes = []
-    if n:
-        anim = carpeta / f"plano_{i:03d}_a.mp4"
-        _ffmpeg(["-framerate", str(FPS), "-i", str(carpeta_f / "%04d.jpg"),
-                 "-vf", "setsar=1,format=yuv420p", "-c:v", "libx264", "-preset", "veryfast",
-                 "-crf", "21", "-r", str(FPS), "-g", str(FPS*10), str(anim)], "animacion")
-        partes.append(anim)
-    shutil.rmtree(carpeta_f, ignore_errors=True)
-    if ultimo is None:
-        ultimo = _apagado(_escena(e, i))
-    resto = fotogramas - n
-    if resto > 0:
-        png = carpeta / f"plano_{i:03d}.png"
-        ultimo.save(png)
-        quieto = carpeta / f"plano_{i:03d}_b.mp4"
-        _plano_en_video(png, resto, hacia_dentro, quieto)
-        partes.append(quieto)
-    sonidos_fx = []
+    try:
+        n = 0
+        for img in fotos:
+            if n >= entrada:
+                break
+            img = img.convert("RGB")
+            if img.size != (ANCHO, ALTO):
+                img = img.resize((ANCHO, ALTO))
+            ultimo = img.tobytes()
+            proc.stdin.write(ultimo)
+            n += 1
+        while n < entrada and ultimo is not None:
+            proc.stdin.write(ultimo)
+            n += 1
+        proc.stdin.close()
+    except BrokenPipeError:
+        pass
+    error = proc.stderr.read().decode(errors="replace")
+    if proc.wait() != 0:
+        raise LargoError(f"ffmpeg (plano): {error[-800:]}")
+
+
+def _plano_en_video(png: Path, fotogramas: int, hacia_dentro: bool, destino: Path) -> None:
+    _tuberia([Image.open(png)], fotogramas, destino, zoom=True, hacia_dentro=hacia_dentro)
+
+
+def _fotos_de_escena(visual: dict, segundos: float, guarda: list):
+    """LOS MONIGOTES SE MUEVEN TODO EL PLANO, no seis segundos: "a partir de
+    X segundos se quedan paradas y al final eso queda rarisimo". Respiran,
+    van de una postura a otra (mas despacio que en los Shorts) y les pasan
+    sus efectos, con su sonido."""
+    e = _spec_escena((visual or {}).get("escena") or visual or {})
     for f in e.get("figuras", []):
         efecto = f.get("efecto")
         if efecto in monigotes.SONIDO_DEL_EFECTO:
@@ -453,8 +488,58 @@ def _escena_animada(visual: dict, fotogramas: int, hacia_dentro: bool, carpeta: 
             t0 = f.get("efecto_desde")
             t0 = monigotes.momento_del_efecto(efecto, segundos) if t0 is None else float(t0)
             if t0 < segundos:
-                sonidos_fx.append((nombre, t0, dura))
-    return partes, sonidos_fx, ultimo
+                guarda.append((nombre, t0, dura))
+    return monigotes.animar(e, segundos=segundos, fps=_FPS_DIBUJO, tam=(ANCHO, ALTO), calma=_CALMA)
+
+
+def _fotos_de_mapa(visual: dict, segundos: float):
+    """Las rutas del mapa se dibujan solas, una detras de otra, en la primera
+    mitad del plano; luego el mapa se queda y sigue el zoom."""
+    spec = visual.get("mapa") or visual
+    crece = max(1, int(segundos*_FPS_DIBUJO*0.5))
+    if not spec.get("flechas"):
+        yield mapas.mapa(spec, ANCHO, ALTO)
+        return
+    yield from mapas.mapa_animado(spec, ANCHO, ALTO, crece)
+
+
+def _fotos_de_datos(visual: dict, segundos: float):
+    """Las listas, fechas y cifras van apareciendo punto a punto en el
+    primer 60% del plano, que es como se leen."""
+    fotos = None
+    tipo = str(visual.get("tipo") or "").lower()
+    puntos = [str(p) for p in visual.get("puntos") or []][:6]
+    titulo = str(visual.get("titulo") or "")
+    if tipo == "cronologia":
+        fotos = slides.cronologia(puntos, titulo, ANCHO, ALTO)
+    elif tipo == "lista":
+        fotos = slides.lista(puntos, titulo, ANCHO, ALTO)
+    elif tipo == "cifra":
+        fotos = slides.cifra(str(visual.get("valor") or ""), str(visual.get("unidad") or ""),
+                             str(visual.get("pie") or ""), ANCHO, ALTO)
+    elif tipo == "comparacion":
+        fotos = slides.comparacion(str(visual.get("izquierda") or ""), str(visual.get("derecha") or ""),
+                                   titulo, ANCHO, ALTO)
+    if not fotos:
+        yield dibuja(visual, 0)
+        return
+    total = max(1, int(segundos*_FPS_DIBUJO))
+    reparto = max(1, int(total*0.6))
+    for k in range(total):
+        yield fotos[min(len(fotos) - 1, int(k/reparto*len(fotos)))]
+
+
+class _guarda_una:
+    """Deja pasar los dibujos y se queda con uno (el de la mitad del plano):
+    de ahi sale la miniatura."""
+    def __init__(self, fotos, cual: int, _cb=None):
+        self.fotos, self.cual, self.foto = fotos, cual, None
+
+    def __iter__(self):
+        for n, img in enumerate(self.fotos):
+            if n == self.cual or self.foto is None:
+                self.foto = img.convert("RGB").copy()
+            yield img
 
 
 def _mismo_monigote(guion: dict) -> list[str]:
@@ -464,7 +549,7 @@ def _mismo_monigote(guion: dict) -> list[str]:
     monigote ya lo usa otro, que ahi no se toca."""
     from collections import Counter, defaultdict
     escenas = []
-    for cap in guion.get("capitulos") or []:
+    for cap in _secciones(guion):
         for p in cap.get("planos") or []:
             v = p.get("visual") or {}
             if str(v.get("tipo") or "escena") == "escena":
@@ -497,6 +582,18 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path]:
     if cambios:
         logger.info("largo: mismo personaje, mismo monigote: %s", "; ".join(cambios))
     planos = []   # (texto, visual, pausa_despues, es_suya)
+
+    def suma_planos(seccion):
+        for k, p in enumerate(seccion["planos"]):
+            ultimo = k == len(seccion["planos"]) - 1
+            visual = dict(p.get("visual") or {})
+            visual["_sonido"] = str(p.get("sonido") or "").strip().lower()
+            planos.append((str(p["narracion"]).replace("«", "").replace("»", ""), visual,
+                           _PAUSA_CAPITULO if ultimo else _PAUSA_PLANO, False))
+
+    # Primero el gancho, luego ella presentando, luego los capitulos.
+    if guion.get("apertura"):
+        suma_planos(guion["apertura"])
     titulo = guion.get("titulo") or guion.get("titulo_youtube") or ""
     planos.append((guion.get("entrada") or f"Hola, bienvenido a {CHANNEL_NAME}.",
                    {"tipo": "_cartel", "arriba": f"{CHANNEL_NAME} · para dormir", "grande": titulo},
@@ -506,13 +603,8 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path]:
         nombre = numeros[n] if n < len(numeros) else str(n + 1)
         planos.append((f"Capítulo {nombre}. {cap['titulo']}.",
                        {"tipo": "_cartel", "arriba": f"Capítulo {n + 1}", "grande": cap["titulo"]},
-                       1.0, False))
-        for k, p in enumerate(cap["planos"]):
-            ultimo = k == len(cap["planos"]) - 1
-            visual = dict(p.get("visual") or {})
-            visual["_sonido"] = str(p.get("sonido") or "").strip().lower()
-            planos.append((str(p["narracion"]).replace("«", "").replace("»", ""), visual,
-                           _PAUSA_CAPITULO if ultimo else _PAUSA_PLANO, False))
+                       0.8, False))
+        suma_planos(cap)
 
     voz = AudioSegment.empty()
     duraciones = []
@@ -556,28 +648,33 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path]:
         if ambiente in sonidos.EFECTOS_VALIDOS:
             ruidos.append((ambiente, inicio + 0.3, min(6.0, fotogramas/FPS)))
         tipo = str(visual.get("tipo") or "escena").lower()
-        if tipo == "_cartel":
-            img = _cartel(visual["arriba"], visual["grande"])
-        elif tipo == "escena" or tipo not in ("mapa", "cronologia", "lista", "cifra", "comparacion"):
-            try:
-                partes, fx, img = _escena_animada(visual, fotogramas, i % 2 == 0, carpeta, i)
-                trozos += partes
-                ruidos += [(n, inicio + t, d) for n, t, d in fx]
-                if miniatura is None:
-                    miniatura = img
-                continue
-            except Exception:
-                logger.warning("largo: la escena %s no se ha podido animar; va quieta.", i,
-                               exc_info=True)
-                img = dibuja(visual, semilla=i)
-        else:
-            img = dibuja(visual, semilla=i)
-        png = carpeta / f"plano_{i:03d}.png"
-        img.save(png)
+        segundos = fotogramas/FPS
         mp4 = carpeta / f"plano_{i:03d}.mp4"
-        _plano_en_video(png, fotogramas, i % 2 == 0, mp4)
+        try:
+            if tipo == "_cartel":
+                _tuberia([_cartel(visual["arriba"], visual["grande"])], fotogramas, mp4, zoom=True)
+            elif tipo == "mapa":
+                _tuberia(_fotos_de_mapa(visual, segundos), fotogramas, mp4, zoom=True,
+                         hacia_dentro=i % 2 == 0)
+            elif tipo in ("cronologia", "lista", "cifra", "comparacion"):
+                _tuberia(_fotos_de_datos(visual, segundos), fotogramas, mp4, zoom=True,
+                         hacia_dentro=i % 2 == 0)
+            else:
+                fx = []
+                fotos = _fotos_de_escena(visual, segundos, fx)
+                if miniatura is None:
+                    fotos = _guarda_una(fotos, int(segundos*_FPS_DIBUJO*0.5), lambda img: None)
+                    miniatura_de = fotos
+                _tuberia(fotos, fotogramas, mp4, zoom=False)
+                if miniatura is None:
+                    miniatura = miniatura_de.foto
+                ruidos += [(n, inicio + t, d) for n, t, d in fx]
+        except Exception:
+            logger.warning("largo: el plano %s (%s) ha fallado; va un dibujo quieto.", i, tipo,
+                           exc_info=True)
+            _tuberia([dibuja(visual, semilla=i)], fotogramas, mp4, zoom=True)
         trozos.append(mp4)
-        if i % 10 == 0:
+        if i % 20 == 0:
             logger.info("largo: %s de %s planos montados.", i + 1, len(planos))
 
     lista = carpeta / "planos.txt"
@@ -606,7 +703,7 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path]:
         logger.warning("largo: sin musica de fondo.", exc_info=True)
 
     jpg = carpeta / "miniatura.jpg"
-    (miniatura or _cartel(CHANNEL_NAME, titulo)).resize((1280, 720)).save(jpg, quality=90)
+    (miniatura or _cartel(CHANNEL_NAME, titulo)).convert("RGB").resize((1280, 720)).save(jpg, quality=90)
     # Solo se quedan el video y la miniatura: un largo de una hora deja
     # cientos de megas de andamios, y el disco es de 5 GB.
     for p in list(carpeta.glob("plano_*")) + list(carpeta.glob("voz_*")):
@@ -634,7 +731,7 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
                "efecto": set(monigotes.EFECTOS_VALIDOS), "lleva": llevables,
                "cosa": set(monigotes.COSAS_VALIDAS)}
     usados, inexistentes, pedidos, tipos = Counter(), Counter(), [], Counter()
-    for n, cap in enumerate(guion.get("capitulos") or [], start=1):
+    for n, cap in enumerate(_secciones(guion), start=0 if guion.get("apertura") else 1):
         for k, p in enumerate(cap.get("planos") or [], start=1):
             v = p.get("visual") or {}
             tipos[str(v.get("tipo") or "escena")] += 1
@@ -659,7 +756,7 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
                     if val and val not in validos[clave]:
                         inexistentes[f"{clave} {val}"] += 1
     lineas = [f"«{guion.get('titulo_youtube') or guion.get('titulo')}»", ""]
-    for n, cap in enumerate(guion.get("capitulos") or [], start=1):
+    for n, cap in enumerate(_secciones(guion), start=0 if guion.get("apertura") else 1):
         lineas.append(f"{n}. {cap.get('titulo')} ({len(cap.get('planos') or [])} planos)")
     lineas += ["", "Planos: " + ", ".join(f"{t} {c}" for t, c in tipos.most_common()),
                "Decorados: " + ", ".join(f"{u.split(' ', 1)[1]} {c}" for u, c in usados.most_common())]
@@ -682,7 +779,7 @@ def run_largo_guion(tema: str, minutos: int) -> str:
     _PENDIENTE.write_text(json.dumps(guion, ensure_ascii=False, indent=1))
     texto, faltan = revisa(guion)
     logger.info("[largo] Guion guardado. %s", texto.replace("\n", " | "))
-    for i, cap in enumerate(guion["capitulos"], start=1):
+    for i, cap in enumerate(_secciones(guion), start=0 if guion.get("apertura") else 1):
         for k, p in enumerate(cap["planos"], start=1):
             logger.info("[largo] %s.%s %s", i, k, json.dumps(p.get("visual"), ensure_ascii=False)[:400])
     coste = llm_usage.report_and_reset()
