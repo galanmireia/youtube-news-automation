@@ -111,15 +111,23 @@ Escribe ahora el CAPITULO {n}: «{titulo}» - {resumen}
 Unas {palabras} palabras de narracion, partidas en PLANOS de {pmin} a {pmax} palabras cada uno.
 {anterior}
 Devuelve SOLO este JSON:
-{{"planos": [{{"narracion": "...", "visual": {{...}}}}]}}
+{{"planos": [{{"narracion": "...", "visual": {{...}}, "sonido": ""}}]}}
+
+"sonido": un ruido de fondo suave para ese plano, uno de [gentio, campana, fuego, pasos, espada,
+tormenta, mar, monedas, puerta, caballo], o "" (lo normal). Solo donde pegue de verdad: "mar" en
+el puerto o la galera, "espada" en la batalla, "campana" en la iglesia.
 
 "visual" es lo que se ve mientras se dice ese plano. Uno de estos tipos:
 
 1. {{"tipo": "escena", "escena": {{...}}}} - monigotes en un decorado, con el formato de LA ESCENA
-   de arriba, PERO sin dialogos: "hablan": [], nada de bocadillos, y sin "efecto" salvo "zzz" o
-   "sudor" si de verdad viene a cuento. Posturas que cuenten lo que se narra (firmando, remando,
-   peleando, rezando, mirando...). Usa el reparto del indice y el mismo gorro para el mismo
-   personaje en todo el video. Que los decorados VARIEN de un plano a otro.
+   de arriba, PERO sin dialogos: "hablan": [], nada de bocadillos. Se ANIMAN como en los Shorts:
+   pon "pose" y "pose_fin" (de una postura a otra) y los EFECTOS cuando la narracion los cuente -
+   el que cae herido "caida", el que celebra la victoria "salto", el que suda "sudor", el que
+   llora "lagrimas", el que tiene una idea "idea", la boda "enamorado", el que se saca la corona
+   "corona", el que le da algo a otro "entrega"... Posturas que cuenten lo que se narra (firmando,
+   remando, peleando, rezando, mirando...). Usa el reparto del indice y el mismo gorro para el
+   mismo personaje en todo el video. Que los decorados VARIEN de un plano a otro, y pon las
+   BANDERAS de cada bando y las cosas de las que se habla.
 2. {{"tipo": "mapa", "mapa": {{"titulo": "...", "lugares": [{{"nombre": "Mesina", "lat": 38.19, "lon": 15.55, "tipo": "ciudad|capital|batalla"}}],
    "zonas": [{{"nombre": "Imperio otomano", "lat": 39.5, "lon": 32.0, "color": "verde|rojo|azul|negro|oro"}}],
    "flechas": [{{"de": "Mesina", "a": "Lepanto", "color": "rojo"}}]}}}} - cuando importa DONDE: coordenadas
@@ -311,15 +319,18 @@ def _cartel(arriba: str, grande: str, abajo: str = "") -> Image.Image:
     return img
 
 
-def _escena(spec: dict, semilla: int) -> Image.Image:
+def _spec_escena(spec: dict) -> dict:
     e = monigotes.limpia(spec if isinstance(spec, dict) else {})
     e["hablan"], e["a_quien"] = [], []
     for f in e.get("figuras", []):
-        if f.get("efecto") not in ("zzz", "sudor"):
-            f["efecto"] = None
         # En horizontal los monigotes se quedaban diminutos: su estatura va
         # por la altura de la pantalla, y en vertical esa altura es el doble.
         f["alto"] = f.get("alto", 0.34)*1.3
+    return e
+
+
+def _escena(spec: dict, semilla: int) -> Image.Image:
+    e = _spec_escena(spec)
     img = monigotes.montar(e, ANCHO, ALTO, semilla).convert("RGB")
     if e.get("noche"):
         img = monigotes._de_noche(img)
@@ -389,6 +400,58 @@ def _plano_en_video(png: Path, fotogramas: int, hacia_dentro: bool, destino: Pat
              "-r", str(FPS), "-g", str(FPS*10), str(destino)], "plano")
 
 
+_ANIMA = 6.0    # segundos de movimiento al empezar cada escena; luego, quieta con zoom
+
+
+def _apagado(img: Image.Image) -> Image.Image:
+    return ImageEnhance.Brightness(img.convert("RGB")).enhance(0.9)
+
+
+def _escena_animada(visual: dict, fotogramas: int, hacia_dentro: bool, carpeta: Path,
+                    i: int) -> tuple[list[Path], list[tuple[str, float, float]], Image.Image]:
+    """LOS MONIGOTES SE MUEVEN, como en los Shorts: van de una postura a otra,
+    respiran, y les pasan sus efectos (el salto, la caida, el sudor...) con su
+    sonido. Ella: "los efectos y todo". Solo los primeros segundos del plano -
+    una hora entera animada tardaria horas en montarse -, y luego el ultimo
+    fotograma se queda con el zoom lento hasta que acaba la voz."""
+    e = _spec_escena((visual or {}).get("escena") or visual or {})
+    segundos = min(_ANIMA, fotogramas/FPS)
+    carpeta_f = carpeta / f"anim_{i:03d}"
+    carpeta_f.mkdir(exist_ok=True)
+    n = 0
+    ultimo = None
+    for n, img in enumerate(monigotes.animar(e, segundos=segundos, fps=FPS, tam=(ANCHO, ALTO)), start=1):
+        ultimo = _apagado(img if img.size == (ANCHO, ALTO) else img.resize((ANCHO, ALTO)))
+        ultimo.save(carpeta_f / f"{n:04d}.jpg", quality=92)
+    partes = []
+    if n:
+        anim = carpeta / f"plano_{i:03d}_a.mp4"
+        _ffmpeg(["-framerate", str(FPS), "-i", str(carpeta_f / "%04d.jpg"),
+                 "-vf", "setsar=1,format=yuv420p", "-c:v", "libx264", "-preset", "veryfast",
+                 "-crf", "21", "-r", str(FPS), "-g", str(FPS*10), str(anim)], "animacion")
+        partes.append(anim)
+    shutil.rmtree(carpeta_f, ignore_errors=True)
+    if ultimo is None:
+        ultimo = _apagado(_escena(e, i))
+    resto = fotogramas - n
+    if resto > 0:
+        png = carpeta / f"plano_{i:03d}.png"
+        ultimo.save(png)
+        quieto = carpeta / f"plano_{i:03d}_b.mp4"
+        _plano_en_video(png, resto, hacia_dentro, quieto)
+        partes.append(quieto)
+    sonidos_fx = []
+    for f in e.get("figuras", []):
+        efecto = f.get("efecto")
+        if efecto in monigotes.SONIDO_DEL_EFECTO:
+            nombre, dura = monigotes.SONIDO_DEL_EFECTO[efecto]
+            t0 = f.get("efecto_desde")
+            t0 = monigotes.momento_del_efecto(efecto, segundos) if t0 is None else float(t0)
+            if t0 < segundos:
+                sonidos_fx.append((nombre, t0, dura))
+    return partes, sonidos_fx, ultimo
+
+
 def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path]:
     """De guion a video: voces, dibujos, planos y musica. Devuelve el video y
     la miniatura."""
@@ -407,7 +470,9 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path]:
                        1.0, False))
         for k, p in enumerate(cap["planos"]):
             ultimo = k == len(cap["planos"]) - 1
-            planos.append((str(p["narracion"]).replace("«", "").replace("»", ""), p.get("visual") or {},
+            visual = dict(p.get("visual") or {})
+            visual["_sonido"] = str(p.get("sonido") or "").strip().lower()
+            planos.append((str(p["narracion"]).replace("«", "").replace("»", ""), visual,
                            _PAUSA_CAPITULO if ultimo else _PAUSA_PLANO, False))
 
     voz = AudioSegment.empty()
@@ -438,22 +503,40 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path]:
     for d in duraciones:
         t += d
         fronteras.append(round(t*FPS))
+    from . import sonidos
     trozos = []
+    ruidos = []           # (sonido, segundo, duracion) para la pista de efectos
     miniatura = None
     for i, (_texto, visual, _p, _s) in enumerate(planos):
         if parar is not None and parar():
             from .pipeline import GenerationStopped
             raise GenerationStopped("parada pedida mientras se dibujaba el largo")
-        if visual.get("tipo") == "_cartel":
+        fotogramas = max(1, fronteras[i + 1] - fronteras[i])
+        inicio = fronteras[i]/FPS
+        ambiente = visual.get("_sonido") or ""
+        if ambiente in sonidos.EFECTOS_VALIDOS:
+            ruidos.append((ambiente, inicio + 0.3, min(6.0, fotogramas/FPS)))
+        tipo = str(visual.get("tipo") or "escena").lower()
+        if tipo == "_cartel":
             img = _cartel(visual["arriba"], visual["grande"])
+        elif tipo == "escena" or tipo not in ("mapa", "cronologia", "lista", "cifra", "comparacion"):
+            try:
+                partes, fx, img = _escena_animada(visual, fotogramas, i % 2 == 0, carpeta, i)
+                trozos += partes
+                ruidos += [(n, inicio + t, d) for n, t, d in fx]
+                if miniatura is None:
+                    miniatura = img
+                continue
+            except Exception:
+                logger.warning("largo: la escena %s no se ha podido animar; va quieta.", i,
+                               exc_info=True)
+                img = dibuja(visual, semilla=i)
         else:
             img = dibuja(visual, semilla=i)
-            if miniatura is None and str(visual.get("tipo") or "escena") == "escena":
-                miniatura = img
         png = carpeta / f"plano_{i:03d}.png"
         img.save(png)
         mp4 = carpeta / f"plano_{i:03d}.mp4"
-        _plano_en_video(png, max(1, fronteras[i + 1] - fronteras[i]), i % 2 == 0, mp4)
+        _plano_en_video(png, fotogramas, i % 2 == 0, mp4)
         trozos.append(mp4)
         if i % 10 == 0:
             logger.info("largo: %s de %s planos montados.", i + 1, len(planos))
@@ -466,12 +549,20 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path]:
     _ffmpeg(["-i", str(mudo), "-i", str(narracion), "-map", "0:v", "-map", "1:a", "-c:v", "copy",
              "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", str(con_voz)], "voz")
     final = con_voz
+    if ruidos:
+        try:
+            from .video_builder import mezclar_efectos
+            pista = sonidos.pista(ruidos, fronteras[-1]/FPS, carpeta / "efectos.wav", volumen=0.10)
+            if pista is not None:
+                final = mezclar_efectos(con_voz, pista, carpeta / "con_efectos.mp4")
+        except Exception:
+            logger.warning("largo: sin efectos de sonido.", exc_info=True)
     try:
         from .pipeline import _pick_music_track
         from .video_builder import mix_background_music
         musica = _pick_music_track()
         if musica is not None:
-            final = mix_background_music(con_voz, musica, carpeta / "final.mp4", MUSIC_VOLUME*0.6)
+            final = mix_background_music(final, musica, carpeta / "final.mp4", MUSIC_VOLUME*0.6)
     except Exception:
         logger.warning("largo: sin musica de fondo.", exc_info=True)
 
@@ -481,7 +572,7 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path]:
     # cientos de megas de andamios, y el disco es de 5 GB.
     for p in list(carpeta.glob("plano_*")) + list(carpeta.glob("voz_*")):
         p.unlink(missing_ok=True)
-    for p in (mudo, narracion, con_voz):
+    for p in (mudo, narracion, con_voz, carpeta / "con_efectos.mp4", carpeta / "efectos.wav"):
         if p != final:
             p.unlink(missing_ok=True)
     return final, jpg

@@ -526,6 +526,20 @@ def _gorro(d, cab, rc, g, rnd, cual):
                    (x, arriba-rc*1.45), (x+rc*.60, arriba-rc*.70),
                    (x+rc*.78, arriba+rc*.08), (x-rc*.78, arriba+rc*.08)], g, rnd)
         d.line([(x, arriba-rc*1.30), (x, arriba)], fill=oro, width=g)
+    elif cual == "tiara":           # el Papa: la triple corona blanca con cruz
+        base, alto_t = arriba + rc*0.10, rc*1.45
+        cuerpo = [(x - rc*.70, base), (x - rc*.62, base - alto_t*.55), (x - rc*.38, base - alto_t*.92),
+                  (x, base - alto_t), (x + rc*.38, base - alto_t*.92), (x + rc*.62, base - alto_t*.55),
+                  (x + rc*.70, base)]
+        d.polygon(cuerpo, fill=(246, 242, 232))
+        _linea(d, cuerpo + [cuerpo[0]], g, rnd)
+        for k in (0.18, 0.48, 0.76):                # las tres coronas
+            yy = base - alto_t*k
+            ancho_k = rc*(.70 - .30*k)
+            d.line([(x - ancho_k, yy), (x + ancho_k, yy)], fill=oro, width=int(g*1.3))
+        cima = base - alto_t
+        d.line([(x, cima), (x, cima - rc*.35)], fill=oro, width=g)
+        d.line([(x - rc*.14, cima - rc*.22), (x + rc*.14, cima - rc*.22)], fill=oro, width=g)
     elif cual == "monje":           # capucha que ENVUELVE la cabeza
         pts = []
         for i in range(19):
@@ -1153,7 +1167,7 @@ def _mezcla(a, b, t):
     }
 
 
-def _decorado(paso, semilla):
+def _decorado(paso, semilla, tam=None):
     """El sitio donde pasa la escena, elegido por NOMBRE.
 
     Esto faltaba y era grave: animar() llamaba siempre a interior(), que es el
@@ -1161,9 +1175,10 @@ def _decorado(paso, semilla):
     construida, probada y enseñada... y no se dibujaba nunca. El guion podia
     pedir "taberna" y salia un refectorio.
     """
+    w, h = tam or (_ANCHO_BASE, _ALTO_BASE)
     if paso.get("interior"):
-        return montar(paso, _ANCHO_BASE, _ALTO_BASE, semilla=semilla)
-    return escena(paso, semilla=semilla)
+        return montar(paso, w, h, semilla=semilla)
+    return escena(paso, w, h, semilla=semilla)
 
 
 def _fuente(alto_img):
@@ -1897,7 +1912,7 @@ def _pinta_adornos(d, pendientes, rnd):
         _adornos_de_efecto(d, f, x, y, alto, rnd)
 
 
-def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=None):
+def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=None, tam=None):
     """Los fotogramas de una escena donde cada figura va de 'pose' a 'pose_fin'.
 
     El temblor de la linea cambia cada tres fotogramas y no cada uno: cada uno
@@ -1948,7 +1963,8 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
         _coreografia_del_tortazo(spec, paso, reloj, segundos)
         _coreografia_de_la_entrega(spec, paso, reloj, segundos)
         rnd = random.Random(1000 + n//3)
-        img = _decorado(paso, semilla=1000 + n//3)
+        # tam: el video largo es horizontal; sin decirlo, sale el del Short.
+        img = _decorado(paso, semilla=1000 + n//3, tam=tam)
         if paso.get("noche"):
             img = _de_noche(img)
         caja = _caja_del_zoom(paso, img.size)
@@ -2008,6 +2024,7 @@ GORROS_EXPLICADOS = {
     "marinero":   "gorro de marinero",
     "peluca":     "peluca blanca empolvada del XVIII: Borbones, cortesanos, ministros",
     "turbante":   "Al-Andalus, sultanes, embajadores de Oriente",
+    "tiara":      "EL PAPA: la triple corona blanca con cruz (Pio quinto, el Papa Luna en su trono). Un obispo o un cardenal llevan mitra",
     "chistera":   "sombrero de copa del XIX: politicos, banqueros, caballeros",
     "peineta":    "peineta y mantilla negra: la dama española",
     "toca":       "toca de monja, velo negro y la cara enmarcada en blanco: monjas, abadesas, conventos",
@@ -2958,6 +2975,13 @@ _BANDERAS = {
     "bandera_austria":   ([((200, 16, 46), 1/3), (BLANCO, 1/3), ((200, 16, 46), 1/3)], True),
     "bandera_marruecos": ([((193, 39, 45), 1.0)], True),
     "bandera_borgona":   ([(BLANCO, 1.0)], True),
+    # LEPANTO. Los dos bandos del Mediterraneo en el siglo XVI: la media luna
+    # otomana, el leon de San Marcos de Venecia, las llaves del Papa y el
+    # estandarte azul de la Liga Santa que llevaba don Juan de Austria.
+    "bandera_otomana":   ([((196, 30, 40), 1.0)], True),
+    "bandera_venecia":   ([((150, 20, 34), 1.0)], True),
+    "bandera_papal":     ([((246, 206, 60), .5), (BLANCO, .5)], False),
+    "bandera_liga_santa": ([((40, 70, 150), 1.0)], True),
 }
 
 
@@ -3005,7 +3029,60 @@ def _adorno_borgona(d, borde, t, g, rnd):
                color=ROJO_ESPAÑA, temblor=2.4)
 
 
+def _adorno_otomana(d, borde, t, g, rnd):
+    """Media luna y estrella blancas."""
+    cx, cy = _centro_paño(borde, .44, .50)
+    r = t*.12
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=BLANCO)
+    rojo = (196, 30, 40)
+    d.ellipse([cx - r*.55, cy - r*.85, cx + r*1.15, cy + r*.85], fill=rojo)
+    ex, ey, re_ = cx + r*1.05, cy, t*.045
+    puntas = []
+    for k in range(10):
+        a = -math.pi/2 + k*math.pi/5
+        rr = re_ if k % 2 == 0 else re_*.45
+        puntas.append((ex + rr*math.cos(a), ey + rr*math.sin(a)))
+    d.polygon(puntas, fill=BLANCO)
+
+
+def _adorno_venecia(d, borde, t, g, rnd):
+    """El leon alado de San Marcos, en oro: cuerpo, cabeza con melena, un ala
+    y la cola. A este tamaño no hace falta mas para que sea un leon."""
+    oro = (236, 186, 40)
+    cx, cy = _centro_paño(borde, .50, .55)
+    r = t*.06
+    d.ellipse([cx - r*1.6, cy - r*.6, cx + r*1.2, cy + r*.7], fill=oro)          # cuerpo
+    d.ellipse([cx + r*.7, cy - r*1.5, cx + r*2.0, cy - r*.2], fill=oro)          # melena
+    d.polygon([(cx - r*.6, cy - r*.4), (cx - r*1.4, cy - r*2.2), (cx + r*.4, cy - r*.6)], fill=oro)  # ala
+    for px in (-1.2, -.4, .5, 1.0):                                               # patas
+        d.line([(cx + r*px, cy + r*.4), (cx + r*px, cy + r*1.3)], fill=oro, width=max(2, g//2))
+    d.line([(cx - r*1.5, cy), (cx - r*2.2, cy - r*.9)], fill=oro, width=max(2, g//2))  # cola
+
+
+def _adorno_papal(d, borde, t, g, rnd):
+    """Las llaves de San Pedro, cruzadas."""
+    cx, cy = _centro_paño(borde, .50, .50)
+    r = t*.11
+    for lado in (-1, 1):
+        a, b = (cx - lado*r, cy + r), (cx + lado*r*.8, cy - r*.8)
+        d.line([a, b], fill=TINTA, width=max(2, g//2))
+        d.ellipse([b[0] - r*.25, b[1] - r*.25, b[0] + r*.25, b[1] + r*.25], outline=TINTA,
+                  width=max(2, g//2))
+        d.line([a, (a[0] + lado*r*.3, a[1])], fill=TINTA, width=max(2, g//2))
+
+
+def _adorno_liga_santa(d, borde, t, g, rnd):
+    """La cruz dorada sobre azul del estandarte de la Liga Santa."""
+    oro = (236, 186, 40)
+    _linea(d, [_centro_paño(borde, .50, .14), _centro_paño(borde, .50, .88)], int(g*1.5), rnd,
+           color=oro, temblor=0.6)
+    _linea(d, [_centro_paño(borde, .28, .36), _centro_paño(borde, .72, .36)], int(g*1.5), rnd,
+           color=oro, temblor=0.6)
+
+
 _ADORNOS = {
+    "bandera_otomana": _adorno_otomana, "bandera_venecia": _adorno_venecia,
+    "bandera_papal": _adorno_papal, "bandera_liga_santa": _adorno_liga_santa,
     "bandera_portugal": _adorno_portugal, "bandera_eeuu": _adorno_eeuu,
     "bandera_marruecos": _adorno_marruecos, "bandera_borgona": _adorno_borgona,
 }
@@ -3431,6 +3508,7 @@ def _ambulancia(d, x, y, t, rnd, g, tinta=TINTA):
 COSAS = {
     "perro": _perro, "caballo": _caballo, "barco": _barco, "casa": _casa,
     "iglesia": _iglesia, "castillo": _castillo, "espada": _espada,
+    "galera": lambda d, x, y, t, rnd, g, tinta=TINTA: _galera(d, x, y, t*0.95, rnd, g),
     "canion": _canion, "fuego": _fuego, "dinero": _dinero, "libro": _libro,
     "cruz": _cruz, "olla": _olla, "montaña": _montaña, "naranjas": _naranjas,
     "naranjo": _naranjo, "pan": _pan, "escudo": _escudo, "mapa": _mapa,
@@ -3811,6 +3889,27 @@ def _pared(d, w, y0, y1, clase, rnd, g):
                 _linea(d, [(px, yy), (px, yy+fila)], max(2, g//2), rnd,
                        color=(126, 62, 48), temblor=1.0)
                 px += w/4
+    elif clase == "azulejos":
+        # El palacio del sultan: azulejos blancos con su dibujo azul y una
+        # cenefa turquesa. Es lo que dice "Oriente" sin escribirlo.
+        d.rectangle([0, y0, w, y1], fill=(236, 232, 220))
+        lado = (y1 - y0)/7
+        rr = random.Random(5)
+        fila = 0
+        yy = y0 + (y1 - y0)*0.42
+        while yy < y1:
+            xx = (lado/2 if fila % 2 else 0)
+            while xx < w:
+                cx, cy = xx + lado/2, yy + lado/2
+                r = lado*0.32
+                d.polygon([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)], fill=(38, 96, 160))
+                d.ellipse([cx - r*.3, cy - r*.3, cx + r*.3, cy + r*.3], fill=(236, 232, 220))
+                xx += lado
+            yy += lado
+            fila += 1
+        cenefa = y0 + (y1 - y0)*0.38
+        d.rectangle([0, cenefa, w, cenefa + (y1 - y0)*0.04], fill=(40, 150, 150))
+        _linea(d, [(0, cenefa), (w, cenefa)], max(2, g//2), rnd, temblor=0.8)
     elif clase == "papel":
         # El papel pintado de un piso de toda la vida: rayas y florecitas, y
         # un zocalo de madera abajo. Es lo que dice "casa de alquiler de
@@ -4028,6 +4127,13 @@ _DECORADOS = {
                      "fondo": [("batalla_naval", .5, 1.0, 1.0), ("mastil", .50, 1.0, 1.0)],
                      "muebles": [],
                      "delante": [("barandilla", .5, .30, 1.0)], "cuelga": [], "velas": []},
+    "palacio_otomano": {"pared": "azulejos", "piso": "losas",
+                     "fondo": [("arcos_otomanos", .5, 1.0, 1.0), ("estandarte_otomano", .10, .20, .12),
+                               ("estandarte_otomano", .90, .20, .12)],
+                     "muebles": [("divan", .50, .0, .34)], "delante": [], "cuelga": [], "velas": []},
+    "constantinopla": {"pared": "cielo_mar", "piso": "tablas",
+                     "fondo": [("mezquitas", .5, 1.0, 1.0)], "muebles": [], "delante": [],
+                     "cuelga": [("galera", .20, .70, .10), ("galera", .82, .70, .08)], "velas": []},
     "mina":         {"pared": "roca", "piso": "tierra",
                      "fondo": [("puntales", .5, 1.0, 1.0)],
                      "muebles": [], "delante": [], "cuelga": [], "velas": [(.30, -.30), (.70, -.24)]},
@@ -4106,6 +4212,8 @@ DECORADOS_EXPLICADOS = {
     "mercado":     "puestos con toldo, casas, adoquines",
     "cubierta":    "cubierta de barco, mastil, el mar detras",
     "batalla_naval": "LA CUBIERTA DE UNA GALERA EN PLENA BATALLA: galeras en el mar con humo de cañonazos, fogonazos y una ardiendo. Lepanto, la Armada Invencible, Trafalgar, cualquier combate en el mar",
+    "palacio_otomano": "EL PALACIO DEL SULTAN: azulejos azules, arcos apuntados, divan rojo con cojines y estandartes con la media luna. Selim segundo, Soliman, la corte otomana, cualquier corte de Oriente o de Al-Andalus por dentro",
+    "constantinopla": "CONSTANTINOPLA desde el puerto: cupulas y minaretes al otro lado del agua y galeras. La capital otomana, el Bosforo; vale tambien para cualquier ciudad de Oriente vista desde el mar",
     "mina":        "puntales de madera, tierra, oscuridad",
     "despacho":    "el despacho de un ministro: mesa con papeles, mapa en la pared",
     "murallas":    "una ciudad sitiada vista desde fuera: muralla, torres, puerta",
@@ -4302,6 +4410,52 @@ def _batalla_naval(d, w, h, suelo, rnd, g):
     COSAS["fuego"](d, w*0.91, mar - h*0.05, h*0.08, rnd, max(2, g//2))
 
 
+def _arco_apuntado(d, cx, base, ancho, alto, rnd, g, relleno):
+    pts = [(cx - ancho/2, base), (cx - ancho/2, base - alto*0.55)]
+    for i in range(1, 12):
+        t = i/12
+        pts.append((cx - ancho/2 + ancho/2*t, base - alto*0.55 - alto*0.45*math.sin(t*math.pi/2)))
+    pts.append((cx, base - alto))
+    for i in range(11, 0, -1):
+        t = i/12
+        pts.append((cx + ancho/2 - ancho/2*t, base - alto*0.55 - alto*0.45*math.sin(t*math.pi/2)))
+    pts += [(cx + ancho/2, base - alto*0.55), (cx + ancho/2, base)]
+    d.polygon(pts, fill=relleno)
+    _linea(d, pts, g, rnd, color=TINTA)
+
+
+def _mezquitas(d, w, base, alto, rnd, g, color=(214, 200, 176)):
+    """La silueta de Constantinopla: cupulas con sus minaretes. La misma
+    sirve para la Alhambra de lejos o cualquier ciudad de Oriente."""
+    for k, (px, ancho) in enumerate(((0.10, .10), (0.30, .16), (0.55, .20), (0.80, .13))):
+        cx, a = w*px, w*ancho
+        cuerpo = [cx - a/2, base - alto*0.35, cx + a/2, base]
+        d.rectangle(cuerpo, fill=color, outline=TINTA, width=max(2, g//2))
+        d.pieslice([cx - a*0.38, base - alto*0.35 - a*0.38, cx + a*0.38, base - alto*0.35 + a*0.38],
+                   180, 360, fill=color, outline=TINTA, width=max(2, g//2))
+        d.line([(cx, base - alto*0.35 - a*0.38), (cx, base - alto*0.35 - a*0.50)], fill=TINTA,
+               width=max(2, g//2))
+        for lado in (-1, 1):                     # los minaretes
+            mx = cx + lado*a*0.62
+            d.rectangle([mx - w*0.006, base - alto*0.95, mx + w*0.006, base], fill=color,
+                        outline=TINTA, width=max(1, g//3))
+            d.polygon([(mx - w*0.008, base - alto*0.95), (mx, base - alto*1.12),
+                       (mx + w*0.008, base - alto*0.95)], fill=(140, 120, 100))
+
+
+def _divan(d, x, y, ancho, rnd, g):
+    """El divan del sultan: bajo, largo, rojo, con cojines."""
+    alto = ancho*0.22
+    d.rounded_rectangle([x - ancho/2, y - alto, x + ancho/2, y], radius=int(alto*0.3),
+                        fill=(170, 40, 50), outline=TINTA, width=g)
+    d.rectangle([x - ancho/2, y - alto*1.9, x + ancho/2, y - alto*0.9], fill=(140, 30, 40),
+                outline=TINTA, width=max(2, g//2))
+    for k in (-0.32, 0, 0.32):
+        cx = x + ancho*k
+        d.ellipse([cx - ancho*0.09, y - alto*1.55, cx + ancho*0.09, y - alto*0.85],
+                  fill=(236, 186, 40), outline=TINTA, width=max(2, g//2))
+
+
 def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     X, Y, T = w*x, h*y, w*tam
     if que == "ventana_mar":      _ventana_al_mar(d, X, h*y, T, h*tam*0.55, rnd, g)
@@ -4323,6 +4477,16 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "cruz_grande":    _cruz(d, X, h*y, h*tam, rnd, int(g*1.6), TINTA)
     elif que == "mastil":         _mastil(d, X, suelo, h, rnd, g)
     elif que == "batalla_naval":  _batalla_naval(d, w, h, suelo, rnd, g)
+    elif que == "arcos_otomanos":
+        for px in (0.30, 0.70):
+            _arco_apuntado(d, w*px, suelo, w*0.16, h*0.42, rnd, g, (24, 40, 74))
+    elif que == "estandarte_otomano":
+        _estandarte(d, X, h*y, T, h*tam*1.9, rnd, g, color=(196, 30, 40))
+        cx, cy, r = X, h*y + h*tam*0.75, T*0.20
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=BLANCO)
+        d.ellipse([cx - r*.45, cy - r*.85, cx + r*1.2, cy + r*.85], fill=(196, 30, 40))
+    elif que == "mezquitas":
+        _mezquitas(d, w, suelo - h*0.06, h*0.22, rnd, g)
     elif que == "casas":
         for k in range(5):
             px = w*(0.08 + 0.21*k)
@@ -4360,6 +4524,7 @@ def _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "olla_suelo": _olla(d, X, Y, h*tam, rnd, g)
     elif que == "mesa":       _mesa_con_cosas(d, X, Y, T, rnd, g, alto=h*0.075)
     elif que == "aparador":   _aparador(d, X, Y, T, rnd, g)
+    elif que == "divan":      _divan(d, X, Y, T, rnd, g)
     elif que == "acampada":
         rr = random.Random(5)
         for k in range(7):                                # fila de atras, mas pequeñas
