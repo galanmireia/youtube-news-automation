@@ -457,11 +457,45 @@ def _escena_animada(visual: dict, fotogramas: int, hacia_dentro: bool, carpeta: 
     return partes, sonidos_fx, ultimo
 
 
+def _mismo_monigote(guion: dict) -> list[str]:
+    """EL MISMO PERSONAJE, EL MISMO MONIGOTE. En el guion de Lepanto, don Juan
+    de Austria era Don Severo en tres planos y Perico en otro. Cada papel se
+    queda con el monigote que mas veces lleva - salvo en una escena donde ese
+    monigote ya lo usa otro, que ahi no se toca."""
+    from collections import Counter, defaultdict
+    escenas = []
+    for cap in guion.get("capitulos") or []:
+        for p in cap.get("planos") or []:
+            v = p.get("visual") or {}
+            if str(v.get("tipo") or "escena") == "escena":
+                escenas.append(v.get("escena") or v)
+    votos = defaultdict(Counter)
+    for e in escenas:
+        for f in e.get("figuras") or []:
+            if f.get("papel") and f.get("quien"):
+                votos[monigotes.clave_de_papel(f["papel"])][f["quien"]] += 1
+    cambios = []
+    for e in escenas:
+        figs = e.get("figuras") or []
+        for f in figs:
+            clave = monigotes.clave_de_papel(f.get("papel"))
+            if not clave or clave not in votos or not f.get("quien"):
+                continue
+            mejor = votos[clave].most_common(1)[0][0]
+            if mejor != f["quien"] and not any(o is not f and o.get("quien") == mejor for o in figs):
+                cambios.append(f"{f.get('papel')}: {f['quien']} -> {mejor}")
+                f["quien"] = mejor
+    return cambios
+
+
 def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path]:
     """De guion a video: voces, dibujos, planos y musica. Devuelve el video y
     la miniatura."""
     from pydub import AudioSegment
     carpeta.mkdir(parents=True, exist_ok=True)
+    cambios = _mismo_monigote(guion)
+    if cambios:
+        logger.info("largo: mismo personaje, mismo monigote: %s", "; ".join(cambios))
     planos = []   # (texto, visual, pausa_despues, es_suya)
     titulo = guion.get("titulo") or guion.get("titulo_youtube") or ""
     planos.append((guion.get("entrada") or f"Hola, bienvenido a {CHANNEL_NAME}.",
@@ -608,7 +642,9 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
                 pedidos.append(f"cap. {n}, plano {k}: {p['falta']}")
             if str(v.get("tipo") or "escena") != "escena":
                 continue
-            e = v.get("escena") or {}
+            # A veces la escena viene suelta en el visual, sin su "escena":
+            # se dibuja igual, y tiene que revisarse igual.
+            e = v.get("escena") or v
             dentro = str(e.get("interior") or "").strip().lower()
             if dentro:
                 (usados if dentro in validos["interior"] else inexistentes)[f"decorado {dentro}"] += 1

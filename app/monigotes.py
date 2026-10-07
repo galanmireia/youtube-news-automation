@@ -3527,6 +3527,7 @@ COSAS = {
     "multitud": _multitud, "toro": _toro, "guitarra": _guitarra, "pergamino": _pergamino,
     "cofre": _cofre, "barril": _barril, "antorcha": _antorcha, "catalejo": _catalejo,
     "carta": _carta, "cadenas": _cadenas,
+    "campana": lambda d, x, y, t, rnd, g, tinta=TINTA: _campana(d, x, y, t, rnd, g),
     "pancarta": _pancarta, "movil": _movil, "periodico": _periodico, "camara_tv": _camara_tv,
     "tienda": _tienda, "ambulancia": _ambulancia, "ataud": _ataud, "calendario": _calendario,
     "pelota": _pelota, "vaso": _vaso, "maletin": _maletin,
@@ -4471,6 +4472,21 @@ def _mezquitas(d, w, base, alto, rnd, g, color=(214, 200, 176)):
                        (mx + w*0.008, base - alto*0.95)], fill=(140, 120, 100))
 
 
+def _campana(d, x, y, t, rnd, g):
+    """Una campana de iglesia colgada de su yugo: las que repicaron por
+    toda Europa con la noticia de Lepanto."""
+    oro = (196, 150, 52)
+    arriba = y - t
+    d.line([(x - t*0.35, arriba), (x + t*0.35, arriba)], fill=MADERA_OSCURA, width=int(g*1.6))
+    for lado in (-1, 1):
+        d.line([(x + lado*t*0.35, arriba), (x + lado*t*0.35, y)], fill=MADERA_OSCURA, width=g)
+    cuerpo = [(x - t*0.12, arriba + t*0.12), (x + t*0.12, arriba + t*0.12), (x + t*0.17, arriba + t*0.45),
+              (x + t*0.27, arriba + t*0.62), (x - t*0.27, arriba + t*0.62), (x - t*0.17, arriba + t*0.45)]
+    d.polygon(cuerpo, fill=oro)
+    _linea(d, cuerpo + [cuerpo[0]], g, rnd)
+    d.ellipse([x - t*0.05, arriba + t*0.62, x + t*0.05, arriba + t*0.72], fill=TINTA)
+
+
 def _galeaza(d, x, y, t, rnd, g):
     """La galeaza veneciana: una galera grande, con castillos a proa y popa
     llenos de cañones. Las seis de Lepanto abrieron la batalla."""
@@ -4668,6 +4684,9 @@ def _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g):
             _linea(d, [(px, Y), (px, h)], int(g*1.8), rnd, color=MADERA_OSCURA)
 
 
+_NAVEGAN = ("barco", "galera", "galeaza", "gondola")
+
+
 def montar(spec: dict, w: int, h: int, semilla: int = 0):
     """Un decorado cualquiera, montado desde su receta y por capas.
 
@@ -4745,8 +4764,14 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
             # A ras de la misma linea que pisa la gente, o donde se diga si va
             # por el aire.
             py = h*float(c["y"]) if c.get("y") is not None else pies
-            dibuja(d, w*float(c.get("x", 0.5)), py, h*float(c.get("tam", 0.14)),
-                   rnd, max(4, int(w*0.006)))
+            tam = h*float(c.get("tam", 0.14))
+            # LOS BARCOS VAN EN EL MAR. Con el mar de fondo (la cubierta, el
+            # puerto, la batalla) una galera "en el suelo" salia gigante
+            # encima de las tablas de la cubierta, como varada en el barco.
+            # Se mandan al agua, lejos y del tamaño de lejos.
+            if c.get("que") in _NAVEGAN and receta["pared"] == "cielo_mar" and c.get("y") is None:
+                py, tam = suelo - h*0.012, min(tam, h*0.10)
+            dibuja(d, w*float(c.get("x", 0.5)), py, tam, rnd, max(4, int(w*0.006)))
 
     _pinta_cosas(delante=False)
     _camas(d, spec, h, w, lambda f: pies, rnd, max(4, int(w*0.006)), "detras")
