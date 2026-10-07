@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 from io import BytesIO
 import logging
@@ -556,13 +557,49 @@ async def handle_largo_command(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     minutos = max(3, min(largo._MINUTOS_MAX, minutos))
     await update.message.reply_text(
-        f"Empiezo el video largo de «{tema}», unos {minutos} minutos. Primero el guion por "
-        "capitulos, luego tu voz en la entrada y la de Google en el resto, y al final los "
-        "dibujos. Tardara un buen rato; te lo mando aqui cuando este.")
-    context.application.create_task(_run_largo_and_notify(context.bot, tema, minutos))
+        f"Paso 1: escribo el guion del video largo de «{tema}» (unos {minutos} minutos). Solo el "
+        "guion, que cuesta centimos: te mando el indice y que dibujos pide, para dibujar lo que "
+        "falte antes de montarlo. Cuando este todo, manda /montar.")
+    context.application.create_task(_run_largo_guion_and_notify(context.bot, tema, minutos))
 
 
-async def _run_largo_and_notify(bot, tema: str, minutos: int) -> None:
+async def _run_largo_guion_and_notify(bot, tema: str, minutos: int) -> None:
+    from .largo import run_largo_guion
+    loop = asyncio.get_running_loop()
+    async with _pipeline_lock:
+        try:
+            texto = await asyncio.wait_for(
+                loop.run_in_executor(None, run_largo_guion, tema, minutos), timeout=20*60)
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=(
+                "Guion del video largo listo:\n\n" + texto +
+                "\n\nCuando este todo dibujado, manda /montar para hacer el video.")[:4000])
+        except Exception:
+            logger.exception("Error escribiendo el guion del video largo")
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                                   text="Error escribiendo el guion del video largo, revisa los logs.")
+
+
+async def handle_montar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/montar: el paso 2 de /largo - voces, dibujos y montaje del guion que
+    quedo guardado."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    if _pipeline_lock.locked():
+        await update.message.reply_text("Ya hay una generacion en curso, espera a que termine.")
+        return
+    from . import largo
+    if not largo.hay_pendiente():
+        await update.message.reply_text("No hay ningun guion largo esperando. Primero /largo tema.")
+        return
+    guion = json.loads(largo._PENDIENTE.read_text())
+    minutos = int(guion.get("_minutos") or 10)
+    await update.message.reply_text(
+        f"Paso 2: monto el video largo de «{guion.get('_tema')}»: tu voz en la entrada, la de "
+        "Google en el resto, y los dibujos animados. Tardara un buen rato; te lo mando aqui.")
+    context.application.create_task(_run_largo_and_notify(context.bot, None, minutos))
+
+
+async def _run_largo_and_notify(bot, tema: str | None, minutos: int) -> None:
     from .largo import run_largo
     loop = asyncio.get_running_loop()
 
@@ -2254,6 +2291,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("generar", handle_generate_command))
     application.add_handler(CommandHandler("literal", handle_literal_command))
     application.add_handler(CommandHandler("largo", handle_largo_command))
+    application.add_handler(CommandHandler("montar", handle_montar_command))
     application.add_handler(CommandHandler("reset", handle_reset_command))
     application.add_handler(CommandHandler("parar", handle_stop_command))
     application.add_handler(CommandHandler("voces", handle_voices_command))

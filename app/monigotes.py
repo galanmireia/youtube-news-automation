@@ -526,6 +526,14 @@ def _gorro(d, cab, rc, g, rnd, cual):
                    (x, arriba-rc*1.45), (x+rc*.60, arriba-rc*.70),
                    (x+rc*.78, arriba+rc*.08), (x-rc*.78, arriba+rc*.08)], g, rnd)
         d.line([(x, arriba-rc*1.30), (x, arriba)], fill=oro, width=g)
+    elif cual == "dux":             # el dux de Venecia: el corno ducal, con su cuerno detras
+        base = arriba + rc*0.12
+        pts = [(x - rc*.80, base), (x - rc*.70, base - rc*.70), (x - rc*.10, base - rc*.95),
+               (x + rc*.55, base - rc*1.45), (x + rc*.80, base - rc*.55), (x + rc*.80, base)]
+        d.polygon(pts, fill=(236, 186, 40))
+        _linea(d, pts + [pts[0]], g, rnd)
+        d.line([(x - rc*.80, base - rc*.12), (x + rc*.80, base - rc*.12)], fill=(250, 248, 244),
+               width=int(g*1.4))
     elif cual == "tiara":           # el Papa: la triple corona blanca con cruz
         base, alto_t = arriba + rc*0.10, rc*1.45
         cuerpo = [(x - rc*.70, base), (x - rc*.62, base - alto_t*.55), (x - rc*.38, base - alto_t*.92),
@@ -2024,6 +2032,7 @@ GORROS_EXPLICADOS = {
     "marinero":   "gorro de marinero",
     "peluca":     "peluca blanca empolvada del XVIII: Borbones, cortesanos, ministros",
     "turbante":   "Al-Andalus, sultanes, embajadores de Oriente",
+    "dux":        "EL DUX DE VENECIA: el gorro dorado con un cuerno detras (Sebastiano Venier, el gobernante de Venecia)",
     "tiara":      "EL PAPA: la triple corona blanca con cruz (Pio quinto, el Papa Luna en su trono). Un obispo o un cardenal llevan mitra",
     "chistera":   "sombrero de copa del XIX: politicos, banqueros, caballeros",
     "peineta":    "peineta y mantilla negra: la dama española",
@@ -3509,6 +3518,8 @@ COSAS = {
     "perro": _perro, "caballo": _caballo, "barco": _barco, "casa": _casa,
     "iglesia": _iglesia, "castillo": _castillo, "espada": _espada,
     "galera": lambda d, x, y, t, rnd, g, tinta=TINTA: _galera(d, x, y, t*0.95, rnd, g),
+    "galeaza": lambda d, x, y, t, rnd, g, tinta=TINTA: _galeaza(d, x, y, t, rnd, g),
+    "gondola": lambda d, x, y, t, rnd, g, tinta=TINTA: _gondola(d, x, y, t, rnd, g),
     "canion": _canion, "fuego": _fuego, "dinero": _dinero, "libro": _libro,
     "cruz": _cruz, "olla": _olla, "montaña": _montaña, "naranjas": _naranjas,
     "naranjo": _naranjo, "pan": _pan, "escudo": _escudo, "mapa": _mapa,
@@ -4134,6 +4145,19 @@ _DECORADOS = {
     "constantinopla": {"pared": "cielo_mar", "piso": "tablas",
                      "fondo": [("mezquitas", .5, 1.0, 1.0)], "muebles": [], "delante": [],
                      "cuelga": [("galera", .20, .70, .10), ("galera", .82, .70, .08)], "velas": []},
+    "venecia":      {"pared": "cielo", "piso": "adoquines",
+                     "fondo": [("palacio_ducal", .5, 1.0, 1.0)], "muebles": [], "delante": [],
+                     "cuelga": [], "velas": []},
+    "vaticano":     {"pared": "cielo", "piso": "adoquines",
+                     "fondo": [("san_pedro", .5, 1.0, 1.0)], "muebles": [], "delante": [],
+                     "cuelga": [], "velas": []},
+    "hospital":     {"pared": "encalada", "piso": "losas",
+                     "fondo": [("ventana_arco", .50, .26, .14), ("cruz_grande", .18, .40, .10)],
+                     "muebles": [("camastros", .5, .0, 1.0)], "delante": [], "cuelga": [],
+                     "velas": [(.82, -.30)]},
+    "costa":        {"pared": "cielo_mar", "piso": "tierra",
+                     "fondo": [("costa", .5, 1.0, 1.0)], "muebles": [], "delante": [],
+                     "cuelga": [("galera", .40, .66, .07), ("galera", .62, .66, .06)], "velas": []},
     "mina":         {"pared": "roca", "piso": "tierra",
                      "fondo": [("puntales", .5, 1.0, 1.0)],
                      "muebles": [], "delante": [], "cuelga": [], "velas": [(.30, -.30), (.70, -.24)]},
@@ -4205,7 +4229,11 @@ DECORADOS_VALIDOS = tuple(_DECORADOS)
 DECORADOS_EXPLICADOS = {
     "taberna":     "mesas, chimenea, ventana al puerto",
     "monasterio":  "piedra, ventana de arco, mesa larga",
-    "salon_trono": "trono, estandartes, espadas en la pared",
+    "salon_trono": "trono, estandartes CON LA BANDERA DE ESPAÑA, espadas en la pared: la corte de los reyes de España. Para el sultan es palacio_otomano; para el Papa, vaticano o iglesia",
+    "venecia":     "VENECIA: el Palacio Ducal rosa con sus arcos y el campanile de San Marcos. El dux, el Senado veneciano, la Republica de Venecia",
+    "vaticano":    "ROMA, EL VATICANO: la fachada de San Pedro con su cupula. El Papa, la Santa Sede, los cardenales",
+    "hospital":    "UN HOSPITAL ANTIGUO: sala encalada con camastros en fila y una cruz. Heridos, enfermos, epidemias (Cervantes herido en Mesina)",
+    "costa":       "UN PUEBLO DE LA COSTA con su torre vigia y galeras en el mar: ataques de corsarios y piratas berberiscos, desembarcos",
     "cocina":      "fogon, estantes con ollas, mesa: la casa de la gente corriente de cualquier siglo antiguo",
     "iglesia":     "arcos, cruz, bancos",
     "calle":       "casas, adoquines",
@@ -4443,6 +4471,101 @@ def _mezquitas(d, w, base, alto, rnd, g, color=(214, 200, 176)):
                        (mx + w*0.008, base - alto*0.95)], fill=(140, 120, 100))
 
 
+def _galeaza(d, x, y, t, rnd, g):
+    """La galeaza veneciana: una galera grande, con castillos a proa y popa
+    llenos de cañones. Las seis de Lepanto abrieron la batalla."""
+    _galera(d, x, y, t, rnd, g)
+    for lado in (-1, 1):
+        cx = x + lado*t*0.62
+        caja = [cx - t*0.20, y - t*0.42, cx + t*0.20, y - t*0.14]
+        d.rectangle(caja, fill=MADERA_OSCURA, outline=TINTA, width=max(2, g//2))
+        for k in (-0.1, 0.06):
+            d.ellipse([cx + t*k - t*0.03, y - t*0.31, cx + t*k + t*0.03, y - t*0.25], fill=TINTA)
+
+
+def _gondola(d, x, y, t, rnd, g):
+    """La gondola de Venecia: negra, larga, con las puntas levantadas y el
+    gondolero de pie con su remo."""
+    casco = [(x - t*0.9, y - t*0.32), (x - t*0.7, y - t*0.06), (x + t*0.7, y - t*0.06),
+             (x + t*0.9, y - t*0.36), (x + t*0.75, y), (x - t*0.75, y)]
+    d.polygon(casco, fill=(28, 26, 30))
+    _linea(d, casco + [casco[0]], max(2, g//2), rnd)
+    d.line([(x + t*0.45, y - t*0.95), (x + t*0.70, y + t*0.10)], fill=MADERA, width=max(2, g//2))
+
+
+def _palacio_ducal(d, w, suelo, h, rnd, g):
+    """Venecia: el Palacio Ducal rosa y blanco con sus dos filas de arcos, y
+    el campanile de San Marcos al lado."""
+    x0, x1 = w*0.04, w*0.66
+    alto = h*0.40
+    d.rectangle([x0, suelo - alto, x1, suelo], fill=(236, 200, 190), outline=TINTA, width=g)
+    rr = random.Random(3)
+    for k in range(40):                                   # el rombo rosa de la fachada
+        px, py = rr.uniform(x0, x1), rr.uniform(suelo - alto, suelo - alto*0.45)
+        r = w*0.006
+        d.polygon([(px, py - r), (px + r, py), (px, py + r), (px - r, py)], fill=(214, 150, 150))
+    ancho = (x1 - x0)/12
+    for fila, (arriba, abajo) in enumerate(((0.42, 0.22), (0.20, 0.0))):
+        for k in range(12):
+            cx = x0 + ancho*(k + 0.5)
+            yb = suelo - alto*abajo
+            ya = suelo - alto*arriba
+            d.rectangle([cx - ancho*0.32, ya + ancho*0.32, cx + ancho*0.32, yb], fill=(70, 60, 64))
+            d.pieslice([cx - ancho*0.32, ya, cx + ancho*0.32, ya + ancho*0.64], 180, 360, fill=(70, 60, 64))
+    cx = w*0.80                                           # el campanile
+    d.rectangle([cx - w*0.035, suelo - h*0.58, cx + w*0.035, suelo], fill=(176, 92, 72),
+                outline=TINTA, width=g)
+    d.rectangle([cx - w*0.04, suelo - h*0.64, cx + w*0.04, suelo - h*0.56], fill=(236, 226, 206),
+                outline=TINTA, width=max(2, g//2))
+    d.polygon([(cx - w*0.04, suelo - h*0.64), (cx, suelo - h*0.78), (cx + w*0.04, suelo - h*0.64)],
+              fill=(80, 130, 110), outline=TINTA)
+
+
+def _san_pedro(d, w, suelo, h, rnd, g):
+    """Roma: la fachada de San Pedro con sus columnas y la cupula detras."""
+    cx = w*0.5
+    d.pieslice([cx - w*0.13, suelo - h*0.66, cx + w*0.13, suelo - h*0.40], 180, 360,
+               fill=(196, 206, 214), outline=TINTA, width=g)
+    d.line([(cx, suelo - h*0.66), (cx, suelo - h*0.72)], fill=TINTA, width=g)
+    d.line([(cx - w*0.008, suelo - h*0.70), (cx + w*0.008, suelo - h*0.70)], fill=TINTA, width=g)
+    d.rectangle([cx - w*0.30, suelo - h*0.44, cx + w*0.30, suelo], fill=(232, 222, 200),
+                outline=TINTA, width=g)
+    d.polygon([(cx - w*0.12, suelo - h*0.44), (cx, suelo - h*0.52), (cx + w*0.12, suelo - h*0.44)],
+              fill=(232, 222, 200), outline=TINTA)
+    for k in range(9):
+        px = cx - w*0.27 + k*w*0.0675
+        d.rectangle([px - w*0.008, suelo - h*0.38, px + w*0.008, suelo], fill=(214, 204, 182),
+                    outline=TINTA, width=max(1, g//3))
+
+
+def _camastros(d, w, suelo, h, rnd, g):
+    """El hospital: una fila de camastros con sabanas blancas al fondo."""
+    for k in range(4):
+        cx = w*(0.14 + 0.24*k)
+        y = suelo + h*0.02
+        d.rectangle([cx - w*0.08, y - h*0.06, cx + w*0.08, y], fill=MADERA, outline=TINTA, width=max(2, g//2))
+        d.rectangle([cx - w*0.08, y - h*0.085, cx + w*0.08, y - h*0.05], fill=(244, 240, 230),
+                    outline=TINTA, width=max(2, g//2))
+        d.ellipse([cx - w*0.075, y - h*0.11, cx - w*0.035, y - h*0.075], fill=(250, 248, 244),
+                  outline=TINTA, width=max(1, g//3))
+
+
+def _costa(d, w, suelo, h, rnd, g):
+    """Un pueblo de la costa: casas blancas en lo alto y la torre de vigia,
+    la que avisaba cuando venian los corsarios."""
+    base = suelo - h*0.06
+    for k in range(6):
+        px = w*(0.05 + 0.08*k)
+        alto = h*rnd.uniform(0.07, 0.10)
+        d.rectangle([px, base - alto, px + w*0.06, base], fill=(246, 244, 236), outline=TINTA, width=max(2, g//2))
+        d.rectangle([px + w*0.02, base - alto*0.6, px + w*0.035, base - alto*0.3], fill=(80, 110, 150))
+    tx = w*0.86
+    d.rectangle([tx - w*0.03, base - h*0.30, tx + w*0.03, base], fill=PIEDRA_CLARA, outline=TINTA, width=g)
+    for k in range(3):
+        d.rectangle([tx - w*0.03 + k*w*0.024, base - h*0.33, tx - w*0.018 + k*w*0.024, base - h*0.30],
+                    fill=PIEDRA_CLARA, outline=TINTA, width=max(1, g//3))
+
+
 def _divan(d, x, y, ancho, rnd, g):
     """El divan del sultan: bajo, largo, rojo, con cojines."""
     alto = ancho*0.22
@@ -4485,6 +4608,9 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
         cx, cy, r = X, h*y + h*tam*0.75, T*0.20
         d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=BLANCO)
         d.ellipse([cx - r*.45, cy - r*.85, cx + r*1.2, cy + r*.85], fill=(196, 30, 40))
+    elif que == "palacio_ducal":  _palacio_ducal(d, w, suelo, h, rnd, g)
+    elif que == "san_pedro":      _san_pedro(d, w, suelo, h, rnd, g)
+    elif que == "costa":          _costa(d, w, suelo, h, rnd, g)
     elif que == "mezquitas":
         _mezquitas(d, w, suelo - h*0.06, h*0.22, rnd, g)
     elif que == "casas":
@@ -4525,6 +4651,7 @@ def _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "mesa":       _mesa_con_cosas(d, X, Y, T, rnd, g, alto=h*0.075)
     elif que == "aparador":   _aparador(d, X, Y, T, rnd, g)
     elif que == "divan":      _divan(d, X, Y, T, rnd, g)
+    elif que == "camastros":  _camastros(d, w, suelo, h, rnd, g)
     elif que == "acampada":
         rr = random.Random(5)
         for k in range(7):                                # fila de atras, mas pequeñas

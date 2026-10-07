@@ -111,7 +111,12 @@ Escribe ahora el CAPITULO {n}: «{titulo}» - {resumen}
 Unas {palabras} palabras de narracion, partidas en PLANOS de {pmin} a {pmax} palabras cada uno.
 {anterior}
 Devuelve SOLO este JSON:
-{{"planos": [{{"narracion": "...", "visual": {{...}}, "sonido": ""}}]}}
+{{"planos": [{{"narracion": "...", "visual": {{...}}, "sonido": "", "falta": ""}}]}}
+
+"falta": SOLO si para dibujar bien ese plano necesitarias algo que NO esta en las listas (un
+decorado, una bandera, un gorro, un objeto, una postura), dilo aqui en pocas palabras ("el
+Senado de Venecia por dentro", "bandera de Genova"); si no falta nada, "". Se dibujara antes de
+montar el video, asi que pidelo sin miedo - pero usa entretanto lo mas parecido que exista.
 
 "sonido": un ruido de fondo suave para ese plano, uno de [gentio, campana, fuego, pasos, espada,
 tormenta, mar, monedas, puerta, caballo], o "" (lo normal). Solo donde pegue de verdad: "mar" en
@@ -578,19 +583,98 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path]:
     return final, jpg
 
 
-def run_largo(on_done, tema: str, minutos: int) -> list[int]:
-    """Lo que lanza /largo: guion, voces, dibujos, montaje y a Telegram."""
+_PENDIENTE = Path(DATA_DIR) / "largo_pendiente.json"
+
+
+def revisa(guion: dict) -> tuple[str, list[str]]:
+    """Lo que el guion pide dibujar, y lo que pide y NO existe.
+
+    Ella: "¿estas seguro que has hecho todos? Yo creo que no". No se podia
+    estar seguro: limpia() cambia en silencio lo que no existe por algo que
+    si, y el video sale con un fondo cualquiera sin que nadie se entere.
+    Esto lo dice antes de gastar en voces y dibujos."""
+    from collections import Counter
+    llevables = set(monigotes.LLEVABLES_EXPLICADOS)
+    validos = {"interior": set(monigotes.DECORADOS_VALIDOS), "gorro": set(monigotes.GORROS_VALIDOS),
+               "objeto": set(monigotes.OBJETOS_VALIDOS), "pose": set(monigotes.POSES_VALIDAS),
+               "efecto": set(monigotes.EFECTOS_VALIDOS), "lleva": llevables,
+               "cosa": set(monigotes.COSAS_VALIDAS)}
+    usados, inexistentes, pedidos, tipos = Counter(), Counter(), [], Counter()
+    for n, cap in enumerate(guion.get("capitulos") or [], start=1):
+        for k, p in enumerate(cap.get("planos") or [], start=1):
+            v = p.get("visual") or {}
+            tipos[str(v.get("tipo") or "escena")] += 1
+            if p.get("falta"):
+                pedidos.append(f"cap. {n}, plano {k}: {p['falta']}")
+            if str(v.get("tipo") or "escena") != "escena":
+                continue
+            e = v.get("escena") or {}
+            dentro = str(e.get("interior") or "").strip().lower()
+            if dentro:
+                (usados if dentro in validos["interior"] else inexistentes)[f"decorado {dentro}"] += 1
+            for c in e.get("cosas") or []:
+                que = str((c or {}).get("que") or "").strip().lower()
+                if que and que not in validos["cosa"]:
+                    inexistentes[f"cosa {que}"] += 1
+            for f in e.get("figuras") or []:
+                for campo in ("gorro", "objeto", "pose", "pose_fin", "efecto", "lleva"):
+                    val = str((f or {}).get(campo) or "").strip().lower()
+                    clave = "pose" if campo == "pose_fin" else campo
+                    if val and val not in validos[clave]:
+                        inexistentes[f"{clave} {val}"] += 1
+    lineas = [f"«{guion.get('titulo_youtube') or guion.get('titulo')}»", ""]
+    for n, cap in enumerate(guion.get("capitulos") or [], start=1):
+        lineas.append(f"{n}. {cap.get('titulo')} ({len(cap.get('planos') or [])} planos)")
+    lineas += ["", "Planos: " + ", ".join(f"{t} {c}" for t, c in tipos.most_common()),
+               "Decorados: " + ", ".join(f"{u.split(' ', 1)[1]} {c}" for u, c in usados.most_common())]
+    faltan = [f"{x} (x{c})" for x, c in inexistentes.most_common()] + pedidos
+    if faltan:
+        lineas += ["", "⚠️ PIDE COSAS QUE NO ESTAN DIBUJADAS:"] + [f"- {x}" for x in faltan]
+    else:
+        lineas += ["", "✅ Todo lo que pide esta dibujado."]
+    return "\n".join(lineas), faltan
+
+
+def run_largo_guion(tema: str, minutos: int) -> str:
+    """PASO 1 de /largo: solo el guion (unos centimos). Se guarda y se dice
+    que pide dibujar, para dibujar lo que falte ANTES de montar."""
+    from .pipeline import _stop_requested
+    _stop_requested.clear()
+    logger.info("[largo] Escribiendo el guion de %r (%s minutos)...", tema, minutos)
+    guion = escribe_guion(tema, minutos, parar=_stop_requested.is_set)
+    guion["_tema"], guion["_minutos"] = tema, minutos
+    _PENDIENTE.write_text(json.dumps(guion, ensure_ascii=False, indent=1))
+    texto, faltan = revisa(guion)
+    logger.info("[largo] Guion guardado. %s", texto.replace("\n", " | "))
+    for i, cap in enumerate(guion["capitulos"], start=1):
+        for k, p in enumerate(cap["planos"], start=1):
+            logger.info("[largo] %s.%s %s", i, k, json.dumps(p.get("visual"), ensure_ascii=False)[:400])
+    coste = llm_usage.report_and_reset()
+    if coste:
+        logger.info("[largo] %s", coste)
+    return texto
+
+
+def hay_pendiente() -> bool:
+    return _PENDIENTE.exists()
+
+
+def run_largo(on_done, tema: str | None = None, minutos: int | None = None) -> list[int]:
+    """PASO 2 de /largo (/montar): voces, dibujos, montaje y a Telegram, con
+    el guion que dejo el paso 1. Con tema, escribe el guion antes."""
     from . import storage
     from .pipeline import GenerationStopped, _stop_requested, cleanup_finished_video_files
     _stop_requested.clear()
     cleanup_finished_video_files()
     carpeta = Path(DATA_DIR) / f"largo_{int(time.time())}"
     try:
-        logger.info("[largo] 1/3 Escribiendo el guion de %r (%s minutos)...", tema, minutos)
-        guion = escribe_guion(tema, minutos, parar=_stop_requested.is_set)
-        (carpeta).mkdir(parents=True, exist_ok=True)
-        (carpeta / "guion.json").write_text(json.dumps(guion, ensure_ascii=False, indent=1))
-        logger.info("[largo] 2/3 Voces y dibujos (%s capitulos)...", len(guion["capitulos"]))
+        if tema:
+            guion = escribe_guion(tema, minutos or 10, parar=_stop_requested.is_set)
+        else:
+            guion = json.loads(_PENDIENTE.read_text())
+            tema = guion.get("_tema", "")
+        carpeta.mkdir(parents=True, exist_ok=True)
+        logger.info("[largo] Voces y dibujos de %r (%s capitulos)...", tema, len(guion["capitulos"]))
         video, miniatura = monta(guion, carpeta, parar=_stop_requested.is_set)
     except GenerationStopped as exc:
         logger.info("Generacion del largo detenida: %s", exc)
@@ -599,7 +683,8 @@ def run_largo(on_done, tema: str, minutos: int) -> list[int]:
     except Exception:
         shutil.rmtree(carpeta, ignore_errors=True)
         raise
-    logger.info("[largo] 3/3 Listo: %s", video)
+    _PENDIENTE.unlink(missing_ok=True)
+    logger.info("[largo] Listo: %s", video)
     coste = llm_usage.report_and_reset()
     if coste:
         logger.info("[largo] %s", coste)
