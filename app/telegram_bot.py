@@ -86,13 +86,17 @@ _PIPELINE_TIMEOUT_SECONDS = 50 * 60
 _PIE_MAXIMO = 1000
 
 
-def _recorta_pie(texto: str) -> str:
-    """El pie, recortado por un salto de linea si hace falta."""
-    if len(texto) <= _PIE_MAXIMO:
+def _recorta_pie(texto: str, reserva: int = 0) -> str:
+    """El pie, recortado por un salto de linea si hace falta. `reserva` deja
+    sitio para la nota que se le añade despues: el largo de Lepanto (#114) se
+    quedo sin enviar porque el pie recortado mas "(Vista previa comprimida...)"
+    se pasaba otra vez del limite."""
+    maximo = _PIE_MAXIMO - reserva
+    if len(texto) <= maximo:
         return texto
-    corte = texto.rfind("\n", 0, _PIE_MAXIMO - 20)
-    if corte < _PIE_MAXIMO // 2:
-        corte = _PIE_MAXIMO - 20
+    corte = texto.rfind("\n", 0, maximo - 20)
+    if corte < maximo // 2:
+        corte = maximo - 20
     return texto[:corte].rstrip() + "\n\n[...]"
 
 
@@ -124,7 +128,8 @@ async def send_for_approval(bot, video_id: int) -> None:
         )
         if preview is not None:
             to_send = preview
-            caption += "\n\n(Vista previa comprimida; a YouTube sube la version completa)"
+            nota = "\n\n(Vista previa comprimida; a YouTube sube la version completa)"
+            caption = _recorta_pie(caption_completo, reserva=len(nota)) + nota
 
     try:
         with open(to_send, "rb") as video_file, open(record["thumbnail_path"], "rb") as thumb_file:
@@ -144,7 +149,8 @@ async def send_for_approval(bot, video_id: int) -> None:
             message = await bot.send_photo(
                 chat_id=TELEGRAM_CHAT_ID,
                 photo=thumbnail_file,
-                caption=caption + "\n\n(Video demasiado grande para previsualizar aqui)",
+                caption=_recorta_pie(caption_completo, reserva=60)
+                + "\n\n(Video demasiado grande para previsualizar aqui)",
                 parse_mode="Markdown",
                 reply_markup=keyboard,
             )
