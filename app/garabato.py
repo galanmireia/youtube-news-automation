@@ -34,6 +34,7 @@ from . import monigotes as m
 
 logger = logging.getLogger(__name__)
 from .garabato_mas import MAS_OBJETOS, REHECHOS
+from .garabato_bichos import ANIMALES
 from . import garabato_ambiente
 from . import mascota as _mascota
 
@@ -581,8 +582,13 @@ for _n, _f in MAS_OBJETOS.items():
 for _n, _f in REHECHOS.items():
     if _n in OBJETOS:
         OBJETOS[_n] = _f
+# Y los animales, de la familia de Mokordo (gorditos, con sus ojazos).
+for _n, _f in ANIMALES.items():
+    if _n in OBJETOS:
+        OBJETOS[_n] = _f
 # Lo que el guion pide con otro nombre: "igualdad", "signo_igual"...
-_ALIAS_OBJETOS = {"horse": "caballo", "camel": "camello", "elephant": "elefante", "pig": "cerdo",
+_ALIAS_OBJETOS = {"gear": "engranaje", "rueda_dentada": "engranaje", "engranajes": "engranaje",
+                  "horse": "caballo", "camel": "camello", "elephant": "elefante", "pig": "cerdo",
                   "chicken": "gallina", "hen": "gallina", "lion": "leon", "rabbit": "conejo",
                   "turtle": "tortuga", "frog": "rana", "sheep": "oveja", "cat": "gato", "fish": "pez",
                   "bird": "pajaro", "bee": "abeja", "spider": "arana", "snake": "serpiente", "cow": "vaca",
@@ -610,7 +616,7 @@ _DE_MONIGOTES = ("sol", "nube", "fuego", "perro", "caballo", "vaso", "libro", "a
                  "dinero", "pelota", "maletin", "calendario", "periodico", "espada", "carta",
                  "barco", "toro", "cofre", "antorcha")
 OBJETOS_VALIDOS = tuple(OBJETOS) + tuple(n for n in _DE_MONIGOTES if n in m.COSAS)
-OBJETOS_TODOS = {**{n: m.COSAS[n] for n in _DE_MONIGOTES if n in m.COSAS}, **OBJETOS, **REHECHOS}
+OBJETOS_TODOS = {**{n: m.COSAS[n] for n in _DE_MONIGOTES if n in m.COSAS}, **OBJETOS, **REHECHOS, **ANIMALES}
 # Se registran en monigotes para que montar() los pinte como cualquier cosa.
 for _n, _f in OBJETOS.items():
     m.COSAS.setdefault(_n, _f)

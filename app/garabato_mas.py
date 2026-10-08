@@ -1341,6 +1341,19 @@ def _fuente(px):
         return ImageFont.load_default()
 
 
+def _engranaje(d, x, y, t, rnd, g, tinta=TINTA):
+    """La rueda dentada: la maquinaria (del cerebro, de lo que sea)."""
+    cy, r = y - t*0.5, t*0.36
+    pts = []
+    for k in range(10):
+        for a0, rr in ((-0.16, r), (-0.1, r*1.28), (0.1, r*1.28), (0.16, r)):
+            a = (k/10)*2*math.pi + a0*2*math.pi/10*1.6
+            pts.append((x + math.cos(a)*rr, cy + math.sin(a)*rr))
+    _cont(d, pts, (175, 185, 200), g, rnd)
+    _circ(d, x, cy, r*0.75, (200, 208, 220), max(2, g//2))
+    _circ(d, x, cy, r*0.3, (252, 252, 250), g)
+
+
 MAS_OBJETOS = {
     # el cuerpo y la salud
     "diente": _diente, "hueso": _hueso, "nariz": _nariz, "oreja": _oreja, "lengua": _lengua,
@@ -1372,7 +1385,7 @@ MAS_OBJETOS = {
     "lupa": _lupa, "nota_musical": _nota, "bateria": _bateria(True), "bateria_baja": _bateria(False),
     "candado": _candado, "iman": _iman, "regalo": _regalo, "trofeo": _trofeo, "dado": _dado,
     "altavoz": _altavoz, "atomo": _atomo, "diana": _diana, "balanza": _balanza, "pesa": _pesa,
-    "robot": _robot, "moneda": _moneda,
+    "robot": _robot, "moneda": _moneda, "engranaje": _engranaje,
 }
 # Los rehechos ganan a los de antes (y a los de España Contada, solo aqui).
 REHECHOS = {"arbol": _arbol, "sol": _sol, "nube": _nube, "pelota": _pelota, "dinero": _dinero,
