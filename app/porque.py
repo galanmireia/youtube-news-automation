@@ -58,10 +58,11 @@ it matters ("ninety-five degrees"), and no symbols it can't read.
 THE DRAWINGS. Every shot ("plano") has a "visual", drawn by a program from closed lists - if
 it is not in the lists, it cannot be drawn. A visual has any of:
   "figuras": 0-3 stick people: {{"quien": one of {quienes} ("persona" = adult, "persona_b" =
-             adult with a bun, "nino" = kid), "x": 0.12-0.88, "pose": one of {poses},
+             adult with a bun, "nino" = kid, "abuelo" = old bearded man / scientist), "x": 0.12-0.88, "pose": one of {poses},
              "pose_fin": another pose (the figure moves from one to the other - use it often),
              "gesto": one of {gestos}, "efecto": one of {efectos} or omit,
-             "lleva": what they hold, one of {llevables} or omit, "espejo": true to face left}}
+             "lleva": what they hold: any object of the "cosas" list (a feather, a phone...)
+             or one of {llevables}, or omit; "espejo": true to face left}}
   "cosas":   0-5 objects: {{"que": one of {objetos}, "x": 0.05-0.95, "tam": 0.06-0.55 (height,
              fraction of the screen), "y": 0.1-0.9 = its CENTER if it floats (omit "y" and it
              stands on the floor)}}
@@ -234,9 +235,14 @@ def run_alarga() -> str:
 def revisa(guion: dict) -> tuple[str, list[str]]:
     """Que pide el guion, y que pide que NO esta dibujado."""
     from collections import Counter
-    validos = {"que": set(garabato.OBJETOS_VALIDOS), "pose": set(monigotes.POSES_VALIDAS),
-               "gesto": set(monigotes.GESTOS_VALIDOS), "efecto": set(monigotes.EFECTOS_VALIDOS),
-               "lleva": set(monigotes.LLEVABLES_EXPLICADOS), "quien": set(garabato.QUIENES)}
+    # Lo que garabato traduce solo tambien vale: "gesto confuso", "pose
+    # asustado", "lleva pluma".
+    validos = {"que": set(garabato.OBJETOS_VALIDOS),
+               "pose": set(monigotes.POSES_VALIDAS) | set(garabato._POSE_ES_GESTO),
+               "gesto": set(monigotes.GESTOS_VALIDOS) | set(garabato._GESTO_ES_EFECTO),
+               "efecto": set(monigotes.EFECTOS_VALIDOS),
+               "lleva": set(monigotes.LLEVABLES_EXPLICADOS) | set(garabato.OBJETOS_VALIDOS),
+               "quien": set(garabato.QUIENES)}
     faltan, pedidos, usados = Counter(), [], Counter()
     planos = 0
     palabras = 0
@@ -294,6 +300,23 @@ def hay_pendiente() -> bool:
     return _PENDIENTE.exists()
 
 
+_CARETA = 2.8     # segundos que se ve el titulo
+
+
+def _cartel_titulo(titulo: str) -> dict:
+    """El titulo en grande, en una o dos lineas, y WHY THOUGH debajo."""
+    palabras = titulo.upper().split()
+    if len(" ".join(palabras)) > 22 and len(palabras) > 1:
+        corte = max(1, len(palabras)//2)
+        lineas = [" ".join(palabras[:corte]), " ".join(palabras[corte:])]
+    else:
+        lineas = [" ".join(palabras)]
+    textos = [{"texto": l, "x": 0.5, "y": 0.36 + k*0.18 - (0.09 if len(lineas) == 1 else 0),
+               "tam": 0.16, "color": "rojo", "giro": -2} for k, l in enumerate(lineas)]
+    textos.append({"texto": CHANNEL_NAME.upper(), "x": 0.5, "y": 0.8, "tam": 0.07, "color": "negro"})
+    return {"textos": textos, "_careta": True}
+
+
 def _minuto(segundos: float) -> str:
     s = int(segundos)
     return f"{s//60}:{s % 60:02d}"
@@ -311,6 +334,11 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             ultimo = k == len(cap["planos"]) - 1
             planos.append((str(p["narracion"]), p.get("visual") or {},
                            _PAUSA_CAPITULO if ultimo else _PAUSA_PLANO, n))
+        if n == 0 and len(guion["capitulos"]) > 1:
+            # EL TITULO, DETRAS DEL GANCHO, como la careta de España Contada:
+            # "¿has puesto la intro?". Tres segundos en silencio (solo la
+            # campana): el titulo a rotulador y el nombre del canal debajo.
+            planos.append(("", _cartel_titulo(guion.get("titulo") or ""), _CARETA, n))
 
     voz = AudioSegment.empty()
     duraciones, inicios_cap = [], {}
@@ -319,7 +347,10 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             from .pipeline import GenerationStopped
             raise GenerationStopped("parada pedida mientras se narraba")
         inicios_cap.setdefault(cap, len(voz)/1000.0)
-        audio = _voz_google(texto, carpeta / f"voz_{i:03d}.wav", ritmo_pedido=None)
+        if texto:
+            audio = _voz_google(texto, carpeta / f"voz_{i:03d}.wav", ritmo_pedido=None)
+        else:
+            audio = AudioSegment.silent(duration=0, frame_rate=44100)
         audio = audio.set_frame_rate(44100).set_channels(1) + AudioSegment.silent(
             duration=int(pausa*1000), frame_rate=44100)
         voz += audio
@@ -346,6 +377,8 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
         try:
             _tuberia(garabato.fotos(visual, segundos, _FPS_DIBUJO), fotogramas, mp4, zoom=False, brillo=0)
             ruidos += [(n, fronteras[i]/FPS + t0, d) for n, t0, d in garabato.sonidos_del_plano(visual, segundos)]
+            if visual.get("_careta"):
+                ruidos.append(("campana", fronteras[i]/FPS + 0.1, 1.8))
         except Exception:
             logger.warning("why: el plano %s ha fallado; va en blanco con su texto.", i, exc_info=True)
             _tuberia(garabato.fotos({"textos": [{"texto": "...", "x": 0.5, "y": 0.5}]}, 1, _FPS_DIBUJO),
@@ -403,6 +436,49 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
     return final, jpg, "\n".join(marcas)
 
 
+_PIDE_RETOQUE = """These shots asked for drawings that did not exist when the script was written.
+Some of them exist NOW (check the lists above). Redo ONLY their "visual" with what exists - the
+narration stays exactly the same:
+{planos}
+
+Return ONLY: {{"planos": [{{"i": <same number>, "visual": {{...}}}}]}}"""
+
+
+def retoca(guion: dict) -> int:
+    """Antes de montar: los planos que pidieron un dibujo que faltaba se
+    vuelven a pedir, ahora que ya esta dibujado (la pluma, la rata...). Una
+    sola llamada pequeña; si falla, se monta con lo que habia."""
+    todos = [p for cap in guion.get("capitulos") or [] for p in cap.get("planos") or []]
+    pendientes = [(i, p) for i, p in enumerate(todos) if str(p.get("falta") or "").strip()]
+    if not pendientes:
+        return 0
+    lista = "\n".join(json.dumps({"i": i, "narracion": p.get("narracion"), "falta": p.get("falta"),
+                                   "visual": p.get("visual")}, ensure_ascii=False)
+                       for i, p in pendientes)
+    sistema = _INSTRUCCIONES.format(
+        canal=CHANNEL_NAME, quienes=_lista(garabato.QUIENES), poses=_lista(monigotes.POSES_VALIDAS),
+        gestos=_lista(monigotes.GESTOS_VALIDOS), efectos=_lista(monigotes.EFECTOS_VALIDOS),
+        llevables=_lista(monigotes.LLEVABLES_EXPLICADOS), objetos=_lista(garabato.OBJETOS_VALIDOS),
+        colores=_lista(garabato.COLORES), dosier="(not needed for this task)")
+    try:
+        nuevos = _pregunta(sistema, _PIDE_RETOQUE.format(planos=lista), "why-retoque", 8000)
+    except Exception:
+        logger.warning("why: no se han podido redibujar los planos que pedian algo.", exc_info=True)
+        return 0
+    hechos = 0
+    for n in nuevos.get("planos") or []:
+        try:
+            i = int(n.get("i"))
+        except (TypeError, ValueError):
+            continue
+        if 0 <= i < len(todos) and isinstance(n.get("visual"), dict):
+            todos[i]["visual"] = n["visual"]
+            todos[i]["falta"] = ""
+            hechos += 1
+    logger.info("why: %s de %s planos redibujados con lo que ya existe.", hechos, len(pendientes))
+    return hechos
+
+
 def run_montaje(on_done) -> list[int]:
     """PASO 2 (/montar): el video del guion que dejo /why."""
     from . import storage
@@ -411,6 +487,8 @@ def run_montaje(on_done) -> list[int]:
     cleanup_finished_video_files()
     guion = json.loads(_PENDIENTE.read_text())
     carpeta = Path(DATA_DIR) / f"why_{int(time.time())}"
+    if retoca(guion):
+        _PENDIENTE.write_text(json.dumps(guion, ensure_ascii=False, indent=1))
     try:
         logger.info("[why] Voz y dibujos de %r...", guion.get("_tema"))
         video, miniatura, capitulos = monta(guion, carpeta, parar=_stop_requested.is_set)

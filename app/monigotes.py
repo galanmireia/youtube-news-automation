@@ -454,6 +454,9 @@ def _cara(d, c, r, g, rnd, gesto, tinta=TINTA):
     elif gesto == "bostezo":                 # el ovalo enorme, con la lengua
         d.ellipse([b[0]-r*.24, b[1]-r*.22, b[0]+r*.24, b[1]+r*.46], fill=tinta)
         d.ellipse([b[0]-r*.13, b[1]+r*.18, b[0]+r*.13, b[1]+r*.40], fill=(214, 70, 80))
+    elif gesto == "riendo":                  # la carcajada: la D grande y los ojos cerrados
+        d.chord([b[0]-r*.36, b[1]-r*.14, b[0]+r*.36, b[1]+r*.50], 0, 180, fill=tinta)
+        d.chord([b[0]-r*.20, b[1]+r*.16, b[0]+r*.20, b[1]+r*.46], 0, 180, fill=(214, 70, 80))
     elif gesto == "asco":                    # la boca en zigzag
         pts = [(b[0] - r*.30 + k*r*.12, b[1] + (r*.08 if k % 2 else -r*.04)) for k in range(6)]
         _linea(d, pts, g, rnd, color=tinta, temblor=0.6)
@@ -881,8 +884,20 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
     # los lados. Y por debajo del gorro, que es del papel de hoy.
     if rasgos.get("pelo", "nada") != "nada":
         _pelo(d, cab, rc, g, rnd, rasgos["pelo"], tinta=tinta)
+    # La barba gris del abuelo de Why Though va DETRAS de la cara: asoma por
+    # debajo como la de un sabio y deja ver la boca. La de Don Severo y
+    # Anselmo, blanca y por delante, es la de España Contada.
+    if rasgos.get("barba_gris"):
+        _barba(d, (cab[0], cab[1] + rc*0.35), rc*1.05, g, rnd, tinta=tinta, relleno=(196, 196, 200))
     _circulo(d, cab, rc, g, rnd, relleno=relleno, color=tinta)
     _cara(d, cab, rc, g, rnd, gesto, tinta=tinta)
+    if rasgos.get("gafas"):
+        o = rc*0.30
+        for lado in (-1, 1):
+            cx, cy = cab[0] + lado*o, cab[1] - rc*0.12
+            d.ellipse([cx - rc*0.21, cy - rc*0.21, cx + rc*0.21, cy + rc*0.21], outline=tinta, width=max(2, g//2))
+        d.line([(cab[0] - o + rc*0.21, cab[1] - rc*0.14), (cab[0] + o - rc*0.21, cab[1] - rc*0.14)],
+               fill=tinta, width=max(2, g//2))
     # Y estos DELANTE de la cara, que es donde estan.
     if rasgos.get("barba"):
         _barba(d, cab, rc, g, rnd, tinta=tinta, relleno=relleno)
@@ -2029,7 +2044,7 @@ FONDOS_VALIDOS = tuple(FONDOS)
 # mano es como se perdieron la taberna y el arbol.
 POSES_VALIDAS = tuple(p for p in _POSES if not p.endswith("_b"))
 GESTOS_VALIDOS = ("neutro", "sorpresa", "contento", "enfadado", "grito",
-                  "triste", "asustado", "bostezo", "asco")
+                  "triste", "asustado", "bostezo", "asco", "riendo")
 # Explicados aqui y no tecleados en el prompt, como todo lo demas: la lista
 # del prompt estaba escrita a mano y cada gorro nuevo habria sido invisible.
 GORROS_EXPLICADOS = {
@@ -2657,6 +2672,8 @@ REPARTO.update({
                   "pinta": "", "papel": ""},
     "nino":      {"alto": 0.40, "cabeza": 1.35, "ancho": 0.9, "pelo": "punta", "nombre": "",
                   "pinta": "", "papel": ""},
+    "abuelo":    {"alto": 0.56, "cabeza": 1.30, "ancho": 1.0, "pelo": "nada", "barba_gris": True,
+                  "gafas": True, "nombre": "", "pinta": "", "papel": ""},
 })
 
 

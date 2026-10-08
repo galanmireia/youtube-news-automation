@@ -504,6 +504,38 @@ def _pie(d, x, y, t, rnd, g, tinta=TINTA):
     d.line([(x + t*0.1, y - t*0.06), (x + t*0.35, y - t*0.06)], fill=(230, 180, 160), width=max(2, g//3))
 
 
+def _mono(d, x, y, t, rnd, g, tinta=TINTA):
+    """Un mono (chimpance): cuerpo marron, cara clara, orejas grandes."""
+    marron, cara = (130, 90, 60), (236, 200, 160)
+    cy = y - t*0.62
+    _ovalo(d, [x - t*0.22, y - t*0.45, x + t*0.22, y], marron, g)                 # cuerpo
+    for lado in (-1, 1):
+        _ovalo(d, [x + lado*t*0.25 - t*0.07, cy - t*0.08, x + lado*t*0.25 + t*0.07, cy + t*0.08], cara, max(2, g//2))
+        m._linea(d, [(x + lado*t*0.18, y - t*0.35), (x + lado*t*0.35, y - t*0.1)], g, rnd, color=marron)
+    _ovalo(d, [x - t*0.2, cy - t*0.2, x + t*0.2, cy + t*0.18], marron, g)          # cabeza
+    _ovalo(d, [x - t*0.14, cy - t*0.08, x + t*0.14, cy + t*0.16], cara, max(2, g//2))
+    for lado in (-1, 1):
+        d.ellipse([x + lado*t*0.06 - t*0.02, cy - t*0.04, x + lado*t*0.06 + t*0.02, cy], fill=TINTA)
+    d.arc([x - t*0.06, cy + t*0.02, x + t*0.06, cy + t*0.1], 20, 160, fill=TINTA, width=max(2, g//3))
+
+
+def _escaner(d, x, y, t, rnd, g, tinta=TINTA):
+    """El escaner del cerebro (resonancia): el anillo grande con su camilla."""
+    cy, r = y - t*0.55, t*0.45
+    _ovalo(d, [x - r, cy - r, x + r, cy + r], (230, 232, 238), g)
+    _ovalo(d, [x - r*0.5, cy - r*0.5, x + r*0.5, cy + r*0.5], (60, 70, 90), g)
+    d.rectangle([x - t*0.9, cy + r*0.2, x + t*0.1, cy + r*0.35], fill=(120, 170, 220), outline=TINTA, width=max(2, g//2))
+    d.rectangle([x - t*0.85, cy + r*0.35, x - t*0.75, y], fill=(150, 150, 160), outline=TINTA, width=max(2, g//2))
+    d.ellipse([x + r*0.55, cy - r*0.75, x + r*0.75, cy - r*0.55], fill=(52, 170, 72))
+
+
+def _joystick(d, x, y, t, rnd, g, tinta=TINTA):
+    d.rounded_rectangle([x - t*0.35, y - t*0.25, x + t*0.35, y], radius=int(t*0.08), fill=(60, 60, 70),
+                        outline=TINTA, width=g)
+    m._linea(d, [(x, y - t*0.25), (x - t*0.08, y - t*0.75)], int(g*1.2), rnd)
+    _ovalo(d, [x - t*0.2, y - t*0.95, x + t*0.04, y - t*0.7], (226, 38, 38), g)
+    d.ellipse([x + t*0.12, y - t*0.17, x + t*0.24, y - t*0.07], fill=(250, 206, 20), outline=TINTA)
+
 OBJETOS = {
     "cerebro": _cerebro, "ojo": _ojo, "corazon": _corazon, "pulmones": _pulmones,
     "estomago": _estomago, "bacteria": _bacteria, "virus": _virus, "cebolla": _cebolla,
@@ -515,19 +547,27 @@ OBJETOS = {
     "pluma": _pluma, "bicho": _bicho, "rata": _rata, "maquina_cosquillas": _maquina_cosquillas,
     "gafas_vr": _gafas_vr, "palanca": _palanca, "bobina": _bobina, "mano": _mano,
     "marioneta": _marioneta, "mano_robot": _mano_robot, "yinyang": _yinyang, "pie": _pie,
+    "mono": _mono, "escaner": _escaner, "joystick": _joystick,
 }
+# Lo que el guion pide como POSTURA y es una cara: "pose asustado".
+_POSE_ES_GESTO = {"asustado": "asustado", "riendo": "riendo", "sorprendido": "sorpresa",
+                  "contento": "contento", "triste": "triste", "enfadado": "enfadado",
+                  "gritando": "grito", "bostezando": "bostezo"}
 # Lo que el guion pide como cara y en realidad es un efecto (o al reves).
 _GESTO_ES_EFECTO = {"confuso": "confuso", "mareado": "mareo", "llorando": "lagrimas",
                     "dormido": "zzz", "sudando": "sudor", "enamorado": "enamorado"}
 # Y los de monigotes que pegan en este canal.
 _DE_MONIGOTES = ("sol", "nube", "fuego", "perro", "caballo", "vaso", "libro", "arbol", "casa",
-                 "dinero", "pelota", "maletin", "calendario", "periodico")
+                 "dinero", "pelota", "maletin", "calendario", "periodico", "espada", "carta",
+                 "barco", "toro", "cofre", "antorcha")
 OBJETOS_VALIDOS = tuple(OBJETOS) + tuple(n for n in _DE_MONIGOTES if n in m.COSAS)
 # Se registran en monigotes para que montar() los pinte como cualquier cosa.
 for _n, _f in OBJETOS.items():
     m.COSAS.setdefault(_n, _f)
+    # En la mano, grandes: en un folio en blanco es lo que hay que ver.
+    m._TAM_LLEVADO.setdefault(_n, 0.38)
 
-QUIENES = ("persona", "persona_b", "nino")
+QUIENES = ("persona", "persona_b", "nino", "abuelo")
 
 
 # ---------------------------------------------------------------------------
@@ -651,8 +691,19 @@ def _spec(visual: dict) -> dict:
         if gesto in _GESTO_ES_EFECTO:
             f["gesto"] = "sorpresa" if gesto == "confuso" else "neutro"
             f.setdefault("efecto", _GESTO_ES_EFECTO[gesto])
+        for campo in ("pose", "pose_fin"):
+            pose = str(f.get(campo) or "").lower()
+            if pose in _POSE_ES_GESTO:
+                f[campo] = "de_pie" if campo == "pose" else None
+                f["gesto"] = _POSE_ES_GESTO[pose]
         figuras.append(f)
+    # Cualquier objeto de este canal se puede llevar en la mano (la pluma de
+    # hacer cosquillas): limpia() solo deja los de España Contada.
+    en_mano = [str(f.get("lleva") or "").lower() for f in figuras]
     e = m.limpia({"figuras": figuras}) if figuras else {"figuras": []}
+    for f, que in zip(e["figuras"], en_mano):
+        if not f.get("lleva") and que in OBJETOS_VALIDOS:
+            f["lleva"] = que
     e["interior"] = "blanco"
     # Mas abajo que en los decorados: en un folio en blanco el monigote es el
     # protagonista y ocupa media pantalla.
