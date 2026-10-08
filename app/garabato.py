@@ -29,6 +29,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from . import monigotes as m
+from .garabato_mas import MAS_OBJETOS
 
 _FUENTE = Path(__file__).parent / "data" / "fuentes" / "PermanentMarker.woff"
 TINTA = (22, 22, 22)
@@ -549,6 +550,9 @@ OBJETOS = {
     "marioneta": _marioneta, "mano_robot": _mano_robot, "yinyang": _yinyang, "pie": _pie,
     "mono": _mono, "escaner": _escaner, "joystick": _joystick,
 }
+# La biblioteca grande, mismo estilo y a color (garabato_mas.py).
+for _n, _f in MAS_OBJETOS.items():
+    OBJETOS.setdefault(_n, _f)
 # Lo que el guion pide como POSTURA y es una cara: "pose asustado".
 _POSE_ES_GESTO = {"asustado": "asustado", "riendo": "riendo", "sorprendido": "sorpresa",
                   "contento": "contento", "triste": "triste", "enfadado": "enfadado",

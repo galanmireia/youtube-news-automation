@@ -872,6 +872,17 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
     if dibuja_objeto and objeto not in OBJETOS_ENCIMA:
         dibuja_objeto(d, x, cuello, cadera, alto, g, rnd, tinta=tinta)
     _linea(d, [cuello, cadera], g, rnd, color=tinta)
+    camiseta = rasgos.get("camiseta")
+    if camiseta:
+        # La camiseta de color de la gente de Why Though: un trapecio sobre el
+        # tronco, debajo de los brazos. Da color al folio en blanco y deja
+        # distinguir a cada uno de un vistazo.
+        ancho_h, ancho_c = alto*0.075*ancho, alto*0.062*ancho
+        baja = (cuello[0] + (cadera[0] - cuello[0])*0.05, cuello[1] + (cadera[1] - cuello[1])*0.05)
+        tronco = [(baja[0] - ancho_h, baja[1]), (baja[0] + ancho_h, baja[1]),
+                  (cadera[0] + ancho_c, cadera[1]), (cadera[0] - ancho_c, cadera[1])]
+        d.polygon(tronco, fill=camiseta)
+        _linea(d, tronco + [tronco[0]], max(2, int(g*0.8)), rnd, color=tinta, temblor=0.8)
     for m in p["brazos"] + p["piernas"]:
         _linea(d, [P(t) for t in m], g, rnd, color=tinta)
     if objeto == "mano_vendada":
@@ -2666,13 +2677,14 @@ REPARTO_VALIDO = tuple(REPARTO)
 # como los de los videos de "por que pasa esto". Despues de REPARTO_VALIDO a
 # proposito: el guion de España Contada no los ofrece.
 REPARTO.update({
-    "persona":   {"alto": 0.60, "cabeza": 1.30, "ancho": 1.0, "pelo": "nada", "nombre": "",
+    "persona":   {"alto": 0.60, "cabeza": 1.30, "ancho": 1.0, "pelo": "nada", "camiseta": (52, 120, 220), "nombre": "",
                   "pinta": "", "papel": ""},
-    "persona_b": {"alto": 0.56, "cabeza": 1.30, "ancho": 1.0, "pelo": "moño", "nombre": "",
+    "persona_b": {"alto": 0.56, "cabeza": 1.30, "ancho": 1.0, "pelo": "moño", "camiseta": (232, 90, 140), "nombre": "",
                   "pinta": "", "papel": ""},
-    "nino":      {"alto": 0.40, "cabeza": 1.35, "ancho": 0.9, "pelo": "punta", "nombre": "",
+    "nino":      {"alto": 0.40, "cabeza": 1.35, "ancho": 0.9, "pelo": "punta", "camiseta": (60, 175, 80), "nombre": "",
                   "pinta": "", "papel": ""},
     "abuelo":    {"alto": 0.56, "cabeza": 1.30, "ancho": 1.0, "pelo": "nada", "barba_gris": True,
+                  "camiseta": (150, 105, 65),
                   "gafas": True, "nombre": "", "pinta": "", "papel": ""},
 })
 
