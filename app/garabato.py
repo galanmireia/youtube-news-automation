@@ -30,7 +30,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from . import monigotes as m
-from .garabato_mas import MAS_OBJETOS
+from .garabato_mas import MAS_OBJETOS, REHECHOS
 from . import garabato_ambiente
 
 # La letra de Whymentary: rotulador redondo, trazo parejo (Architects
@@ -570,9 +570,13 @@ OBJETOS = {
     "marioneta": _marioneta, "mano_robot": _mano_robot, "yinyang": _yinyang, "pie": _pie,
     "mono": _mono, "escaner": _escaner, "joystick": _joystick,
 }
-# La biblioteca grande, mismo estilo y a color (garabato_mas.py).
+# La biblioteca grande, mismo estilo y a color (garabato_mas.py), y los
+# rehechos, que ganan a los de antes.
 for _n, _f in MAS_OBJETOS.items():
     OBJETOS.setdefault(_n, _f)
+for _n, _f in REHECHOS.items():
+    if _n in OBJETOS:
+        OBJETOS[_n] = _f
 # Lo que el guion pide con otro nombre: "igualdad", "signo_igual"...
 _ALIAS_OBJETOS = {"horse": "caballo", "camel": "camello", "elephant": "elefante", "pig": "cerdo",
                   "chicken": "gallina", "hen": "gallina", "lion": "leon", "rabbit": "conejo",
@@ -602,7 +606,7 @@ _DE_MONIGOTES = ("sol", "nube", "fuego", "perro", "caballo", "vaso", "libro", "a
                  "dinero", "pelota", "maletin", "calendario", "periodico", "espada", "carta",
                  "barco", "toro", "cofre", "antorcha")
 OBJETOS_VALIDOS = tuple(OBJETOS) + tuple(n for n in _DE_MONIGOTES if n in m.COSAS)
-OBJETOS_TODOS = {**{n: m.COSAS[n] for n in _DE_MONIGOTES if n in m.COSAS}, **OBJETOS}
+OBJETOS_TODOS = {**{n: m.COSAS[n] for n in _DE_MONIGOTES if n in m.COSAS}, **OBJETOS, **REHECHOS}
 # Se registran en monigotes para que montar() los pinte como cualquier cosa.
 for _n, _f in OBJETOS.items():
     m.COSAS.setdefault(_n, _f)

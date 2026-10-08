@@ -1109,8 +1109,10 @@ def _conejo(d, x, y, t, rnd, g, tinta=TINTA):
 def _tortuga(d, x, y, t, rnd, g, tinta=TINTA):
     c = (120, 190, 90)
     _patas(d, x, y, (-t*0.35, t*0.25), t*0.15, int(g*1.8), c)
-    _circ(d, x + t*0.55, y - t*0.22, t*0.12, c, g)
-    _ojo(d, x + t*0.59, y - t*0.25, t*0.025)
+    _cont(d, [(x + t*0.38, y - t*0.12), (x + t*0.5, y - t*0.26), (x + t*0.58, y - t*0.18), (x + t*0.42, y - t*0.04)],
+          c, g, rnd)
+    _circ(d, x + t*0.56, y - t*0.26, t*0.11, c, g)
+    _ojo(d, x + t*0.6, y - t*0.29, t*0.025)
     d.chord([x - t*0.5, y - t*0.65, x + t*0.45, y + t*0.05], 180, 360, fill=(70, 140, 70), outline=TINTA, width=g)
     for cx, cy in ((-0.24, 0.4), (0.18, 0.4), (-0.03, 0.54)):
         d.ellipse([x + t*cx - t*0.1, y - t*cy - t*0.07, x + t*cx + t*0.1, y - t*cy + t*0.07], outline=(40, 90, 40),
@@ -1136,6 +1138,206 @@ def _oveja(d, x, y, t, rnd, g, tinta=TINTA):
                       (x - t*0.05, cy + t*0.1, t*0.2)], (248, 248, 250), g)
     _ov(d, [x + t*0.3, y - t*0.78, x + t*0.55, y - t*0.5], (70, 70, 80), g)
     _ojo(d, x + t*0.46, y - t*0.68, t*0.03)
+
+
+# ---- REHECHOS ("mejora todos los dibujos"): los que flojeaban en la hoja de
+# todos, y los de España Contada que aqui desentonaban (arbol, sol, nube...).
+
+def _arbol(d, x, y, t, rnd, g, tinta=TINTA):
+    _cont(d, [(x - t*0.07, y), (x - t*0.05, y - t*0.5), (x + t*0.05, y - t*0.5), (x + t*0.08, y)], MARRON, g, rnd)
+    copa = [(x - t*0.25, y - t*0.62, t*0.2), (x + t*0.22, y - t*0.6, t*0.2), (x, y - t*0.8, t*0.24),
+            (x - t*0.14, y - t*0.48, t*0.17), (x + t*0.14, y - t*0.47, t*0.17)]
+    _nube_rellena(d, copa, (120, 195, 95), g)
+    for cx, cy in ((-0.1, 0.7), (0.15, 0.62), (0.02, 0.52)):
+        d.arc([x + t*cx - t*0.06, y - t*cy - t*0.04, x + t*cx + t*0.06, y - t*cy + t*0.04], 200, 340,
+              fill=(80, 150, 70), width=max(2, g//2))
+
+
+def _sol(d, x, y, t, rnd, g, tinta=TINTA):
+    cy, r = y - t*0.5, t*0.26
+    for k in range(10):
+        a = k*math.pi/5
+        d.line([(x + math.cos(a)*r*1.3, cy + math.sin(a)*r*1.3), (x + math.cos(a)*r*1.8, cy + math.sin(a)*r*1.8)],
+               fill=NARANJA, width=int(g*1.3))
+    _circ(d, x, cy, r, AMARILLO, g)
+    d.arc([x - r*0.45, cy - r*0.1, x + r*0.45, cy + r*0.55], 20, 160, fill=TINTA, width=max(2, g//2))
+    for lado in (-1, 1):
+        d.ellipse([x + lado*r*0.35 - r*0.07, cy - r*0.25, x + lado*r*0.35 + r*0.07, cy - r*0.1], fill=TINTA)
+
+
+def _nube(d, x, y, t, rnd, g, tinta=TINTA):
+    cy = y - t*0.35
+    _nube_rellena(d, [(x - t*0.32, cy + t*0.06, t*0.2), (x, cy - t*0.08, t*0.28), (x + t*0.32, cy + t*0.06, t*0.2)],
+                  BLANCO, g)
+    d.rectangle([x - t*0.32, cy + t*0.06, x + t*0.32, cy + t*0.26 - g], fill=BLANCO)
+    d.line([(x - t*0.32, cy + t*0.26), (x + t*0.32, cy + t*0.26)], fill=TINTA, width=g)
+
+
+def _pelota(d, x, y, t, rnd, g, tinta=TINTA):
+    cy, r = y - t*0.42, t*0.42
+    _circ(d, x, cy, r, BLANCO, g)
+    d.pieslice([x - r, cy - r, x + r, cy + r], 200, 340, fill=ROJO)
+    d.pieslice([x - r, cy - r, x + r, cy + r], 20, 160, fill=AZUL)
+    d.ellipse([x - r, cy - r, x + r, cy + r], outline=TINTA, width=g)
+    _brillo(d, x - r*0.1, cy - r*0.1, r*0.7, g)
+
+
+def _dinero(d, x, y, t, rnd, g, tinta=TINTA):
+    cy = y - t*0.38
+    _cont(d, _suave([(x - t*0.2, y - t*0.72), (x + t*0.2, y - t*0.72), (x + t*0.12, y - t*0.62),
+                     (x + t*0.42, y - t*0.35), (x + t*0.38, y), (x - t*0.38, y), (x - t*0.42, y - t*0.35),
+                     (x - t*0.12, y - t*0.62)]), (215, 180, 120), g, rnd)
+    d.line([(x - t*0.14, y - t*0.63), (x + t*0.14, y - t*0.63)], fill=MARRON, width=int(g*1.4))
+    d.text((x, cy + t*0.02), "$", fill=(60, 130, 60), anchor="mm", font=_fuente(int(t*0.42)))
+
+
+def _estomago(d, x, y, t, rnd, g, tinta=TINTA):
+    """El estomago de libro: una judia con su tubito (el esofago) arriba."""
+    pts = _suave([(x - t*0.1, y - t*0.95), (x - t*0.02, y - t*0.95), (x - t*0.02, y - t*0.72), (x + t*0.15, y - t*0.75),
+                  (x + t*0.36, y - t*0.6), (x + t*0.38, y - t*0.32), (x + t*0.18, y - t*0.12), (x - t*0.1, y - t*0.12),
+                  (x - t*0.22, y - t*0.02), (x - t*0.32, y - t*0.1), (x - t*0.24, y - t*0.28), (x - t*0.04, y - t*0.36),
+                  (x + t*0.12, y - t*0.48), (x - t*0.1, y - t*0.65)], 2)
+    _cont(d, pts, (245, 150, 160), g, rnd)
+    for k in range(3):
+        d.arc([x + t*(0.0 + k*0.08), y - t*0.55, x + t*(0.18 + k*0.08), y - t*0.3], 200, 300,
+              fill=(215, 100, 120), width=max(2, g//2))
+
+
+def _mano(d, x, y, t, rnd, g, tinta=TINTA):
+    """La mano abierta de frente, cinco dedos."""
+    piel = CARNE
+    for k, (dx, largo, ancho) in enumerate(((-0.24, 0.42, 0.075), (-0.1, 0.55, 0.08), (0.04, 0.6, 0.08),
+                                            (0.17, 0.54, 0.075))):
+        d.rounded_rectangle([x + t*dx - t*ancho, y - t*(0.4 + largo), x + t*dx + t*ancho, y - t*0.45],
+                            radius=int(t*ancho), fill=piel, outline=TINTA, width=g)
+    d.rounded_rectangle([x - t*0.32, y - t*0.6, x + t*0.27, y - t*0.05], radius=int(t*0.14), fill=piel,
+                        outline=TINTA, width=g)
+    for k, (dx, largo, ancho) in enumerate(((-0.24, 0.42, 0.075), (-0.1, 0.55, 0.08), (0.04, 0.6, 0.08),
+                                            (0.17, 0.54, 0.075))):
+        d.rectangle([x + t*dx - t*ancho + g, y - t*0.62, x + t*dx + t*ancho - g, y - t*0.5], fill=piel)
+    pulgar = [(x + t*0.22, y - t*0.42), (x + t*0.42, y - t*0.6), (x + t*0.5, y - t*0.52), (x + t*0.3, y - t*0.25)]
+    _cont(d, _suave(pulgar, 2), piel, g, rnd)
+    d.arc([x - t*0.15, y - t*0.38, x + t*0.12, y - t*0.18], 200, 330, fill=(220, 160, 130), width=max(2, g//2))
+
+
+def _nariz(d, x, y, t, rnd, g, tinta=TINTA):
+    """La nariz de perfil, grande y redonda, de dibujo animado."""
+    pts = _suave([(x - t*0.15, y - t*0.98), (x - t*0.02, y - t*0.95), (x + t*0.22, y - t*0.45), (x + t*0.36, y - t*0.3),
+                  (x + t*0.34, y - t*0.12), (x + t*0.18, y - t*0.05), (x - t*0.02, y - t*0.12), (x - t*0.15, y - t*0.08),
+                  (x - t*0.18, y)], 2) + [(x - t*0.3, y), (x - t*0.3, y - t*0.98)]
+    _cont(d, pts, CARNE, g, rnd)
+    d.ellipse([x + t*0.06, y - t*0.2, x + t*0.18, y - t*0.12], fill=(150, 90, 80))
+    d.arc([x - t*0.02, y - t*0.38, x + t*0.25, y - t*0.12], 120, 250, fill=(220, 160, 130), width=max(2, g//2))
+
+
+def _lengua(d, x, y, t, rnd, g, tinta=TINTA):
+    """La boca abierta sacando la lengua."""
+    w = t*0.8
+    _ov(d, [x - w/2, y - t, x + w/2, y - t*0.45], (120, 30, 40), g)
+    lengua = [(x - w*0.26, y - t*0.62)] + _arco(x, y - t*0.42, w*0.26, t*0.4, 180, 0, 24)[1:] + [(x + w*0.26, y - t*0.62)]
+    lengua = [(x - w*0.26, y - t*0.62), (x - w*0.26, y - t*0.42)] + _arco(x, y - t*0.42, w*0.26, t*0.4, 180, 0, 24)[1:]
+    _cont(d, lengua + [(x + w*0.26, y - t*0.62)], (240, 120, 140), g, rnd)
+    d.line([(x, y - t*0.6), (x, y - t*0.25)], fill=(200, 80, 110), width=max(2, g//2))
+    d.rectangle([x - w*0.3, y - t*0.98, x + w*0.3, y - t*0.9], fill=BLANCO)
+
+
+def _frio(d, x, y, t, rnd, g, tinta=TINTA):
+    """Frio: el termometro en lo mas bajo y un copo al lado."""
+    w = t*0.16
+    tx = x - t*0.18
+    d.rounded_rectangle([tx - w/2, y - t, tx + w/2, y - t*0.18], radius=int(w/2), fill=BLANCO, outline=TINTA, width=g)
+    _ov(d, [tx - w, y - t*0.3, tx + w, y], AZUL, g)
+    d.rectangle([tx - w*0.22, y - t*0.36, tx + w*0.22, y - t*0.22], fill=AZUL)
+    cx, cy, r = x + t*0.25, y - t*0.65, t*0.22
+    for k in range(6):
+        a = k*math.pi/3
+        d.line([(cx, cy), (cx + math.cos(a)*r, cy + math.sin(a)*r)], fill=(80, 160, 230), width=g)
+
+
+def _queso(d, x, y, t, rnd, g, tinta=TINTA):
+    """La cuña de queso con sus agujeros."""
+    q, q2 = (252, 210, 70), (255, 232, 130)
+    _cont(d, [(x - t*0.55, y - t*0.38), (x + t*0.5, y - t*0.6), (x + t*0.5, y - t*0.42), (x - t*0.55, y - t*0.2)], q2,
+          g, rnd)
+    _cont(d, [(x - t*0.55, y - t*0.2), (x + t*0.5, y - t*0.42), (x + t*0.5, y), (x - t*0.55, y)], q, g, rnd)
+    for cx, cy, r in ((-0.3, 0.12, 0.06), (0.05, 0.22, 0.07), (0.32, 0.12, 0.05), (0.2, 0.47, 0.04)):
+        d.ellipse([x + t*cx - t*r, y - t*cy - t*r*0.8, x + t*cx + t*r, y - t*cy + t*r*0.8], fill=(225, 170, 40))
+
+
+def _cama(d, x, y, t, rnd, g, tinta=TINTA):
+    w = t*1.8
+    d.rounded_rectangle([x - w/2, y - t*0.95, x - w/2 + t*0.1, y], radius=int(t*0.04), fill=MARRON, outline=TINTA,
+                        width=g)
+    d.rounded_rectangle([x + w/2 - t*0.1, y - t*0.6, x + w/2, y], radius=int(t*0.04), fill=MARRON, outline=TINTA,
+                        width=g)
+    _caja(d, [x - w/2 + t*0.08, y - t*0.42, x + w/2 - t*0.08, y - t*0.18], BLANCO, g, t*0.04)
+    _ov(d, [x - w/2 + t*0.14, y - t*0.62, x - w/2 + t*0.6, y - t*0.38], BLANCO, g)
+    _caja(d, [x - w/2 + t*0.5, y - t*0.5, x + w/2 - t*0.1, y - t*0.12], (110, 160, 230), g, t*0.06)
+    for k in range(3):
+        xx = x - w/2 + t*(0.75 + k*0.3)
+        d.line([(xx, y - t*0.46), (xx, y - t*0.14)], fill=(150, 190, 240), width=max(2, g//2))
+
+
+def _escaner(d, x, y, t, rnd, g, tinta=TINTA):
+    """El escaner (resonancia): el aro gordo con la camilla entrando."""
+    cx, cy, r = x + t*0.15, y - t*0.5, t*0.45
+    _caja(d, [x - t*0.75, y - t*0.36, x + t*0.2, y - t*0.26], (190, 200, 215), g, t*0.03)
+    _caja(d, [x - t*0.6, y - t*0.26, x - t*0.5, y], GRIS, g)
+    _circ(d, cx, cy, r, (225, 230, 240), g)
+    _circ(d, cx, cy, r*0.55, (60, 70, 90), g)
+    d.arc([cx - r*0.8, cy - r*0.8, cx + r*0.8, cy + r*0.8], 200, 260, fill=(120, 200, 250), width=g)
+    d.ellipse([cx + r*0.55, cy - r*0.75, cx + r*0.7, cy - r*0.6], fill=VERDE)
+    _caja(d, [x - t*0.62, y - t*0.36, x + t*0.05, y - t*0.3], (190, 200, 215), max(2, g//2), t*0.02)
+
+
+def _musculo(d, x, y, t, rnd, g, tinta=TINTA):
+    """El brazo sacando bola, con el biceps bien redondo."""
+    piel = CARNE
+    brazo = _suave([(x - t*0.6, y - t*0.08), (x + t*0.22, y - t*0.08), (x + t*0.4, y - t*0.22), (x + t*0.42, y - t*0.62),
+                    (x + t*0.24, y - t*0.66), (x + t*0.2, y - t*0.36), (x + t*0.05, y - t*0.5), (x - t*0.2, y - t*0.62),
+                    (x - t*0.42, y - t*0.5), (x - t*0.6, y - t*0.44)], 2)
+    _cont(d, brazo, piel, g, rnd)
+    _circ(d, x + t*0.33, y - t*0.78, t*0.16, piel, g)
+    d.arc([x - t*0.32, y - t*0.6, x + t*0.12, y - t*0.3], 200, 320, fill=(220, 160, 130), width=max(2, g//2))
+    for k in range(3):
+        a = math.radians(-150 + k*30)
+        cx, cy = x - t*0.1, y - t*0.6
+        d.line([(cx + math.cos(a)*t*0.15, cy + math.sin(a)*t*0.15), (cx + math.cos(a)*t*0.25, cy + math.sin(a)*t*0.25)],
+               fill=AMARILLO, width=g)
+
+
+def _microscopio(d, x, y, t, rnd, g, tinta=TINTA):
+    azul = (90, 130, 200)
+    _caja(d, [x - t*0.38, y - t*0.1, x + t*0.32, y], azul, g, t*0.04)
+    _cont(d, _suave([(x + t*0.1, y - t*0.1), (x + t*0.26, y - t*0.1), (x + t*0.3, y - t*0.5), (x + t*0.15, y - t*0.78),
+                     (x + t*0.04, y - t*0.7), (x + t*0.14, y - t*0.45)], 1), azul, g, rnd)
+    _caja(d, [x - t*0.3, y - t*0.4, x + t*0.2, y - t*0.34], (60, 70, 90), g)
+    a = math.radians(-70)
+    dx, dy = math.cos(a), math.sin(a)
+    px, py = -dy*t*0.08, dx*t*0.08
+    base, punta = (x - t*0.06, y - t*0.46), (x - t*0.06 + dx*t*0.5, y - t*0.46 + dy*t*0.5)
+    _cont(d, [(base[0] + px, base[1] + py), (base[0] - px, base[1] - py), (punta[0] - px, punta[1] - py),
+              (punta[0] + px, punta[1] + py)], (220, 225, 235), g, rnd)
+    _caja(d, [punta[0] - t*0.07, punta[1] - t*0.08, punta[0] + t*0.07, punta[1] + t*0.02], (60, 70, 90), g, t*0.02)
+    _caja(d, [base[0] - t*0.05, base[1], base[0] + t*0.05, base[1] + t*0.05], (60, 70, 90), max(2, g//2))
+
+
+def _suave(pts, vueltas=2):
+    for _ in range(vueltas):
+        nuevos = []
+        for a, b in zip(pts, pts[1:] + pts[:1]):
+            nuevos += [(a[0]*0.75 + b[0]*0.25, a[1]*0.75 + b[1]*0.25), (a[0]*0.25 + b[0]*0.75, a[1]*0.25 + b[1]*0.75)]
+        pts = nuevos
+    return pts
+
+
+def _fuente(px):
+    from PIL import ImageFont
+    from pathlib import Path
+    try:
+        return ImageFont.truetype(str(Path(__file__).parent / "data" / "fuentes" / "ArchitectsDaughter.woff"), max(8, px))
+    except OSError:
+        return ImageFont.load_default()
 
 
 MAS_OBJETOS = {
@@ -1171,3 +1373,8 @@ MAS_OBJETOS = {
     "altavoz": _altavoz, "atomo": _atomo, "diana": _diana, "balanza": _balanza, "pesa": _pesa,
     "robot": _robot, "moneda": _moneda,
 }
+# Los rehechos ganan a los de antes (y a los de España Contada, solo aqui).
+REHECHOS = {"arbol": _arbol, "sol": _sol, "nube": _nube, "pelota": _pelota, "dinero": _dinero,
+            "estomago": _estomago, "mano": _mano, "nariz": _nariz, "lengua": _lengua, "frio": _frio,
+            "queso": _queso, "cama": _cama, "escaner": _escaner, "musculo": _musculo,
+            "microscopio": _microscopio}
