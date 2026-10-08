@@ -279,12 +279,14 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
                 pedidos.append(f"cap. {n}, plano {k}: {p['falta']}")
             v = p.get("visual") or {}
             for c in v.get("cosas") or []:
-                que = str((c or {}).get("que") or "").lower()
+                que = garabato.nombre_objeto((c or {}).get("que"))
                 if que:
                     (usados if que in validos["que"] else faltan)[que if que in validos["que"] else f"objeto {que}"] += 1
             for f in v.get("figuras") or []:
                 for campo in ("quien", "pose", "pose_fin", "gesto", "efecto", "lleva"):
                     val = str((f or {}).get(campo) or "").lower()
+                    if campo == "lleva":
+                        val = garabato.nombre_objeto(val)
                     clave = "pose" if campo == "pose_fin" else campo
                     if val and val not in validos[clave]:
                         faltan[f"{clave} {val}"] += 1

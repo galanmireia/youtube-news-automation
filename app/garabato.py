@@ -556,6 +556,18 @@ OBJETOS = {
 # La biblioteca grande, mismo estilo y a color (garabato_mas.py).
 for _n, _f in MAS_OBJETOS.items():
     OBJETOS.setdefault(_n, _f)
+# Lo que el guion pide con otro nombre: "igualdad", "signo_igual"...
+_ALIAS_OBJETOS = {"igualdad": "igual", "signo_igual": "igual", "equals": "igual", "equal": "igual",
+                  "equal_sign": "igual", "igual_que": "igual", "perro_pata": "perro", "dog": "perro",
+                  "pregunta": "interrogacion", "question": "interrogacion", "telefono": "movil",
+                  "phone": "movil", "brain": "cerebro", "heart": "corazon", "feather": "pluma"}
+
+
+def nombre_objeto(que) -> str:
+    que = str(que or "").strip().lower()
+    return _ALIAS_OBJETOS.get(que, que)
+
+
 # Lo que el guion pide como POSTURA y es una cara: "pose asustado".
 _POSE_ES_GESTO = {"asustado": "asustado", "riendo": "riendo", "sorprendido": "sorpresa",
                   "contento": "contento", "triste": "triste", "enfadado": "enfadado",
@@ -744,7 +756,7 @@ def _spec(visual: dict) -> dict:
         figuras.append(f)
     # Cualquier objeto de este canal se puede llevar en la mano (la pluma de
     # hacer cosquillas): limpia() solo deja los de España Contada.
-    en_mano = [str(f.get("lleva") or "").lower() for f in figuras]
+    en_mano = [nombre_objeto(f.get("lleva")) for f in figuras]
     pedidos = [{c: str(f.get(c) or "").lower() for c in ("pose", "pose_fin", "gesto", "efecto")}
                for f in figuras]
     e = m.limpia({"figuras": figuras}) if figuras else {"figuras": []}
@@ -796,7 +808,7 @@ def _spec(visual: dict) -> dict:
     e["hablan"], e["a_quien"] = [], []
     cosas = []
     for c in (visual.get("cosas") or [])[:5]:
-        que = str((c or {}).get("que") or "").lower()
+        que = nombre_objeto((c or {}).get("que"))
         if que not in OBJETOS_VALIDOS:
             continue
         tam = min(0.55, max(0.06, float(c.get("tam") or 0.25)))
