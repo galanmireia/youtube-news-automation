@@ -23,6 +23,7 @@ AMARILLO = (250, 200, 70)
 MORADO = (180, 150, 235)
 # La mascota del canal: su forma y su color. Hay dos probadas: la judia
 # amarilla y la gota morada.
+NOMBRE = "Mokordo"        # el nombre que le puso ella
 FORMA = "gota"            # ella: "me gusta mas el morado"
 COLOR = MORADO
 

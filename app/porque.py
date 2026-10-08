@@ -68,14 +68,16 @@ it matters ("ninety-five degrees"), and no symbols it can't read.
 
 THE DRAWINGS. Every shot ("plano") has a "visual", drawn by a program from closed lists - if
 it is not in the lists, it cannot be drawn. A visual has any of:
-  "mascota": THE CHANNEL'S MASCOT, the star of every video: a round yellow bean with a "?" for
-             hair. It is always moving. {{"accion": one of {acciones}, "x": 0.15-0.85,
+  "mascota": THE CHANNEL'S MASCOT, the star of every video: MOKORDO, a round purple drop with a
+             "?" for hair. It is always moving. {{"accion": one of {acciones}, "x": 0.15-0.85,
              "espejo": true to face left, "gesto": a face from the list to override the action's,
              "efecto": optional}}. Put it in MOST shots, doing what the sentence says (it is the
              viewer's buddy living the story): it enters hopping at the start of a section, thinks,
              points at the thing being explained, jumps when there is an idea, gets scared,
              laughs... Leave it out only for giant numbers or pure diagrams. The stick people
-             ("figuras") are the other characters of the story.
+             ("figuras") are the other characters of the story. Now and then (a few
+             times per video, not every sentence) the narration can name him, as the
+             viewer's buddy: "Mokordo tries to tickle himself...", "even Mokordo knows that".
   "figuras": 0-3 stick people: {{"quien": one of {quienes} ("persona" = adult, "persona_b" =
              adult with a bun, "nino" = kid, "abuelo" = old bearded man / scientist), "x": 0.12-0.88, "pose": one of {poses},
              "pose_fin": another pose ONLY if they do something (raise their arms, put their hands
