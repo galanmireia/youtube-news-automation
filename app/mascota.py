@@ -89,18 +89,6 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
         d.line([arriba, pie], fill=color, width=int(g*1.3))
         d.ellipse([pie[0] - h*0.05 + lado*h*0.015, pie[1] - h*0.03, pie[0] + h*0.05 + lado*h*0.015, pie[1] + h*0.012],
                   fill=_oscuro(color, 0.7), outline=TINTA, width=g)
-    manos = []
-    for lado, (ang, codo) in zip((-1, 1), brazos):
-        hombro = T((lado*ancho*1.0, -alto*0.42))
-        a1 = math.radians(ang)
-        c = (hombro[0] + lado*math.cos(a1)*h*0.15, hombro[1] + math.sin(a1)*h*0.15)
-        a2 = math.radians(ang + codo)
-        mano = (c[0] + lado*math.cos(a2)*h*0.13, c[1] + math.sin(a2)*h*0.13)
-        d.line([hombro, c, mano], fill=TINTA, width=int(g*2.6), joint="curve")
-        d.line([hombro, c, mano], fill=color, width=int(g*1.3), joint="curve")
-        d.ellipse([mano[0] - g*1.7, mano[1] - g*1.7, mano[0] + g*1.7, mano[1] + g*1.7], fill=color, outline=TINTA,
-                  width=max(2, g//2))
-        manos.append(mano)
     # el cuerpo, con su sombra y su brillo dentro del contorno
     capa = Image.new("RGB", img.size, color)
     dc = ImageDraw.Draw(capa)
@@ -114,6 +102,20 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
     img.paste(capa, (0, 0), mascara)
     d = ImageDraw.Draw(img)
     d.line(pts + [pts[0]], fill=TINTA, width=g, joint="curve")
+    # Los brazos DELANTE del cuerpo: detras, el que saluda o el que se
+    # levanta quedaba escondido.
+    manos = []
+    for lado, (ang, codo) in zip((-1, 1), brazos):
+        hombro = T((lado*ancho*1.0, -alto*0.42))
+        a1 = math.radians(ang)
+        c = (hombro[0] + lado*math.cos(a1)*h*0.15, hombro[1] + math.sin(a1)*h*0.15)
+        a2 = math.radians(ang + codo)
+        mano = (c[0] + lado*math.cos(a2)*h*0.13, c[1] + math.sin(a2)*h*0.13)
+        d.line([hombro, c, mano], fill=TINTA, width=int(g*2.6), joint="curve")
+        d.line([hombro, c, mano], fill=color, width=int(g*1.3), joint="curve")
+        d.ellipse([mano[0] - g*1.7, mano[1] - g*1.7, mano[0] + g*1.7, mano[1] + g*1.7], fill=color, outline=TINTA,
+                  width=max(2, g//2))
+        manos.append(mano)
     top = T((0, -alto))
     garabato._letrero(img, "?", (top[0] + h*0.02, top[1] - h*0.07), h*0.2, TINTA, -12 + inclina*0.5)
     centro = T((h*0.02, -alto*(0.7 if forma == "judia" else 0.58)))
