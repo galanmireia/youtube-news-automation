@@ -1278,8 +1278,7 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
     # camello) y las sombritas de lo que esta apoyado: una vez por plano.
     ancho, alto = tam
     pies = min(alto*e.get("suelo", 0.76) + alto*0.06, alto*0.86)
-    apoyados = [(f["x"], f.get("alto", 0.5)*0.42*alto/ancho) for f in e.get("figuras", []) if not f.get("_giro")]
-    apoyados += [(c["x"], c["tam"]*1.0*alto/ancho) for c in e.get("_pop", []) if c.get("y") is None]
+    apoyados = [] + [(c["x"], c["tam"]*1.0*alto/ancho) for c in e.get("_pop", []) if c.get("y") is None]
     fondo = None
     if e.get("_ambiente", "nada") != "nada" or apoyados:
         fondo = garabato_ambiente.fondo(e.get("_ambiente", "nada"), tam, pies, apoyados)
@@ -1300,6 +1299,11 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
         y0 = min(max(0.0, pies - alto*0.93/z), alto - ch)
         camara = (int(x0), int(y0), int(x0 + cw), int(y0 + ch))
     mascota = (visual or {}).get("mascota") if isinstance((visual or {}).get("mascota"), dict) else None
+    # LA FAMILIA DE MOKORDO en vez de los monigotes de palotes: los pinta
+    # mascota.personaje, no animar().
+    familia = list(e.get("figuras", []))
+    e["figuras"] = []
+    camara = None          # la familia ya trae su camara que respira
     paso_hervor = max(1, round(fps/6))
     animacion = m.animar(e, segundos=segundos, fps=fps, tam=tam, calma=calma, una_vez=True)
     n = 0
@@ -1314,12 +1318,23 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                 img = garabato_ambiente.pon_detras(img, fondo)
             reloj = n/fps
             img = _vida(img, e, list(cabezas), reloj, n)
+            doodles = dict(e.get("_doodles", []))
+            for i, fig in sorted(enumerate(familia), key=lambda par: par[1].get("x", 0.5)):
+                cab, manos, hf = _mascota.personaje(img, fig, reloj, segundos, pies, ancho, alto)
+                if fig.get("lleva") in OBJETOS_TODOS and manos:
+                    pieza, pcx, pbase = _pieza_cosa(fig["lleva"], int(hf*0.4), max(3, int(ancho*0.0045)))
+                    mx, my = manos[1]
+                    img.paste(pieza, (int(mx - pcx), int(my - pbase + hf*0.15)), pieza)
+                if i in doodles:
+                    _garabato_en_cabeza(img, ImageDraw.Draw(img), doodles[i], cab, reloj,
+                                        random.Random(n//paso_hervor))
             if mascota:
                 cabeza, efecto = _mascota.pinta(img, mascota, reloj, segundos, pies)
                 efecto = mascota.get("efecto") or efecto
                 if efecto in _GARABATOS or efecto in EFECTOS_EXTRA:
                     _garabato_en_cabeza(img, ImageDraw.Draw(img), _GARABATOS.get(efecto, efecto), cabeza,
                                         reloj, random.Random(n//paso_hervor))
+            if mascota or familia:
                 # La camara que respira: un acercamiento lento todo el plano,
                 # para que nada parezca una foto.
                 z = 1 + 0.045*min(1.0, reloj/max(0.5, segundos))

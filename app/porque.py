@@ -74,12 +74,14 @@ it is not in the lists, it cannot be drawn. A visual has any of:
              "efecto": optional}}. Put it in MOST shots, doing what the sentence says (it is the
              viewer's buddy living the story): it enters hopping at the start of a section, thinks,
              points at the thing being explained, jumps when there is an idea, gets scared,
-             laughs... Leave it out only for giant numbers or pure diagrams. The stick people
-             ("figuras") are the other characters of the story. Now and then (a few
+             laughs... Leave it out only for giant numbers or pure diagrams. The other characters
+             of the story ("figuras") are Mokordo's family: round drops like him. Now and then (a few
              times per video, not every sentence) the narration can name him, as the
              viewer's buddy: "Mokordo tries to tickle himself...", "even Mokordo knows that".
-  "figuras": 0-3 stick people: {{"quien": one of {quienes} ("persona" = adult, "persona_b" =
-             adult with a bun, "nino" = kid, "abuelo" = old bearded man / scientist), "x": 0.12-0.88, "pose": one of {poses},
+  "figuras": 0-3 other characters, MOKORDO'S FAMILY (round drops like him, no "?"): {{"quien":
+             one of {quienes} ("persona" = a blue drop, any adult; "persona_b" = a pink drop with a
+             bun; "nino" = a small green drop, a kid; "abuelo" = a tall grey bean with glasses and
+             a white moustache: old man, scientist), "x": 0.12-0.88, "pose": one of {poses},
              "pose_fin": another pose ONLY if they do something (raise their arms, put their hands
              on their head): they do it once and stay - otherwise omit it,
              "gesto": one of {gestos}, "efecto": one of {efectos} or omit,
@@ -681,7 +683,7 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             try:
                 # Lo que "sigue" no entra deslizandose: es el mismo dibujo creciendo.
                 entra = j > 0 or not visual.get("sigue")
-                fps_plano = _FPS_MASCOTA if dibujo.get("mascota") else _FPS_DIBUJO
+                fps_plano = _FPS_MASCOTA if dibujo.get("mascota") or dibujo.get("figuras") else _FPS_DIBUJO
                 _tuberia(garabato.fotos(dibujo, segundos, fps_plano), fotogramas, mp4, zoom=False, brillo=0,
                          desliza=_DESLIZA if entra else 0, fps_entrada=fps_plano)
                 if entra:

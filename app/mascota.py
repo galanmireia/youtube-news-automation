@@ -65,7 +65,8 @@ def _transforma(p, cx, base, estira, inclina):
 
 
 def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((60, 20), (60, 20)),
-           parpadeo=False, piernas=None, levanta=0.0, color=None, forma=None):
+           parpadeo=False, piernas=None, levanta=0.0, color=None, forma=None, pelo="?", gafas=False,
+           bigote=False):
     """Pinta la mascota. Devuelve la cabeza (cx, cy, radio, lado) para los
     efectos de garabato. brazos: (angulo, codo) por lado en grados; 0 es
     horizontal hacia fuera y + hacia abajo."""
@@ -90,16 +91,22 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
         d.ellipse([pie[0] - h*0.05 + lado*h*0.015, pie[1] - h*0.03, pie[0] + h*0.05 + lado*h*0.015, pie[1] + h*0.012],
                   fill=_oscuro(color, 0.7), outline=TINTA, width=g)
     # el cuerpo, con su sombra y su brillo dentro del contorno
-    capa = Image.new("RGB", img.size, color)
+    # Solo en la caja del cuerpo, no a pantalla entera: con varios
+    # personajes a 25 por segundo, cada lienzo de 1920x1080 se notaba.
+    x0, y0 = int(min(p[0] for p in pts)) - 2, int(min(p[1] for p in pts)) - 2
+    x1, y1 = int(max(p[0] for p in pts)) + 3, int(max(p[1] for p in pts)) + 3
+    loc = [(px - x0, py - y0) for px, py in pts]
+    capa = Image.new("RGB", (max(1, x1 - x0), max(1, y1 - y0)), color)
     dc = ImageDraw.Draw(capa)
     for (a, b), relleno in ((((ancho*0.25, 0), (ancho*1.9, -alto*1.05)), _oscuro(color, 0.88)),
                             (((-ancho*0.62, -alto*0.88), (-ancho*0.42, -alto*0.66)),
                              tuple(min(255, int(v*1.1 + 25)) for v in color))):
         p0, p1 = T(a), T(b)
-        dc.ellipse([min(p0[0], p1[0]), min(p0[1], p1[1]), max(p0[0], p1[0]), max(p0[1], p1[1])], fill=relleno)
-    mascara = Image.new("L", img.size, 0)
-    ImageDraw.Draw(mascara).polygon(pts, fill=255)
-    img.paste(capa, (0, 0), mascara)
+        dc.ellipse([min(p0[0], p1[0]) - x0, min(p0[1], p1[1]) - y0, max(p0[0], p1[0]) - x0, max(p0[1], p1[1]) - y0],
+                   fill=relleno)
+    mascara = Image.new("L", capa.size, 0)
+    ImageDraw.Draw(mascara).polygon(loc, fill=255)
+    img.paste(capa, (x0, y0), mascara)
     d = ImageDraw.Draw(img)
     d.line(pts + [pts[0]], fill=TINTA, width=g, joint="curve")
     # Los brazos DELANTE del cuerpo: detras, el que saluda o el que se
@@ -117,10 +124,30 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
                   width=max(2, g//2))
         manos.append(mano)
     top = T((0, -alto))
-    garabato._letrero(img, "?", (top[0] + h*0.02, top[1] - h*0.07), h*0.2, TINTA, -12 + inclina*0.5)
+    if pelo == "?":       # solo Mokordo
+        garabato._letrero(img, "?", (top[0] + h*0.02, top[1] - h*0.07), h*0.2, TINTA, -12 + inclina*0.5)
+    elif pelo == "moño":
+        rr = h*0.07
+        d.ellipse([top[0] - rr, top[1] - rr*1.7, top[0] + rr, top[1] + rr*0.3], fill=_oscuro(color, 0.75),
+                  outline=TINTA, width=g)
+    elif pelo == "brote":
+        d.line([top, (top[0] + h*0.01, top[1] - h*0.07)], fill=TINTA, width=g)
+        for lado in (-1, 1):
+            d.ellipse([top[0] + h*0.01 + (lado - 1)*h*0.035, top[1] - h*0.1, top[0] + h*0.01 + (lado + 1)*h*0.035,
+                       top[1] - h*0.06], fill=(110, 190, 90), outline=TINTA, width=max(2, g//2))
     centro = T((h*0.02, -alto*(0.7 if forma == "judia" else 0.58)))
     r = h*0.17
     garabato._cara_expresiva(d, centro, r, g, random.Random(1), gesto, tinta=TINTA)
+    if gafas:
+        for lado in (-1, 1):
+            ex, ey = centro[0] + lado*r*0.33, centro[1] - r*0.12
+            d.ellipse([ex - r*0.26, ey - r*0.28, ex + r*0.26, ey + r*0.26], outline=TINTA, width=max(2, g//2))
+        d.line([(centro[0] - r*0.07, centro[1] - r*0.14), (centro[0] + r*0.07, centro[1] - r*0.14)], fill=TINTA,
+               width=max(2, g//2))
+    if bigote:
+        for lado in (-1, 1):
+            d.chord([centro[0] + (lado - 1)*r*0.22, centro[1] + r*0.12, centro[0] + (lado + 1)*r*0.22,
+                     centro[1] + r*0.4], 180, 360, fill=(245, 245, 245), outline=TINTA, width=max(2, g//2))
     if parpadeo and gesto not in ("contento", "riendo", "bostezo"):
         for lado in (-1, 1):
             ex, ey = centro[0] + lado*r*0.33, centro[1] - r*0.12
@@ -304,3 +331,55 @@ def pinta(img, mascota: dict, t: float, dur: float, suelo: float):
             garabato._letrero(img, ".", (cabeza[0] + lado*(h*0.3 + k*h*0.09), cabeza[1] - h*0.25 - k*h*0.05),
                               h*0.2, TINTA, 0, garabato._escala_pop(t - 0.3 - k*0.35))
     return cabeza, p.get("efecto")
+
+
+# ---------------------------------------------------------------------------
+# LA FAMILIA DE MOKORDO: el resto de personajes de las historias ("ya no
+# solo Mokordo: los otros personajes que se parezcan a el, mas gordos,
+# delgados... pero no metas los otros", los de palotes). El guion los sigue
+# pidiendo como "figuras" (quien, pose, gesto...); aqui se pintan asi.
+# ---------------------------------------------------------------------------
+FAMILIA = {
+    "persona":   {"color": (120, 175, 240), "forma": "gota", "tam": 0.46, "pelo": None},
+    "persona_b": {"color": (245, 150, 185), "forma": "gota", "tam": 0.44, "pelo": "moño"},
+    "nino":      {"color": (130, 205, 115), "forma": "gota", "tam": 0.32, "pelo": "brote"},
+    "abuelo":    {"color": (200, 195, 210), "forma": "judia", "tam": 0.52, "pelo": None, "gafas": True,
+                  "bigote": True},
+}
+# La postura que pide el guion -> la accion de la familia.
+_POSE_A_ACCION = {
+    "de_pie": "explica", "sentado": "explica", "brazos_arriba": "salta", "señala": "senala",
+    "corriendo": "corre", "andando": "anda", "cayendose": "mareo", "manos_cabeza": "asusta",
+    "mirando": "piensa", "bailando": "baila", "aplaudiendo": "rie", "en_cama": "duerme",
+    "tumbado": "duerme", "cantando": "baila", "de_rodillas": "triste", "rezando": "piensa",
+    "peleando": "baila", "empujando": "anda", "cargando": "anda", "dando": "senala",
+}
+_GESTO_A_ACCION = {"riendo": "rie", "asustado": "asusta", "triste": "triste", "grito": "asusta",
+                   "bostezo": "duerme"}
+
+
+def personaje(img, figura: dict, t: float, dur: float, suelo: float, w: int, h_img: int):
+    """Un personaje de la familia en el segundo t. Devuelve (cabeza, manos)."""
+    quien = figura.get("quien") if figura.get("quien") in FAMILIA else "persona"
+    rasgos = FAMILIA[quien]
+    pose = str(figura.get("pose_fin") or figura.get("pose") or "de_pie")
+    gesto = str(figura.get("gesto") or "neutro")
+    accion = _POSE_A_ACCION.get(pose, "explica")
+    if accion == "explica" and gesto in _GESTO_A_ACCION:
+        accion = _GESTO_A_ACCION[gesto]
+    lado = -1 if figura.get("espejo") else 1
+    p = postura(accion, t + (sum(map(ord, quien)) % 7)*0.37, dur, lado)
+    h = h_img*rasgos["tam"]
+    # los extras se mueven menos de su sitio que Mokordo (que no se crucen)
+    cx = w*float(figura.get("x", 0.5)) + (p.get("dx", 0.0)*0.35 + p.get("temblor", 0.0))*h
+    brazos = p.get("brazos", ((60, 20), (60, 20)))
+    if lado < 0:
+        brazos = (brazos[1], brazos[0])
+    if figura.get("lleva"):
+        brazos = (brazos[0], (-20, -10))      # la mano que lleva algo, adelante
+    cabeza, manos = dibuja(img, cx, suelo, h, gesto=gesto if gesto != "neutro" else p.get("gesto", "neutro"),
+                           estira=p["estira"], inclina=p["inclina"]*lado, brazos=brazos,
+                           parpadeo=p.get("parpadeo", False), piernas=p.get("piernas"),
+                           levanta=p.get("levanta", 0.0)*h, color=rasgos["color"], forma=rasgos["forma"],
+                           pelo=rasgos["pelo"], gafas=rasgos.get("gafas", False), bigote=rasgos.get("bigote", False))
+    return cabeza, manos, h
