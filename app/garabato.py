@@ -490,23 +490,39 @@ def _yinyang(d, x, y, t, rnd, g, tinta=TINTA):
     d.ellipse([x - r, cy - r, x + r, cy + r], outline=TINTA, width=g)
 
 
+def _suaviza(pts, vueltas=3):
+    """Esquinas redondeadas (Chaikin): de poligono a dibujo."""
+    for _ in range(vueltas):
+        nuevos = []
+        for a, b in zip(pts, pts[1:] + pts[:1]):
+            nuevos += [(a[0]*0.75 + b[0]*0.25, a[1]*0.75 + b[1]*0.25),
+                       (a[0]*0.25 + b[0]*0.75, a[1]*0.25 + b[1]*0.75)]
+        pts = nuevos
+    return pts
+
+
 def _pie(d, x, y, t, rnd, g, tinta=TINTA):
-    """Un pie descalzo de perfil, de dibujo animado: tobillo, talon redondo,
-    planta plana y los deditos delante. El de las cosquillas."""
-    relleno = (255, 224, 196)
-    pts = [(x - t*0.30, y - t*0.95), (x - t*0.08, y - t*0.95), (x - t*0.06, y - t*0.55)]
-    pts += [(x - t*0.06 + t*0.62*s_, y - t*0.55 + t*0.30*s_**0.8) for s_ in (0.3, 0.6, 0.85, 1.0)]
-    pts += [(x + t*0.62, y - t*0.12), (x + t*0.55, y), (x - t*0.25, y)]
-    pts += [(x - t*0.25 - t*0.13*math.sin(a), y - t*0.13 + t*0.13*math.cos(a))
-            for a in [i*math.pi/8 for i in range(1, 8)]]
-    pts += [(x - t*0.32, y - t*0.35)]
-    _contorno(d, pts, relleno, g, rnd)
-    for k in range(4):                               # los deditos, de mayor a menor
-        cx = x + t*0.56 - k*t*0.11
-        r = t*(0.075 - k*0.01)
-        cy = y - t*0.22 - k*t*0.045
-        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=relleno, outline=TINTA, width=max(2, g//2))
-    d.line([(x + t*0.1, y - t*0.06), (x + t*0.35, y - t*0.06)], fill=(230, 180, 160), width=max(2, g//3))
+    """La planta del pie con sus cinco deditos: el pie de las cosquillas de
+    toda la vida ("mejora el dibujo del pie"; el de perfil parecia una bota)."""
+    piel, almohadilla = (255, 222, 196), (250, 196, 182)
+    contorno = [(0.02, 0), (0.15, -0.07), (0.18, -0.28), (0.2, -0.5), (0.23, -0.66), (0.21, -0.77),
+                (0.1, -0.82), (-0.08, -0.84), (-0.2, -0.79), (-0.23, -0.66), (-0.17, -0.52),
+                (-0.09, -0.4), (-0.09, -0.24), (-0.14, -0.09), (-0.06, 0.0)]
+    pts = _suaviza([(x + t*a, y + t*b) for a, b in contorno])
+    dedos = [(-0.13, -0.92, 0.075, 0.095), (-0.01, -0.95, 0.055, 0.07), (0.075, -0.93, 0.048, 0.06),
+             (0.145, -0.89, 0.042, 0.052), (0.2, -0.83, 0.036, 0.045)]
+    for cx, cy, rx, ry in dedos:
+        d.ellipse([x + t*(cx - rx), y + t*(cy - ry), x + t*(cx + rx), y + t*(cy + ry)], fill=piel,
+                  outline=TINTA, width=max(2, int(g*0.8)))
+    d.polygon(pts, fill=piel)
+    d.line(pts + [pts[0]], fill=TINTA, width=g, joint="curve")
+    # las almohadillas de la planta y del talon, y un par de arruguitas
+    d.ellipse([x - t*0.16, y - t*0.74, x + t*0.18, y - t*0.58], fill=almohadilla)
+    d.ellipse([x - t*0.1, y - t*0.2, x + t*0.12, y - t*0.04], fill=almohadilla)
+    for k in (0, 1):
+        yy = y - t*(0.42 - k*0.06)
+        d.arc([x - t*0.02, yy - t*0.03, x + t*0.12, yy + t*0.03], 200, 340, fill=(225, 165, 150),
+              width=max(2, g//2))
 
 
 def _mono(d, x, y, t, rnd, g, tinta=TINTA):
