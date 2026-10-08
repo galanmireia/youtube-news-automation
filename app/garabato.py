@@ -846,6 +846,7 @@ _GARABATOS = {"sudor": "sudor", "lagrimas": "lagrimas", "mareo": "espiral", "con
               "humo": "enfado"}
 _PULSO = 0.12       # el temblor del trazo, comparado con España Contada
 _GROSOR = 0.85      # y su grosor
+_ACERCA = 1.32      # lo que se acerca la camara cuando solo salen monigotes
 _HERVOR = 2          # fotogramas dibujados con el mismo temblor (12,5/2: seis por segundo)
 _PASO_COSAS = 0.3    # entre que aparece una cosa y la siguiente
 
@@ -929,17 +930,19 @@ def _garabato_en_cabeza(img, d, tipo, cabeza, t, rnd):
                      g, rnd, color=TINTA, temblor=0.6)
         _letrero(img, "!", (cx + lado*r*1.75, cy - r*0.9), r*1.2, COLORES["rojo"], -12*lado, e)
     elif tipo == "enfado":
-        oy = cy - r*1.75
-        pts = []
-        for k in range(46):
-            a = k*0.55
-            rr = r*(0.55 + 0.25*math.sin(k*1.7 + t*6))
-            pts.append((cx + math.cos(a)*rr*1.4 + (k - 23)*r*0.025, oy + math.sin(a)*rr*0.95))
-        m._linea(d, pts, max(4, int(g*1.1)), rnd, color=TINTA, temblor=1.2)
-        for k in (-1, 1):
-            px = cx + k*r*0.9
-            d.line([(px, oy + r*0.3), (px + k*r*0.15, oy + r*0.65), (px - k*r*0.05, oy + r*0.7),
-                    (px + k*r*0.12, oy + r*1.0)], fill=COLORES["rojo"], width=g)
+        # El nubarron gris de mal humor, con sus rayos rojos.
+        oy = cy - r*1.85 + r*0.05*math.sin(t*4)
+        piezas = [(cx - r*0.55, oy + r*0.1, r*0.38), (cx, oy - r*0.12, r*0.48), (cx + r*0.55, oy + r*0.1, r*0.38)]
+        for px, py, rr in piezas:
+            d.ellipse([px - rr*e, py - rr*e, px + rr*e, py + rr*e], fill=(110, 110, 120), outline=TINTA, width=g)
+        for px, py, rr in piezas:
+            if rr*e > g*1.5:
+                d.ellipse([px - rr*e + g, py - rr*e + g, px + rr*e - g, py + rr*e - g], fill=(110, 110, 120))
+        if int(t*3) % 2 == 0:
+            for k in (-1, 1):
+                px = cx + k*r*0.35
+                d.line([(px, oy + r*0.4), (px - k*r*0.12, oy + r*0.7), (px + k*r*0.05, oy + r*0.72),
+                        (px - k*r*0.08, oy + r*1.0)], fill=COLORES["rojo"], width=max(3, int(g*1.2)))
     elif tipo == "espiral":
         oy, giro = cy - r*1.75, t*5
         pts = [(cx + math.cos(giro + a/10)*r*0.06*a/10*e, oy + math.sin(giro + a/10)*r*0.035*a/10*e)
@@ -1027,6 +1030,99 @@ def _ondas(d, cabeza, t, rnd, colores, frio=False):
         m._linea(d, pts, g, rnd, color=colores[k % len(colores)], temblor=0.4)
 
 
+# ---------------------------------------------------------------------------
+# CARAS CON MAS EXPRESION ("currate mas los dibujos, que sean mas
+# expresivos"): ojos con su blanco y su pupila, cejas que cuentan lo que
+# siente, mofletes, lengua. Solo en Why Though: se cambia por la de
+# monigotes mientras se dibuja cada fotograma.
+# ---------------------------------------------------------------------------
+_ROSA_MOFLETE = (250, 185, 190)
+_LENGUA = (230, 100, 120)
+
+
+def _ojo_abierto(d, cx, cy, r, g, tinta, mira=(0.0, 0.0), grande=1.0, pupila=1.0):
+    ro = r*0.15*grande
+    d.ellipse([cx - ro, cy - ro*1.15, cx + ro, cy + ro*1.15], fill=(255, 255, 255), outline=tinta,
+              width=max(2, g//2))
+    rp = ro*0.55*pupila
+    px, py = cx + mira[0]*ro*0.35, cy + mira[1]*ro*0.35
+    d.ellipse([px - rp, py - rp, px + rp, py + rp], fill=tinta)
+    d.ellipse([px - rp*0.15, py - rp*0.7, px + rp*0.35, py - rp*0.25], fill=(255, 255, 255))
+
+
+def _ceja(d, cx, cy, r, g, tinta, lado, inclina=0.0, alto=0.0):
+    """inclina > 0: el lado de dentro baja (enfado); < 0: sube (pena)."""
+    a = r*0.16
+    dentro, fuera = cx - lado*a, cx + lado*a
+    y = cy - r*(0.30 + alto)
+    d.line([(fuera, y - inclina*r*0.04), (dentro, y + inclina*r*0.08)], fill=tinta, width=max(3, int(g*1.1)))
+
+
+def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA):
+    o = r*0.33
+    ey = c[1] - r*0.12
+    b = (c[0], c[1] + r*0.38)
+    if gesto == "muerto":
+        return _CARA_ORIGINAL(d, c, r, g, rnd, gesto, tinta)
+    for lado in (-1, 1):
+        cx = c[0] + lado*o
+        if gesto in ("contento", "riendo", "enamorado"):
+            # Los ojos cerrados de felicidad: dos arcos hacia arriba.
+            d.arc([cx - r*0.13, ey - r*0.08, cx + r*0.13, ey + r*0.14], 200, 340, fill=tinta, width=max(3, g))
+            _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.4, alto=0.06)
+        elif gesto in ("sorpresa", "asustado", "grito"):
+            _ojo_abierto(d, cx, ey, r, g, tinta, grande=1.25, pupila=0.6)
+            _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.6 if gesto == "asustado" else -0.2, alto=0.14)
+        elif gesto == "enfadado":
+            _ojo_abierto(d, cx, ey, r, g, tinta, mira=(0, 0.3), grande=0.9)
+            _ceja(d, cx, ey, r, g, tinta, lado, inclina=1.6, alto=-0.04)
+        elif gesto == "triste":
+            _ojo_abierto(d, cx, ey, r, g, tinta, mira=(0, 0.8), grande=0.95)
+            _ceja(d, cx, ey, r, g, tinta, lado, inclina=-1.5, alto=0.05)
+        elif gesto == "asco":
+            _ojo_abierto(d, cx, ey + r*0.02, r, g, tinta, mira=(-lado*0.6, 0), grande=0.75 if lado < 0 else 1.0)
+            _ceja(d, cx, ey, r, g, tinta, lado, inclina=1.2 if lado < 0 else -0.8, alto=0.0 if lado < 0 else 0.1)
+        elif gesto == "bostezo":
+            d.line([(cx - r*0.12, ey + r*0.02), (cx + r*0.12, ey + r*0.02)], fill=tinta, width=max(3, g))
+            _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.5, alto=0.04)
+        else:
+            _ojo_abierto(d, cx, ey, r, g, tinta, mira=(0.15, 0))
+            _ceja(d, cx, ey, r, g, tinta, lado, inclina=0.0, alto=0.06)
+    if gesto in ("contento", "riendo", "enamorado"):
+        for lado in (-1, 1):
+            mx = c[0] + lado*r*0.52
+            d.ellipse([mx - r*0.13, b[1] - r*0.2, mx + r*0.13, b[1] - r*0.06], fill=_ROSA_MOFLETE)
+    if gesto == "riendo":
+        d.chord([b[0] - r*0.36, b[1] - r*0.16, b[0] + r*0.36, b[1] + r*0.46], 0, 180, fill=tinta)
+        d.chord([b[0] - r*0.2, b[1] + r*0.14, b[0] + r*0.2, b[1] + r*0.44], 0, 180, fill=_LENGUA)
+    elif gesto in ("contento", "enamorado"):
+        d.arc([b[0] - r*0.32, b[1] - r*0.3, b[0] + r*0.32, b[1] + r*0.18], 20, 160, fill=tinta, width=max(3, g))
+    elif gesto == "sorpresa":
+        d.ellipse([b[0] - r*0.12, b[1] - r*0.08, b[0] + r*0.12, b[1] + r*0.2], fill=tinta)
+    elif gesto in ("asustado", "grito"):
+        d.chord([b[0] - r*0.3, b[1] - r*0.12, b[0] + r*0.3, b[1] + r*0.42], 180, 360, fill=tinta)
+        d.rectangle([b[0] - r*0.3, b[1] + r*0.15, b[0] + r*0.3, b[1] + r*0.2], fill=tinta)
+        d.chord([b[0] - r*0.16, b[1] + r*0.02, b[0] + r*0.16, b[1] + r*0.2], 180, 360, fill=_LENGUA)
+    elif gesto == "enfadado":
+        pts = [(b[0] - r*0.26 + k*r*0.104, b[1] + (r*0.04 if k % 2 else -r*0.02)) for k in range(6)]
+        d.line(pts, fill=tinta, width=max(3, g))
+    elif gesto == "triste":
+        d.arc([b[0] - r*0.28, b[1], b[0] + r*0.28, b[1] + r*0.42], 200, 340, fill=tinta, width=max(3, g))
+    elif gesto == "asco":
+        pts = [(b[0] - r*0.28 + k*r*0.112, b[1] + (r*0.07 if k % 2 else -r*0.03)) for k in range(6)]
+        d.line(pts, fill=tinta, width=max(3, g))
+        d.chord([b[0] + r*0.02, b[1] - r*0.02, b[0] + r*0.22, b[1] + r*0.24], 0, 180, fill=_LENGUA,
+                outline=tinta, width=max(2, g//2))
+    elif gesto == "bostezo":
+        d.ellipse([b[0] - r*0.18, b[1] - r*0.16, b[0] + r*0.18, b[1] + r*0.38], fill=tinta)
+        d.ellipse([b[0] - r*0.1, b[1] + r*0.14, b[0] + r*0.1, b[1] + r*0.32], fill=_LENGUA)
+    else:
+        d.arc([b[0] - r*0.18, b[1] - r*0.12, b[0] + r*0.18, b[1] + r*0.1], 20, 160, fill=tinta, width=max(3, g))
+
+
+_CARA_ORIGINAL = m._cara
+
+
 def _vida(img, e, cabezas, t, n):
     """Lo de este canal, encima de cada fotograma de animar()."""
     w, h = img.size
@@ -1091,24 +1187,42 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
     fondo = None
     if e.get("_ambiente", "nada") != "nada" or apoyados:
         fondo = garabato_ambiente.fondo(e.get("_ambiente", "nada"), tam, pies, apoyados)
+    # SI SOLO SALEN ELLOS, MAS GRANDES ("que ocupen mas en pantalla"): la
+    # camara se acerca a los monigotes, con los pies abajo del todo.
+    camara = None
+    figs = e.get("figuras", [])
+    if figs and len(figs) <= 2 and not e.get("_pop") and not (visual or {}).get("cifra") \
+            and not any(f.get("_giro") for f in figs):
+        # Cuanto acercar: que el mas alto ocupe unas tres cuartas partes de la
+        # pantalla (el niño, bajito, se acerca mas); menos si lleva algo
+        # encima de la cabeza (humo, zetas...).
+        meta = 0.64 if e.get("_doodles") else 0.74
+        z = min(2.0, max(1.0, meta/(1.08*max(f.get("alto", 0.5) for f in figs))))
+        cw, ch = ancho/z, alto/z
+        cx = sum(f["x"] for f in figs)/len(figs)*ancho
+        x0 = min(max(0.0, cx - cw/2), ancho - cw)
+        y0 = min(max(0.0, pies - alto*0.93/z), alto - ch)
+        camara = (int(x0), int(y0), int(x0 + cw), int(y0 + ch))
     animacion = m.animar(e, segundos=segundos, fps=fps, tam=tam, calma=calma, una_vez=True)
     n = 0
     while True:
         cabezas.clear()
         # El trazo de Whymentary: liso, sin el pulso de España Contada, y
         # algo mas fino. Solo mientras se dibuja este fotograma.
-        m.figura, m.PULSO, m.GROSOR = espia, _PULSO, _GROSOR
+        m.figura, m.PULSO, m.GROSOR, m._cara = espia, _PULSO, _GROSOR, _cara_expresiva
         try:
             img = next(animacion).convert("RGB")
             if fondo is not None:
                 img = garabato_ambiente.pon_detras(img, fondo)
             reloj = n/fps
             img = _vida(img, e, list(cabezas), reloj, n)
+            if camara:
+                img = img.crop(camara).resize(tam, Image.BILINEAR)
             img = encima(img, visual or {}, reloj, segundos)
         except StopIteration:
             break
         finally:
-            m.figura, m.PULSO, m.GROSOR = original, 1.0, 1.0
+            m.figura, m.PULSO, m.GROSOR, m._cara = original, 1.0, 1.0, _CARA_ORIGINAL
         yield _hierve(img, n) if hervor else img
         n += 1
 
