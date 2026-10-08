@@ -85,6 +85,10 @@ it is not in the lists, it cannot be drawn. A visual has any of:
              big straight arrow (pointing at something, "goes up", "goes down")}}
   "cifra":   a GIANT number with rays, alone on the page: {{"valor": "35°C", "pie": "short
              caption", "color": ...}} (use it for the key numbers; then no figuras/cosas)
+  "ambiente": where the drawing happens, doodled lightly around it so the page is not bare:
+             one of {ambientes} (a horse -> "campo": grass and sun; a camel -> "desierto"; a
+             person in bed -> "casa"). Give one to every fresh drawing; "nada" only for words,
+             numbers and diagrams.
   "sigue":   true = KEEP the previous shot's drawing and ADD this shot's new things to it
              (only the new ones appear). Build a drawing up step by step, the way Whymentary does:
              the fan... then the person sweating next to it... then the thermometer going up.
@@ -240,7 +244,8 @@ def _sistema(tema: str) -> str:
         canal=CHANNEL_NAME, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
         gestos=_lista(_GESTOS), efectos=_lista(_EFECTOS),
         llevables=_lista(monigotes.LLEVABLES_EXPLICADOS), objetos=_lista(garabato.OBJETOS_VALIDOS),
-        colores=_lista(garabato.COLORES), dosier=dosier or "(no dossier: use only facts you are sure of)")
+        colores=_lista(garabato.COLORES), ambientes=_lista(garabato.garabato_ambiente.AMBIENTES),
+        dosier=dosier or "(no dossier: use only facts you are sure of)")
 
 
 def run_alarga() -> str:
@@ -420,7 +425,8 @@ def _acumula(anterior: dict | None, visual: dict) -> dict:
     que ya estaba se marca "_ya" para que no vuelva a aparecer de golpe."""
     if not anterior or not visual.get("sigue"):
         return visual
-    v = {"sigue": True, "figuras": visual.get("figuras") or anterior.get("figuras") or []}
+    v = {"sigue": True, "figuras": visual.get("figuras") or anterior.get("figuras") or [],
+         "ambiente": visual.get("ambiente") or anterior.get("ambiente")}
     for campo, tope in (("cosas", 5), ("textos", 3), ("flechas", 3)):
         viejos = [dict(x, _ya=True) for x in anterior.get(campo) or [] if isinstance(x, dict)]
         nuevos = [x for x in visual.get(campo) or [] if isinstance(x, dict)]
@@ -658,7 +664,8 @@ def retoca(guion: dict) -> int:
         canal=CHANNEL_NAME, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
         gestos=_lista(_GESTOS), efectos=_lista(_EFECTOS),
         llevables=_lista(monigotes.LLEVABLES_EXPLICADOS), objetos=_lista(garabato.OBJETOS_VALIDOS),
-        colores=_lista(garabato.COLORES), dosier="(not needed for this task)")
+        colores=_lista(garabato.COLORES), ambientes=_lista(garabato.garabato_ambiente.AMBIENTES),
+        dosier="(not needed for this task)")
     try:
         nuevos = _pregunta(sistema, _PIDE_RETOQUE.format(planos=lista), "why-retoque", 16000)
     except Exception:

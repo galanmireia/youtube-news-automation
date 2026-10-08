@@ -31,6 +31,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from . import monigotes as m
 from .garabato_mas import MAS_OBJETOS
+from . import garabato_ambiente
 
 # La letra de Whymentary: rotulador redondo, trazo parejo (Architects
 # Daughter, SIL Open Font License; la licencia va al lado).
@@ -828,6 +829,7 @@ def _spec(visual: dict) -> dict:
     # encima del folio (ver _cosa_pop).
     e["cosas"] = []
     e["_pop"] = cosas
+    e["_ambiente"] = garabato_ambiente.elige(visual, cosas)
     return e
 
 
@@ -1080,6 +1082,15 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
         cabezas.append((cuello[0], cuello[1] - rc*0.95, rc, lado))
         return original(d, x, suelo, alto, rnd, pose, gesto, gorro, espejo, pose_mezclada, **kw)
 
+    # El ambiente del folio (la hierba y el sol del caballo, las dunas del
+    # camello) y las sombritas de lo que esta apoyado: una vez por plano.
+    ancho, alto = tam
+    pies = min(alto*e.get("suelo", 0.76) + alto*0.06, alto*0.86)
+    apoyados = [(f["x"], f.get("alto", 0.5)*0.42*alto/ancho) for f in e.get("figuras", []) if not f.get("_giro")]
+    apoyados += [(c["x"], c["tam"]*1.0*alto/ancho) for c in e.get("_pop", []) if c.get("y") is None]
+    fondo = None
+    if e.get("_ambiente", "nada") != "nada" or apoyados:
+        fondo = garabato_ambiente.fondo(e.get("_ambiente", "nada"), tam, pies, apoyados)
     animacion = m.animar(e, segundos=segundos, fps=fps, tam=tam, calma=calma, una_vez=True)
     n = 0
     while True:
@@ -1088,9 +1099,11 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
         # algo mas fino. Solo mientras se dibuja este fotograma.
         m.figura, m.PULSO, m.GROSOR = espia, _PULSO, _GROSOR
         try:
-            img = next(animacion)
+            img = next(animacion).convert("RGB")
+            if fondo is not None:
+                img = garabato_ambiente.pon_detras(img, fondo)
             reloj = n/fps
-            img = _vida(img.convert("RGB"), e, list(cabezas), reloj, n)
+            img = _vida(img, e, list(cabezas), reloj, n)
             img = encima(img, visual or {}, reloj, segundos)
         except StopIteration:
             break
