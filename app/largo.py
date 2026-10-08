@@ -495,6 +495,32 @@ def _fotos_de_escena(visual: dict, segundos: float, guarda: list):
     return monigotes.animar(e, segundos=segundos, fps=_FPS_DIBUJO, tam=(ANCHO, ALTO), calma=_CALMA)
 
 
+_MAX_ESCENA = 15.0            # segundos como mucho con el mismo dibujo
+_POSES_DE_RELEVO = ("señala", "mirando", "brazos_arriba", "andando", "de_pie")
+
+
+def _relevo_de_escena(visual: dict, k: int) -> dict:
+    """La misma escena para el trozo k de un plano demasiado largo: en los
+    impares en espejo (lo de la izquierda a la derecha), y siempre con los
+    monigotes en otra postura. Sin repetir el efecto ni su sonido."""
+    v = json.loads(json.dumps(visual or {}))
+    escena = v["escena"] if isinstance(v.get("escena"), dict) else v
+    espejo = k % 2 == 1
+    for f in escena.get("figuras") or []:
+        if not isinstance(f, dict):
+            continue
+        if espejo:
+            f["x"] = 1 - float(f.get("x", 0.5))
+            f["espejo"] = not f.get("espejo")
+        f["pose"] = _POSES_DE_RELEVO[(k + len(str(f.get("quien", "")))) % len(_POSES_DE_RELEVO)]
+        for campo in ("pose_fin", "efecto", "efecto_desde"):
+            f.pop(campo, None)
+    for c in escena.get("cosas") or []:
+        if espejo and isinstance(c, dict):
+            c["x"] = 1 - float(c.get("x", 0.5))
+    return v
+
+
 def _fotos_de_mapa(visual: dict, segundos: float):
     """Las rutas del mapa se dibujan solas, una detras de otra, en la primera
     mitad del plano; luego el mapa se queda y sigue el zoom."""
@@ -663,15 +689,31 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path]:
                 _tuberia(_fotos_de_datos(visual, segundos), fotogramas, mp4, zoom=True,
                          hacia_dentro=i % 2 == 0)
             else:
-                fx = []
-                fotos = _fotos_de_escena(visual, segundos, fx)
-                if miniatura is None:
-                    fotos = _guarda_una(fotos, int(segundos*_FPS_DIBUJO*0.5), lambda img: None)
-                    miniatura_de = fotos
-                _tuberia(fotos, fotogramas, mp4, zoom=False)
-                if miniatura is None:
-                    miniatura = miniatura_de.foto
-                ruidos += [(n, inicio + t, d) for n, t, d in fx]
+                # Ninguna escena mas de _MAX_ESCENA: la que se pasa se parte
+                # y cada trozo es otro dibujo (en espejo, otra postura).
+                n = max(1, math.ceil(fotogramas/(_MAX_ESCENA*FPS)))
+                cortes = [round(fotogramas*j/n) for j in range(n + 1)]
+                piezas = []
+                for j in range(n):
+                    trozo = cortes[j + 1] - cortes[j]
+                    fx = []
+                    fotos = _fotos_de_escena(visual if j == 0 else _relevo_de_escena(visual, j), trozo/FPS, fx)
+                    if miniatura is None:
+                        fotos = _guarda_una(fotos, int(trozo/FPS*_FPS_DIBUJO*0.5), lambda img: None)
+                        miniatura_de = fotos
+                    pieza = mp4 if n == 1 else carpeta / f"plano_{i:03d}_{j}.mp4"
+                    _tuberia(fotos, trozo, pieza, zoom=False)
+                    if miniatura is None:
+                        miniatura = miniatura_de.foto
+                    ruidos += [(nombre, inicio + cortes[j]/FPS + t, d) for nombre, t, d in fx]
+                    piezas.append(pieza)
+                if n > 1:
+                    (carpeta / f"plano_{i:03d}.txt").write_text(
+                        "\n".join(f"file '{p.resolve()}'" for p in piezas))
+                    _ffmpeg(["-f", "concat", "-safe", "0", "-i", str(carpeta / f"plano_{i:03d}.txt"),
+                             "-c", "copy", str(mp4)], "trozos")
+                    for p in piezas:
+                        p.unlink(missing_ok=True)
         except Exception:
             logger.warning("largo: el plano %s (%s) ha fallado; va un dibujo quieto.", i, tipo,
                            exc_info=True)

@@ -301,6 +301,58 @@ def hay_pendiente() -> bool:
 
 
 _CARETA = 2.8     # segundos que se ve el titulo
+# Ninguna escena se queda mas de esto en pantalla, la haya escrito Claude
+# larga o no ("¿esta garantizado que haya una escena cada 10 segundos?"):
+# la que se pasa se parte en trozos y cada trozo es otro dibujo.
+_MAX_PLANO = 10.0
+_POSES_DE_RELEVO = ("señala", "brazos_arriba", "mirando", "aplaudiendo", "andando")
+
+
+def _variante(visual: dict, k: int) -> dict:
+    """El mismo plano dibujado de otra manera, para el trozo k (1, 2...) de un
+    plano demasiado largo: todo en espejo (lo de la izquierda pasa a la
+    derecha), cada monigote en otra postura, y los letreros fuera a partir del
+    segundo relevo; o, si hay una cosa de la que se habla, ella sola y enorme
+    (el inserto), para que el folio cambie de verdad."""
+    v = json.loads(json.dumps(visual))
+    cosas = [c for c in v.get("cosas") or [] if isinstance(c, dict)]
+    llevan = [f["lleva"] for f in v.get("figuras") or [] if isinstance(f, dict) and f.get("lleva")]
+    if k % 2 == 0 and (cosas or llevan):
+        # El inserto: la cosa de la que se habla, sola y enorme en el folio.
+        que = cosas[0].get("que") if cosas else llevan[0]
+        return {"cosas": [{"que": que, "x": 0.5, "y": 0.52, "tam": 0.5}],
+                "textos": [t for t in v.get("textos") or [] if isinstance(t, dict)][:1]}
+    espejo = k % 2 == 1
+    for f in v.get("figuras") or []:
+        if espejo:
+            f["x"] = 1 - float(f.get("x", 0.5))
+            f["espejo"] = not f.get("espejo")
+        f["pose"] = _POSES_DE_RELEVO[(k + len(str(f.get("quien", "")))) % len(_POSES_DE_RELEVO)]
+        f.pop("pose_fin", None)
+    for c in v.get("cosas") or []:
+        if espejo:
+            c["x"] = 1 - float(c.get("x", 0.5))
+        c["tam"] = min(0.55, float(c.get("tam") or 0.25)*(1.25 if k % 2 else 0.85))
+    for t in v.get("textos") or []:
+        if espejo:
+            t["x"] = 1 - float(t.get("x", 0.5))
+    for fl in v.get("flechas") or []:
+        for punta in ("de", "a"):
+            if espejo and isinstance(fl.get(punta), list) and fl[punta]:
+                fl[punta] = [1 - float(fl[punta][0])] + list(fl[punta][1:])
+    if k >= 2:
+        v.pop("textos", None)
+    return v
+
+
+def _trozos_del_plano(visual: dict, fotogramas: int) -> list:
+    """[(visual, fotogramas)]: el plano entero, o partido en trozos iguales
+    de menos de _MAX_PLANO si se pasa. La careta del titulo no se parte."""
+    n = 1 if visual.get("_careta") else math.ceil(fotogramas/(_MAX_PLANO*FPS))
+    if n <= 1:
+        return [(visual, fotogramas)]
+    cortes = [round(fotogramas*j/n) for j in range(n + 1)]
+    return [(visual if j == 0 else _variante(visual, j), cortes[j + 1] - cortes[j]) for j in range(n)]
 
 
 def _cartel_titulo(titulo: str) -> dict:
@@ -371,19 +423,22 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
         if parar is not None and parar():
             from .pipeline import GenerationStopped
             raise GenerationStopped("parada pedida mientras se dibujaba")
-        fotogramas = max(1, fronteras[i + 1] - fronteras[i])
-        segundos = fotogramas/FPS
-        mp4 = carpeta / f"plano_{i:03d}.mp4"
-        try:
-            _tuberia(garabato.fotos(visual, segundos, _FPS_DIBUJO), fotogramas, mp4, zoom=False, brillo=0)
-            ruidos += [(n, fronteras[i]/FPS + t0, d) for n, t0, d in garabato.sonidos_del_plano(visual, segundos)]
-            if visual.get("_careta"):
-                ruidos.append(("campana", fronteras[i]/FPS + 0.1, 1.8))
-        except Exception:
-            logger.warning("why: el plano %s ha fallado; va en blanco con su texto.", i, exc_info=True)
-            _tuberia(garabato.fotos({"textos": [{"texto": "...", "x": 0.5, "y": 0.5}]}, 1, _FPS_DIBUJO),
-                     fotogramas, mp4, zoom=False, brillo=0)
-        trozos.append(mp4)
+        inicio = fronteras[i]
+        for j, (dibujo, fotogramas) in enumerate(_trozos_del_plano(visual, max(1, fronteras[i + 1] - fronteras[i]))):
+            segundos = fotogramas/FPS
+            mp4 = carpeta / f"plano_{i:03d}_{j}.mp4"
+            try:
+                _tuberia(garabato.fotos(dibujo, segundos, _FPS_DIBUJO), fotogramas, mp4, zoom=False, brillo=0)
+                if j == 0:
+                    ruidos += [(n, inicio/FPS + t0, d) for n, t0, d in garabato.sonidos_del_plano(dibujo, segundos)]
+                if visual.get("_careta"):
+                    ruidos.append(("campana", inicio/FPS + 0.1, 1.8))
+            except Exception:
+                logger.warning("why: el plano %s ha fallado; va en blanco con su texto.", i, exc_info=True)
+                _tuberia(garabato.fotos({"textos": [{"texto": "...", "x": 0.5, "y": 0.5}]}, 1, _FPS_DIBUJO),
+                         fotogramas, mp4, zoom=False, brillo=0)
+            trozos.append(mp4)
+            inicio += fotogramas
         if i % 25 == 0:
             logger.info("why: %s de %s planos montados.", i + 1, len(planos))
 
