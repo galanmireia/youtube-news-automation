@@ -619,6 +619,29 @@ async def _run_why_guion_and_notify(bot, tema: str) -> None:
                                    text="Error escribiendo el guion en ingles, revisa los logs.")
 
 
+async def handle_alargar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/alargar: el guion en ingles que espera se ha quedado corto - se le
+    añaden planos a los capitulos cortos, sin reescribirlo."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    from . import porque
+    if _pipeline_lock.locked():
+        await update.message.reply_text("Ya hay una generacion en curso, espera a que termine.")
+        return
+    if not porque.hay_pendiente():
+        await update.message.reply_text("No hay ningun guion en ingles esperando. Primero /why tema.")
+        return
+    await update.message.reply_text("Alargo los capitulos que se han quedado cortos...")
+    loop = asyncio.get_running_loop()
+    async with _pipeline_lock:
+        try:
+            texto = await asyncio.wait_for(loop.run_in_executor(None, porque.run_alarga), timeout=15*60)
+            await update.message.reply_text(("Guion alargado:\n\n" + texto)[:4000])
+        except Exception:
+            logger.exception("Error alargando el guion")
+            await update.message.reply_text("Error alargando el guion, revisa los logs.")
+
+
 async def _run_why_montaje_and_notify(bot) -> None:
     from .porque import run_montaje
     loop = asyncio.get_running_loop()
@@ -2362,6 +2385,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("largo", handle_largo_command))
     application.add_handler(CommandHandler("montar", handle_montar_command))
     application.add_handler(CommandHandler("why", handle_why_command))
+    application.add_handler(CommandHandler("alargar", handle_alargar_command))
     application.add_handler(CommandHandler("reset", handle_reset_command))
     application.add_handler(CommandHandler("parar", handle_stop_command))
     application.add_handler(CommandHandler("voces", handle_voices_command))

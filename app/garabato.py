@@ -349,6 +349,144 @@ def _dinero(d, x, y, t, rnd, g, tinta=TINTA):
     d.text((x, y - t*0.3), "$", font=_fuente(t*0.5), fill=(40, 110, 40), anchor="mm")
 
 
+def _pluma(d, x, y, t, rnd, g, tinta=TINTA):
+    """La pluma de hacer cosquillas: curva, con sus barbas."""
+    base, punta = (x - t*0.15, y), (x + t*0.2, y - t)
+    pts = []
+    for i in range(21):
+        s = i/20
+        cx = base[0] + (punta[0] - base[0])*s + t*0.12*math.sin(s*math.pi)
+        cy = base[1] + (punta[1] - base[1])*s
+        pts.append((cx, cy))
+    for i in range(3, 20):
+        cx, cy = pts[i]
+        ancho = t*0.16*math.sin((i - 3)/17*math.pi)
+        for lado in (-1, 1):
+            d.line([(cx, cy), (cx + lado*ancho, cy - ancho*0.5)], fill=(120, 190, 240), width=max(3, g//2))
+    m._linea(d, pts, max(3, g//2), rnd, color=TINTA, temblor=0.4)
+
+
+def _bicho(d, x, y, t, rnd, g, tinta=TINTA):
+    """Un bicho que trepa: cuerpo, cabeza, seis patas y antenas."""
+    cy, r = y - t*0.4, t*0.28
+    for k in (-1, 0, 1):
+        for lado in (-1, 1):
+            d.line([(x + k*r*0.6, cy), (x + k*r*0.8 + lado*0, cy + lado*r*1.1)], fill=TINTA, width=max(3, g//2))
+    _ovalo(d, [x - r*1.1, cy - r*0.7, x + r*0.7, cy + r*0.7], (90, 70, 60), g)
+    _ovalo(d, [x + r*0.5, cy - r*0.5, x + r*1.3, cy + r*0.5], (90, 70, 60), g)
+    for lado in (-1, 1):
+        d.line([(x + r*1.1, cy - r*0.3*lado), (x + r*1.6, cy - r*0.9*lado)], fill=TINTA, width=max(2, g//3))
+    d.ellipse([x + r*0.9, cy - r*0.25, x + r*1.1, cy - r*0.05], fill=(255, 255, 255))
+
+
+def _rata(d, x, y, t, rnd, g, tinta=TINTA):
+    """La rata de laboratorio: gris, orejas rosas, cola larga."""
+    cy, r = y - t*0.35, t*0.35
+    pts = [(x - r*1.3, cy), (x - r*1.9, cy - r*0.3), (x - r*2.4, cy + r*0.1)]
+    m._linea(d, pts, max(3, g//2), rnd, color=(230, 150, 160))
+    _ovalo(d, [x - r*1.4, cy - r*0.75, x + r*0.6, cy + r*0.75], (170, 170, 175), g)
+    d.polygon([(x + r*0.4, cy - r*0.5), (x + r*1.5, cy + r*0.1), (x + r*0.4, cy + r*0.5)],
+              fill=(170, 170, 175), outline=TINTA)
+    _ovalo(d, [x + r*0.2, cy - r*1.0, x + r*0.7, cy - r*0.45], (240, 170, 180), max(2, g//2))
+    d.ellipse([x + r*0.75, cy - r*0.2, x + r*0.9, cy - r*0.05], fill=TINTA)
+    d.ellipse([x + r*1.4, cy + r*0.0, x + r*1.6, cy + r*0.2], fill=(240, 120, 140))
+
+
+def _maquina_cosquillas(d, x, y, t, rnd, g, tinta=TINTA):
+    """La maquina de cosquillas de los experimentos: una caja con palanca y
+    un brazo que acaba en una bola de espuma."""
+    d.rectangle([x - t*0.45, y - t*0.35, x + t*0.1, y], fill=(200, 200, 205), outline=TINTA, width=g)
+    d.ellipse([x - t*0.3, y - t*0.25, x - t*0.15, y - t*0.1], fill=(226, 38, 38), outline=TINTA, width=max(2, g//3))
+    m._linea(d, [(x - t*0.35, y - t*0.35), (x - t*0.45, y - t*0.6)], g, rnd)            # palanca
+    d.ellipse([x - t*0.5, y - t*0.66, x - t*0.4, y - t*0.56], fill=TINTA)
+    m._linea(d, [(x + t*0.1, y - t*0.2), (x + t*0.45, y - t*0.55)], g, rnd)              # brazo
+    _ovalo(d, [x + t*0.38, y - t*0.72, x + t*0.6, y - t*0.5], (250, 210, 60), g)          # espuma
+
+
+def _gafas_vr(d, x, y, t, rnd, g, tinta=TINTA):
+    """Unas gafas de realidad virtual."""
+    cy = y - t*0.4
+    d.rounded_rectangle([x - t*0.55, cy - t*0.25, x + t*0.55, cy + t*0.25], radius=int(t*0.1),
+                        fill=(50, 50, 60), outline=TINTA, width=g)
+    for lado in (-1, 1):
+        d.ellipse([x + lado*t*0.27 - t*0.15, cy - t*0.12, x + lado*t*0.27 + t*0.15, cy + t*0.15],
+                  fill=(120, 200, 250), outline=TINTA, width=max(2, g//2))
+    d.arc([x - t*0.7, cy - t*0.5, x + t*0.7, cy + t*0.3], 180, 360, fill=TINTA, width=max(3, g//2))
+
+
+def _palanca(d, x, y, t, rnd, g, tinta=TINTA):
+    d.rounded_rectangle([x - t*0.3, y - t*0.2, x + t*0.3, y], radius=int(t*0.05), fill=(130, 130, 140),
+                        outline=TINTA, width=g)
+    m._linea(d, [(x, y - t*0.2), (x + t*0.2, y - t*0.85)], int(g*1.2), rnd)
+    _ovalo(d, [x + t*0.1, y - t*0.98, x + t*0.3, y - t*0.78], (226, 38, 38), g)
+
+
+def _bobina(d, x, y, t, rnd, g, tinta=TINTA):
+    """La bobina magnetica de estimular el cerebro: un ocho de cobre con mango."""
+    cy, r = y - t*0.6, t*0.22
+    for lado in (-1, 1):
+        for k in range(3):
+            rr = r*(1 - k*0.25)
+            d.ellipse([x + lado*r - rr, cy - rr, x + lado*r + rr, cy + rr], outline=(200, 120, 50), width=g)
+    d.rounded_rectangle([x - t*0.06, cy + r, x + t*0.06, y], radius=int(t*0.03), fill=(60, 60, 70),
+                        outline=TINTA, width=max(2, g//2))
+    for k in range(3):                               # el zumbido
+        d.arc([x - r*2.6 - k*t*0.05, cy - r*1.5 - k*t*0.05, x + r*2.6 + k*t*0.05, cy + r*0.8],
+              200, 340, fill=(140, 80, 200), width=max(2, g//3))
+
+
+def _mano(d, x, y, t, rnd, g, tinta=TINTA, relleno=(255, 224, 196)):
+    """Una mano abierta: palma y cinco dedos."""
+    cy = y - t*0.35
+    _ovalo(d, [x - t*0.22, cy - t*0.2, x + t*0.22, cy + t*0.3], relleno, g)
+    for k, (dx, largo) in enumerate(((-0.18, 0.32), (-0.07, 0.42), (0.05, 0.44), (0.16, 0.38))):
+        d.rounded_rectangle([x + t*dx - t*0.05, cy - t*0.2 - t*largo, x + t*dx + t*0.05, cy - t*0.12],
+                            radius=int(t*0.05), fill=relleno, outline=TINTA, width=max(2, g//2))
+    d.rounded_rectangle([x - t*0.38, cy - t*0.05, x - t*0.12, cy + t*0.07], radius=int(t*0.05),
+                        fill=relleno, outline=TINTA, width=max(2, g//2))
+
+
+def _marioneta(d, x, y, t, rnd, g, tinta=TINTA):
+    """La mano que se mueve sola: una mano colgando de los hilos de una cruceta."""
+    _mano(d, x, y, t*0.75, rnd, g)
+    d.line([(x - t*0.35, y - t), (x + t*0.35, y - t)], fill=(150, 100, 60), width=int(g*1.3))
+    for dx in (-0.2, 0, 0.2):
+        d.line([(x + t*dx, y - t), (x + t*dx*0.6, y - t*0.6)], fill=(120, 120, 120), width=max(1, g//4))
+
+
+def _mano_robot(d, x, y, t, rnd, g, tinta=TINTA):
+    _mano(d, x, y, t, rnd, g, relleno=(180, 185, 195))
+    for k in (-0.1, 0.06):
+        d.ellipse([x + t*k - t*0.03, y - t*0.32, x + t*k + t*0.03, y - t*0.26], fill=TINTA)
+
+
+def _yinyang(d, x, y, t, rnd, g, tinta=TINTA):
+    """Yo y el otro: el circulo partido en dos, blanco y negro."""
+    cy, r = y - t*0.5, t*0.45
+    d.ellipse([x - r, cy - r, x + r, cy + r], fill=(255, 255, 255))
+    d.pieslice([x - r, cy - r, x + r, cy + r], 90, 270, fill=TINTA)
+    d.ellipse([x - r/2, cy - r, x + r/2, cy], fill=(255, 255, 255))
+    d.ellipse([x - r/2, cy, x + r/2, cy + r], fill=TINTA)
+    d.ellipse([x - r*0.12, cy - r*0.62, x + r*0.12, cy - r*0.38], fill=TINTA)
+    d.ellipse([x - r*0.12, cy + r*0.38, x + r*0.12, cy + r*0.62], fill=(255, 255, 255))
+    d.ellipse([x - r, cy - r, x + r, cy + r], outline=TINTA, width=g)
+
+
+def _pie(d, x, y, t, rnd, g, tinta=TINTA):
+    """La planta del pie con sus cinco dedos: el sitio de las cosquillas."""
+    relleno = (255, 224, 196)
+    cy = y - t*0.38
+    pts = []
+    for i in range(40):
+        a = i/40*2*math.pi
+        ancho = t*(0.2 + 0.06*math.sin(a))          # mas ancho arriba, estrecho en el talon
+        pts.append((x + ancho*math.cos(a), cy + t*0.38*math.sin(a)))
+    _contorno(d, pts, relleno, g, rnd)
+    for k, (dx, r) in enumerate(((-0.17, 0.085), (-0.06, 0.065), (0.04, 0.06), (0.13, 0.055), (0.21, 0.05))):
+        cx, cyy = x + t*dx, y - t*0.82 + abs(dx)*t*0.35
+        d.ellipse([cx - t*r, cyy - t*r, cx + t*r, cyy + t*r], fill=relleno, outline=TINTA, width=max(2, g//2))
+
+
 OBJETOS = {
     "cerebro": _cerebro, "ojo": _ojo, "corazon": _corazon, "pulmones": _pulmones,
     "estomago": _estomago, "bacteria": _bacteria, "virus": _virus, "cebolla": _cebolla,
@@ -357,7 +495,13 @@ OBJETOS = {
     "luna": _luna, "hielo": _hielo, "planta": _planta, "hamburguesa": _hamburguesa,
     "bombilla": _bombilla, "peligro": _peligro, "bien": _bien, "mal": _mal, "igual": _igual,
     "interrogacion": _interrogacion, "calor": _calor, "frio": _frio, "billete": _dinero,
+    "pluma": _pluma, "bicho": _bicho, "rata": _rata, "maquina_cosquillas": _maquina_cosquillas,
+    "gafas_vr": _gafas_vr, "palanca": _palanca, "bobina": _bobina, "mano": _mano,
+    "marioneta": _marioneta, "mano_robot": _mano_robot, "yinyang": _yinyang, "pie": _pie,
 }
+# Lo que el guion pide como cara y en realidad es un efecto (o al reves).
+_GESTO_ES_EFECTO = {"confuso": "confuso", "mareado": "mareo", "llorando": "lagrimas",
+                    "dormido": "zzz", "sudando": "sudor", "enamorado": "enamorado"}
 # Y los de monigotes que pegan en este canal.
 _DE_MONIGOTES = ("sol", "nube", "fuego", "perro", "caballo", "vaso", "libro", "arbol", "casa",
                  "dinero", "pelota", "maletin", "calendario", "periodico")
@@ -486,6 +630,10 @@ def _spec(visual: dict) -> dict:
             continue
         f = dict(f)
         f["quien"] = f.get("quien") if f.get("quien") in QUIENES else "persona"
+        gesto = str(f.get("gesto") or "").lower()
+        if gesto in _GESTO_ES_EFECTO:
+            f["gesto"] = "sorpresa" if gesto == "confuso" else "neutro"
+            f.setdefault("efecto", _GESTO_ES_EFECTO[gesto])
         figuras.append(f)
     e = m.limpia({"figuras": figuras}) if figuras else {"figuras": []}
     e["interior"] = "blanco"

@@ -97,8 +97,10 @@ _PIDE_CAPITULO = """THE VIDEO (already decided):
 {indice}
 
 Write chapter {n}: «{titulo}» - {resumen}
-About {palabras} words of narration, split into SHOTS of {pmin}-{pmax} words each (one sentence,
-5-9 seconds). The drawing changes with every shot: never the same visual twice in a row.
+AT LEAST {palabras} words of narration - that is about {n_planos} SHOTS of {pmin}-{pmax} words each
+(one sentence, 5-9 seconds). The video must last 10 minutes or more, so do NOT cut it short:
+go deeper - examples, studies, analogies, a little scene. The drawing changes with every shot:
+never the same visual twice in a row.
 {anterior}
 Return ONLY this JSON:
 {{"planos": [{{"narracion": "...", "visual": {{...}}, "falta": ""}}]}}
@@ -120,18 +122,18 @@ def _dosier(tema: str) -> str:
 
 
 def escribe_guion(tema: str, parar=None) -> dict:
-    dosier = _dosier(tema)
-    sistema = _INSTRUCCIONES.format(
-        canal=CHANNEL_NAME, quienes=_lista(garabato.QUIENES), poses=_lista(monigotes.POSES_VALIDAS),
-        gestos=_lista(monigotes.GESTOS_VALIDOS), efectos=_lista(monigotes.EFECTOS_VALIDOS),
-        llevables=_lista(monigotes.LLEVABLES_EXPLICADOS), objetos=_lista(garabato.OBJETOS_VALIDOS),
-        colores=_lista(garabato.COLORES), dosier=dosier or "(no dossier: use only facts you are sure of)")
+    sistema = _sistema(tema)
     plan = _pregunta(sistema, _PIDE_INDICE.format(tema=tema, palabras=_PALABRAS, canal=CHANNEL_NAME),
                      "why-indice", 8000)
     capitulos = [c for c in plan.get("capitulos") or [] if isinstance(c, dict)]
     if not capitulos:
         raise LargoError("el indice no trae capitulos")
     indice = "\n".join(f"{i + 1}. {c.get('titulo')}: {c.get('resumen')}" for i, c in enumerate(capitulos))
+    # Lo que se pide a cada capitulo, escalado para que entre todos sumen las
+    # palabras de diez minutos aunque el indice se quede corto.
+    pedidas = [max(80, int(c.get("palabras") or 0)) for c in capitulos]
+    escala = _PALABRAS/max(1, sum(pedidas))
+    pedidas = [round(p*max(1.0, escala)) for p in pedidas]
     hechos = []
     for i, c in enumerate(capitulos):
         if parar is not None and parar():
@@ -145,15 +147,88 @@ def escribe_guion(tema: str, parar=None) -> dict:
                   if i == len(capitulos) - 1 else "")
         cap = _pregunta(sistema, _PIDE_CAPITULO.format(
             indice=indice, n=i + 1, titulo=c.get("titulo", ""), resumen=c.get("resumen", ""),
-            palabras=int(c.get("palabras") or _PALABRAS/len(capitulos)), pmin=_PALABRAS_PLANO[0],
+            palabras=pedidas[i], n_planos=max(4, round(pedidas[i]/16)), pmin=_PALABRAS_PLANO[0],
             pmax=_PALABRAS_PLANO[1], anterior=anterior, cierre=cierre), f"why-capitulo-{i + 1}")
         planos = [p for p in cap.get("planos") or []
                   if isinstance(p, dict) and str(p.get("narracion", "")).strip()]
         if not planos:
             raise LargoError(f"el capitulo {i + 1} ha salido vacio")
-        hechos.append({"titulo": c.get("titulo", ""), "planos": planos})
+        hechos.append({"titulo": c.get("titulo", ""), "planos": planos, "_pedidas": pedidas[i],
+                       "resumen": c.get("resumen", "")})
     plan["capitulos"] = hechos
+    alarga(plan, sistema, indice)
     return plan
+
+
+def _palabras(planos) -> int:
+    return sum(len(str(p.get("narracion", "")).split()) for p in planos)
+
+
+_PIDE_MAS = """THE VIDEO (already decided):
+{indice}
+
+Chapter {n} «{titulo}» came out SHORT: {tiene} words, and it needs {pide}. The video has to last
+at least 10 minutes. Here is how it currently ends: «{final}»
+
+Write its CONTINUATION: about {faltan} more words in about {n_planos} new shots ({pmin}-{pmax}
+words each), that go deeper - a study, an example, an analogy, a tiny scene - WITHOUT repeating
+what is already said, and flowing on from that ending. Same format:
+{{"planos": [{{"narracion": "...", "visual": {{...}}, "falta": ""}}]}}"""
+
+
+def alarga(guion: dict, sistema: str, indice: str) -> list[str]:
+    """DIEZ MINUTOS O MAS. El primero ("Why can't you tickle yourself") salio
+    de 1.031 palabras, 6,9 minutos, porque cada capitulo se quedo corto. Cada
+    capitulo que no llega al 85% de lo que se le pidio se alarga una vez con
+    planos nuevos al final."""
+    hecho = []
+    for n, cap in enumerate(guion.get("capitulos") or [], start=1):
+        pide = int(cap.get("_pedidas") or _PALABRAS/max(1, len(guion["capitulos"])))
+        tiene = _palabras(cap["planos"])
+        if tiene >= pide*0.85:
+            continue
+        faltan = pide - tiene
+        final = " ".join(p.get("narracion", "") for p in cap["planos"][-2:])[-400:]
+        mas = _pregunta(sistema, _PIDE_MAS.format(
+            indice=indice, n=n, titulo=cap.get("titulo", ""), tiene=tiene, pide=pide, final=final,
+            faltan=faltan, n_planos=max(2, round(faltan/16)), pmin=_PALABRAS_PLANO[0],
+            pmax=_PALABRAS_PLANO[1]), f"why-alarga-{n}")
+        nuevos = [p for p in mas.get("planos") or []
+                  if isinstance(p, dict) and str(p.get("narracion", "")).strip()]
+        cap["planos"] += nuevos
+        hecho.append(f"cap. {n}: {tiene} -> {_palabras(cap['planos'])} palabras")
+    if hecho:
+        logger.info("why: capitulos alargados: %s", "; ".join(hecho))
+    return hecho
+
+
+def _sistema(tema: str) -> str:
+    dosier = _dosier(tema)
+    return _INSTRUCCIONES.format(
+        canal=CHANNEL_NAME, quienes=_lista(garabato.QUIENES), poses=_lista(monigotes.POSES_VALIDAS),
+        gestos=_lista(monigotes.GESTOS_VALIDOS), efectos=_lista(monigotes.EFECTOS_VALIDOS),
+        llevables=_lista(monigotes.LLEVABLES_EXPLICADOS), objetos=_lista(garabato.OBJETOS_VALIDOS),
+        colores=_lista(garabato.COLORES), dosier=dosier or "(no dossier: use only facts you are sure of)")
+
+
+def run_alarga() -> str:
+    """/alargar: alarga el guion que esta esperando, sin reescribirlo."""
+    guion = json.loads(_PENDIENTE.read_text())
+    indice = "\n".join(f"{i + 1}. {c.get('titulo')}: {c.get('resumen', '')}"
+                        for i, c in enumerate(guion["capitulos"]))
+    total = sum(_palabras(c["planos"]) for c in guion["capitulos"])
+    if total < _PALABRAS*0.95:
+        # El guion viejo no traia lo que se pidio por capitulo: se reparte.
+        for c in guion["capitulos"]:
+            c["_pedidas"] = max(int(c.get("_pedidas") or 0),
+                                round(_PALABRAS*_palabras(c["planos"])/max(1, total)))
+    alarga(guion, _sistema(guion.get("_tema", "")), indice)
+    _PENDIENTE.write_text(json.dumps(guion, ensure_ascii=False, indent=1))
+    texto, _ = revisa(guion)
+    coste = llm_usage.report_and_reset()
+    if coste:
+        logger.info("[why] %s", coste)
+    return texto
 
 
 def revisa(guion: dict) -> tuple[str, list[str]]:
