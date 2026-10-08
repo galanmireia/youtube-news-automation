@@ -847,7 +847,10 @@ def _spec(visual: dict) -> dict:
         que = nombre_objeto((c or {}).get("que"))
         if que not in OBJETOS_VALIDOS:
             continue
-        tam = min(0.55, max(0.06, float(c.get("tam") or 0.25)))
+        # Que se vean: en Why Though los objetos son grandes, y mas si hay
+        # pocos en el folio (el "=" y el "?" salian diminutos).
+        pocas = len([x for x in visual.get("cosas") or [] if isinstance(x, dict)]) <= 2
+        tam = min(0.55, max(0.3 if pocas else 0.2, float(c.get("tam") or 0.25)))
         cosa = {"que": que, "x": min(0.95, max(0.05, float(c.get("x", 0.5)))), "tam": tam,
                 "delante": bool(c.get("delante")), "tachado": bool(c.get("tachado")),
                 "_ya": bool(c.get("_ya")), "_t": c.get("_t"),
@@ -940,6 +943,28 @@ class _DibujoSeguro:
         return seguro
 
 
+def _volumen(pieza: Image.Image) -> Image.Image:
+    """LA FAMILIA DE MOKORDO para cualquier dibujo ("si, todo de familia
+    Mokordo"): los rellenos de color se oscurecen hacia la derecha y abajo
+    (la sombra en media luna) y se aclaran arriba a la izquierda (el brillo).
+    La tinta y los blancos puros no se tocan."""
+    a = np.asarray(pieza).astype(np.float32)
+    h, w = a.shape[:2]
+    if w < 8 or h < 8:
+        return pieza
+    rgb, alfa = a[..., :3], a[..., 3]
+    lum = rgb.mean(axis=2)
+    relleno = (alfa > 0) & (lum > 70) & (lum < 250)
+    yy, xx = np.mgrid[0:h, 0:w]
+    u, v = xx/(w - 1), yy/(h - 1)
+    sombra = np.clip((u - 0.45)/0.55, 0, 1)**1.4*0.26 + np.clip((v - 0.55)/0.45, 0, 1)**1.6*0.12
+    brillo = np.clip(1 - np.hypot((u - 0.28)/0.22, (v - 0.25)/0.2), 0, 1)**1.4*0.3
+    factor = (1 - sombra)[..., None]
+    nuevo = rgb*factor + (255 - rgb*factor)*brillo[..., None]
+    a[..., :3] = np.where(relleno[..., None], nuevo, rgb)
+    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), "RGBA")
+
+
 @lru_cache(maxsize=96)
 def _pieza_cosa(que: str, t: int, g: int):
     """La cosa dibujada UNA vez en su recorte; el centro de abajo en (cx, base)."""
@@ -954,7 +979,10 @@ def _pieza_cosa(que: str, t: int, g: int):
         logger.warning("why: el dibujo %r ha fallado a tamaño %s.", que, t, exc_info=True)
         return Image.new("RGBA", (1, 1), (0, 0, 0, 0)), 0, 0
     caja = pieza.getbbox() or (0, 0, w, h)
-    return pieza.crop(caja), w/2 - caja[0], base - caja[1]
+    recorte = pieza.crop(caja)
+    if que not in ANIMALES:          # los animales ya traen su sombra y su brillo
+        recorte = _volumen(recorte)
+    return recorte, w/2 - caja[0], base - caja[1]
 
 
 def _cosa_pop(img, c, pies, t):
