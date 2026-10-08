@@ -473,6 +473,46 @@ def _desde(visual: dict, segundo: float) -> dict:
     return v
 
 
+_PISTAS_ACCION = (
+    ("rie", ("laugh", "giggle", "funny", "joke", "hilarious", "tickl")),
+    ("asusta", ("scar", "afraid", "fear", "danger", "alarm", "threat", "panic", "attack", "pain")),
+    ("salta", ("idea", "discover", "answer", "that's why", "turns out", "secret", "amazing", "predict")),
+    ("duerme", ("sleep", "tired", "yawn", "bored", "dream")),
+    ("triste", ("sad", "unfortunately", "sorry", "lonely", "cry")),
+    ("baila", ("celebrat", "party", "dance", "music")),
+    ("corre", ("run", "flee", "escape", "hurry", "fast")),
+    ("anda", ("walk", "move", "travel", "journey")),
+    ("saluda", ("hello", "welcome", "goodbye", "bye")),
+    ("encoge", ("who knows", "nobody knows", "maybe", "no one knows", "mystery")),
+    ("piensa", ("why", "how", "what if", "wonder", "think", "?")),
+)
+
+
+def _con_mascota(visual: dict, texto: str, primero: bool) -> dict:
+    """Mokordo en un plano que no lo trae (los guiones de antes de que
+    existiera): la accion sale de lo que dice la frase y se pone donde no
+    tape nada."""
+    if visual.get("mascota") or visual.get("cifra") or visual.get("_careta") or visual.get("sigue"):
+        return visual
+    figuras = [f for f in visual.get("figuras") or [] if isinstance(f, dict)]
+    if len(figuras) >= 2:
+        return visual
+    frase = str(texto).lower()
+    accion = "entra" if primero else None
+    if not accion:
+        for nombre, pistas in _PISTAS_ACCION:
+            if any(p in frase for p in pistas):
+                accion = nombre
+                break
+    cosas = [c for c in visual.get("cosas") or [] if isinstance(c, dict)]
+    accion = accion or ("senala" if cosas else "explica")
+    ocupadas = [float(x.get("x", 0.5)) for x in cosas + figuras]
+    sitios = (0.22, 0.5, 0.78) if not ocupadas else (0.2, 0.35, 0.5, 0.65, 0.8)
+    x = max(sitios, key=lambda s: min([abs(s - o) for o in ocupadas] or [1.0]))
+    espejo = bool(ocupadas) and sum(ocupadas)/len(ocupadas) < x
+    return dict(visual, mascota={"accion": accion, "x": x, "espejo": espejo})
+
+
 def _acumula(anterior: dict | None, visual: dict) -> dict:
     """"sigue": el dibujo de antes se queda y se le añade lo nuevo, como en
     Whymentary (el ventilador... el monigote sudando... el termometro). Lo
@@ -489,6 +529,15 @@ def _acumula(anterior: dict | None, visual: dict) -> dict:
         v[campo] = (viejos + nuevos)[-tope:]
     if visual.get("cifra"):
         v["cifra"] = visual["cifra"]
+    if v.get("mascota") and not visual.get("mascota"):
+        # Si lo nuevo cae encima de Mokordo (que venia del plano anterior),
+        # Mokordo se aparta al hueco mas libre.
+        ocupadas = [float(x.get("x", 0.5)) for campo in ("figuras", "cosas") for x in v.get(campo) or []
+                    if isinstance(x, dict)]
+        mx = float(v["mascota"].get("x", 0.5))
+        if ocupadas and any(abs(mx - o) < 0.22 for o in ocupadas):
+            libre = max((0.15, 0.3, 0.5, 0.7, 0.85), key=lambda s_: min(abs(s_ - o) for o in ocupadas))
+            v["mascota"] = dict(v["mascota"], x=libre, espejo=sum(ocupadas)/len(ocupadas) < libre)
     return v
 
 
@@ -571,11 +620,17 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
     from . import sonidos
     carpeta.mkdir(parents=True, exist_ok=True)
     planos = []     # (texto, visual, pausa, capitulo)
+    todos = [p for cap in guion["capitulos"] for p in cap["planos"]]
+    # Un guion de antes de Mokordo (casi ningun plano lo trae): se le pone solo.
+    sin_mascota = sum(1 for p in todos if (p.get("visual") or {}).get("mascota")) < len(todos)*0.1
     for n, cap in enumerate(guion["capitulos"]):
         anterior = None
         for k, p in enumerate(cap["planos"]):
             ultimo = k == len(cap["planos"]) - 1
-            anterior = _acumula(anterior, p.get("visual") or {})
+            visual = p.get("visual") or {}
+            if sin_mascota:
+                visual = _con_mascota(visual, p.get("narracion", ""), primero=k == 0)
+            anterior = _acumula(anterior, visual)
             planos.append((str(p["narracion"]), anterior,
                            _PAUSA_CAPITULO if ultimo else _PAUSA_PLANO, n))
         if n == 0 and len(guion["capitulos"]) > 1:
