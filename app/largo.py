@@ -427,7 +427,7 @@ def _ffmpeg(args: list[str], paso: str, timeout: int = 1800) -> None:
 
 
 def _tuberia(fotos, fotogramas: int, destino: Path, zoom: bool, hacia_dentro: bool = True,
-             brillo: float = -0.035) -> None:
+             brillo: float = -0.035, desliza: float = 0.0) -> None:
     """Los dibujos, uno detras de otro y sin pasar por disco, a un trozo de
     video de `fotogramas` a 25 por segundo. Se pintan a 12,5: ffmpeg repite
     cada uno. Si se acaban antes, se repite el ultimo. Con `zoom`, el
@@ -441,6 +441,12 @@ def _tuberia(fotos, fotogramas: int, destino: Path, zoom: bool, hacia_dentro: bo
         z = (f"min(1+{paso:.7f}*on,{_ZOOM})" if hacia_dentro else f"max({_ZOOM}-{paso:.7f}*on,1)")
         filtro += (f",scale={ANCHO*2}:{ALTO*2}:flags=bilinear,zoompan=z='{z}':x='iw/2-(iw/zoom/2)'"
                    f":y='ih/2-(ih/zoom/2)':d=1:s={ANCHO}x{ALTO}:fps={FPS}")
+    # desliza: el plano ENTRA de lado en esos segundos, frenando, sobre el
+    # folio en blanco (Why Though). A 25 por segundo, no a los 12,5 del dibujo.
+    if desliza:
+        hueco = int(ANCHO*0.4)
+        filtro += (f",pad={ANCHO + hueco}:{ALTO}:{hueco}:0:color=0xFCFCFA"
+                   f",crop={ANCHO}:{ALTO}:x='{hueco}-{hueco}*pow(1-min(1,t/{desliza}),3)':y=0")
     # Un poco mas apagado que en los Shorts: es para la noche.
     if brillo:
         filtro += f",eq=brightness={brillo}"

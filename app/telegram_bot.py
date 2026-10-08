@@ -665,6 +665,26 @@ async def _run_why_montaje_and_notify(bot) -> None:
             pulso.cancel()
 
 
+async def handle_remontar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/remontar: vuelve a montar el ultimo video en ingles con el mismo
+    guion, sin pagar otro."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    if _pipeline_lock.locked():
+        await update.message.reply_text("Ya hay una generacion en curso, espera a que termine.")
+        return
+    from . import porque
+    if porque.hay_pendiente():
+        await update.message.reply_text("Ya hay un guion esperando: mandame /montar.")
+        return
+    titulo = porque.recupera_ultimo()
+    if titulo is None:
+        await update.message.reply_text("No hay ningun video en ingles montado todavia.")
+        return
+    await update.message.reply_text(f"Vuelvo a montar «{titulo}» con el mismo guion. Te lo mando aqui.")
+    context.application.create_task(_run_why_montaje_and_notify(context.bot))
+
+
 async def handle_montar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/montar: el paso 2 de /largo - voces, dibujos y montaje del guion que
     quedo guardado."""
@@ -2384,6 +2404,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("literal", handle_literal_command))
     application.add_handler(CommandHandler("largo", handle_largo_command))
     application.add_handler(CommandHandler("montar", handle_montar_command))
+    application.add_handler(CommandHandler("remontar", handle_remontar_command))
     application.add_handler(CommandHandler("why", handle_why_command))
     application.add_handler(CommandHandler("alargar", handle_alargar_command))
     application.add_handler(CommandHandler("reset", handle_reset_command))

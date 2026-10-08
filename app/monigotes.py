@@ -1957,7 +1957,7 @@ def _pinta_adornos(d, pendientes, rnd):
 
 
 def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=None, tam=None,
-           calma=1.0):
+           calma=1.0, una_vez=False):
     """Los fotogramas de una escena donde cada figura va de 'pose' a 'pose_fin'.
 
     El temblor de la linea cambia cada tres fotogramas y no cada uno: cada uno
@@ -1990,6 +1990,12 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
             # #90 siete de doce monigotes salieron congelados.
             if not fin:
                 fin = _CICLOS.get(f.get("pose"))
+            elif una_vez:
+                # Why Though: "no me gusta que se mueva el brazo todo el
+                # rato". Va a la postura que pide el guion UNA vez, al
+                # empezar, y se queda; los verbos con ciclo siguen andando.
+                tk = min(1.0, reloj/0.6)
+                tk = tk*tk*(3 - 2*tk)
             if fin and fin != f.get("pose"):
                 if f.get("pose") == "en_cama" and fin != "de_pie":
                     g["pose_mezclada"] = _mezcla(_POSES["en_cama"], _en_cama_con(fin), tk)

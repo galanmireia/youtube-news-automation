@@ -35,6 +35,9 @@ _PALABRAS_PLANO = (10, 22)
 _PAUSA_PLANO = 0.25
 _PAUSA_CAPITULO = 0.8
 _PENDIENTE = Path(DATA_DIR) / "porque_pendiente.json"
+# El ultimo guion ya montado: /remontar lo vuelve a montar sin pagar otro
+# guion (si cambia el estilo, o algo sale mal en el video).
+_ULTIMO = Path(DATA_DIR) / "porque_ultimo.json"
 
 
 def _lista(nombres) -> str:
@@ -300,12 +303,23 @@ def hay_pendiente() -> bool:
     return _PENDIENTE.exists()
 
 
+def recupera_ultimo() -> str | None:
+    """/remontar: el ultimo guion montado vuelve a quedar esperando. Devuelve
+    su titulo, o None si no hay ninguno."""
+    if not _ULTIMO.exists():
+        return None
+    guion = json.loads(_ULTIMO.read_text())
+    _PENDIENTE.write_text(json.dumps(guion, ensure_ascii=False, indent=1))
+    return str(guion.get("titulo") or guion.get("_tema") or "")
+
+
 _CARETA = 2.8     # segundos que se ve el titulo
 # Ninguna escena se queda mas de esto en pantalla, la haya escrito Claude
 # larga o no ("¿esta garantizado que haya una escena cada 10 segundos?"):
 # la que se pasa se parte en trozos y cada trozo es otro dibujo.
 _MAX_PLANO = 10.0
-_POSES_DE_RELEVO = ("señala", "brazos_arriba", "mirando", "aplaudiendo", "andando")
+_DESLIZA = 0.28    # lo que tarda cada plano en entrar de lado, con su "whoosh"
+_POSES_DE_RELEVO = ("señala", "brazos_arriba", "mirando", "de_pie")
 
 
 def _variante(visual: dict, k: int) -> dict:
@@ -428,9 +442,10 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             segundos = fotogramas/FPS
             mp4 = carpeta / f"plano_{i:03d}_{j}.mp4"
             try:
-                _tuberia(garabato.fotos(dibujo, segundos, _FPS_DIBUJO), fotogramas, mp4, zoom=False, brillo=0)
-                if j == 0:
-                    ruidos += [(n, inicio/FPS + t0, d) for n, t0, d in garabato.sonidos_del_plano(dibujo, segundos)]
+                _tuberia(garabato.fotos(dibujo, segundos, _FPS_DIBUJO), fotogramas, mp4, zoom=False, brillo=0,
+                         desliza=_DESLIZA)
+                ruidos.append(("whoosh", max(0.0, inicio/FPS - 0.12), 0.4))
+                ruidos += [(n, inicio/FPS + t0, d) for n, t0, d in garabato.sonidos_del_plano(dibujo, segundos)]
                 if visual.get("_careta"):
                     ruidos.append(("campana", inicio/FPS + 0.1, 1.8))
             except Exception:
@@ -554,7 +569,7 @@ def run_montaje(on_done) -> list[int]:
     except Exception:
         shutil.rmtree(carpeta, ignore_errors=True)
         raise
-    _PENDIENTE.unlink(missing_ok=True)
+    _PENDIENTE.replace(_ULTIMO)
     descripcion = str(guion.get("descripcion") or "").strip() + "\n\n" + capitulos
     video_id = storage.create_video_record(
         source_url="", variant="long", title=str(guion.get("titulo") or guion.get("_tema"))[:100],

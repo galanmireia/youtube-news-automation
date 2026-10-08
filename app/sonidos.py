@@ -181,7 +181,26 @@ def _zas(seg, rng):
     return x + 0.3*np.sin(2*np.pi*220*t)*np.exp(-t/0.03)
 
 
+def _pop(seg, rng):
+    """El 'pop' de Why Though: una gota de agua, corta y redonda, cuando algo
+    aparece en el folio."""
+    n = int(max(seg, 0.12)*HZ); t = np.arange(n)/HZ
+    tono = 380 + 900*np.exp(-t/0.018)
+    fase = 2*np.pi*np.cumsum(tono)/HZ
+    return np.sin(fase)*np.exp(-t/0.035)
+
+
+def _whoosh(seg, rng):
+    """El barrido de pasar de plano: aire que sube y baja."""
+    n = int(max(seg, 0.3)*HZ)
+    x = _filtra(_ruido(n, rng, color=1), bajo=500, alto=4000)
+    x = x/(np.max(np.abs(x)) + 1e-9)
+    t = np.linspace(0, 1, n)
+    return x*np.sin(np.pi*t)**2*(0.3 + 0.7*t)
+
+
 EFECTOS = {
+    "pop": _pop, "whoosh": _whoosh,
     "golpe": _golpe, "boing": _boing, "zas": _zas,
     "campana": _campana, "gentio": _gentio, "fuego": _fuego, "pasos": _pasos,
     "espada": _espada, "tormenta": _tormenta, "mar": _mar, "monedas": _monedas,
