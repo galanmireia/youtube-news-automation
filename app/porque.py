@@ -369,6 +369,48 @@ _DESLIZA = 0.28    # lo que tarda cada plano en entrar de lado, con su "whoosh"
 _POSES_DE_RELEVO = ("señala", "brazos_arriba", "mirando", "de_pie")
 
 
+# LA VOZ GUARDADA: cada frase narrada se guarda por su texto, y al remontar
+# (o si se repite una frase) no se vuelve a pagar a Google ("si uso el mismo
+# guion, ¿cuanto cuesta?": solo la revision, unos centimos).
+_VOCES = Path(DATA_DIR) / "voces_why"
+_VOCES_MAX_MB = 400
+
+
+def _voz_guardada(texto: str, destino: Path):
+    import hashlib
+    from pydub import AudioSegment
+    from .config import TTS_LANGUAGE_CODE, TTS_VOICE_NAME
+    clave = hashlib.sha1(f"{TTS_LANGUAGE_CODE}|{TTS_VOICE_NAME}|{texto}".encode("utf-8")).hexdigest()
+    guardada = _VOCES / f"{clave}.wav"
+    if guardada.exists():
+        try:
+            audio = AudioSegment.from_wav(guardada)
+            guardada.touch()
+            return audio
+        except Exception:
+            logger.warning("why: voz guardada ilegible; se vuelve a pedir.", exc_info=True)
+    audio = _voz_google(texto, destino, ritmo_pedido=None)
+    try:
+        _VOCES.mkdir(parents=True, exist_ok=True)
+        audio.export(guardada, format="wav")
+    except Exception:
+        logger.warning("why: no se ha podido guardar la voz.", exc_info=True)
+    return audio
+
+
+def _poda_voces() -> None:
+    """Que las voces guardadas no llenen el disco: fuera las mas viejas."""
+    try:
+        ficheros = sorted(_VOCES.glob("*.wav"), key=lambda f: f.stat().st_mtime)
+        total = sum(f.stat().st_size for f in ficheros)
+        while ficheros and total > _VOCES_MAX_MB*1024*1024:
+            f = ficheros.pop(0)
+            total -= f.stat().st_size
+            f.unlink(missing_ok=True)
+    except Exception:
+        logger.warning("why: no se han podido podar las voces guardadas.", exc_info=True)
+
+
 def _normal(texto: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9']+", " ", str(texto).lower()).split())
 
@@ -550,7 +592,7 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             raise GenerationStopped("parada pedida mientras se narraba")
         inicios_cap.setdefault(cap, len(voz)/1000.0)
         if texto:
-            audio = _voz_google(texto, carpeta / f"voz_{i:03d}.wav", ritmo_pedido=None)
+            audio = _voz_guardada(texto, carpeta / f"voz_{i:03d}.wav")
         else:
             audio = AudioSegment.silent(duration=0, frame_rate=44100)
         audio = audio.set_frame_rate(44100).set_channels(1)
@@ -560,6 +602,7 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
         voz += audio
         duraciones.append(len(audio)/1000.0)
     total = len(voz)/1000.0
+    _poda_voces()
     logger.info("why: narracion de %.1f minutos (%s planos).", total/60, len(planos))
     if total < _MINIMO_SEGUNDOS:
         logger.warning("why: la narracion dura %.1f minutos, menos de los 10 que hacen falta.", total/60)
