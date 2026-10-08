@@ -366,7 +366,7 @@ _CARETA = 2.8     # segundos que se ve el titulo
 # larga o no ("¿esta garantizado que haya una escena cada 10 segundos?"):
 # la que se pasa se parte en trozos y cada trozo es otro dibujo.
 _MAX_PLANO = 10.0
-_FPS_MASCOTA = 25  # la mascota se pinta a 25: se mueve mucho
+_FPS_MASCOTA = 25  # todo se pinta a 25: la camara y los personajes no paran
 _DESLIZA = 0.28    # lo que tarda cada plano en entrar de lado, con su "whoosh"
 _POSES_DE_RELEVO = ("señala", "brazos_arriba", "mirando", "de_pie")
 
@@ -683,7 +683,7 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             try:
                 # Lo que "sigue" no entra deslizandose: es el mismo dibujo creciendo.
                 entra = j > 0 or not visual.get("sigue")
-                fps_plano = _FPS_MASCOTA if dibujo.get("mascota") or dibujo.get("figuras") else _FPS_DIBUJO
+                fps_plano = _FPS_MASCOTA
                 _tuberia(garabato.fotos(dibujo, segundos, fps_plano), fotogramas, mp4, zoom=False, brillo=0,
                          desliza=_DESLIZA if entra else 0, fps_entrada=fps_plano)
                 if entra:

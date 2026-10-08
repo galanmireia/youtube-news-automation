@@ -164,8 +164,26 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
 def _base(t):
     """Lo que hace siempre, encima de cualquier accion: respirar, balancearse
     y parpadear. Para que nunca este quieta."""
-    return {"estira": 1 + 0.025*math.sin(2*math.pi*t/1.4), "inclina": 2.5*math.sin(t*1.7),
+    return {"estira": 1 + 0.05*math.sin(2*math.pi*t/1.4), "inclina": 5*math.sin(t*1.7),
             "parpadeo": (t % 3.1) < 0.12}
+
+
+# MUCHO MAS MOVIMIENTO ("hay que darle mas movimiento, mucho mas"): lo que
+# hace cada accion, exagerado; y encima, unos saltitos de vez en cuando.
+_EXAGERA = 1.7
+
+
+def _saltito(t):
+    """Un botecito cada poco: se agacha, sube y cae aplastandose."""
+    u = (t % 1.9)/1.9
+    if u < 0.12:
+        return 0.0, 1 - 0.12*math.sin(u/0.12*math.pi)
+    if u < 0.42:
+        v = (u - 0.12)/0.30
+        return 0.09*math.sin(v*math.pi), 1.08
+    if u < 0.52:
+        return 0.0, 1 - 0.14*math.sin((u - 0.42)/0.10*math.pi)
+    return 0.0, 1.0
 
 
 def _entra(t, dur, lado):
@@ -261,8 +279,8 @@ def _explica(t, dur, lado):
     a = math.sin(t*3.2)
     b = math.sin(t*3.2 + 1.7)
     return {"gesto": "contento" if int(t/1.6) % 2 else "neutro",
-            "brazos": ((20 + 35*a, -40 + 20*b), (20 + 35*b, -40 + 20*a)),
-            "inclina": 5*math.sin(t*1.6), "levanta": max(0.0, math.sin(t*3.2))*0.015}
+            "brazos": ((10 + 55*a, -40 + 35*b), (10 + 55*b, -40 + 35*a)),
+            "inclina": 6*math.sin(t*1.6), "dx": 0.07*math.sin(t*1.1), "piernas": t*8 if math.cos(t*1.1) > 0.6 else None}
 
 
 def _mareo(t, dur, lado):
@@ -298,9 +316,16 @@ def postura(accion: str, t: float, dur: float, lado: int = 1) -> dict:
     f = ACCIONES.get(accion, ACCIONES["explica"])[0]
     p = _base(t)
     propia = f(t, dur, lado)
-    p["estira"] = p["estira"]*propia.pop("estira", 1.0)
-    p["inclina"] = p["inclina"] + propia.pop("inclina", 0.0)
+    p["estira"] = p["estira"]*(1 + (propia.pop("estira", 1.0) - 1)*_EXAGERA)
+    p["inclina"] = p["inclina"] + propia.pop("inclina", 0.0)*_EXAGERA
     p.update(propia)
+    p["levanta"] = min(0.45, p.get("levanta", 0.0)*_EXAGERA)
+    # Los saltitos solo cuando la accion no lo mueve ya del suelo.
+    if accion not in ("entra", "salta", "corre", "duerme", "triste", "asusta") and p["levanta"] < 0.05:
+        sube, aplasta = _saltito(t + 0.6)
+        p["levanta"] += sube
+        p["estira"] *= aplasta
+    p["estira"] = min(1.3, max(0.74, p["estira"]))
     return p
 
 
@@ -370,8 +395,8 @@ def personaje(img, figura: dict, t: float, dur: float, suelo: float, w: int, h_i
     lado = -1 if figura.get("espejo") else 1
     p = postura(accion, t + (sum(map(ord, quien)) % 7)*0.37, dur, lado)
     h = h_img*rasgos["tam"]
-    # los extras se mueven menos de su sitio que Mokordo (que no se crucen)
-    cx = w*float(figura.get("x", 0.5)) + (p.get("dx", 0.0)*0.35 + p.get("temblor", 0.0))*h
+    # los extras se mueven algo menos de su sitio que Mokordo (que no se crucen)
+    cx = w*float(figura.get("x", 0.5)) + (p.get("dx", 0.0)*0.5 + p.get("temblor", 0.0))*h
     brazos = p.get("brazos", ((60, 20), (60, 20)))
     if lado < 0:
         brazos = (brazos[1], brazos[0])

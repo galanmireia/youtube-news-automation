@@ -24,6 +24,7 @@ x, y y tam en fracciones de la pantalla; "y" de una cosa es su CENTRO (sin
 import logging
 import math
 import random
+import zlib
 from functools import lru_cache
 from pathlib import Path
 
@@ -999,11 +1000,27 @@ def _cosa_pop(img, c, pies, t):
                              Image.BILINEAR)
         cx, base = cx*escala, base*escala
     x = w*float(c.get("x", 0.5))
-    y = h*float(c["y"]) if c.get("y") is not None else pies
+    flota = c.get("y") is not None
+    y = h*float(c["y"]) if flota else pies
     # Crece desde su centro, no desde el suelo: el centro se queda quieto.
     medio = y - tam*0.5
     arriba = medio - (base - tam*0.5*escala)
-    img.paste(pieza, (int(x - cx), int(arriba)), pieza)
+    # Y despues no se queda quieta: se menea (y si flota, sube y baja).
+    fase = (sum(map(ord, c["que"])) % 11)*0.57 + float(c.get("x", 0.5))*5
+    vivo = min(1.0, max(0.0, (t - _POP)/0.3))
+    giro = vivo*(7 if flota else 4.5)*math.sin(t*2.6 + fase)
+    if flota:
+        arriba += vivo*tam*0.05*math.sin(t*2.1 + fase)
+    if abs(giro) < 0.3:
+        img.paste(pieza, (int(x - cx), int(arriba)), pieza)
+        return
+    # Gira sobre su punto de apoyo (el centro de abajo).
+    vx, vy = cx - pieza.width/2, base - pieza.height/2
+    girada = pieza.rotate(giro, resample=Image.BILINEAR, expand=True)
+    a = math.radians(giro)
+    nx = girada.width/2 + vx*math.cos(a) + vy*math.sin(a)
+    ny = girada.height/2 - vx*math.sin(a) + vy*math.cos(a)
+    img.paste(girada, (int(x - nx), int(arriba + base - ny)), girada)
 
 
 def _garabato_en_cabeza(img, d, tipo, cabeza, t, rnd):
@@ -1254,6 +1271,31 @@ def _vida(img, e, cabezas, t, n):
     return img
 
 
+def _camara_viva(img, t, dur, mueve, golpes):
+    """LA CAMARA QUE NUNCA ESTA QUIETA ("mas movimiento, mucho mas"): en cada
+    plano se acerca o se aleja y se desliza hacia un lado (cada plano a su
+    manera), con un vaiven de mano; y da un golpecito de zoom cada vez que
+    aparece algo."""
+    ancho, alto = img.size
+    s = _suave_cam(min(1.0, t/max(0.5, dur)))
+    z = 1.03 + 0.09*s if mueve % 2 else 1.12 - 0.09*s
+    for tp in golpes:
+        if 0 <= t - tp < 1.0:
+            z += 0.03*math.sin(min(1.0, (t - tp)/0.12)*math.pi/2)*math.exp(-(t - tp)*4)
+    lado = 1 if (mueve >> 1) % 2 else -1
+    cw, ch = ancho/z, alto/z
+    hx, hy = (ancho - cw)/2, (alto - ch)/2
+    ox = hx*(1 + lado*(0.7*s - 0.35) + 0.12*math.sin(t*0.9 + mueve % 7))
+    oy = hy*(1.2 + 0.15*math.sin(t*1.3 + mueve % 5))
+    ox = min(max(0.0, ox), ancho - cw)
+    oy = min(max(0.0, oy), alto - ch)
+    return img.crop((int(ox), int(oy), int(ox + cw), int(oy + ch))).resize((ancho, alto), Image.BILINEAR)
+
+
+def _suave_cam(s):
+    return s*s*(3 - 2*s)
+
+
 def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: float = 1.6,
           hervor: bool = True):
     """Los dibujos del plano: los monigotes animados (respiran, cambian de
@@ -1305,6 +1347,16 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
     e["figuras"] = []
     camara = None          # la familia ya trae su camara que respira
     paso_hervor = max(1, round(fps/6))
+    mueve = zlib.crc32(repr(sorted((visual or {}).items(), key=str)).encode())
+    golpes, nuevas = [], 0
+    for c in e.get("_pop", []):
+        if c.get("_ya"):
+            continue
+        if c.get("_t") is not None:
+            golpes.append(float(c["_t"]))
+        else:
+            golpes.append(0.1 + nuevas*_PASO_COSAS)
+            nuevas += 1
     animacion = m.animar(e, segundos=segundos, fps=fps, tam=tam, calma=calma, una_vez=True)
     n = 0
     while True:
@@ -1334,13 +1386,7 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                 if efecto in _GARABATOS or efecto in EFECTOS_EXTRA:
                     _garabato_en_cabeza(img, ImageDraw.Draw(img), _GARABATOS.get(efecto, efecto), cabeza,
                                         reloj, random.Random(n//paso_hervor))
-            if mascota or familia:
-                # La camara que respira: un acercamiento lento todo el plano,
-                # para que nada parezca una foto.
-                z = 1 + 0.045*min(1.0, reloj/max(0.5, segundos))
-                cw, ch = ancho/z, alto/z
-                img = img.crop((int((ancho - cw)/2), int((alto - ch)*0.6), int((ancho + cw)/2),
-                                int((alto - ch)*0.6 + ch))).resize(tam, Image.BILINEAR)
+            img = _camara_viva(img, reloj, segundos, mueve, golpes)
             if camara:
                 img = img.crop(camara).resize(tam, Image.BILINEAR)
             img = encima(img, visual or {}, reloj, segundos)
