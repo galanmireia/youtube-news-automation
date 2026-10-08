@@ -674,7 +674,8 @@ def encima(img: Image.Image, visual: dict, t: float, segundos: float) -> Image.I
             (x0, y0), (x1, y1) = f["de"], f["a"]
         except (KeyError, TypeError, ValueError):
             continue
-        p = 1.0 if f.get("_ya") else min(1.0, max(0.0, (t - 0.3 - k*0.4)/0.6))
+        desde = float(f["_t"]) if f.get("_t") is not None else 0.3 + k*0.4
+        p = 1.0 if f.get("_ya") else min(1.0, max(0.0, (t - desde)/0.6))
         if p <= 0:
             continue
         a, b = (w*float(x0), h*float(y0)), (w*float(x1), h*float(y1))
@@ -713,8 +714,9 @@ def encima(img: Image.Image, visual: dict, t: float, segundos: float) -> Image.I
         px = h*min(0.3, max(0.04, float(tx.get("tam") or 0.12)))
         x, y = w*float(tx.get("x", 0.5)), h*float(tx.get("y", 0.2))
         px = _que_quepa(texto, px, min(x, w - x)*2*0.95)
+        desde = float(tx["_t"]) if tx.get("_t") is not None and not tx.get("_ya") else 0.15 + k*0.35
         _letrero(img, texto, (x, y), px, _color(tx.get("color"), "rojo"), float(tx.get("giro") or 0),
-                 _escala_pop(t - 0.15 - k*0.35))
+                 _escala_pop(t - desde))
     return img
 
 
@@ -800,7 +802,7 @@ def _spec(visual: dict) -> dict:
         tam = min(0.55, max(0.06, float(c.get("tam") or 0.25)))
         cosa = {"que": que, "x": min(0.95, max(0.05, float(c.get("x", 0.5)))), "tam": tam,
                 "delante": bool(c.get("delante")), "tachado": bool(c.get("tachado")),
-                "_ya": bool(c.get("_ya"))}
+                "_ya": bool(c.get("_ya")), "_t": c.get("_t")}
         if c.get("y") is not None:
             cosa["y"] = min(0.98, float(c["y"]) + tam/2)      # el centro -> la base
         cosas.append(cosa)
@@ -1015,8 +1017,14 @@ def _vida(img, e, cabezas, t, n):
     for c in e.get("_pop", []):
         # Las que ya estaban en el plano anterior ("sigue") estan desde el
         # principio; las nuevas van apareciendo.
-        tc = 9.0 if c.get("_ya") else t - 0.1 - nuevas*_PASO_COSAS
-        nuevas += 0 if c.get("_ya") else 1
+        # Y las que nombra la voz ("cuando"), en su segundo.
+        if c.get("_ya"):
+            tc = 9.0
+        elif c.get("_t") is not None:
+            tc = t - float(c["_t"])
+        else:
+            tc = t - 0.1 - nuevas*_PASO_COSAS
+            nuevas += 1
         _cosa_pop(img, c, pies, tc)
         if c.get("tachado"):
             _tacha(d, img.size, c, pies, tc - 0.45, rnd)
@@ -1078,10 +1086,24 @@ def sonidos_del_plano(visual: dict, segundos: float) -> list:
             salida.append(("golpe", m.momento_del_efecto(efecto, segundos), 0.9))
         elif efecto == "bofetada":
             salida.append(("zas", m.momento_del_efecto(efecto, segundos), 0.4))
-    for k, _c in enumerate([c for c in e.get("_pop", []) if not c.get("_ya")]):
-        salida.append(("pop", 0.1 + k*_PASO_COSAS, 0.25))
-    for k, _t in enumerate([x for x in (visual or {}).get("textos") or [] if not x.get("_ya")]):
-        salida.append(("pop", 0.15 + k*0.35, 0.25))
+    sin_hora = 0
+    for c in e.get("_pop", []):
+        if c.get("_ya"):
+            continue
+        if c.get("_t") is not None:
+            salida.append(("pop", float(c["_t"]), 0.25))
+        else:
+            salida.append(("pop", 0.1 + sin_hora*_PASO_COSAS, 0.25))
+            sin_hora += 1
+    sin_hora = 0
+    for x in (visual or {}).get("textos") or []:
+        if not isinstance(x, dict) or x.get("_ya"):
+            continue
+        if x.get("_t") is not None:
+            salida.append(("pop", float(x["_t"]), 0.25))
+        else:
+            salida.append(("pop", 0.15 + sin_hora*0.35, 0.25))
+            sin_hora += 1
     if (visual or {}).get("cifra"):
         salida.append(("pop", 0.1, 0.25))
     for _i, _tipo in e.get("_doodles", []):

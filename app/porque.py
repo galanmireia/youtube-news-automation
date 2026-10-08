@@ -12,6 +12,7 @@ como los canales de este tipo) y que los capitulos acaban en la descripcion
 con su minuto, que es lo que hace que YouTube los muestre.
 """
 import json
+import re
 import logging
 import math
 import shutil
@@ -73,13 +74,13 @@ it is not in the lists, it cannot be drawn. A visual has any of:
              "gesto": one of {gestos}, "efecto": one of {efectos} or omit,
              "lleva": what they hold: any object of the "cosas" list (a feather, a phone...)
              or one of {llevables}, or omit; "espejo": true to face left}}
-  "cosas":   0-5 objects: {{"que": one of {objetos}, "x": 0.05-0.95, "tam": 0.06-0.55 (height,
+  "cosas":   0-5 objects: {{"que": one of {objetos}, "cuando": "two fans", "x": 0.05-0.95, "tam": 0.06-0.55 (height,
              fraction of the screen), "y": 0.1-0.9 = its CENTER if it floats (omit "y" and it
              stands at the bottom, level with the people's feet), "tachado": true = crossed out with
              a big red X ("NOT this", a myth busted)}}
-  "textos":  0-2 BIG hand-lettered words: {{"texto": "IT'S HOT" (max 3-4 words, CAPITALS),
+  "textos":  0-2 BIG hand-lettered words: {{"texto": "IT'S HOT" (max 3-4 words, CAPITALS), "cuando": ...,
              "x", "y", "tam": 0.08-0.2, "color": one of {colores}, "giro": -8 to 8 degrees}}
-  "flechas": 0-2 hand-drawn arrows: {{"de": [x, y], "a": [x, y], "color": ..., "recta": true for a
+  "flechas": 0-2 hand-drawn arrows: {{"de": [x, y], "a": [x, y], "cuando": ..., "color": ..., "recta": true for a
              big straight arrow (pointing at something, "goes up", "goes down")}}
   "cifra":   a GIANT number with rays, alone on the page: {{"valor": "35°C", "pie": "short
              caption", "color": ...}} (use it for the key numbers; then no figuras/cosas)
@@ -87,6 +88,10 @@ it is not in the lists, it cannot be drawn. A visual has any of:
              (only the new ones appear). Build a drawing up step by step, the way Whymentary does:
              the fan... then the person sweating next to it... then the thermometer going up.
              Use it a lot: 2-4 shots in a row building one drawing, then a fresh page.
+"cuando" = the exact words of THIS shot's narration at which that thing pops in. THINGS APPEAR
+WHEN THE VOICE NAMES THEM: "with one fan it's hot... but with TWO fans" - the second fan pops in
+on "two fans". Give every object, word and arrow its "cuando", in the order they are said, so the
+page fills up while the sentence goes (start the shot with little on it).
 Special: pose "manos_cabeza" = hands on the head (panic, stress); pose "tumbado" = lying on the
 floor; gesto "muerto" = X eyes and tongue out (comic fainted/dead); efecto "calor" / "frio" =
 heat waves / cold shivers all around the person.
@@ -339,6 +344,55 @@ _DESLIZA = 0.28    # lo que tarda cada plano en entrar de lado, con su "whoosh"
 _POSES_DE_RELEVO = ("señala", "brazos_arriba", "mirando", "de_pie")
 
 
+def _normal(texto: str) -> str:
+    return " ".join(re.sub(r"[^a-z0-9']+", " ", str(texto).lower()).split())
+
+
+def _al_nombrarlo(visual: dict, texto: str, hablado: float) -> dict:
+    """"cuando": cada cosa sale en el segundo en que la voz la nombra ("y
+    cuando pongo DOS ventiladores..." - ¡pa!, el segundo ventilador). La voz
+    de Google lee a ritmo parejo, asi que el sitio de esas palabras en la
+    frase dice cuando suenan."""
+    frase = _normal(texto)
+    if not frase or not hablado:
+        return visual
+    v = dict(visual)
+    for campo in ("cosas", "textos", "flechas"):
+        salida = []
+        for x in visual.get(campo) or []:
+            if isinstance(x, dict) and x.get("cuando") and not x.get("_ya"):
+                aguja = _normal(x["cuando"])
+                k = frase.find(aguja) if aguja else -1
+                if k < 0 and aguja:
+                    # Si no esta tal cual, la palabra mas larga de las pedidas.
+                    larga = max(aguja.split(), key=len)
+                    k = frase.find(larga) if len(larga) > 3 else -1
+                if k >= 0:
+                    x = dict(x, _t=round(max(0.1, k/len(frase)*hablado), 2))
+            salida.append(x)
+        v[campo] = salida
+    return v
+
+
+def _desde(visual: dict, segundo: float) -> dict:
+    """El trozo de un plano partido que empieza en `segundo`: lo que tenia que
+    salir antes ya esta; lo que sale despues, a su hora dentro del trozo."""
+    if segundo <= 0:
+        return visual
+    v = dict(visual)
+    for campo in ("cosas", "textos", "flechas"):
+        salida = []
+        for x in visual.get(campo) or []:
+            if isinstance(x, dict) and x.get("_t") is not None:
+                t = float(x["_t"]) - segundo
+                x = dict(x, _t=t) if t > 0.05 else dict(x, _ya=True)
+            elif isinstance(x, dict):
+                x = dict(x, _ya=True)
+            salida.append(x)
+        v[campo] = salida
+    return v
+
+
 def _acumula(anterior: dict | None, visual: dict) -> dict:
     """"sigue": el dibujo de antes se queda y se le añade lo nuevo, como en
     Whymentary (el ventilador... el monigote sudando... el termometro). Lo
@@ -452,8 +506,10 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             audio = _voz_google(texto, carpeta / f"voz_{i:03d}.wav", ritmo_pedido=None)
         else:
             audio = AudioSegment.silent(duration=0, frame_rate=44100)
-        audio = audio.set_frame_rate(44100).set_channels(1) + AudioSegment.silent(
-            duration=int(pausa*1000), frame_rate=44100)
+        audio = audio.set_frame_rate(44100).set_channels(1)
+        hablado = len(audio)/1000.0
+        planos[i] = (texto, _al_nombrarlo(_v, texto, hablado), pausa, cap)
+        audio = audio + AudioSegment.silent(duration=int(pausa*1000), frame_rate=44100)
         voz += audio
         duraciones.append(len(audio)/1000.0)
     total = len(voz)/1000.0
@@ -475,6 +531,7 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
         inicio = fronteras[i]
         for j, (dibujo, fotogramas) in enumerate(_trozos_del_plano(visual, max(1, fronteras[i + 1] - fronteras[i]))):
             segundos = fotogramas/FPS
+            dibujo = _desde(dibujo, (inicio - fronteras[i])/FPS)
             mp4 = carpeta / f"plano_{i:03d}_{j}.mp4"
             try:
                 # Lo que "sigue" no entra deslizandose: es el mismo dibujo creciendo.
