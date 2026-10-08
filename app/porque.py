@@ -33,6 +33,12 @@ _PALABRAS = 1750
 _MINIMO_SEGUNDOS = 10*60
 _PALABRAS_PLANO = (10, 22)
 _PAUSA_PLANO = 0.25
+# Lo que se le ofrece al guion: lo de monigotes que pega en este canal y lo
+# que solo existe aqui (manos en la cabeza, tumbado, muerto, calor, frio).
+_POSES = tuple(monigotes.POSES_VALIDAS) + garabato.POSES_EXTRA
+_GESTOS = tuple(monigotes.GESTOS_VALIDOS) + garabato.GESTOS_EXTRA
+_EFECTOS = ("sorpresa", "idea", "mareo", "confuso", "zzz", "enamorado", "sudor", "lagrimas", "humo",
+            "caida", "salto", "temblor") + garabato.EFECTOS_EXTRA
 _PAUSA_CAPITULO = 0.8
 _PENDIENTE = Path(DATA_DIR) / "porque_pendiente.json"
 # El ultimo guion ya montado: /remontar lo vuelve a montar sin pagar otro
@@ -62,18 +68,29 @@ THE DRAWINGS. Every shot ("plano") has a "visual", drawn by a program from close
 it is not in the lists, it cannot be drawn. A visual has any of:
   "figuras": 0-3 stick people: {{"quien": one of {quienes} ("persona" = adult, "persona_b" =
              adult with a bun, "nino" = kid, "abuelo" = old bearded man / scientist), "x": 0.12-0.88, "pose": one of {poses},
-             "pose_fin": another pose (the figure moves from one to the other - use it often),
+             "pose_fin": another pose ONLY if they do something (raise their arms, put their hands
+             on their head): they do it once and stay - otherwise omit it,
              "gesto": one of {gestos}, "efecto": one of {efectos} or omit,
              "lleva": what they hold: any object of the "cosas" list (a feather, a phone...)
              or one of {llevables}, or omit; "espejo": true to face left}}
   "cosas":   0-5 objects: {{"que": one of {objetos}, "x": 0.05-0.95, "tam": 0.06-0.55 (height,
              fraction of the screen), "y": 0.1-0.9 = its CENTER if it floats (omit "y" and it
-             stands on the floor)}}
+             stands at the bottom, level with the people's feet), "tachado": true = crossed out with
+             a big red X ("NOT this", a myth busted)}}
   "textos":  0-2 BIG hand-lettered words: {{"texto": "IT'S HOT" (max 3-4 words, CAPITALS),
              "x", "y", "tam": 0.08-0.2, "color": one of {colores}, "giro": -8 to 8 degrees}}
-  "flechas": 0-2 hand-drawn arrows: {{"de": [x, y], "a": [x, y], "color": ...}}
+  "flechas": 0-2 hand-drawn arrows: {{"de": [x, y], "a": [x, y], "color": ..., "recta": true for a
+             big straight arrow (pointing at something, "goes up", "goes down")}}
   "cifra":   a GIANT number with rays, alone on the page: {{"valor": "35°C", "pie": "short
              caption", "color": ...}} (use it for the key numbers; then no figuras/cosas)
+  "sigue":   true = KEEP the previous shot's drawing and ADD this shot's new things to it
+             (only the new ones appear). Build a drawing up step by step, the way Whymentary does:
+             the fan... then the person sweating next to it... then the thermometer going up.
+             Use it a lot: 2-4 shots in a row building one drawing, then a fresh page.
+Special: pose "manos_cabeza" = hands on the head (panic, stress); pose "tumbado" = lying on the
+floor; gesto "muerto" = X eyes and tongue out (comic fainted/dead); efecto "calor" / "frio" =
+heat waves / cold shivers all around the person.
+THE STYLE is Whymentary's: a white page, clean simple drawings, big red handwritten words.
 ONE IDEA PER SHOT, big and in the middle. Mix: people reacting, objects explained, "THIS =
 THAT" equations (cosa + "igual" + cosa), giant numbers, a big word. Keep text and objects from
 overlapping the people. The same person keeps the same "quien" all video long.
@@ -104,7 +121,7 @@ Write chapter {n}: «{titulo}» - {resumen}
 AT LEAST {palabras} words of narration - that is about {n_planos} SHOTS of {pmin}-{pmax} words each
 (one sentence, 5-9 seconds). The video must last 10 minutes or more, so do NOT cut it short:
 go deeper - examples, studies, analogies, a little scene. The drawing changes with every shot:
-never the same visual twice in a row.
+a fresh drawing, or "sigue" adding something new to the one on screen - never the same twice.
 {anterior}
 Return ONLY this JSON:
 {{"planos": [{{"narracion": "...", "visual": {{...}}, "falta": ""}}]}}
@@ -209,8 +226,8 @@ def alarga(guion: dict, sistema: str, indice: str) -> list[str]:
 def _sistema(tema: str) -> str:
     dosier = _dosier(tema)
     return _INSTRUCCIONES.format(
-        canal=CHANNEL_NAME, quienes=_lista(garabato.QUIENES), poses=_lista(monigotes.POSES_VALIDAS),
-        gestos=_lista(monigotes.GESTOS_VALIDOS), efectos=_lista(monigotes.EFECTOS_VALIDOS),
+        canal=CHANNEL_NAME, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
+        gestos=_lista(_GESTOS), efectos=_lista(_EFECTOS),
         llevables=_lista(monigotes.LLEVABLES_EXPLICADOS), objetos=_lista(garabato.OBJETOS_VALIDOS),
         colores=_lista(garabato.COLORES), dosier=dosier or "(no dossier: use only facts you are sure of)")
 
@@ -241,9 +258,9 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
     # Lo que garabato traduce solo tambien vale: "gesto confuso", "pose
     # asustado", "lleva pluma".
     validos = {"que": set(garabato.OBJETOS_VALIDOS),
-               "pose": set(monigotes.POSES_VALIDAS) | set(garabato._POSE_ES_GESTO),
-               "gesto": set(monigotes.GESTOS_VALIDOS) | set(garabato._GESTO_ES_EFECTO),
-               "efecto": set(monigotes.EFECTOS_VALIDOS),
+               "pose": set(_POSES) | set(garabato._POSE_ES_GESTO),
+               "gesto": set(_GESTOS) | set(garabato._GESTO_ES_EFECTO),
+               "efecto": set(monigotes.EFECTOS_VALIDOS) | set(_EFECTOS),
                "lleva": set(monigotes.LLEVABLES_EXPLICADOS) | set(garabato.OBJETOS_VALIDOS),
                "quien": set(garabato.QUIENES)}
     faltan, pedidos, usados = Counter(), [], Counter()
@@ -322,6 +339,22 @@ _DESLIZA = 0.28    # lo que tarda cada plano en entrar de lado, con su "whoosh"
 _POSES_DE_RELEVO = ("señala", "brazos_arriba", "mirando", "de_pie")
 
 
+def _acumula(anterior: dict | None, visual: dict) -> dict:
+    """"sigue": el dibujo de antes se queda y se le añade lo nuevo, como en
+    Whymentary (el ventilador... el monigote sudando... el termometro). Lo
+    que ya estaba se marca "_ya" para que no vuelva a aparecer de golpe."""
+    if not anterior or not visual.get("sigue"):
+        return visual
+    v = {"sigue": True, "figuras": visual.get("figuras") or anterior.get("figuras") or []}
+    for campo, tope in (("cosas", 5), ("textos", 3), ("flechas", 3)):
+        viejos = [dict(x, _ya=True) for x in anterior.get(campo) or [] if isinstance(x, dict)]
+        nuevos = [x for x in visual.get(campo) or [] if isinstance(x, dict)]
+        v[campo] = (viejos + nuevos)[-tope:]
+    if visual.get("cifra"):
+        v["cifra"] = visual["cifra"]
+    return v
+
+
 def _variante(visual: dict, k: int) -> dict:
     """El mismo plano dibujado de otra manera, para el trozo k (1, 2...) de un
     plano demasiado largo: todo en espejo (lo de la izquierda pasa a la
@@ -396,9 +429,11 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
     carpeta.mkdir(parents=True, exist_ok=True)
     planos = []     # (texto, visual, pausa, capitulo)
     for n, cap in enumerate(guion["capitulos"]):
+        anterior = None
         for k, p in enumerate(cap["planos"]):
             ultimo = k == len(cap["planos"]) - 1
-            planos.append((str(p["narracion"]), p.get("visual") or {},
+            anterior = _acumula(anterior, p.get("visual") or {})
+            planos.append((str(p["narracion"]), anterior,
                            _PAUSA_CAPITULO if ultimo else _PAUSA_PLANO, n))
         if n == 0 and len(guion["capitulos"]) > 1:
             # EL TITULO, DETRAS DEL GANCHO, como la careta de España Contada:
@@ -442,9 +477,12 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             segundos = fotogramas/FPS
             mp4 = carpeta / f"plano_{i:03d}_{j}.mp4"
             try:
+                # Lo que "sigue" no entra deslizandose: es el mismo dibujo creciendo.
+                entra = j > 0 or not visual.get("sigue")
                 _tuberia(garabato.fotos(dibujo, segundos, _FPS_DIBUJO), fotogramas, mp4, zoom=False, brillo=0,
-                         desliza=_DESLIZA)
-                ruidos.append(("whoosh", max(0.0, inicio/FPS - 0.12), 0.4))
+                         desliza=_DESLIZA if entra else 0)
+                if entra:
+                    ruidos.append(("whoosh", max(0.0, inicio/FPS - 0.12), 0.4))
                 ruidos += [(n, inicio/FPS + t0, d) for n, t0, d in garabato.sonidos_del_plano(dibujo, segundos)]
                 if visual.get("_careta"):
                     ruidos.append(("campana", inicio/FPS + 0.1, 1.8))
@@ -526,8 +564,8 @@ def retoca(guion: dict) -> int:
                                    "visual": p.get("visual")}, ensure_ascii=False)
                        for i, p in pendientes)
     sistema = _INSTRUCCIONES.format(
-        canal=CHANNEL_NAME, quienes=_lista(garabato.QUIENES), poses=_lista(monigotes.POSES_VALIDAS),
-        gestos=_lista(monigotes.GESTOS_VALIDOS), efectos=_lista(monigotes.EFECTOS_VALIDOS),
+        canal=CHANNEL_NAME, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
+        gestos=_lista(_GESTOS), efectos=_lista(_EFECTOS),
         llevables=_lista(monigotes.LLEVABLES_EXPLICADOS), objetos=_lista(garabato.OBJETOS_VALIDOS),
         colores=_lista(garabato.COLORES), dosier="(not needed for this task)")
     try:

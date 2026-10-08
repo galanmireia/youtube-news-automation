@@ -32,7 +32,9 @@ from PIL import Image, ImageDraw, ImageFont
 from . import monigotes as m
 from .garabato_mas import MAS_OBJETOS
 
-_FUENTE = Path(__file__).parent / "data" / "fuentes" / "PermanentMarker.woff"
+# La letra de Whymentary: rotulador redondo, trazo parejo (Architects
+# Daughter, SIL Open Font License; la licencia va al lado).
+_FUENTE = Path(__file__).parent / "data" / "fuentes" / "ArchitectsDaughter.woff"
 TINTA = (22, 22, 22)
 COLORES = {
     "negro": TINTA, "rojo": (226, 38, 38), "naranja": (242, 140, 28), "amarillo": (250, 206, 20),
@@ -323,7 +325,7 @@ def _igual(d, x, y, t, rnd, g, tinta=TINTA):
 
 def _interrogacion(d, x, y, t, rnd, g, tinta=TINTA):
     d.text((x, y - t*0.5), "?", font=_fuente(t), fill=(242, 140, 28), anchor="mm",
-           stroke_width=max(3, int(t*0.04)), stroke_fill=TINTA)
+           stroke_width=max(2, int(t*0.03)), stroke_fill=(242, 140, 28))
 
 
 def _calor(d, x, y, t, rnd, g, tinta=TINTA):
@@ -574,6 +576,24 @@ for _n, _f in OBJETOS.items():
     m._TAM_LLEVADO.setdefault(_n, 0.38)
 
 QUIENES = ("persona", "persona_b", "nino", "abuelo")
+# La cabeza grande de los monigotes de Whymentary.
+# Un poco mas bajitos, para que con la cabeza grande quepan las ondas de
+# calor, los letreros y lo que tengan encima.
+for _q in QUIENES:
+    m.REPARTO[_q]["cabeza"] = 1.65
+    m.REPARTO[_q]["alto"] = round(m.REPARTO[_q]["alto"]*0.85, 3)
+
+# LO QUE SOLO EXISTE EN WHY THOUGH, visto en Whymentary: las manos en la
+# cabeza del que se agobia, el muerto tumbado (ojos en X, lengua fuera) y las
+# ondas de calor o de frio alrededor. Se añaden despues de las listas de
+# monigotes a proposito: el guion de España Contada no los ofrece.
+m._POSES["manos_cabeza"] = {
+    "cuello": (0, -.70), "cadera": (0, -.38),
+    "brazos": [[(0, -.66), (-.36, -.78), (-.25, -.96)], [(0, -.66), (.36, -.78), (.25, -.96)]],
+    "piernas": [[(0, -.38), (-.10, -.19), (-.14, 0)], [(0, -.38), (.10, -.19), (.14, 0)]]}
+POSES_EXTRA = ("manos_cabeza", "tumbado")
+GESTOS_EXTRA = ("muerto",)
+EFECTOS_EXTRA = ("calor", "frio")
 
 
 # ---------------------------------------------------------------------------
@@ -595,13 +615,14 @@ def _pieza_letrero(texto, px, relleno, giro):
     """El letrero dibujado UNA vez, en un recorte de su tamaño: dibujarlo a
     pantalla completa en cada fotograma triplicaba lo que tarda el montaje."""
     f = _fuente(px)
-    borde = TINTA if relleno != TINTA else None
-    trazo = max(2, int(px*0.05)) if borde else 0
+    # Sin borde negro, como en Whymentary: la letra de su color y un poco
+    # engordada con su mismo color, que el trazo de la fuente es fino.
+    trazo = max(1, int(px*0.02))
     caja = f.getbbox(texto, anchor="mm", stroke_width=trazo)
     w, h = caja[2] - caja[0] + 8, caja[3] - caja[1] + 8
     pieza = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     ImageDraw.Draw(pieza).text((w/2, h/2), texto, font=f, fill=relleno, anchor="mm",
-                               stroke_width=trazo, stroke_fill=borde)
+                               stroke_width=trazo, stroke_fill=relleno)
     if giro:
         pieza = pieza.rotate(giro, expand=True, resample=Image.BICUBIC)
     return pieza
@@ -653,10 +674,23 @@ def encima(img: Image.Image, visual: dict, t: float, segundos: float) -> Image.I
             (x0, y0), (x1, y1) = f["de"], f["a"]
         except (KeyError, TypeError, ValueError):
             continue
-        p = min(1.0, max(0.0, (t - 0.3 - k*0.4)/0.6))
+        p = 1.0 if f.get("_ya") else min(1.0, max(0.0, (t - 0.3 - k*0.4)/0.6))
         if p <= 0:
             continue
         a, b = (w*float(x0), h*float(y0)), (w*float(x1), h*float(y1))
+        if f.get("recta"):
+            # La flecha gorda y recta de Whymentary, que se estira hasta su sitio.
+            color = _color(f.get("color"), "rojo")
+            an = math.atan2(b[1] - a[1], b[0] - a[0])
+            tam = h*0.075
+            fin = (a[0] + (b[0] - a[0])*p, a[1] + (b[1] - a[1])*p)
+            cuello = (fin[0] - math.cos(an)*tam*0.8, fin[1] - math.sin(an)*tam*0.8)
+            m._linea(d, [a, cuello], max(10, int(h*0.022)), rnd, color=color, temblor=0.6)
+            d.polygon([(fin[0], fin[1]),
+                       (cuello[0] + math.cos(an + math.pi/2)*tam*0.6, cuello[1] + math.sin(an + math.pi/2)*tam*0.6),
+                       (cuello[0] + math.cos(an - math.pi/2)*tam*0.6, cuello[1] + math.sin(an - math.pi/2)*tam*0.6)],
+                      fill=color)
+            continue
         mx, my = (a[0] + b[0])/2, (a[1] + b[1])/2 - h*0.08
         pts = [((1-s)**2*a[0] + 2*(1-s)*s*mx + s*s*b[0], (1-s)**2*a[1] + 2*(1-s)*s*my + s*s*b[1])
                for s in [i/24*p for i in range(25)]]
@@ -669,14 +703,17 @@ def encima(img: Image.Image, visual: dict, t: float, segundos: float) -> Image.I
             d.polygon([(qx + math.cos(an)*tam*0.6, qy + math.sin(an)*tam*0.6),
                        (qx + math.cos(an + 2.5)*tam, qy + math.sin(an + 2.5)*tam),
                        (qx + math.cos(an - 2.5)*tam, qy + math.sin(an - 2.5)*tam)], fill=color)
-    for k, tx in enumerate(visual.get("textos") or []):
+    nuevos = 0
+    for tx in visual.get("textos") or []:
         texto = str(tx.get("texto") or "")[:40]
         if not texto:
             continue
+        k = -9 if tx.get("_ya") else nuevos
+        nuevos += 0 if tx.get("_ya") else 1
         px = h*min(0.3, max(0.04, float(tx.get("tam") or 0.12)))
         x, y = w*float(tx.get("x", 0.5)), h*float(tx.get("y", 0.2))
         px = _que_quepa(texto, px, min(x, w - x)*2*0.95)
-        _letrero(img, texto, (x, y), px, _color(tx.get("color")), float(tx.get("giro") or 0),
+        _letrero(img, texto, (x, y), px, _color(tx.get("color"), "rojo"), float(tx.get("giro") or 0),
                  _escala_pop(t - 0.15 - k*0.35))
     return img
 
@@ -706,7 +743,25 @@ def _spec(visual: dict) -> dict:
     # Cualquier objeto de este canal se puede llevar en la mano (la pluma de
     # hacer cosquillas): limpia() solo deja los de España Contada.
     en_mano = [str(f.get("lleva") or "").lower() for f in figuras]
+    pedidos = [{c: str(f.get(c) or "").lower() for c in ("pose", "pose_fin", "gesto", "efecto")}
+               for f in figuras]
     e = m.limpia({"figuras": figuras}) if figuras else {"figuras": []}
+    for f, pedido in zip(e["figuras"], pedidos):
+        for campo in ("pose", "pose_fin"):
+            if pedido[campo] == "manos_cabeza":
+                f[campo] = "manos_cabeza"
+        if pedido["gesto"] in GESTOS_EXTRA:
+            f["gesto"] = pedido["gesto"]
+        if "tumbado" in (pedido["pose"], pedido["pose_fin"]):
+            # Tumbado = de pie y girado noventa grados sobre los pies.
+            f["pose"], f["pose_fin"] = "de_pie", None
+            f["_giro"] = -90 if f.get("espejo") else 90
+            # Girado sobre los pies, la cabeza quedaba fuera de su sitio: se
+            # corre medio cuerpo para que quede tumbado donde pide el guion.
+            f["_dx"] = -0.5 if f.get("espejo") else 0.5
+            f["_dy"] = -0.05
+        if pedido["efecto"] in EFECTOS_EXTRA:
+            f["_extra"] = pedido["efecto"]
     # Quietos salvo lo que pide el guion: limpia() les pone una postura
     # "compañera" para que gesticulen sin parar (en España Contada), y aqui
     # eso es el brazo moviendose todo el rato - y el sentado con mesa.
@@ -723,13 +778,16 @@ def _spec(visual: dict) -> dict:
     doodles = []
     for i, f in enumerate(e["figuras"]):
         efecto = f.get("efecto")
-        if efecto in _GARABATOS:
+        if f.get("_giro"):
+            continue            # tumbado: la cabeza no esta donde se calcula
+        if f.get("_extra"):
+            doodles.append((i, f.pop("_extra")))
+        elif efecto in _GARABATOS:
             doodles.append((i, _GARABATOS[efecto]))
             f.pop("efecto", None)
-        elif not efecto and f.get("gesto") in _GESTO_DOODLE:
-            doodles.append((i, _GESTO_DOODLE[f["gesto"]]))
     e["_doodles"] = doodles
-    e["interior"] = "blanco"
+    # SIN SUELO: en Whymentary los monigotes flotan en el folio, sin raya.
+    e["interior"] = "folio"
     # Mas abajo que en los decorados: en un folio en blanco el monigote es el
     # protagonista y ocupa media pantalla.
     e["suelo"] = 0.76
@@ -741,7 +799,8 @@ def _spec(visual: dict) -> dict:
             continue
         tam = min(0.55, max(0.06, float(c.get("tam") or 0.25)))
         cosa = {"que": que, "x": min(0.95, max(0.05, float(c.get("x", 0.5)))), "tam": tam,
-                "delante": bool(c.get("delante"))}
+                "delante": bool(c.get("delante")), "tachado": bool(c.get("tachado")),
+                "_ya": bool(c.get("_ya"))}
         if c.get("y") is not None:
             cosa["y"] = min(0.98, float(c["y"]) + tam/2)      # el centro -> la base
         cosas.append(cosa)
@@ -749,10 +808,6 @@ def _spec(visual: dict) -> dict:
     # encima del folio (ver _cosa_pop).
     e["cosas"] = []
     e["_pop"] = cosas
-    # Sin nadie de pie ni nada apoyado, no hay suelo: la cifra gigante o
-    # "ventilador = calavera" van en el folio limpio.
-    if not e["figuras"] and all("y" in c for c in cosas):
-        e["interior"] = "folio"
     return e
 
 
@@ -767,13 +822,14 @@ def _spec(visual: dict) -> dict:
 _GARABATOS = {"sudor": "sudor", "lagrimas": "lagrimas", "mareo": "espiral", "confuso": "dudas",
               "idea": "idea", "zzz": "zzz", "enamorado": "corazones", "sorpresa": "alerta",
               "humo": "enfado"}
-_GESTO_DOODLE = {"sorpresa": "alerta", "asustado": "alerta", "grito": "alerta", "enfadado": "enfado"}
+_PULSO = 0.12       # el temblor del trazo, comparado con España Contada
+_GROSOR = 0.85      # y su grosor
 _HERVOR = 2          # fotogramas dibujados con el mismo temblor (12,5/2: seis por segundo)
 _PASO_COSAS = 0.3    # entre que aparece una cosa y la siguiente
 
 
 @lru_cache(maxsize=4)
-def _mapas_de_hervor(ancho: int, alto: int, n: int = 3, amplitud: float = 1.7):
+def _mapas_de_hervor(ancho: int, alto: int, n: int = 3, amplitud: float = 1.1):
     """Tres desplazamientos suaves de todo el folio, como indices planos para
     np.take: alternandolos, las lineas ondulan como dibujadas a mano."""
     rng = np.random.default_rng(7)
@@ -817,7 +873,7 @@ def _cosa_pop(img, c, pies, t):
     if escala <= 0.05:
         return
     tam = int(h*float(c.get("tam", 0.14)))
-    g = max(4, int(w*0.006))
+    g = max(3, int(w*0.0055))
     pieza, cx, base = _pieza_cosa(c["que"], tam, g)
     if escala != 1.0:
         pieza = pieza.resize((max(1, int(pieza.width*escala)), max(1, int(pieza.height*escala))),
@@ -838,7 +894,11 @@ def _garabato_en_cabeza(img, d, tipo, cabeza, t, rnd):
     e = _escala_pop(t - 0.2)
     if e <= 0.05:
         return
-    if tipo == "alerta":
+    if tipo == "calor":
+        _ondas(d, cabeza, t, rnd, (COLORES["naranja"], COLORES["rojo"]))
+    elif tipo == "frio":
+        _ondas(d, cabeza, t, rnd, (COLORES["azul"], (120, 190, 240)), frio=True)
+    elif tipo == "alerta":
         sube = r*0.08*math.sin(t*9)
         for a in (-140, -112, -90, -68, -40):
             ar = math.radians(a)
@@ -908,14 +968,58 @@ def _garabato_en_cabeza(img, d, tipo, cabeza, t, rnd):
                 d.line([pts[j], pts[j + 1]], fill=COLORES["azul"], width=max(6, int(g*2.2)))
 
 
+def _tacha(d, tam_img, c, pies, t, rnd):
+    """La X roja gorda encima de una cosa, trazo a trazo: "esto NO"."""
+    if t <= 0:
+        return
+    w, h = tam_img
+    tam = h*float(c.get("tam", 0.14))
+    x = w*float(c.get("x", 0.5))
+    medio = (h*float(c["y"]) if c.get("y") is not None else pies) - tam*0.5
+    r = tam*0.6
+    grosor = max(8, int(h*0.014))
+    for k, (a, b) in enumerate((((-r, -r), (r, r)), ((r, -r), (-r, r)))):
+        p = min(1.0, max(0.0, (t - k*0.25)/0.25))
+        if p > 0:
+            ini = (x + a[0], medio + a[1])
+            fin = (x + a[0] + (b[0] - a[0])*p, medio + a[1] + (b[1] - a[1])*p)
+            m._linea(d, [ini, fin], grosor, rnd, color=COLORES["rojo"], temblor=0.8)
+
+
+def _ondas(d, cabeza, t, rnd, colores, frio=False):
+    """Rayitas onduladas alrededor de todo el monigote: el calor (naranjas y
+    rojas, subiendo) o el frio (azules, temblando en zigzag)."""
+    cx, cy, r, _lado = cabeza
+    sitios = ((-2.3, -0.6), (-1.7, 0.6), (-2.6, 1.9), (-1.6, 2.9), (-2.2, 3.9), (1.6, -0.9),
+              (2.4, 0.3), (1.7, 1.6), (2.6, 2.6), (1.8, 3.6), (-0.9, -1.9), (0.3, -2.2), (1.2, -1.8))
+    g = max(3, int(r*0.08))
+    for k, (dx, dy) in enumerate(sitios):
+        x0, y0 = cx + dx*r, cy + dy*r
+        largo = r*(1.0 + 0.25*(k % 3))
+        if frio:
+            sacude = r*0.06*math.sin(t*30 + k)
+            pts = [(x0 + sacude + (r*0.12 if i % 2 else -r*0.12), y0 + i*largo/6) for i in range(7)]
+        else:
+            sube = (t*r*0.6) % (r*0.5)
+            pts = [(x0 + r*0.13*math.sin(i*1.3 + t*6 + k), y0 - sube + i*largo/8) for i in range(9)]
+        m._linea(d, pts, g, rnd, color=colores[k % len(colores)], temblor=0.4)
+
+
 def _vida(img, e, cabezas, t, n):
     """Lo de este canal, encima de cada fotograma de animar()."""
     w, h = img.size
     pies = min(h*e.get("suelo", 0.76) + h*0.06, h*0.86)
-    for k, c in enumerate(e.get("_pop", [])):
-        _cosa_pop(img, c, pies, t - 0.1 - k*_PASO_COSAS)
     d = ImageDraw.Draw(img)
     rnd = random.Random(n//_HERVOR)
+    nuevas = 0
+    for c in e.get("_pop", []):
+        # Las que ya estaban en el plano anterior ("sigue") estan desde el
+        # principio; las nuevas van apareciendo.
+        tc = 9.0 if c.get("_ya") else t - 0.1 - nuevas*_PASO_COSAS
+        nuevas += 0 if c.get("_ya") else 1
+        _cosa_pop(img, c, pies, tc)
+        if c.get("tachado"):
+            _tacha(d, img.size, c, pies, tc - 0.45, rnd)
     for i, tipo in e.get("_doodles", []):
         if i < len(cabezas):
             _garabato_en_cabeza(img, d, tipo, cabezas[i], t, rnd)
@@ -946,16 +1050,18 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
     n = 0
     while True:
         cabezas.clear()
-        m.figura = espia
+        # El trazo de Whymentary: liso, sin el pulso de España Contada, y
+        # algo mas fino. Solo mientras se dibuja este fotograma.
+        m.figura, m.PULSO, m.GROSOR = espia, _PULSO, _GROSOR
         try:
             img = next(animacion)
+            reloj = n/fps
+            img = _vida(img.convert("RGB"), e, list(cabezas), reloj, n)
+            img = encima(img, visual or {}, reloj, segundos)
         except StopIteration:
             break
         finally:
-            m.figura = original
-        reloj = n/fps
-        img = _vida(img.convert("RGB"), e, list(cabezas), reloj, n)
-        img = encima(img, visual or {}, reloj, segundos)
+            m.figura, m.PULSO, m.GROSOR = original, 1.0, 1.0
         yield _hierve(img, n) if hervor else img
         n += 1
 
@@ -972,9 +1078,9 @@ def sonidos_del_plano(visual: dict, segundos: float) -> list:
             salida.append(("golpe", m.momento_del_efecto(efecto, segundos), 0.9))
         elif efecto == "bofetada":
             salida.append(("zas", m.momento_del_efecto(efecto, segundos), 0.4))
-    for k, _c in enumerate(e.get("_pop", [])):
+    for k, _c in enumerate([c for c in e.get("_pop", []) if not c.get("_ya")]):
         salida.append(("pop", 0.1 + k*_PASO_COSAS, 0.25))
-    for k, _t in enumerate((visual or {}).get("textos") or []):
+    for k, _t in enumerate([x for x in (visual or {}).get("textos") or [] if not x.get("_ya")]):
         salida.append(("pop", 0.15 + k*0.35, 0.25))
     if (visual or {}).get("cifra"):
         salida.append(("pop", 0.1, 0.25))
