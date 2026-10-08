@@ -447,11 +447,24 @@ def _mano(d, x, y, t, rnd, g, tinta=TINTA, relleno=(255, 224, 196)):
 
 
 def _marioneta(d, x, y, t, rnd, g, tinta=TINTA):
-    """La mano que se mueve sola: una mano colgando de los hilos de una cruceta."""
-    _mano(d, x, y, t*0.75, rnd, g)
-    d.line([(x - t*0.35, y - t), (x + t*0.35, y - t)], fill=(150, 100, 60), width=int(g*1.3))
-    for dx in (-0.2, 0, 0.2):
-        d.line([(x + t*dx, y - t), (x + t*dx*0.6, y - t*0.6)], fill=(120, 120, 120), width=max(1, g//4))
+    """La mano que se mueve sola: colgada de hilos atados a la punta de cada
+    dedo, con su cruceta arriba y rayitas de movimiento."""
+    tm = t*0.72
+    _mano(d, x, y, tm, rnd, g)
+    cy = y - tm*0.35
+    puntas = [(x + tm*dx, cy - tm*0.2 - tm*largo) for dx, largo in
+              ((-0.18, 0.32), (-0.07, 0.42), (0.05, 0.44), (0.16, 0.38))] + [(x - tm*0.38, cy)]
+    arriba = y - t
+    d.line([(x - t*0.32, arriba), (x + t*0.32, arriba)], fill=(150, 100, 60), width=int(g*1.4))
+    d.line([(x, arriba - t*0.06), (x, arriba + t*0.06)], fill=(150, 100, 60), width=int(g*1.4))
+    for k, (px, py) in enumerate(sorted(puntas)):     # el pulgar, al hilo de la izquierda
+        ax = x - t*0.3 + k*t*0.15
+        d.line([(ax, arriba), (px, py)], fill=(110, 110, 110), width=max(2, g//4))
+    for lado in (-1, 1):                              # se mueve
+        for k in range(2):
+            cx = x + lado*(tm*0.5 + k*t*0.08)
+            d.arc([cx - t*0.05, cy - t*0.25, cx + t*0.05, cy + t*0.05], 300 if lado > 0 else 120,
+                  60 if lado > 0 else 240, fill=TINTA, width=max(2, g//2))
 
 
 def _mano_robot(d, x, y, t, rnd, g, tinta=TINTA):
@@ -473,18 +486,22 @@ def _yinyang(d, x, y, t, rnd, g, tinta=TINTA):
 
 
 def _pie(d, x, y, t, rnd, g, tinta=TINTA):
-    """La planta del pie con sus cinco dedos: el sitio de las cosquillas."""
+    """Un pie descalzo de perfil, de dibujo animado: tobillo, talon redondo,
+    planta plana y los deditos delante. El de las cosquillas."""
     relleno = (255, 224, 196)
-    cy = y - t*0.38
-    pts = []
-    for i in range(40):
-        a = i/40*2*math.pi
-        ancho = t*(0.2 + 0.06*math.sin(a))          # mas ancho arriba, estrecho en el talon
-        pts.append((x + ancho*math.cos(a), cy + t*0.38*math.sin(a)))
+    pts = [(x - t*0.30, y - t*0.95), (x - t*0.08, y - t*0.95), (x - t*0.06, y - t*0.55)]
+    pts += [(x - t*0.06 + t*0.62*s_, y - t*0.55 + t*0.30*s_**0.8) for s_ in (0.3, 0.6, 0.85, 1.0)]
+    pts += [(x + t*0.62, y - t*0.12), (x + t*0.55, y), (x - t*0.25, y)]
+    pts += [(x - t*0.25 - t*0.13*math.sin(a), y - t*0.13 + t*0.13*math.cos(a))
+            for a in [i*math.pi/8 for i in range(1, 8)]]
+    pts += [(x - t*0.32, y - t*0.35)]
     _contorno(d, pts, relleno, g, rnd)
-    for k, (dx, r) in enumerate(((-0.17, 0.085), (-0.06, 0.065), (0.04, 0.06), (0.13, 0.055), (0.21, 0.05))):
-        cx, cyy = x + t*dx, y - t*0.82 + abs(dx)*t*0.35
-        d.ellipse([cx - t*r, cyy - t*r, cx + t*r, cyy + t*r], fill=relleno, outline=TINTA, width=max(2, g//2))
+    for k in range(4):                               # los deditos, de mayor a menor
+        cx = x + t*0.56 - k*t*0.11
+        r = t*(0.075 - k*0.01)
+        cy = y - t*0.22 - k*t*0.045
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=relleno, outline=TINTA, width=max(2, g//2))
+    d.line([(x + t*0.1, y - t*0.06), (x + t*0.35, y - t*0.06)], fill=(230, 180, 160), width=max(2, g//3))
 
 
 OBJETOS = {
