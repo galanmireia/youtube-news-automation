@@ -447,6 +447,16 @@ def _cara(d, c, r, g, rnd, gesto, tinta=TINTA):
         d.arc([b[0]-r*.34, b[1]-r*.34, b[0]+r*.34, b[1]+r*.20], 15, 165, fill=tinta, width=g)
     elif gesto == "enfadado":
         d.arc([b[0]-r*.30, b[1]-r*.06, b[0]+r*.30, b[1]+r*.42], 195, 345, fill=tinta, width=g)
+    elif gesto == "triste":                  # la boca hacia abajo, grande
+        d.arc([b[0]-r*.34, b[1]-r*.02, b[0]+r*.34, b[1]+r*.50], 200, 340, fill=tinta, width=int(g*1.2))
+    elif gesto == "asustado":                # la D tumbada y negra: el miedo de los dibujos
+        d.chord([b[0]-r*.36, b[1]-r*.10, b[0]+r*.36, b[1]+r*.52], 180, 360, fill=tinta)
+    elif gesto == "bostezo":                 # el ovalo enorme, con la lengua
+        d.ellipse([b[0]-r*.24, b[1]-r*.22, b[0]+r*.24, b[1]+r*.46], fill=tinta)
+        d.ellipse([b[0]-r*.13, b[1]+r*.18, b[0]+r*.13, b[1]+r*.40], fill=(214, 70, 80))
+    elif gesto == "asco":                    # la boca en zigzag
+        pts = [(b[0] - r*.30 + k*r*.12, b[1] + (r*.08 if k % 2 else -r*.04)) for k in range(6)]
+        _linea(d, pts, g, rnd, color=tinta, temblor=0.6)
     else:
         _linea(d, [(b[0]-r*.22, b[1]), (b[0]+r*.22, b[1])], g, rnd, color=tinta, temblor=1)
 
@@ -2018,7 +2028,8 @@ FONDOS_VALIDOS = tuple(FONDOS)
 # porque no son posturas, son el otro fotograma de una. Escribir la lista a
 # mano es como se perdieron la taberna y el arbol.
 POSES_VALIDAS = tuple(p for p in _POSES if not p.endswith("_b"))
-GESTOS_VALIDOS = ("neutro", "sorpresa", "contento", "enfadado", "grito")
+GESTOS_VALIDOS = ("neutro", "sorpresa", "contento", "enfadado", "grito",
+                  "triste", "asustado", "bostezo", "asco")
 # Explicados aqui y no tecleados en el prompt, como todo lo demas: la lista
 # del prompt estaba escrita a mano y cada gorro nuevo habria sido invisible.
 GORROS_EXPLICADOS = {
@@ -2636,6 +2647,17 @@ REPARTO = {
                           "El que cumple la orden y paga las consecuencias"},
 }
 REPARTO_VALIDO = tuple(REPARTO)
+# LOS DEL CANAL EN INGLES: gente cualquiera, cabezona, sin pelo o con coleta,
+# como los de los videos de "por que pasa esto". Despues de REPARTO_VALIDO a
+# proposito: el guion de España Contada no los ofrece.
+REPARTO.update({
+    "persona":   {"alto": 0.60, "cabeza": 1.30, "ancho": 1.0, "pelo": "nada", "nombre": "",
+                  "pinta": "", "papel": ""},
+    "persona_b": {"alto": 0.56, "cabeza": 1.30, "ancho": 1.0, "pelo": "moño", "nombre": "",
+                  "pinta": "", "papel": ""},
+    "nino":      {"alto": 0.40, "cabeza": 1.35, "ancho": 0.9, "pelo": "punta", "nombre": "",
+                  "pinta": "", "papel": ""},
+})
 
 
 def _pelo(d, cab, rc, g, rnd, cual, tinta=TINTA):
@@ -3943,6 +3965,8 @@ def _pared(d, w, y0, y1, clase, rnd, g):
         zocalo = y1 - (y1 - y0)*0.10
         d.rectangle([0, zocalo, w, y1], fill=MADERA)
         _linea(d, [(0, zocalo), (w, zocalo)], g, rnd, temblor=1.0)
+    elif clase == "blanca":                      # el folio en blanco del canal en ingles
+        d.rectangle([0, y0, w, y1], fill=(252, 252, 250))
     else:                                        # "cielo"
         d.rectangle([0, y0, w, y1], fill=(146, 198, 232))
 
@@ -3968,6 +3992,15 @@ def _piso(d, w, h, suelo, clase, rnd, g):
                     rnd, max(2, g//2), color=(150, 126, 96))
     elif clase == "hierba":
         d.rectangle([0, suelo, w, h], fill=(122, 193, 96))
+    elif clase == "nada":
+        d.rectangle([0, suelo, w, h], fill=(252, 252, 250))
+    elif clase == "linea":
+        # Folio en blanco con una raya ondulada de suelo, a mano, justo donde
+        # pisan (montar los pone un 6% por debajo de la linea del suelo).
+        d.rectangle([0, suelo, w, h], fill=(252, 252, 250))
+        y = suelo + h*0.06
+        pts = [(x, y + h*0.006*math.sin(x/(w*0.05))) for x in range(int(w*0.08), int(w*0.92), 16)]
+        _linea(d, pts, max(4, g), rnd, color=TINTA, temblor=1.2)
     else:
         d.rectangle([0, suelo, w, h], fill=MADERA)
 
@@ -4261,6 +4294,12 @@ DECORADOS_EXPLICADOS = {
 _sin_explicar = set(DECORADOS_VALIDOS) ^ set(DECORADOS_EXPLICADOS)
 if _sin_explicar:
     raise RuntimeError(f"Decorados sin explicar o explicados sin receta: {sorted(_sin_explicar)}")
+# El folio en blanco del canal en ingles. Despues de la comprobacion y de
+# DECORADOS_VALIDOS: es solo de ese canal y el guion en español no lo ofrece.
+_DECORADOS["blanco"] = {"pared": "blanca", "piso": "linea", "fondo": [], "muebles": [],
+                        "delante": [], "cuelga": [], "velas": []}
+_DECORADOS["folio"] = {"pared": "blanca", "piso": "nada", "fondo": [], "muebles": [],
+                       "delante": [], "cuelga": [], "velas": []}
 
 
 def _cortinas(d, w, h, suelo, rnd, g):

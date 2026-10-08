@@ -1,4 +1,5 @@
 import asyncio
+import os
 import json
 import time
 from io import BytesIO
@@ -585,6 +586,62 @@ async def _run_largo_guion_and_notify(bot, tema: str, minutos: int) -> None:
                                    text="Error escribiendo el guion del video largo, revisa los logs.")
 
 
+async def handle_why_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/why tema: paso 1 del video del canal en ingles (ver app/porque.py) -
+    solo el guion, y que dibujos pide. Luego /montar."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    if _pipeline_lock.locked():
+        await update.message.reply_text("Ya hay una generacion en curso, espera a que termine.")
+        return
+    tema = re.sub(r"^/\w+(@\w+)?\s*", "", update.message.text or "", count=1).strip().splitlines()
+    tema = tema[0].strip() if tema else ""
+    if not tema:
+        await update.message.reply_text("Formato: /why tema. Ejemplo:\n\n/why Why can't you tickle yourself")
+        return
+    await update.message.reply_text(
+        f"Paso 1: escribo el guion en ingles de «{tema}» (minimo 10 minutos). Te mando los "
+        "capitulos y que dibujos pide; cuando este todo, /montar.")
+    context.application.create_task(_run_why_guion_and_notify(context.bot, tema))
+
+
+async def _run_why_guion_and_notify(bot, tema: str) -> None:
+    from .porque import run_guion
+    loop = asyncio.get_running_loop()
+    async with _pipeline_lock:
+        try:
+            texto = await asyncio.wait_for(loop.run_in_executor(None, run_guion, tema), timeout=20*60)
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=(
+                "Guion listo:\n\n" + texto + "\n\nCuando este todo dibujado, manda /montar.")[:4000])
+        except Exception:
+            logger.exception("Error escribiendo el guion en ingles")
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                                   text="Error escribiendo el guion en ingles, revisa los logs.")
+
+
+async def _run_why_montaje_and_notify(bot) -> None:
+    from .porque import run_montaje
+    loop = asyncio.get_running_loop()
+
+    def on_done(video_id: int) -> None:
+        future = asyncio.run_coroutine_threadsafe(send_for_approval(bot, video_id), loop)
+        try:
+            future.result()
+        except Exception:
+            logger.exception("Error enviando el video %s a Telegram", video_id)
+
+    async with _pipeline_lock:
+        pulso = asyncio.create_task(_latido(bot))
+        try:
+            await asyncio.wait_for(loop.run_in_executor(None, run_montaje, on_done), timeout=3*60*60)
+        except Exception:
+            logger.exception("Error montando el video en ingles")
+            await bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                                   text="Error montando el video en ingles, revisa los logs.")
+        finally:
+            pulso.cancel()
+
+
 async def handle_montar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/montar: el paso 2 de /largo - voces, dibujos y montaje del guion que
     quedo guardado."""
@@ -593,9 +650,15 @@ async def handle_montar_command(update: Update, context: ContextTypes.DEFAULT_TY
     if _pipeline_lock.locked():
         await update.message.reply_text("Ya hay una generacion en curso, espera a que termine.")
         return
-    from . import largo
+    from . import largo, porque
+    if porque.hay_pendiente():
+        await update.message.reply_text(
+            "Monto el video en ingles: la voz, los dibujos y la musica. Tardara un buen rato; "
+            "te lo mando aqui.")
+        context.application.create_task(_run_why_montaje_and_notify(context.bot))
+        return
     if not largo.hay_pendiente():
-        await update.message.reply_text("No hay ningun guion largo esperando. Primero /largo tema.")
+        await update.message.reply_text("No hay ningun guion esperando. Primero /largo o /why.")
         return
     guion = json.loads(largo._PENDIENTE.read_text())
     minutos = int(guion.get("_minutos") or 10)
@@ -2298,6 +2361,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("literal", handle_literal_command))
     application.add_handler(CommandHandler("largo", handle_largo_command))
     application.add_handler(CommandHandler("montar", handle_montar_command))
+    application.add_handler(CommandHandler("why", handle_why_command))
     application.add_handler(CommandHandler("reset", handle_reset_command))
     application.add_handler(CommandHandler("parar", handle_stop_command))
     application.add_handler(CommandHandler("voces", handle_voices_command))
@@ -2350,7 +2414,11 @@ def build_application() -> Application:
     # purpose rather than inheriting from a default.
     application.job_queue.run_repeating(
         _latido_mientras_trabaja, interval=_SEGUNDOS_ENTRE_LATIDOS, first=_SEGUNDOS_ENTRE_LATIDOS)
-    if NARRATION_SOURCE in ("voz", "clon"):
+    # SIN_AUTOMATICO: el canal en ingles narra con la voz de Google, y sin esto
+    # el bot se pondria a generar videos de noticias solo, cada pocas horas.
+    if os.environ.get("SIN_AUTOMATICO", "").strip() in ("1", "true", "si"):
+        logger.info("Generador automatico desactivado (SIN_AUTOMATICO): solo se genera a mano.")
+    elif NARRATION_SOURCE in ("voz", "clon"):
         logger.info(
             "Narracion por %s: el generador automatico queda desactivado. "
             "Los videos se lanzan a mano con /generar.",

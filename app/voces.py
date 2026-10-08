@@ -199,12 +199,13 @@ def trozos_de(scenes: list[dict], duraciones: list[float],
 #    narracion, que es lo de antes. Eso avisa, pero no tira el bot abajo por
 #    algo que no rompe ningun video.
 def _cuadra_con_el_reparto() -> None:
-    from .monigotes import REPARTO
+    from .monigotes import REPARTO, REPARTO_VALIDO
     sobran = set(VOCES) - set(REPARTO)
     if sobran:
         raise RuntimeError(
             f"voces.py da voz a alguien que no existe en el reparto: {sorted(sobran)}")
-    faltan = set(REPARTO) - set(VOCES)
+    # Solo el reparto de España Contada: los del canal en ingles no hablan.
+    faltan = set(REPARTO_VALIDO) - set(VOCES)
     if faltan:
         logger.warning("Estos personajes no tienen voz propia y hablaran con la de la "
                        "narracion: %s.", ", ".join(sorted(faltan)))

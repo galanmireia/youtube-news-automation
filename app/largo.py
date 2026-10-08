@@ -276,7 +276,7 @@ def _secciones(guion: dict) -> list[dict]:
 # La voz
 # ---------------------------------------------------------------------------
 
-def _voz_google(texto: str, destino: Path):
+def _voz_google(texto: str, destino: Path, ritmo_pedido: float | None = 0.92):
     """Un plano con la voz de Google, mas despacio que la de los Shorts."""
     from google.cloud import texttospeech
     from pydub import AudioSegment
@@ -284,7 +284,7 @@ def _voz_google(texto: str, destino: Path):
     from .tts import _get_client
     cliente = _get_client()
     voz = texttospeech.VoiceSelectionParams(language_code=TTS_LANGUAGE_CODE, name=TTS_VOICE_NAME)
-    for ritmo in (0.92, None):
+    for ritmo in ((ritmo_pedido, None) if ritmo_pedido else (None,)):
         cfg = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.LINEAR16,
                                        **({"speaking_rate": ritmo} if ritmo else {}))
         try:
@@ -426,7 +426,8 @@ def _ffmpeg(args: list[str], paso: str, timeout: int = 1800) -> None:
         raise LargoError(f"ffmpeg ({paso}): {r.stderr[-800:]}")
 
 
-def _tuberia(fotos, fotogramas: int, destino: Path, zoom: bool, hacia_dentro: bool = True) -> None:
+def _tuberia(fotos, fotogramas: int, destino: Path, zoom: bool, hacia_dentro: bool = True,
+             brillo: float = -0.035) -> None:
     """Los dibujos, uno detras de otro y sin pasar por disco, a un trozo de
     video de `fotogramas` a 25 por segundo. Se pintan a 12,5: ffmpeg repite
     cada uno. Si se acaban antes, se repite el ultimo. Con `zoom`, el
@@ -441,7 +442,9 @@ def _tuberia(fotos, fotogramas: int, destino: Path, zoom: bool, hacia_dentro: bo
         filtro += (f",scale={ANCHO*2}:{ALTO*2}:flags=bilinear,zoompan=z='{z}':x='iw/2-(iw/zoom/2)'"
                    f":y='ih/2-(ih/zoom/2)':d=1:s={ANCHO}x{ALTO}:fps={FPS}")
     # Un poco mas apagado que en los Shorts: es para la noche.
-    filtro += ",eq=brightness=-0.035,setsar=1,format=yuv420p"
+    if brillo:
+        filtro += f",eq=brightness={brillo}"
+    filtro += ",setsar=1,format=yuv420p"
     proc = subprocess.Popen(
         ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
          "-s", f"{ANCHO}x{ALTO}", "-r", str(_FPS_DIBUJO), "-i", "-", "-vf", filtro,
