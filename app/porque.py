@@ -76,8 +76,9 @@ it is not in the lists, it cannot be drawn. A visual has any of:
              or one of {llevables}, or omit; "espejo": true to face left}}
   "cosas":   0-5 objects: {{"que": one of {objetos}, "cuando": "two fans", "x": 0.05-0.95, "tam": 0.06-0.55 (height,
              fraction of the screen), "y": 0.1-0.9 = its CENTER if it floats (omit "y" and it
-             stands at the bottom, level with the people's feet), "tachado": true = crossed out with
-             a big red X ("NOT this", a myth busted)}}
+             stands at the bottom, level with the people's feet), "etiqueta": "CAMEL" = a small
+             handwritten label under it, "tachado": true = crossed out with a big red X ("NOT this",
+             a myth busted)}}
   "textos":  0-2 BIG hand-lettered words: {{"texto": "IT'S HOT" (max 3-4 words, CAPITALS), "cuando": ...,
              "x", "y", "tam": 0.08-0.2, "color": one of {colores}, "giro": -8 to 8 degrees}}
   "flechas": 0-2 hand-drawn arrows: {{"de": [x, y], "a": [x, y], "cuando": ..., "color": ..., "recta": true for a
@@ -96,6 +97,11 @@ Special: pose "manos_cabeza" = hands on the head (panic, stress); pose "tumbado"
 floor; gesto "muerto" = X eyes and tongue out (comic fainted/dead); efecto "calor" / "frio" =
 heat waves / cold shivers all around the person.
 THE STYLE is Whymentary's: a white page, clean simple drawings, big red handwritten words.
+NEVER EMPTY: simple drawings, but every shot shows 2-4 things that SHOW what the sentence says.
+If the narration names something you can draw - an animal, an object, a body part, a food - it
+MUST be on the page (a camel is a "camello", not a person alone). Label things that could be
+confused ("etiqueta"). A person alone on the page only for a pure reaction beat, and never two
+shots in a row. If something has no drawing, use the closest one plus an "etiqueta".
 ONE IDEA PER SHOT, big and in the middle. Mix: people reacting, objects explained, "THIS =
 THAT" equations (cosa + "igual" + cosa), giant numbers, a big word. Keep text and objects from
 overlapping the people. The same person keeps the same "quien" all video long.
@@ -373,6 +379,19 @@ def _al_nombrarlo(visual: dict, texto: str, hablado: float) -> dict:
                     x = dict(x, _t=round(max(0.1, k/len(frase)*hablado), 2))
             salida.append(x)
         v[campo] = salida
+    # NUNCA EL FOLIO EN BLANCO ESPERANDO ("se queda la pantalla en blanco y
+    # tienes que esperar a ver que sale"): si al empezar no hay nadie ni nada,
+    # lo primero que se nombra esta desde el principio.
+    hay_algo = bool(v.get("figuras") or v.get("cifra")) or any(
+        isinstance(x, dict) and (x.get("_ya") or x.get("_t") is None)
+        for campo in ("cosas", "textos", "flechas") for x in v.get(campo) or [])
+    if not hay_algo:
+        con_hora = [(x["_t"], campo, n) for campo in ("cosas", "textos", "flechas")
+                    for n, x in enumerate(v.get(campo) or []) if isinstance(x, dict)]
+        if con_hora:
+            _t, campo, n = min(con_hora)
+            v[campo] = list(v[campo])
+            v[campo][n] = dict(v[campo][n], _t=0.1)
     return v
 
 
@@ -603,12 +622,24 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
     return final, jpg, "\n".join(marcas)
 
 
-_PIDE_RETOQUE = """These shots asked for drawings that did not exist when the script was written.
-Some of them exist NOW (check the lists above). Redo ONLY their "visual" with what exists - the
-narration stays exactly the same:
+_PIDE_RETOQUE = """Redo ONLY the "visual" of these shots - the narration stays exactly the same.
+Some asked for drawings that did not exist when the script was written ("falta"): many exist NOW
+(check the lists above). Others are TOO EMPTY (a lonely person, a single thing): make them show
+what the sentence says - 2-4 things, everything the narration names that can be drawn, with
+"etiqueta" labels and "cuando" timings. Keep "sigue" as it was:
 {planos}
 
 Return ONLY: {{"planos": [{{"i": <same number>, "visual": {{...}}}}]}}"""
+
+
+def _pobre(visual: dict) -> bool:
+    """Un plano que no cuenta nada: una persona sola o una cosa suelta, sin
+    nada mas ("es simple, pero igual no habria que hacerlo tan simple")."""
+    if visual.get("sigue") or visual.get("cifra") or visual.get("_careta"):
+        return False
+    cuenta = sum(len([x for x in visual.get(c) or [] if isinstance(x, dict)])
+                 for c in ("figuras", "cosas", "textos", "flechas"))
+    return cuenta <= 1
 
 
 def retoca(guion: dict) -> int:
@@ -616,7 +647,8 @@ def retoca(guion: dict) -> int:
     vuelven a pedir, ahora que ya esta dibujado (la pluma, la rata...). Una
     sola llamada pequeña; si falla, se monta con lo que habia."""
     todos = [p for cap in guion.get("capitulos") or [] for p in cap.get("planos") or []]
-    pendientes = [(i, p) for i, p in enumerate(todos) if str(p.get("falta") or "").strip()]
+    pendientes = [(i, p) for i, p in enumerate(todos)
+                  if str(p.get("falta") or "").strip() or _pobre(p.get("visual") or {})]
     if not pendientes:
         return 0
     lista = "\n".join(json.dumps({"i": i, "narracion": p.get("narracion"), "falta": p.get("falta"),
@@ -628,7 +660,7 @@ def retoca(guion: dict) -> int:
         llevables=_lista(monigotes.LLEVABLES_EXPLICADOS), objetos=_lista(garabato.OBJETOS_VALIDOS),
         colores=_lista(garabato.COLORES), dosier="(not needed for this task)")
     try:
-        nuevos = _pregunta(sistema, _PIDE_RETOQUE.format(planos=lista), "why-retoque", 8000)
+        nuevos = _pregunta(sistema, _PIDE_RETOQUE.format(planos=lista), "why-retoque", 16000)
     except Exception:
         logger.warning("why: no se han podido redibujar los planos que pedian algo.", exc_info=True)
         return 0
@@ -642,7 +674,7 @@ def retoca(guion: dict) -> int:
             todos[i]["visual"] = n["visual"]
             todos[i]["falta"] = ""
             hechos += 1
-    logger.info("why: %s de %s planos redibujados con lo que ya existe.", hechos, len(pendientes))
+    logger.info("why: %s de %s planos redibujados (lo que faltaba o estaban vacios).", hechos, len(pendientes))
     return hechos
 
 

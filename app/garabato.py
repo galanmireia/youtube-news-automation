@@ -557,7 +557,12 @@ OBJETOS = {
 for _n, _f in MAS_OBJETOS.items():
     OBJETOS.setdefault(_n, _f)
 # Lo que el guion pide con otro nombre: "igualdad", "signo_igual"...
-_ALIAS_OBJETOS = {"igualdad": "igual", "signo_igual": "igual", "equals": "igual", "equal": "igual",
+_ALIAS_OBJETOS = {"horse": "caballo", "camel": "camello", "elephant": "elefante", "pig": "cerdo",
+                  "chicken": "gallina", "hen": "gallina", "lion": "leon", "rabbit": "conejo",
+                  "turtle": "tortuga", "frog": "rana", "sheep": "oveja", "cat": "gato", "fish": "pez",
+                  "bird": "pajaro", "bee": "abeja", "spider": "arana", "snake": "serpiente", "cow": "vaca",
+                  "shark": "tiburon", "monkey": "mono", "rat": "rata", "mouse": "rata",
+                  "igualdad": "igual", "signo_igual": "igual", "equals": "igual", "equal": "igual",
                   "equal_sign": "igual", "igual_que": "igual", "perro_pata": "perro", "dog": "perro",
                   "pregunta": "interrogacion", "question": "interrogacion", "telefono": "movil",
                   "phone": "movil", "brain": "cerebro", "heart": "corazon", "feather": "pluma"}
@@ -814,7 +819,8 @@ def _spec(visual: dict) -> dict:
         tam = min(0.55, max(0.06, float(c.get("tam") or 0.25)))
         cosa = {"que": que, "x": min(0.95, max(0.05, float(c.get("x", 0.5)))), "tam": tam,
                 "delante": bool(c.get("delante")), "tachado": bool(c.get("tachado")),
-                "_ya": bool(c.get("_ya")), "_t": c.get("_t")}
+                "_ya": bool(c.get("_ya")), "_t": c.get("_t"),
+                "etiqueta": str(c.get("etiqueta") or "")[:24].upper()}
         if c.get("y") is not None:
             cosa["y"] = min(0.98, float(c["y"]) + tam/2)      # el centro -> la base
         cosas.append(cosa)
@@ -1038,6 +1044,14 @@ def _vida(img, e, cabezas, t, n):
             tc = t - 0.1 - nuevas*_PASO_COSAS
             nuevas += 1
         _cosa_pop(img, c, pies, tc)
+        if c.get("etiqueta"):
+            # La etiqueta a mano debajo ("CAMEL"): que se entienda que es.
+            w_, h_ = img.size
+            tam = h_*float(c.get("tam", 0.14))
+            base = h_*float(c["y"]) if c.get("y") is not None else pies
+            px = _que_quepa(c["etiqueta"], h_*0.055, max(w_*0.12, tam*1.6))
+            _letrero(img, c["etiqueta"], (w_*float(c.get("x", 0.5)), min(h_*0.96, base + px*0.75)), px, TINTA, 0,
+                     _escala_pop(tc - 0.15))
         if c.get("tachado"):
             _tacha(d, img.size, c, pies, tc - 0.45, rnd)
     for i, tipo in e.get("_doodles", []):

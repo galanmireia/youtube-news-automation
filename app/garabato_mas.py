@@ -1022,6 +1022,122 @@ def _moneda(d, x, y, t, rnd, g, tinta=TINTA):
     _brillo(d, x - r*0.08, cy, r*0.65, g)
 
 
+# ---- Mas animales (ella: "habla de un camello o de un caballo y sale solo el
+# monigote"). De perfil, mirando a la derecha, como el resto.
+
+def _patas(d, x, y, xs, alto, g, color=TINTA):
+    """Patas del color del animal, con su borde."""
+    for px in xs:
+        d.line([(x + px, y - alto), (x + px, y)], fill=TINTA, width=int(g*2.6))
+        d.line([(x + px, y - alto), (x + px, y - g*0.7)], fill=color, width=max(2, int(g*1.2)))
+
+
+def _camello(d, x, y, t, rnd, g, tinta=TINTA):
+    c = (215, 170, 105)
+    _patas(d, x, y, (-t*0.38, -t*0.24, t*0.12, t*0.26), t*0.4, g, c)
+    m._linea(d, [(x - t*0.52, y - t*0.6), (x - t*0.6, y - t*0.42)], g, rnd)
+    lomo = [(x - t*0.5, y - t*0.42), (x - t*0.5, y - t*0.62)] + _arco(x - t*0.26, y - t*0.62, t*0.2, t*0.24, 180, 360, 12) + \
+        _arco(x + t*0.1, y - t*0.62, t*0.18, t*0.22, 180, 360, 12) + [(x + t*0.32, y - t*0.6), (x + t*0.34, y - t*0.42)]
+    _cont(d, lomo, c, g, rnd)
+    _cont(d, [(x + t*0.26, y - t*0.6), (x + t*0.42, y - t*0.95), (x + t*0.52, y - t*0.92), (x + t*0.38, y - t*0.55)],
+          c, g, rnd)
+    _ov(d, [x + t*0.38, y - t*1.02, x + t*0.66, y - t*0.88], c, g)
+    _ojo(d, x + t*0.5, y - t*0.96, t*0.025)
+
+
+def _elefante(d, x, y, t, rnd, g, tinta=TINTA):
+    c = (165, 170, 185)
+    _patas(d, x, y, (-t*0.42, -t*0.25, t*0.08, t*0.24), t*0.3, int(g*1.8), c)
+    _ov(d, [x - t*0.6, y - t*0.85, x + t*0.35, y - t*0.25], c, g)
+    m._linea(d, [(x + t*0.42, y - t*0.6), (x + t*0.6, y - t*0.35), (x + t*0.58, y - t*0.12)], int(g*3.2), rnd)
+    m._linea(d, [(x + t*0.42, y - t*0.6), (x + t*0.6, y - t*0.35), (x + t*0.58, y - t*0.12)], int(g*1.8), rnd,
+             color=c)
+    _circ(d, x + t*0.36, y - t*0.72, t*0.2, c, g)
+    _ov(d, [x + t*0.1, y - t*0.92, x + t*0.36, y - t*0.5], (190, 195, 210), g)
+    _ojo(d, x + t*0.44, y - t*0.78, t*0.03)
+
+
+def _cerdo(d, x, y, t, rnd, g, tinta=TINTA):
+    c = (250, 175, 190)
+    _patas(d, x, y, (-t*0.38, -t*0.22, t*0.1, t*0.26), t*0.22, int(g*1.3), c)
+    d.arc([x - t*0.68, y - t*0.62, x - t*0.48, y - t*0.42], 0, 300, fill=TINTA, width=g)
+    _ov(d, [x - t*0.55, y - t*0.7, x + t*0.4, y - t*0.18], c, g)
+    _cont(d, [(x + t*0.22, y - t*0.66), (x + t*0.3, y - t*0.82), (x + t*0.36, y - t*0.62)], c, g, rnd)
+    _ov(d, [x + t*0.34, y - t*0.5, x + t*0.5, y - t*0.32], (240, 140, 160), g)
+    for k in (0.4, 0.45):
+        d.ellipse([x + t*k - 3, y - t*0.43, x + t*k + 3, y - t*0.37], fill=TINTA)
+    _ojo(d, x + t*0.26, y - t*0.52, t*0.03)
+
+
+def _gallina(d, x, y, t, rnd, g, tinta=TINTA):
+    for px in (-0.06, 0.08):
+        _raya(d, [(x + t*px, y - t*0.25), (x + t*px, y)], g, rnd, color=NARANJA)
+    _cont(d, [(x - t*0.3, y - t*0.48), (x - t*0.42, y - t*0.78), (x - t*0.18, y - t*0.6)], BLANCO, g, rnd)
+    _ov(d, [x - t*0.34, y - t*0.68, x + t*0.28, y - t*0.24], BLANCO, g)
+    d.arc([x - t*0.2, y - t*0.58, x + t*0.08, y - t*0.36], 20, 160, fill=TINTA, width=max(2, g//2))
+    _circ(d, x + t*0.2, y - t*0.72, t*0.14, BLANCO, g)
+    _cont(d, [(x + t*0.12, y - t*0.84), (x + t*0.16, y - t*0.95), (x + t*0.22, y - t*0.86), (x + t*0.28, y - t*0.95),
+              (x + t*0.3, y - t*0.82)], ROJO, max(2, g//2), rnd)
+    _cont(d, [(x + t*0.32, y - t*0.74), (x + t*0.44, y - t*0.7), (x + t*0.32, y - t*0.66)], AMARILLO, max(2, g//2), rnd)
+    _ojo(d, x + t*0.24, y - t*0.75, t*0.025)
+
+
+def _leon(d, x, y, t, rnd, g, tinta=TINTA):
+    c = (240, 180, 70)
+    _patas(d, x, y, (-t*0.4, -t*0.25, t*0.05, t*0.2), t*0.25, int(g*1.5), c)
+    m._linea(d, [(x - t*0.48, y - t*0.5), (x - t*0.7, y - t*0.4), (x - t*0.72, y - t*0.55)], g, rnd)
+    _ov(d, [x - t*0.52, y - t*0.62, x + t*0.25, y - t*0.22], c, g)
+    pts = [(x + t*0.28 + t*(0.3 if k % 2 else 0.24)*math.cos(a), y - t*0.62 + t*(0.3 if k % 2 else 0.24)*math.sin(a))
+           for k, a in enumerate([i*math.pi/10 for i in range(20)])]
+    _cont(d, pts, (190, 110, 40), g, rnd)
+    _circ(d, x + t*0.3, y - t*0.62, t*0.16, c, g)
+    _ojo(d, x + t*0.36, y - t*0.66, t*0.025)
+    d.polygon([(x + t*0.42, y - t*0.6), (x + t*0.46, y - t*0.6), (x + t*0.44, y - t*0.56)], fill=TINTA)
+
+
+def _conejo(d, x, y, t, rnd, g, tinta=TINTA):
+    c = (235, 235, 240)
+    for dx in (-0.02, 0.1):
+        _ov(d, [x + t*dx, y - t*1.0, x + t*dx + t*0.12, y - t*0.6], c, g)
+    _ov(d, [x - t*0.4, y - t*0.5, x + t*0.15, y], c, g)
+    _circ(d, x - t*0.42, y - t*0.22, t*0.08, BLANCO, g)
+    _circ(d, x + t*0.1, y - t*0.55, t*0.17, c, g)
+    _ojo(d, x + t*0.16, y - t*0.58, t*0.03)
+    d.ellipse([x + t*0.24, y - t*0.53, x + t*0.28, y - t*0.49], fill=ROSA)
+
+
+def _tortuga(d, x, y, t, rnd, g, tinta=TINTA):
+    c = (120, 190, 90)
+    _patas(d, x, y, (-t*0.35, t*0.25), t*0.15, int(g*1.8), c)
+    _circ(d, x + t*0.55, y - t*0.22, t*0.12, c, g)
+    _ojo(d, x + t*0.59, y - t*0.25, t*0.025)
+    d.chord([x - t*0.5, y - t*0.65, x + t*0.45, y + t*0.05], 180, 360, fill=(70, 140, 70), outline=TINTA, width=g)
+    for cx, cy in ((-0.24, 0.4), (0.18, 0.4), (-0.03, 0.54)):
+        d.ellipse([x + t*cx - t*0.1, y - t*cy - t*0.07, x + t*cx + t*0.1, y - t*cy + t*0.07], outline=(40, 90, 40),
+                  width=max(2, g//2))
+    d.line([(x - t*0.5, y - t*0.3), (x + t*0.45, y - t*0.3)], fill=TINTA, width=g)
+
+
+def _rana(d, x, y, t, rnd, g, tinta=TINTA):
+    c = (110, 200, 90)
+    for lado in (-1, 1):
+        _ov(d, [x + lado*t*0.3 - t*0.18, y - t*0.12, x + lado*t*0.3 + t*0.18, y], c, g)
+    _ov(d, [x - t*0.42, y - t*0.65, x + t*0.42, y - t*0.05], c, g)
+    for lado in (-1, 1):
+        _circ(d, x + lado*t*0.2, y - t*0.68, t*0.13, BLANCO, g)
+        d.ellipse([x + lado*t*0.2 - t*0.05, y - t*0.72, x + lado*t*0.2 + t*0.05, y - t*0.62], fill=TINTA)
+    d.arc([x - t*0.22, y - t*0.5, x + t*0.22, y - t*0.25], 20, 160, fill=TINTA, width=g)
+
+
+def _oveja(d, x, y, t, rnd, g, tinta=TINTA):
+    _patas(d, x, y, (-t*0.3, -t*0.15, t*0.1, t*0.25), t*0.3, int(g*1.2), (70, 70, 80))
+    cy = y - t*0.55
+    _nube_rellena(d, [(x - t*0.3, cy, t*0.2), (x - t*0.05, cy - t*0.12, t*0.22), (x + t*0.2, cy, t*0.2),
+                      (x - t*0.05, cy + t*0.1, t*0.2)], (248, 248, 250), g)
+    _ov(d, [x + t*0.3, y - t*0.78, x + t*0.55, y - t*0.5], (70, 70, 80), g)
+    _ojo(d, x + t*0.46, y - t*0.68, t*0.03)
+
+
 MAS_OBJETOS = {
     # el cuerpo y la salud
     "diente": _diente, "hueso": _hueso, "nariz": _nariz, "oreja": _oreja, "lengua": _lengua,
@@ -1046,6 +1162,8 @@ MAS_OBJETOS = {
     # los animales
     "gato": _gato, "pez": _pez, "pajaro": _pajaro, "mosquito": _mosquito, "abeja": _abeja,
     "arana": _arana, "serpiente": _serpiente, "vaca": _vaca, "tiburon": _tiburon,
+    "camello": _camello, "elefante": _elefante, "cerdo": _cerdo, "gallina": _gallina, "leon": _leon,
+    "conejo": _conejo, "tortuga": _tortuga, "rana": _rana, "oveja": _oveja,
     # los iconos de explicar
     "reloj_arena": _reloj_arena, "grafico_sube": _grafico(True), "grafico_baja": _grafico(False),
     "lupa": _lupa, "nota_musical": _nota, "bateria": _bateria(True), "bateria_baja": _bateria(False),
