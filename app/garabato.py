@@ -797,6 +797,9 @@ def _spec(visual: dict) -> dict:
     pedidos = [{c: str(f.get(c) or "").lower() for c in ("pose", "pose_fin", "gesto", "efecto")}
                for f in figuras]
     e = m.limpia({"figuras": figuras}) if figuras else {"figuras": []}
+    for f, pedido in zip(e["figuras"], figuras):
+        if pedido.get("_ya"):
+            f["_ya"] = True       # ya estaba en el plano anterior: no vuelve a entrar
     for f, pedido in zip(e["figuras"], pedidos):
         for campo in ("pose", "pose_fin"):
             if pedido[campo] == "manos_cabeza":
@@ -986,10 +989,19 @@ def _pieza_cosa(que: str, t: int, g: int):
     return recorte, w/2 - caja[0], base - caja[1]
 
 
+def _escala_rebote(t: float) -> float:
+    """Aparece con un muelle: se pasa de grande, rebota y se asienta."""
+    if t <= 0:
+        return 0.0
+    if t > 1.2:
+        return 1.0
+    return max(0.0, 1 - math.exp(-7*t)*math.cos(13*t))
+
+
 def _cosa_pop(img, c, pies, t):
     """Una cosa del plano, apareciendo con su golpe (crece de su centro)."""
     w, h = img.size
-    escala = _escala_pop(t)
+    escala = _escala_rebote(t)
     if escala <= 0.05:
         return
     tam = int(h*float(c.get("tam", 0.14)))
@@ -1007,10 +1019,15 @@ def _cosa_pop(img, c, pies, t):
     arriba = medio - (base - tam*0.5*escala)
     # Y despues no se queda quieta: se menea (y si flota, sube y baja).
     fase = (sum(map(ord, c["que"])) % 11)*0.57 + float(c.get("x", 0.5))*5
-    vivo = min(1.0, max(0.0, (t - _POP)/0.3))
-    giro = vivo*(7 if flota else 4.5)*math.sin(t*2.6 + fase)
+    vivo = min(1.0, max(0.0, (t - 0.4)/0.3))
+    giro = vivo*(12 if flota else 8)*math.sin(t*3.0 + fase)
+    # Entra girando, como si la tiraran a la pagina.
+    giro += -35*math.exp(-t*7)*math.cos(t*12)*(1 if int(fase*10) % 2 else -1)
     if flota:
-        arriba += vivo*tam*0.05*math.sin(t*2.1 + fase)
+        arriba += vivo*tam*0.1*math.sin(t*2.4 + fase)
+    else:
+        # Las del suelo dan botecitos.
+        arriba -= vivo*tam*0.08*abs(math.sin(t*2.2 + fase))
     if abs(giro) < 0.3:
         img.paste(pieza, (int(x - cx), int(arriba)), pieza)
         return
@@ -1278,15 +1295,18 @@ def _camara_viva(img, t, dur, mueve, golpes):
     aparece algo."""
     ancho, alto = img.size
     s = _suave_cam(min(1.0, t/max(0.5, dur)))
-    z = 1.03 + 0.09*s if mueve % 2 else 1.12 - 0.09*s
+    z = 1.02 + 0.15*s if mueve % 2 else 1.17 - 0.15*s
+    sacude = 0.0
     for tp in golpes:
         if 0 <= t - tp < 1.0:
-            z += 0.03*math.sin(min(1.0, (t - tp)/0.12)*math.pi/2)*math.exp(-(t - tp)*4)
+            u = t - tp
+            z += 0.07*math.sin(min(1.0, u/0.1)*math.pi/2)*math.exp(-u*5)
+            sacude += math.exp(-u*9)*math.sin(u*55)
     lado = 1 if (mueve >> 1) % 2 else -1
     cw, ch = ancho/z, alto/z
     hx, hy = (ancho - cw)/2, (alto - ch)/2
-    ox = hx*(1 + lado*(0.7*s - 0.35) + 0.12*math.sin(t*0.9 + mueve % 7))
-    oy = hy*(1.2 + 0.15*math.sin(t*1.3 + mueve % 5))
+    ox = hx*(1 + lado*(0.8*s - 0.4) + 0.18*math.sin(t*1.1 + mueve % 7)) + sacude*ancho*0.006
+    oy = hy*(1.2 + 0.2*math.sin(t*1.5 + mueve % 5)) + sacude*alto*0.006
     ox = min(max(0.0, ox), ancho - cw)
     oy = min(max(0.0, oy), alto - ch)
     return img.crop((int(ox), int(oy), int(ox + cw), int(oy + ch))).resize((ancho, alto), Image.BILINEAR)
@@ -1343,7 +1363,8 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
     mascota = (visual or {}).get("mascota") if isinstance((visual or {}).get("mascota"), dict) else None
     # LA FAMILIA DE MOKORDO en vez de los monigotes de palotes: los pinta
     # mascota.personaje, no animar().
-    familia = list(e.get("figuras", []))
+    familia = [dict(f, _retraso=(0.3 if mascota and not mascota.get("_ya") else 0.0) + 0.22*i)
+               for i, f in enumerate(e.get("figuras", []))]
     e["figuras"] = []
     camara = None          # la familia ya trae su camara que respira
     paso_hervor = max(1, round(fps/6))
@@ -1411,6 +1432,18 @@ def sonidos_del_plano(visual: dict, segundos: float) -> list:
         elif efecto == "bofetada":
             salida.append(("zas", m.momento_del_efecto(efecto, segundos), 0.4))
     sin_hora = 0
+    # Las entradas de los personajes: el whoosh del que sale de la pared y
+    # el pop del que cae o sale del suelo.
+    ma = (visual or {}).get("mascota") if isinstance((visual or {}).get("mascota"), dict) else None
+    llegan = []
+    if ma and not ma.get("_ya") and str(ma.get("accion") or "") != "entra":
+        llegan.append((_mascota.tipo_entrada(int(float(ma.get("x", 0.5))*10)), 0.0))
+    retraso = 0.3 if llegan else 0.0
+    for i, f in enumerate(e.get("figuras", [])):
+        if not f.get("_ya"):
+            llegan.append((_mascota.tipo_entrada(_mascota.semilla_entrada(f)), retraso + 0.22*i))
+    for tipo, t0 in llegan:
+        salida.append(("whoosh", t0, 0.35) if tipo == "pared" else ("pop", t0 + (0.42 if tipo == "cae" else 0.05), 0.25))
     for c in e.get("_pop", []):
         if c.get("_ya"):
             continue

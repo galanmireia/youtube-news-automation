@@ -462,6 +462,10 @@ def _desde(visual: dict, segundo: float) -> dict:
     if segundo <= 0:
         return visual
     v = dict(visual)
+    # Los personajes ya entraron en el trozo anterior.
+    v["figuras"] = [dict(f, _ya=True) for f in visual.get("figuras") or [] if isinstance(f, dict)]
+    if isinstance(visual.get("mascota"), dict):
+        v["mascota"] = dict(visual["mascota"], _ya=True)
     for campo in ("cosas", "textos", "flechas"):
         salida = []
         for x in visual.get(campo) or []:
@@ -521,10 +525,15 @@ def _acumula(anterior: dict | None, visual: dict) -> dict:
     que ya estaba se marca "_ya" para que no vuelva a aparecer de golpe."""
     if not anterior or not visual.get("sigue"):
         return visual
-    v = {"sigue": True, "figuras": visual.get("figuras") or anterior.get("figuras") or [],
-         "ambiente": visual.get("ambiente") or anterior.get("ambiente")}
+    # Los que ya estaban no vuelven a entrar; los nuevos si.
+    antes = {str(f.get("quien")) for f in anterior.get("figuras") or [] if isinstance(f, dict)}
+    figuras = [dict(f, _ya=True) if str(f.get("quien")) in antes else f
+               for f in visual.get("figuras") or [] if isinstance(f, dict)]
+    figuras = figuras or [dict(f, _ya=True) for f in anterior.get("figuras") or [] if isinstance(f, dict)]
+    v = {"sigue": True, "figuras": figuras, "ambiente": visual.get("ambiente") or anterior.get("ambiente")}
     if visual.get("mascota") or anterior.get("mascota"):
-        v["mascota"] = visual.get("mascota") or dict(anterior["mascota"], accion="explica")
+        v["mascota"] = dict(visual.get("mascota") or dict(anterior["mascota"], accion="explica"),
+                            _ya=bool(anterior.get("mascota")))
     for campo, tope in (("cosas", 5), ("textos", 3), ("flechas", 3)):
         viejos = [dict(x, _ya=True) for x in anterior.get(campo) or [] if isinstance(x, dict)]
         nuevos = [x for x in visual.get(campo) or [] if isinstance(x, dict)]

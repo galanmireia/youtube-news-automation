@@ -164,25 +164,25 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
 def _base(t):
     """Lo que hace siempre, encima de cualquier accion: respirar, balancearse
     y parpadear. Para que nunca este quieta."""
-    return {"estira": 1 + 0.05*math.sin(2*math.pi*t/1.4), "inclina": 5*math.sin(t*1.7),
+    return {"estira": 1 + 0.07*math.sin(2*math.pi*t/1.2), "inclina": 9*math.sin(t*1.9),
             "parpadeo": (t % 3.1) < 0.12}
 
 
 # MUCHO MAS MOVIMIENTO ("hay que darle mas movimiento, mucho mas"): lo que
 # hace cada accion, exagerado; y encima, unos saltitos de vez en cuando.
-_EXAGERA = 1.7
+_EXAGERA = 2.4
 
 
 def _saltito(t):
     """Un botecito cada poco: se agacha, sube y cae aplastandose."""
-    u = (t % 1.9)/1.9
+    u = (t % 1.3)/1.3
     if u < 0.12:
-        return 0.0, 1 - 0.12*math.sin(u/0.12*math.pi)
-    if u < 0.42:
-        v = (u - 0.12)/0.30
-        return 0.09*math.sin(v*math.pi), 1.08
-    if u < 0.52:
-        return 0.0, 1 - 0.14*math.sin((u - 0.42)/0.10*math.pi)
+        return 0.0, 1 - 0.2*math.sin(u/0.12*math.pi)
+    if u < 0.5:
+        v = (u - 0.12)/0.38
+        return 0.2*math.sin(v*math.pi), 1.15
+    if u < 0.62:
+        return 0.0, 1 - 0.25*math.sin((u - 0.5)/0.12*math.pi)
     return 0.0, 1.0
 
 
@@ -279,8 +279,8 @@ def _explica(t, dur, lado):
     a = math.sin(t*3.2)
     b = math.sin(t*3.2 + 1.7)
     return {"gesto": "contento" if int(t/1.6) % 2 else "neutro",
-            "brazos": ((10 + 55*a, -40 + 35*b), (10 + 55*b, -40 + 35*a)),
-            "inclina": 6*math.sin(t*1.6), "dx": 0.07*math.sin(t*1.1), "piernas": t*8 if math.cos(t*1.1) > 0.6 else None}
+            "brazos": ((0 + 75*a, -45 + 50*b), (0 + 75*b, -45 + 50*a)),
+            "inclina": 8*math.sin(t*1.6), "dx": 0.12*math.sin(t*1.1), "piernas": t*8 if math.cos(t*1.1) > 0.6 else None}
 
 
 def _mareo(t, dur, lado):
@@ -319,13 +319,89 @@ def postura(accion: str, t: float, dur: float, lado: int = 1) -> dict:
     p["estira"] = p["estira"]*(1 + (propia.pop("estira", 1.0) - 1)*_EXAGERA)
     p["inclina"] = p["inclina"] + propia.pop("inclina", 0.0)*_EXAGERA
     p.update(propia)
-    p["levanta"] = min(0.45, p.get("levanta", 0.0)*_EXAGERA)
+    p["levanta"] = min(0.6, p.get("levanta", 0.0)*_EXAGERA)
     # Los saltitos solo cuando la accion no lo mueve ya del suelo.
     if accion not in ("entra", "salta", "corre", "duerme", "triste", "asusta") and p["levanta"] < 0.05:
         sube, aplasta = _saltito(t + 0.6)
         p["levanta"] += sube
         p["estira"] *= aplasta
-    p["estira"] = min(1.3, max(0.74, p["estira"]))
+    p["estira"] = min(1.4, max(0.66, p["estira"]))
+    p["inclina"] = min(35.0, max(-35.0, p["inclina"]))
+    return p
+
+
+# ---------------------------------------------------------------------------
+# LAS ENTRADAS ("que los personajes aparezcan de las paredes rebotando, que
+# sea curioso visualmente"): al empezar una escena nueva cada personaje
+# llega a su manera, y luego ya hace su accion.
+#   pared:  sale disparado del borde, se pasa de largo y vuelve rebotando
+#   cae:    cae desde arriba y bota como una pelota hasta quedarse
+#   muelle: sale del suelo aplastado y se estira como un muelle
+# ---------------------------------------------------------------------------
+ENTRADAS = ("pared", "cae", "muelle")
+DURA_ENTRADA = 1.5
+
+
+def tipo_entrada(semilla: int) -> str:
+    return ENTRADAS[semilla % len(ENTRADAS)]
+
+
+def _botes(t, alto, caida=0.42, rebote=0.42):
+    """Una pelota que cae desde `alto` y bota: (altura, golpe), donde golpe
+    es lo fuerte que acaba de tocar el suelo (para aplastarla)."""
+    g = 2*alto/caida**2
+    if t < caida:
+        return alto - g*t*t/2, 0.0
+    t -= caida
+    v = g*caida
+    golpe = 1.0
+    for _ in range(5):
+        v *= rebote
+        vuelo = 2*v/g
+        if t < vuelo:
+            return v*t - g*t*t/2, golpe*math.exp(-t*16)
+        t -= vuelo
+        golpe *= rebote
+    return 0.0, 0.0
+
+
+def entrada(p: dict, tipo: str, t: float, x: float, w: int, h: float, suelo: float) -> dict:
+    """La postura p, retocada por la entrada en su segundo t (desde que
+    empieza a entrar). dx y levanta van en altos del personaje."""
+    if t >= DURA_ENTRADA:
+        return p
+    t = max(0.0, t)
+    p = dict(p)
+    if tipo == "pared":
+        izquierda = x < 0.5
+        lejos = ((x*w) if izquierda else ((1 - x)*w))/h + 0.7
+        signo = -1 if izquierda else 1
+        d = signo*lejos*math.exp(-4.2*t)*math.cos(8.5*t)
+        salto = abs(math.sin(t*11))
+        apaga = math.exp(-2.2*t)
+        p["dx"] = p.get("dx", 0.0)*(1 - apaga) + d
+        p["levanta"] = salto*0.4*apaga
+        p["estira"] = p["estira"]*(1 + 0.25*apaga*(salto - 0.5)) - 0.3*apaga*(1 - salto)**6
+        p["inclina"] = p["inclina"] + signo*28*math.exp(-3*t)*math.sin(8.5*t + 1.2)
+        if t < 0.6:
+            p["piernas"] = t*24
+    elif tipo == "cae":
+        alto = suelo/h + 0.3
+        sube, golpe = _botes(t, alto)
+        cayendo = t < 0.42
+        p["levanta"] = sube + p.get("levanta", 0.0)*min(1.0, t/DURA_ENTRADA)
+        p["estira"] = p["estira"]*(1.25 if cayendo else 1.0) - 0.42*golpe
+        p["inclina"] = p["inclina"] + 10*math.exp(-3*t)*math.sin(t*14)
+        p["brazos"] = ((-120, 60), (-120, 60)) if cayendo else p.get("brazos")
+        p["gesto"] = "sorpresa" if t < 0.7 else p.get("gesto")
+    else:  # muelle
+        crece = 1 - math.exp(-5.5*t)*math.cos(13*t)
+        p["estira"] = max(0.12, p["estira"]*crece)
+        p["inclina"] = p["inclina"] + 18*math.exp(-3.5*t)*math.sin(t*19)
+        p["levanta"] = p.get("levanta", 0.0) + max(0.0, math.sin(min(math.pi, (t - 0.25)*5)))*0.25*(t > 0.25)
+        p["brazos"] = ((-100, -60), (-100, -60)) if 0.25 < t < 0.8 else p.get("brazos")
+    if not p.get("brazos"):
+        p.pop("brazos", None)
     return p
 
 
@@ -336,6 +412,9 @@ def pinta(img, mascota: dict, t: float, dur: float, suelo: float):
     accion = str(mascota.get("accion") or "explica").lower()
     p = postura(accion, t, dur, lado)
     h = h_img*float(mascota.get("tam") or 0.5)
+    if not mascota.get("_ya") and accion != "entra":
+        p = entrada(p, mascota.get("_entrada") or tipo_entrada(int(float(mascota.get("x", 0.5))*10)), t,
+                    float(mascota.get("x", 0.5)), w, h, suelo)
     cx = w*float(mascota.get("x", 0.5)) + (p.get("dx", 0.0) + p.get("temblor", 0.0))*h
     gesto = str(mascota.get("gesto") or p.get("gesto") or "neutro")
     brazos = p.get("brazos", ((60, 20), (60, 20)))
@@ -383,6 +462,10 @@ _GESTO_A_ACCION = {"riendo": "rie", "asustado": "asusta", "triste": "triste", "g
                    "bostezo": "duerme"}
 
 
+def semilla_entrada(figura: dict) -> int:
+    return sum(map(ord, str(figura.get("quien", "")))) + int(float(figura.get("x", 0.5))*10)
+
+
 def personaje(img, figura: dict, t: float, dur: float, suelo: float, w: int, h_img: int):
     """Un personaje de la familia en el segundo t. Devuelve (cabeza, manos)."""
     quien = figura.get("quien") if figura.get("quien") in FAMILIA else "persona"
@@ -395,6 +478,9 @@ def personaje(img, figura: dict, t: float, dur: float, suelo: float, w: int, h_i
     lado = -1 if figura.get("espejo") else 1
     p = postura(accion, t + (sum(map(ord, quien)) % 7)*0.37, dur, lado)
     h = h_img*rasgos["tam"]
+    if not figura.get("_ya"):
+        p = entrada(p, figura.get("_entrada") or tipo_entrada(semilla_entrada(figura)),
+                    t - float(figura.get("_retraso", 0.0)), float(figura.get("x", 0.5)), w, h, suelo)
     # los extras se mueven algo menos de su sitio que Mokordo (que no se crucen)
     cx = w*float(figura.get("x", 0.5)) + (p.get("dx", 0.0)*0.5 + p.get("temblor", 0.0))*h
     brazos = p.get("brazos", ((60, 20), (60, 20)))
