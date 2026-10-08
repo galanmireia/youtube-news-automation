@@ -427,14 +427,17 @@ def _ffmpeg(args: list[str], paso: str, timeout: int = 1800) -> None:
 
 
 def _tuberia(fotos, fotogramas: int, destino: Path, zoom: bool, hacia_dentro: bool = True,
-             brillo: float = -0.035, desliza: float = 0.0) -> None:
+             brillo: float = -0.035, desliza: float = 0.0, fps_entrada: float = None) -> None:
     """Los dibujos, uno detras de otro y sin pasar por disco, a un trozo de
     video de `fotogramas` a 25 por segundo. Se pintan a 12,5: ffmpeg repite
     cada uno. Si se acaban antes, se repite el ultimo. Con `zoom`, el
     acercamiento lentisimo (para lo que no se mueve solo: mapas, datos,
     carteles); se agranda antes al doble porque zoompan avanza de pixel en
     pixel y, a esta velocidad, el dibujo temblaria."""
-    entrada = int(math.ceil(fotogramas/(FPS/_FPS_DIBUJO))) + 2
+    # fps_entrada: a cuantos se pintan (12,5 por defecto; la mascota de Why
+    # Though, a 25, que se mueve mucho y a 12,5 daba tirones).
+    fps_entrada = fps_entrada or _FPS_DIBUJO
+    entrada = int(math.ceil(fotogramas/(FPS/fps_entrada))) + 2
     filtro = f"fps={FPS}"
     if zoom:
         paso = (_ZOOM - 1)/max(1, fotogramas)
@@ -453,7 +456,7 @@ def _tuberia(fotos, fotogramas: int, destino: Path, zoom: bool, hacia_dentro: bo
     filtro += ",setsar=1,format=yuv420p"
     proc = subprocess.Popen(
         ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
-         "-s", f"{ANCHO}x{ALTO}", "-r", str(_FPS_DIBUJO), "-i", "-", "-vf", filtro,
+         "-s", f"{ANCHO}x{ALTO}", "-r", str(fps_entrada), "-i", "-", "-vf", filtro,
          "-frames:v", str(fotogramas), "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
          "-r", str(FPS), "-g", str(FPS*10), str(destino)],
         stdin=subprocess.PIPE, stderr=subprocess.PIPE)

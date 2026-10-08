@@ -1214,7 +1214,8 @@ def _mano(d, x, y, t, rnd, g, tinta=TINTA):
                         outline=TINTA, width=g)
     for k, (dx, largo, ancho) in enumerate(((-0.24, 0.42, 0.075), (-0.1, 0.55, 0.08), (0.04, 0.6, 0.08),
                                             (0.17, 0.54, 0.075))):
-        d.rectangle([x + t*dx - t*ancho + g, y - t*0.62, x + t*dx + t*ancho - g, y - t*0.5], fill=piel)
+        if t*ancho*2 > g*2 + 1:
+            d.rectangle([x + t*dx - t*ancho + g, y - t*0.62, x + t*dx + t*ancho - g, y - t*0.5], fill=piel)
     pulgar = [(x + t*0.22, y - t*0.42), (x + t*0.42, y - t*0.6), (x + t*0.5, y - t*0.52), (x + t*0.3, y - t*0.25)]
     _cont(d, _suave(pulgar, 2), piel, g, rnd)
     d.arc([x - t*0.15, y - t*0.38, x + t*0.12, y - t*0.18], 200, 330, fill=(220, 160, 130), width=max(2, g//2))

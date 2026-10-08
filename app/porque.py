@@ -19,7 +19,7 @@ import shutil
 import time
 from pathlib import Path
 
-from . import garabato, llm_usage, monigotes
+from . import garabato, llm_usage, mascota, monigotes
 from .config import CHANNEL_NAME, DATA_DIR, MUSIC_VOLUME
 from .largo import (FPS, LargoError, _FPS_DIBUJO, _ffmpeg, _json_de, _pregunta, _tuberia,
                     _voz_google)
@@ -37,6 +37,7 @@ _PAUSA_PLANO = 0.25
 # Lo que se le ofrece al guion: lo de monigotes que pega en este canal y lo
 # que solo existe aqui (manos en la cabeza, tumbado, muerto, calor, frio).
 _POSES = tuple(monigotes.POSES_VALIDAS) + garabato.POSES_EXTRA
+_ACCIONES = "; ".join(f'"{k}" = {v[1]}' for k, v in mascota.ACCIONES.items())
 _GESTOS = tuple(monigotes.GESTOS_VALIDOS) + garabato.GESTOS_EXTRA
 _EFECTOS = ("sorpresa", "idea", "mareo", "confuso", "zzz", "enamorado", "sudor", "lagrimas", "humo",
             "caida", "salto", "temblor") + garabato.EFECTOS_EXTRA
@@ -67,6 +68,14 @@ it matters ("ninety-five degrees"), and no symbols it can't read.
 
 THE DRAWINGS. Every shot ("plano") has a "visual", drawn by a program from closed lists - if
 it is not in the lists, it cannot be drawn. A visual has any of:
+  "mascota": THE CHANNEL'S MASCOT, the star of every video: a round yellow bean with a "?" for
+             hair. It is always moving. {{"accion": one of {acciones}, "x": 0.15-0.85,
+             "espejo": true to face left, "gesto": a face from the list to override the action's,
+             "efecto": optional}}. Put it in MOST shots, doing what the sentence says (it is the
+             viewer's buddy living the story): it enters hopping at the start of a section, thinks,
+             points at the thing being explained, jumps when there is an idea, gets scared,
+             laughs... Leave it out only for giant numbers or pure diagrams. The stick people
+             ("figuras") are the other characters of the story.
   "figuras": 0-3 stick people: {{"quien": one of {quienes} ("persona" = adult, "persona_b" =
              adult with a bun, "nino" = kid, "abuelo" = old bearded man / scientist), "x": 0.12-0.88, "pose": one of {poses},
              "pose_fin": another pose ONLY if they do something (raise their arms, put their hands
@@ -241,7 +250,7 @@ def alarga(guion: dict, sistema: str, indice: str) -> list[str]:
 def _sistema(tema: str) -> str:
     dosier = _dosier(tema)
     return _INSTRUCCIONES.format(
-        canal=CHANNEL_NAME, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
+        canal=CHANNEL_NAME, acciones=_ACCIONES, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
         gestos=_lista(_GESTOS), efectos=_lista(_EFECTOS),
         llevables=_lista(monigotes.LLEVABLES_EXPLICADOS), objetos=_lista(garabato.OBJETOS_VALIDOS),
         colores=_lista(garabato.COLORES), ambientes=_lista(garabato.garabato_ambiente.AMBIENTES),
@@ -353,6 +362,7 @@ _CARETA = 2.8     # segundos que se ve el titulo
 # larga o no ("¿esta garantizado que haya una escena cada 10 segundos?"):
 # la que se pasa se parte en trozos y cada trozo es otro dibujo.
 _MAX_PLANO = 10.0
+_FPS_MASCOTA = 25  # la mascota se pinta a 25: se mueve mucho
 _DESLIZA = 0.28    # lo que tarda cada plano en entrar de lado, con su "whoosh"
 _POSES_DE_RELEVO = ("señala", "brazos_arriba", "mirando", "de_pie")
 
@@ -427,6 +437,8 @@ def _acumula(anterior: dict | None, visual: dict) -> dict:
         return visual
     v = {"sigue": True, "figuras": visual.get("figuras") or anterior.get("figuras") or [],
          "ambiente": visual.get("ambiente") or anterior.get("ambiente")}
+    if visual.get("mascota") or anterior.get("mascota"):
+        v["mascota"] = visual.get("mascota") or dict(anterior["mascota"], accion="explica")
     for campo, tope in (("cosas", 5), ("textos", 3), ("flechas", 3)):
         viejos = [dict(x, _ya=True) for x in anterior.get(campo) or [] if isinstance(x, dict)]
         nuevos = [x for x in visual.get(campo) or [] if isinstance(x, dict)]
@@ -468,6 +480,12 @@ def _variante(visual: dict, k: int) -> dict:
         for punta in ("de", "a"):
             if espejo and isinstance(fl.get(punta), list) and fl[punta]:
                 fl[punta] = [1 - float(fl[punta][0])] + list(fl[punta][1:])
+    if isinstance(v.get("mascota"), dict):
+        ma = v["mascota"]
+        if espejo:
+            ma["x"] = 1 - float(ma.get("x", 0.5))
+            ma["espejo"] = not ma.get("espejo")
+        ma["accion"] = ("explica", "senala", "encoge", "piensa")[k % 4]
     if k >= 2:
         v.pop("textos", None)
     return v
@@ -563,8 +581,9 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             try:
                 # Lo que "sigue" no entra deslizandose: es el mismo dibujo creciendo.
                 entra = j > 0 or not visual.get("sigue")
-                _tuberia(garabato.fotos(dibujo, segundos, _FPS_DIBUJO), fotogramas, mp4, zoom=False, brillo=0,
-                         desliza=_DESLIZA if entra else 0)
+                fps_plano = _FPS_MASCOTA if dibujo.get("mascota") else _FPS_DIBUJO
+                _tuberia(garabato.fotos(dibujo, segundos, fps_plano), fotogramas, mp4, zoom=False, brillo=0,
+                         desliza=_DESLIZA if entra else 0, fps_entrada=fps_plano)
                 if entra:
                     ruidos.append(("whoosh", max(0.0, inicio/FPS - 0.12), 0.4))
                 ruidos += [(n, inicio/FPS + t0, d) for n, t0, d in garabato.sonidos_del_plano(dibujo, segundos)]
@@ -644,7 +663,7 @@ def _pobre(visual: dict) -> bool:
     if visual.get("sigue") or visual.get("cifra") or visual.get("_careta"):
         return False
     cuenta = sum(len([x for x in visual.get(c) or [] if isinstance(x, dict)])
-                 for c in ("figuras", "cosas", "textos", "flechas"))
+                 for c in ("figuras", "cosas", "textos", "flechas")) + (1 if visual.get("mascota") else 0)
     return cuenta <= 1
 
 
@@ -661,7 +680,7 @@ def retoca(guion: dict) -> int:
                                    "visual": p.get("visual")}, ensure_ascii=False)
                        for i, p in pendientes)
     sistema = _INSTRUCCIONES.format(
-        canal=CHANNEL_NAME, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
+        canal=CHANNEL_NAME, acciones=_ACCIONES, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
         gestos=_lista(_GESTOS), efectos=_lista(_EFECTOS),
         llevables=_lista(monigotes.LLEVABLES_EXPLICADOS), objetos=_lista(garabato.OBJETOS_VALIDOS),
         colores=_lista(garabato.COLORES), ambientes=_lista(garabato.garabato_ambiente.AMBIENTES),

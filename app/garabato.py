@@ -21,6 +21,7 @@ Un plano ("visual") es:
 x, y y tam en fracciones de la pantalla; "y" de una cosa es su CENTRO (sin
 "y", apoyada en el suelo).
 """
+import logging
 import math
 import random
 from functools import lru_cache
@@ -30,8 +31,11 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from . import monigotes as m
+
+logger = logging.getLogger(__name__)
 from .garabato_mas import MAS_OBJETOS, REHECHOS
 from . import garabato_ambiente
+from . import mascota as _mascota
 
 # La letra de Whymentary: rotulador redondo, trazo parejo (Architects
 # Daughter, SIL Open Font License; la licencia va al lado).
@@ -898,13 +902,51 @@ def _hierve(img: Image.Image, n: int) -> Image.Image:
         img.size[1], img.size[0], 3))
 
 
+class _DibujoSeguro:
+    """Un ImageDraw que no peta con cajas al reves: a tamaños pequeños o con
+    trazo gordo, muchas cuentas de los dibujos dejan x1 < x0, y Pillow lo
+    rechaza. Se ordenan las esquinas y listo."""
+    _CAJAS = ("ellipse", "rectangle", "rounded_rectangle", "chord", "arc", "pieslice")
+
+    def __init__(self, d):
+        self._d = d
+
+    def __getattr__(self, nombre):
+        f = getattr(self._d, nombre)
+        if nombre not in self._CAJAS:
+            return f
+
+        def seguro(xy, *args, **kw):
+            try:
+                if len(xy) == 2:
+                    (x0, y0), (x1, y1) = xy
+                else:
+                    x0, y0, x1, y1 = xy
+            except (TypeError, ValueError):
+                return f(xy, *args, **kw)
+            x0, x1 = sorted((float(x0), float(x1)))
+            y0, y1 = sorted((float(y0), float(y1)))
+            if "radius" in kw:
+                kw["radius"] = max(0, min(int(kw["radius"]), int((x1 - x0)/2), int((y1 - y0)/2)))
+            if kw.get("width") and (x1 - x0 < 2*kw["width"] or y1 - y0 < 2*kw["width"]):
+                kw["width"] = max(1, int(min(x1 - x0, y1 - y0)/2))
+            return f([x0, y0, x1, y1], *args, **kw)
+        return seguro
+
+
 @lru_cache(maxsize=96)
 def _pieza_cosa(que: str, t: int, g: int):
     """La cosa dibujada UNA vez en su recorte; el centro de abajo en (cx, base)."""
     w, h = int(t*2.8), int(t*1.7)
     pieza = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     base = int(t*1.4)
-    OBJETOS_TODOS[que](ImageDraw.Draw(pieza), w/2, base, t, random.Random(3), g)
+    try:
+        OBJETOS_TODOS[que](_DibujoSeguro(ImageDraw.Draw(pieza)), w/2, base, t, random.Random(3), g)
+    except Exception:
+        # Un dibujo que falla a un tamaño raro no tumba el plano entero (el
+        # 43 de las cosquillas salio en blanco por la mano): se queda sin el.
+        logger.warning("why: el dibujo %r ha fallado a tamaño %s.", que, t, exc_info=True)
+        return Image.new("RGBA", (1, 1), (0, 0, 0, 0)), 0, 0
     caja = pieza.getbbox() or (0, 0, w, h)
     return pieza.crop(caja), w/2 - caja[0], base - caja[1]
 
@@ -1212,7 +1254,7 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
     camara = None
     figs = e.get("figuras", [])
     if figs and len(figs) <= 2 and not e.get("_pop") and not (visual or {}).get("cifra") \
-            and not any(f.get("_giro") for f in figs):
+            and not (visual or {}).get("mascota") and not any(f.get("_giro") for f in figs):
         # Cuanto acercar: que el mas alto ocupe unas tres cuartas partes de la
         # pantalla (el niño, bajito, se acerca mas); menos si lleva algo
         # encima de la cabeza (humo, zetas...).
@@ -1223,6 +1265,8 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
         x0 = min(max(0.0, cx - cw/2), ancho - cw)
         y0 = min(max(0.0, pies - alto*0.93/z), alto - ch)
         camara = (int(x0), int(y0), int(x0 + cw), int(y0 + ch))
+    mascota = (visual or {}).get("mascota") if isinstance((visual or {}).get("mascota"), dict) else None
+    paso_hervor = max(1, round(fps/6))
     animacion = m.animar(e, segundos=segundos, fps=fps, tam=tam, calma=calma, una_vez=True)
     n = 0
     while True:
@@ -1236,6 +1280,18 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                 img = garabato_ambiente.pon_detras(img, fondo)
             reloj = n/fps
             img = _vida(img, e, list(cabezas), reloj, n)
+            if mascota:
+                cabeza, efecto = _mascota.pinta(img, mascota, reloj, segundos, pies)
+                efecto = mascota.get("efecto") or efecto
+                if efecto in _GARABATOS or efecto in EFECTOS_EXTRA:
+                    _garabato_en_cabeza(img, ImageDraw.Draw(img), _GARABATOS.get(efecto, efecto), cabeza,
+                                        reloj, random.Random(n//paso_hervor))
+                # La camara que respira: un acercamiento lento todo el plano,
+                # para que nada parezca una foto.
+                z = 1 + 0.045*min(1.0, reloj/max(0.5, segundos))
+                cw, ch = ancho/z, alto/z
+                img = img.crop((int((ancho - cw)/2), int((alto - ch)*0.6), int((ancho + cw)/2),
+                                int((alto - ch)*0.6 + ch))).resize(tam, Image.BILINEAR)
             if camara:
                 img = img.crop(camara).resize(tam, Image.BILINEAR)
             img = encima(img, visual or {}, reloj, segundos)
@@ -1243,7 +1299,7 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
             break
         finally:
             m.figura, m.PULSO, m.GROSOR, m._cara = original, 1.0, 1.0, _CARA_ORIGINAL
-        yield _hierve(img, n) if hervor else img
+        yield _hierve(img, n//paso_hervor*_HERVOR) if hervor else img
         n += 1
 
 
