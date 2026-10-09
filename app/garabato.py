@@ -1399,6 +1399,62 @@ def _vida(img, e, cabezas, t, n):
 _HABLAN = ("explica", "senala", "piensa", "encoge", "saluda", "triste", "entra")
 
 
+# Lo que no se pone en la mesa con la mano (iconos, simbolos): solos en el folio.
+_SIN_MESA = {"interrogacion", "igual", "bien", "mal", "peligro", "corazon", "estrella", "rayo", "nota_musical",
+             "calor", "frio", "grafico_sube", "grafico_baja", "atomo", "adn", "celula", "neurona", "virus",
+             "bacteria", "cerebro", "sol", "luna", "nube", "lluvia", "arcoiris", "tierra", "yinyang", "diana"}
+
+
+def _inserto(que, t, tam, semilla):
+    """EL PLANO DE DETALLE: la cosa sola, enorme, llenando la pantalla; en
+    una mesa de madera y con la mano morada de Mokordo tocandola (o sola en
+    el folio, si es un icono). Entra con su golpe y la camara se acerca."""
+    ancho, alto = tam
+    que = nombre_objeto(que)
+    mesa = que not in _SIN_MESA
+    img = Image.new("RGB", tam, garabato_ambiente.PAPEL)
+    d = ImageDraw.Draw(img)
+    g = max(4, int(ancho*0.004))
+    if mesa:
+        borde = int(alto*0.42)
+        d.polygon([(0, borde + alto*0.08), (ancho, borde), (ancho, alto), (0, alto)], fill=(214, 168, 120))
+        for k in range(9):        # las vetas de la madera
+            y0 = borde + alto*0.08 + k*alto*0.065
+            d.line([(0, y0), (ancho*0.4, y0 - alto*0.02), (ancho, y0 - alto*0.05)], fill=(196, 148, 102), width=3)
+        d.line([(0, borde + alto*0.08), (ancho, borde)], fill=(150, 104, 66), width=g)
+    if que not in OBJETOS_TODOS:
+        return img
+    zoom = 1 + 0.06*min(1.0, max(0.0, t)/1.5)
+    k = _escala_rebote(t*1.4)
+    t_px = int(alto*0.5*zoom)
+    pieza, pcx, pbase = _pieza_cosa(que, t_px, max(4, int(ancho*0.006)))
+    if k <= 0.05 or pieza.width < 2:
+        return img
+    if k != 1:
+        pieza = pieza.resize((max(1, int(pieza.width*k)), max(1, int(pieza.height*k))), Image.BILINEAR)
+    cx, cy = ancho*0.5, alto*(0.56 if mesa else 0.5)
+    giro = 4*math.sin(t*2.2 + semilla % 5)
+    if mesa:
+        # la sombra en la mesa
+        sw = pieza.width*0.45
+        d.ellipse([cx - sw, cy + pieza.height*0.42, cx + sw, cy + pieza.height*0.52], fill=(188, 142, 98))
+    _pega_girada(img, pieza, pieza.width/2, pieza.height/2, giro, cx, cy)
+    if mesa and t > 0.25:
+        # la mano de Mokordo que entra por abajo y la toca (golpecito)
+        u = min(1.0, (t - 0.25)/0.35)
+        toca = math.sin(t*6)*alto*0.012
+        mx = cx + pieza.width*0.3
+        my = cy + pieza.height*0.25 + toca + (1 - u)*alto*0.5
+        a0 = (ancho*0.8, alto*1.05)
+        d.line([a0, (mx, my)], fill=TINTA, width=int(alto*0.11))
+        d.line([a0, (mx, my)], fill=_mascota.COLOR, width=int(alto*0.09))
+        rh = alto*0.075
+        d.ellipse([mx - rh, my - rh*0.9, mx + rh, my + rh*0.9], fill=_mascota.COLOR, outline=TINTA, width=g)
+        d.ellipse([mx - rh*1.25, my - rh*0.5, mx - rh*0.55, my + rh*0.1], fill=_mascota.COLOR, outline=TINTA,
+                  width=max(3, g - 1))
+    return img
+
+
 def _plan_de_camara(visual, e, segundos, apariciones, foco, ancho, alto, pies):
     """LOS CORTES DE CAMARA dentro del plano ("no tienen dinamismo"): como
     un montador, cada 2-3 segundos otro encuadre del mismo dibujo - cuando la
@@ -1428,11 +1484,17 @@ def _plan_de_camara(visual, e, segundos, apariciones, foco, ancho, alto, pies):
         gx = sum(g[0] for g in gente)/len(gente)
         return (gx, pies - max(g[1] for g in gente)*(0.7 if salta else 0.55), 1.25 if salta else 1.3)
     marcas = []                      # (t, foco) sin tramo todavia
-    for tp, sitio in apariciones:
+    for k_, (tp, sitio) in enumerate(apariciones):
         if sitio and 0.6 < tp < segundos - 0.8:
-            sx, sy, st = sitio
-            marcas.append((tp, (sx, sy, max(1.35, min(1.8, alto*0.5/max(1.0, st))))))
-            marcas.append((tp + 1.3, None))
+            sx, sy, st = sitio[:3]
+            if k_ % 2 == 0:
+                # EL INSERTO: corte a la cosa sola y enorme, llenando la
+                # pantalla (en la mesa, con la mano de Mokordo), como los
+                # planos de detalle de La Psicologia Invisible
+                marcas.append((tp, ("inserto", sitio[3], tp)))
+            else:
+                marcas.append((tp, (sx, sy, max(1.35, min(1.8, alto*0.5/max(1.0, st))))))
+            marcas.append((tp + 1.5, None))
     marcas.sort(key=lambda m: m[0])
     # huecos sin nada: un corte cada ~2.5 s, alternando
     relleno, t, k = [], 0.0, 0
@@ -1449,7 +1511,10 @@ def _plan_de_camara(visual, e, segundos, apariciones, foco, ancho, alto, pies):
         if f == antes:
             continue
         t1 = todos[i + 1][0] if i + 1 < len(todos) else segundos
-        plan.append((t0, (f[0], f[1], f[2], t0, t1) if f else None))
+        if f and f[0] == "inserto":
+            plan.append((t0, f))
+        else:
+            plan.append((t0, (f[0], f[1], f[2], t0, t1) if f else None))
         antes = f
     return plan
 
@@ -1487,7 +1552,8 @@ def _reacciona(estados, apariciones, t):
     recientes = [(tp, sitio) for tp, sitio in apariciones if sitio and 0 <= t - tp < 1.6]
     if not recientes:
         return
-    tp, (sx, sy, _st) = max(recientes, key=lambda r: r[0])
+    tp, sitio = max(recientes, key=lambda r: r[0])
+    sx, sy = sitio[0], sitio[1]
     u = t - tp
     for est in estados:
         if est["quien"] != "mokordo" or interaccion.que_hace(est["fig"]):
@@ -1729,7 +1795,7 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
     for c in e.get("_pop", []):
         t_ = alto*float(c.get("tam", 0.14))
         y_ = alto*float(c["y"]) if c.get("y") is not None else pies
-        sitios[c["que"]] = (ancho*float(c.get("x", 0.5)), y_ - t_*0.5, t_)
+        sitios[c["que"]] = (ancho*float(c.get("x", 0.5)), y_ - t_*0.5, t_, c["que"])
     # Cuando aparece algo (la voz lo nombra), Mokordo lo mira y lo señala.
     apariciones, nuevas_ = [], 0
     for c in e.get("_pop", []):
@@ -1747,7 +1813,7 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
         hm = alto*float(ma_.get("tam") or 0.5)
         foco = (ancho*float(ma_.get("x", 0.5)), pies - hm*0.6, 1.65)
     elif encuadre == "detalle" and apariciones and apariciones[0][1]:
-        sx, sy, st = apariciones[0][1]
+        sx, sy, st = apariciones[0][1][:3]
         foco = (sx, sy, max(1.3, min(1.9, alto*0.55/max(1.0, st))))
     cortes = _plan_de_camara(visual or {}, e, segundos, apariciones, foco, ancho, alto, pies)
     golpes, nuevas = [], 0
@@ -1825,11 +1891,16 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
             for t0_, f_ in cortes:
                 if reloj >= t0_:
                     foco_ahora = f_
-            img = _camara_viva(img, reloj, segundos, mueve,
-                               golpes + [t0_ for t0_, _f in cortes if t0_ > 0.2], foco_ahora)
+            if foco_ahora and foco_ahora[0] == "inserto":
+                img = _inserto(foco_ahora[1], reloj - foco_ahora[2], tam, mueve)
+                img = encima(img, {k_: v_ for k_, v_ in (visual or {}).items() if k_ != "flechas"}, reloj, segundos)
+            else:
+                img = _camara_viva(img, reloj, segundos, mueve,
+                                   golpes + [t0_ for t0_, _f in cortes if t0_ > 0.2], foco_ahora)
             if camara:
                 img = img.crop(camara).resize(tam, Image.BILINEAR)
-            img = encima(img, visual or {}, reloj, segundos)
+            if not (foco_ahora and foco_ahora[0] == "inserto"):
+                img = encima(img, visual or {}, reloj, segundos)
             if (visual or {}).get("_transicion") and reloj < _DURA_TRANSICION:
                 img = _transicion(img, visual["_transicion"], reloj/_DURA_TRANSICION)
         except StopIteration:

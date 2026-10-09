@@ -913,7 +913,7 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
                     dibujo = dict(dibujo, _transicion=garabato.TRANSICIONES[cuenta_trans % len(garabato.TRANSICIONES)])
                     cuenta_trans += 1
                 _tuberia(garabato.fotos(dibujo, segundos, fps_plano), fotogramas, mp4, zoom=False, brillo=0,
-                         desliza=0, fps_entrada=fps_plano)
+                         desliza=0, fps_entrada=fps_plano, acabado=True)
                 if entra:
                     ruidos.append(("whoosh", max(0.0, inicio/FPS - 0.12), 0.4))
                 ruidos += [(n, inicio/FPS + t0, d) for n, t0, d in garabato.sonidos_del_plano(dibujo, segundos)]
@@ -922,7 +922,7 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             except Exception:
                 logger.warning("why: el plano %s ha fallado; va en blanco con su texto.", i, exc_info=True)
                 _tuberia(garabato.fotos({"textos": [{"texto": "...", "x": 0.5, "y": 0.5}]}, 1, _FPS_DIBUJO),
-                         fotogramas, mp4, zoom=False, brillo=0)
+                         fotogramas, mp4, zoom=False, brillo=0, acabado=True)
             trozos.append(mp4)
             inicio += fotogramas
         if i % 25 == 0:

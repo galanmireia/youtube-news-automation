@@ -427,7 +427,8 @@ def _ffmpeg(args: list[str], paso: str, timeout: int = 1800) -> None:
 
 
 def _tuberia(fotos, fotogramas: int, destino: Path, zoom: bool, hacia_dentro: bool = True,
-             brillo: float = -0.035, desliza: float = 0.0, fps_entrada: float = None) -> None:
+             brillo: float = -0.035, desliza: float = 0.0, fps_entrada: float = None,
+             acabado: bool = False) -> None:
     """Los dibujos, uno detras de otro y sin pasar por disco, a un trozo de
     video de `fotogramas` a 25 por segundo. Se pintan a 12,5: ffmpeg repite
     cada uno. Si se acaban antes, se repite el ultimo. Con `zoom`, el
@@ -450,6 +451,12 @@ def _tuberia(fotos, fotogramas: int, destino: Path, zoom: bool, hacia_dentro: bo
         hueco = int(ANCHO*0.4)
         filtro += (f",pad={ANCHO + hueco}:{ALTO}:{hueco}:0:color=0xFCFCFA"
                    f",crop={ANCHO}:{ALTO}:x='{hueco}-{hueco}*pow(1-min(1,t/{desliza}),3)':y=0")
+    # acabado (Why Though): papel crema y colores mas calidos, viñeta suave y
+    # grano de papel, como las ilustraciones de los canales grandes. En
+    # ffmpeg, que en Python costaba 40 ms por fotograma.
+    if acabado:
+        filtro += (",colorchannelmixer=rr=1.0:gg=0.972:bb=0.925,vignette=angle=PI/9:mode=forward"
+                   ",noise=alls=5:allf=t")
     # Un poco mas apagado que en los Shorts: es para la noche.
     if brillo:
         filtro += f",eq=brightness={brillo}"
