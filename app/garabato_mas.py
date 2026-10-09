@@ -10,6 +10,7 @@ Misma firma que las COSAS de monigotes: (d, x, y, t, rnd, g, tinta), con
 (x, y) el centro de abajo y t la altura.
 """
 import math
+import random
 
 from . import monigotes as m
 
@@ -1354,6 +1355,104 @@ def _engranaje(d, x, y, t, rnd, g, tinta=TINTA):
     _circ(d, x, cy, r*0.3, (252, 252, 250), g)
 
 
+# ---------------------------------------------------------------------------
+# EL CEREBRO, rehecho ("hazme mejor el cerebro, que sale tantas veces"): de
+# perfil, como lo dibuja todo el mundo - el cerebro grande con sus
+# circunvoluciones, el cerebelo rayado detras y el tronco hacia abajo.
+# ---------------------------------------------------------------------------
+_ROSA_CEREBRO, _SURCO = (247, 168, 190), (196, 92, 128)
+
+
+def _cerebro(d, x, y, t, rnd, g, tinta=TINTA):
+    r = t*0.45
+    cx, cy = x - r*0.05, y - r*1.3
+    fino = max(2, int(g*0.8))
+    # el tronco y el cerebelo, detras
+    d.rounded_rectangle([cx + r*0.18, cy + r*0.4, cx + r*0.46, y], radius=max(1, int(r*0.1)),
+                        fill=(232, 140, 165), outline=TINTA, width=g)
+    _ov(d, [cx + r*0.3, cy + r*0.3, cx + r*1.12, cy + r*0.86], (236, 146, 172), g)
+    for k in range(3):
+        yy = cy + r*(0.45 + k*0.12)
+        d.arc([cx + r*0.42, yy - r*0.09, cx + r*1.02, yy + r*0.09], 200, 340, fill=_SURCO, width=fino)
+    # el cerebro: una nube de lobulos (circulos que se solapan); primero
+    # todos con su raya por fuera y luego todos rellenos: queda solo el
+    # contorno de fuera, abollonado.
+    bollos = []
+    for k in range(11):
+        a = math.radians(165 + k*21)
+        bollos.append((cx + math.cos(a)*r*1.0, cy + math.sin(a)*r*0.6, r*(0.36 if k % 2 else 0.4)))
+    bollos += [(cx - r*0.55, cy + r*0.3, r*0.38), (cx, cy + r*0.38, r*0.36), (cx + r*0.5, cy + r*0.25, r*0.36)]
+    caja = [cx - r*1.05, cy - r*0.62, cx + r*1.05, cy + r*0.5]
+    for bx, by, br in bollos:
+        d.ellipse([bx - br - g, by - br - g, bx + br + g, by + br + g], fill=TINTA)
+    d.ellipse([caja[0] - g, caja[1] - g, caja[2] + g, caja[3] + g], fill=TINTA)
+    for bx, by, br in bollos:
+        d.ellipse([bx - br, by - br, bx + br, by + br], fill=_ROSA_CEREBRO)
+    d.ellipse(caja, fill=_ROSA_CEREBRO)
+    # los pliegues: de cada entrante entre dos lobulos, un surco hacia dentro
+    # que acaba enroscado
+    rr = random.Random(3)
+    for (ax, ay, _ar), (bx, by, _br) in zip(bollos[:11], bollos[1:11]):
+        mx, my = (ax + bx)/2, (ay + by)/2
+        vx, vy = cx - mx, cy - my
+        n = math.hypot(vx, vy) or 1
+        vx, vy = vx/n, vy/n
+        largo = r*rr.uniform(0.32, 0.5)
+        sale = (mx - vx*r*0.22, my - vy*r*0.22)
+        llega = (sale[0] + vx*largo, sale[1] + vy*largo)
+        doble = (-vy, vx) if rr.random() < 0.5 else (vy, -vx)
+        # un surco en S, que se va estrechando hacia dentro
+        tramo = []
+        for k in range(15):
+            u = k/14
+            ola = math.sin(u*math.pi*1.6)*r*0.06
+            tramo.append((sale[0] + vx*largo*u + doble[0]*ola, sale[1] + vy*largo*u + doble[1]*ola))
+        d.line(tramo, fill=_SURCO, width=fino, joint="curve")
+    # y por dentro, unos surcos largos que serpentean
+    for qy, desde, hasta, fase in ((-0.22, -0.55, 0.5, 0.3), (0.02, -0.7, 0.15, 1.9), (0.06, 0.35, 0.75, 4.0)):
+        tramo = [(cx + u*r, cy + qy*r + math.sin(u*9 + fase)*r*0.06)
+                 for u in [desde + (hasta - desde)*k/24 for k in range(25)]]
+        d.line(tramo, fill=_SURCO, width=fino, joint="curve")
+    # la cisura lateral: la raya larga que separa el lobulo de abajo
+    cis = [(cx - r*0.75 + k*r*0.14, cy + r*0.28 - k*r*0.05 + math.sin(k*1.2)*r*0.02) for k in range(10)]
+    d.line(cis, fill=_SURCO, width=int(fino*1.4), joint="curve")
+    # el brillo
+    d.ellipse([cx - r*0.9, cy - r*0.78, cx - r*0.5, cy - r*0.6], fill=(255, 214, 226))
+
+
+def _escudo(d, x, y, t, rnd, g, tinta=TINTA):
+    """Un escudo de proteccion: azul, con su borde claro y un visto bueno."""
+    w = t*0.42
+    arriba = y - t
+    pts = [(x - w, arriba + t*0.08), (x - w*0.5, arriba + t*0.02), (x, arriba - t*0.02),
+           (x + w*0.5, arriba + t*0.02), (x + w, arriba + t*0.08)]
+    pts += [(x + w*math.cos(a)*1.0, arriba + t*0.08 + (t*0.9)*math.sin(a)**1.3) for a in
+            [i*math.pi/2/10 for i in range(1, 10)]]
+    pts += [(x, y)]
+    pts += [(x - w*math.cos(a)*1.0, arriba + t*0.08 + (t*0.9)*math.sin(a)**1.3) for a in
+            [i*math.pi/2/10 for i in range(9, 0, -1)]]
+    _cont(d, pts, AZUL, g, rnd)
+    dentro = [(x + (px - x)*0.78, arriba + t*0.08 + (py - arriba - t*0.08)*0.8 + t*0.06) for px, py in pts]
+    d.polygon(dentro, fill=CELESTE)
+    d.line([(x - w*0.38, y - t*0.5), (x - w*0.08, y - t*0.3), (x + w*0.45, y - t*0.72)], fill=BLANCO,
+           width=int(g*2.4), joint="curve")
+    d.line([(x - w*0.38, y - t*0.5), (x - w*0.08, y - t*0.3), (x + w*0.45, y - t*0.72)], fill=AZUL,
+           width=int(g*1.2), joint="curve")
+
+
+def _palo_espuma(d, x, y, t, rnd, g, tinta=TINTA):
+    """Un palo con la punta de espuma (para hacer cosquillas en el experimento)."""
+    _caja(d, [x - t*0.045, y - t*0.62, x + t*0.045, y], MARRON, g, radio=t*0.03)
+    espuma = [x - t*0.17, y - t, x + t*0.17, y - t*0.55]
+    _caja(d, espuma, AMARILLO, g, radio=t*0.12)
+    poros = random.Random(5)
+    for _ in range(9):
+        px, py = poros.uniform(espuma[0] + t*0.05, espuma[2] - t*0.05), poros.uniform(espuma[1] + t*0.05,
+                                                                                        espuma[3] - t*0.05)
+        rp = t*poros.uniform(0.012, 0.025)
+        d.ellipse([px - rp, py - rp, px + rp, py + rp], fill=(220, 170, 20))
+
+
 MAS_OBJETOS = {
     # el cuerpo y la salud
     "diente": _diente, "hueso": _hueso, "nariz": _nariz, "oreja": _oreja, "lengua": _lengua,
@@ -1385,10 +1484,11 @@ MAS_OBJETOS = {
     "lupa": _lupa, "nota_musical": _nota, "bateria": _bateria(True), "bateria_baja": _bateria(False),
     "candado": _candado, "iman": _iman, "regalo": _regalo, "trofeo": _trofeo, "dado": _dado,
     "altavoz": _altavoz, "atomo": _atomo, "diana": _diana, "balanza": _balanza, "pesa": _pesa,
-    "robot": _robot, "moneda": _moneda, "engranaje": _engranaje,
+    "robot": _robot, "moneda": _moneda, "engranaje": _engranaje, "escudo": _escudo,
+    "palo_espuma": _palo_espuma,
 }
 # Los rehechos ganan a los de antes (y a los de España Contada, solo aqui).
 REHECHOS = {"arbol": _arbol, "sol": _sol, "nube": _nube, "pelota": _pelota, "dinero": _dinero,
             "estomago": _estomago, "mano": _mano, "nariz": _nariz, "lengua": _lengua, "frio": _frio,
             "queso": _queso, "cama": _cama, "escaner": _escaner, "musculo": _musculo,
-            "microscopio": _microscopio}
+            "microscopio": _microscopio, "cerebro": _cerebro}

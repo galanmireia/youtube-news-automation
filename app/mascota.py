@@ -457,7 +457,7 @@ def estado_mascota(mascota: dict, t: float, dur: float, suelo: float, w: int, h_
     return {"quien": "mokordo", "fig": mascota, "p": p, "h": h, "lado": lado, "suelo": suelo,
             "cx": w*float(mascota.get("x", 0.5)) + (p.get("dx", 0.0) + p.get("temblor", 0.0))*h,
             "gesto": str(mascota.get("gesto") or p.get("gesto") or "neutro"), "color": COLOR, "forma": FORMA,
-            "pelo": "?", "t": t}
+            "pelo": "?", "brazo_lleva": bool(mascota.get("lleva")), "t": t}
 
 
 def pinta_estado(img, e: dict):

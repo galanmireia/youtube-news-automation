@@ -598,7 +598,11 @@ _ALIAS_OBJETOS = {"gear": "engranaje", "rueda_dentada": "engranaje", "engranajes
                   "igualdad": "igual", "signo_igual": "igual", "equals": "igual", "equal": "igual",
                   "equal_sign": "igual", "igual_que": "igual", "perro_pata": "perro", "dog": "perro",
                   "pregunta": "interrogacion", "question": "interrogacion", "telefono": "movil",
-                  "phone": "movil", "brain": "cerebro", "heart": "corazon", "feather": "pluma"}
+                  "phone": "movil", "brain": "cerebro", "heart": "corazon", "feather": "pluma",
+                  "shield": "escudo", "escudo_placeholder": "escudo", "foam_stick": "palo_espuma",
+                  "palo": "palo_espuma", "stick": "palo_espuma", "goggles": "gafas_vr",
+                  "video_goggles": "gafas_vr", "gafas": "gafas_vr", "coil": "bobina",
+                  "magnetic_coil": "bobina"}
 
 
 def nombre_objeto(que) -> str:
@@ -1463,9 +1467,8 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                 fig = est["fig"]
                 if est.get("objeto"):
                     _en_la_mano(img, est)
-                elif est.get("i") is not None and fig.get("lleva") in OBJETOS_TODOS and manos \
-                        and est.get("brazo_lleva"):
-                    pieza, pcx, pbase = _pieza_cosa(fig["lleva"], int(est["h"]*0.4), max(3, int(ancho*0.0045)))
+                elif nombre_objeto(fig.get("lleva")) in OBJETOS_TODOS and manos and est.get("brazo_lleva"):
+                    pieza, pcx, pbase = _pieza_cosa(nombre_objeto(fig["lleva"]), int(est["h"]*0.4), max(3, int(ancho*0.0045)))
                     mx, my = manos[1]
                     img.paste(pieza, (int(mx - pcx), int(my - pbase + est["h"]*0.15)), pieza)
                 if est.get("i") is not None and est["i"] in doodles:
