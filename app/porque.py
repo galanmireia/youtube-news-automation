@@ -137,6 +137,9 @@ cool: "hace" "fuma" with "cigarrillo" or "vapeador" (smoke clouds, then "accion"
 with "cerveza", "copa", "taza" or "lata", "accion": "borracho" for drunk (staggers, hiccups).
 The cigarette burns down by itself while he smokes. To show time passing: "cenicero" (a few
 butts) -> "cenicero_lleno" (overflowing) with "etiqueta": "DAY 1" / "DAY 30"; "colilla" = a butt.
+Damage and time, as pairs or threes that change step by step: "pulmones" -> "pulmones_grises" ->
+"pulmones_negros"; "higado" -> "higado_graso" -> "higado_cirrosis"; "paquete" -> "paquete_medio" ->
+"paquete_vacio"; "colillas" -> "colillas_monton"; "hucha" -> "hucha_vacia" (the money it costs).
 ILLEGAL drugs: NEVER show or describe how they are taken (no injecting, snorting or smoking it):
 just the object ("pastilla") appears and we jump to the effects. Never doses, where to get it,
 tips, or anything that makes it look cool. Show the addiction (wanting more, needing more),

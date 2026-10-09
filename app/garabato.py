@@ -606,7 +606,9 @@ _ALIAS_OBJETOS = {"gear": "engranaje", "rueda_dentada": "engranaje", "engranajes
                   "magnetic_coil": "bobina", "cigarette": "cigarrillo", "cigarro": "cigarrillo",
                   "tabaco": "cigarrillo", "beer": "cerveza", "wine": "copa", "vino": "copa",
                   "vape": "vapeador", "vaper": "vapeador", "e_cigarette": "vapeador", "coffee": "taza",
-                  "cafe": "taza", "energy_drink": "lata", "bebida_energetica": "lata"}
+                  "cafe": "taza", "energy_drink": "lata", "bebida_energetica": "lata",
+                  "lungs": "pulmones", "liver": "higado", "pack": "paquete", "cigarette_pack": "paquete",
+                  "piggy_bank": "hucha", "butts": "colillas", "ashtray": "cenicero"}
 
 
 def nombre_objeto(que) -> str:

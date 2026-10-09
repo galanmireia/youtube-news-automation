@@ -1556,6 +1556,160 @@ def _vapeador(d, x, y, t, rnd, g, tinta=TINTA):
     d.ellipse([x - t*0.04, y - t*0.2, x + t*0.04, y - t*0.12], fill=(120, 240, 160))
 
 
+# ---------------------------------------------------------------------------
+# Para ver el dano y el paso del tiempo en los videos de "y si Mokordo...":
+# el paquete que se vacia, el monton de colillas, los pulmones que se
+# ponen grises, el higado que se estropea y la hucha que se vacia.
+# ---------------------------------------------------------------------------
+def _pulmones_de(rosa, manchas, gris):
+    def _pulmones(d, x, y, t, rnd, g, tinta=TINTA):
+        """Los pulmones con su traquea y sus bronquios (sanos, grises o negros)."""
+        top = y - t
+        rr = random.Random(21)
+        for lado in (-1, 1):
+            cx = x + lado*t*0.25
+            pts = []
+            for i in range(40):
+                a = i/40*2*math.pi
+                px = math.cos(a)*t*0.21*(1 + 0.12*math.sin(a))
+                py = math.sin(a)*t*0.36
+                if lado*px < -t*0.12:          # el lado de dentro, mas recto
+                    px = -lado*t*0.12 + (px + lado*t*0.12)*0.3
+                pts.append((cx + px, top + t*0.6 + py))
+            d.polygon(pts, fill=rosa)
+            for k in range(manchas):            # el alquitran
+                mx = cx + rr.uniform(-t*0.13, t*0.13)
+                my = top + t*0.6 + rr.uniform(-t*0.28, t*0.28)
+                rm = t*rr.uniform(0.02, 0.05)
+                d.ellipse([mx - rm, my - rm*0.8, mx + rm, my + rm*0.8], fill=gris)
+            d.line(pts + pts[:2], fill=TINTA, width=g, joint="curve")
+            # los bronquios, ramitas por dentro
+            b0 = (x + lado*t*0.04, top + t*0.36)
+            b1 = (cx - lado*t*0.02, top + t*0.5)
+            d.line([b0, b1], fill=TINTA, width=max(2, int(g*0.8)))
+            for ang in (-40, 0, 40):
+                a = math.radians(90 + ang*lado*-1)
+                d.line([b1, (b1[0] + math.cos(a)*t*0.12*lado*-1 + lado*t*0.04, b1[1] + math.sin(a)*t*0.14)],
+                       fill=TINTA, width=max(2, g//2))
+        d.rounded_rectangle([x - t*0.045, top, x + t*0.045, top + t*0.38], radius=max(1, int(t*0.03)),
+                            fill=(235, 225, 225), outline=TINTA, width=g)
+        for k in range(4):
+            d.line([(x - t*0.045, top + t*(0.06 + k*0.08)), (x + t*0.045, top + t*(0.06 + k*0.08))],
+                   fill=TINTA, width=max(1, g//3))
+    return _pulmones
+
+
+def _higado_de(color, bultos, encoge):
+    def _higado(d, x, y, t, rnd, g, tinta=TINTA):
+        """El higado: sano (rojizo y liso), graso (amarillento) o con cirrosis
+        (oscuro, encogido y lleno de bultos)."""
+        k = 1 - encoge
+        cy = y - t*0.42
+        pts = []
+        for i in range(60):
+            a = i/60*2*math.pi
+            r = t*0.5*k*(1 + 0.25*math.cos(a)) if math.sin(a) < 0 else t*0.5*k*(1 + 0.25*math.cos(a))*0.55
+            pts.append((x + math.cos(a)*r*1.15 - t*0.05, cy + math.sin(a)*r*0.6))
+        d.polygon(pts, fill=color)
+        rr = random.Random(13)
+        for _ in range(bultos):
+            bx = x + rr.uniform(-t*0.4, t*0.35)*k
+            by = cy + rr.uniform(-t*0.16, t*0.08)*k
+            rb = t*rr.uniform(0.035, 0.06)*k
+            d.ellipse([bx - rb, by - rb, bx + rb, by + rb], fill=_oscuro_m(color, 0.75), outline=_oscuro_m(color, 0.5))
+        d.line(pts + pts[:2], fill=TINTA, width=g, joint="curve")
+        d.line([(x - t*0.05, cy - t*0.26*k), (x + t*0.02, cy + t*0.05*k)], fill=_oscuro_m(color, 0.6),
+               width=max(2, g//2))
+    return _higado
+
+
+def _oscuro_m(c, f):
+    return tuple(int(v*f) for v in c)
+
+
+def _paquete_de(quedan):
+    def _paquete(d, x, y, t, rnd, g, tinta=TINTA):
+        """El paquete de tabaco abierto, con los cigarros que quedan."""
+        w = t*0.62
+        for k in range(quedan):                       # los filtros asomando
+            fx = x - w*0.38 + (k % 5)*w*0.19
+            fy = y - t*(1.0 if k < 5 else 0.94)
+            _caja(d, [fx - w*0.08, fy, fx + w*0.08, fy + t*0.2], NARANJA, max(2, g//2))
+        # El paquete neutro (sin marca), color barro, con su aviso de salud
+        # y una calavera: nada que lo haga apetecible.
+        _caja(d, [x - w/2, y - t*0.82, x + w/2, y], (96, 86, 58), g)
+        d.rectangle([x - w/2 + g, y - t*0.8, x + w/2 - g, y - t*0.42], fill=BLANCO)
+        cx_, cy_ = x, y - t*0.63
+        d.ellipse([cx_ - t*0.1, cy_ - t*0.11, cx_ + t*0.1, cy_ + t*0.06], fill=(40, 40, 44))
+        d.rectangle([cx_ - t*0.055, cy_ + t*0.03, cx_ + t*0.055, cy_ + t*0.1], fill=(40, 40, 44))
+        for k in (-1, 1):
+            d.ellipse([cx_ + k*t*0.045 - t*0.03, cy_ - t*0.05, cx_ + k*t*0.045 + t*0.03, cy_ + t*0.0], fill=BLANCO)
+        for k in range(2):
+            d.line([(x - w*0.36, y - t*(0.3 - k*0.1)), (x + w*0.36, y - t*(0.3 - k*0.1))], fill=(200, 190, 160),
+                   width=max(2, g//2))
+    return _paquete
+
+
+def _colillas_de(n):
+    def _colillas(d, x, y, t, rnd, g, tinta=TINTA):
+        """Un monton de colillas en el suelo."""
+        rr = random.Random(17)
+        filas = max(1, int(math.sqrt(n)))
+        for k in range(n):
+            fila = k // max(1, (n//filas))
+            ancho_fila = t*1.0*(1 - fila/(filas + 1))
+            cx_ = x + rr.uniform(-ancho_fila/2, ancho_fila/2)
+            cy_ = y - t*0.05 - fila*t*0.07
+            la, al = t*0.3, t*0.055
+            ang = math.radians(rr.uniform(-60, 60))
+            ca, sa = math.cos(ang), math.sin(ang)
+            gira = lambda px, py: (cx_ + px*ca - py*sa, cy_ + px*sa + py*ca)
+            d.polygon([gira(-la/2, -al), gira(la/2, -al), gira(la/2, al), gira(-la/2, al)], fill=BLANCO, outline=TINTA)
+            d.polygon([gira(-la/2, -al), gira(-la*0.1, -al), gira(-la*0.1, al), gira(-la/2, al)], fill=NARANJA,
+                      outline=TINTA)
+            d.line([gira(la/2, -al), gira(la/2, al)], fill=GRIS_OSCURO, width=max(2, g//2))
+    return _colillas
+
+
+def _hucha_de(llena):
+    def _hucha(d, x, y, t, rnd, g, tinta=TINTA):
+        """La hucha-cerdito: llena de monedas, o vacia y con telaranas."""
+        cy = y - t*0.42
+        rosa = (245, 160, 185)
+        for lado in (-1, 1):                          # las patitas
+            _caja(d, [x + lado*t*0.25 - t*0.06, y - t*0.14, x + lado*t*0.25 + t*0.06, y], rosa, g, radio=t*0.03)
+        _ov(d, [x - t*0.5, cy - t*0.32, x + t*0.45, cy + t*0.3], rosa, g)
+        _ov(d, [x + t*0.38, cy - t*0.1, x + t*0.56, cy + t*0.1], (240, 130, 160), g)
+        for k in (-1, 1):
+            d.ellipse([x + t*0.45 + k*t*0.03 - t*0.012, cy - t*0.02, x + t*0.45 + k*t*0.03 + t*0.012, cy + t*0.02],
+                      fill=TINTA)
+        d.polygon([(x + t*0.12, cy - t*0.28), (x + t*0.2, cy - t*0.44), (x + t*0.28, cy - t*0.24)],
+                  fill=(240, 130, 160), outline=TINTA)
+        d.ellipse([x + t*0.18, cy - t*0.12, x + t*0.25, cy - t*0.05], fill=TINTA)
+        d.rounded_rectangle([x - t*0.12, cy - t*0.33, x + t*0.06, cy - t*0.29], radius=2, fill=TINTA)
+        if llena:
+            rr = random.Random(4)
+            for k in range(7):
+                mx, my = x - t*0.5 + rr.uniform(0, t*1.0), y - rr.uniform(0, t*0.06)
+                _circ(d, mx, my - t*0.05, t*0.06, DORADO, max(2, g//2))
+            for k in range(3):                        # entrando por la ranura
+                _circ(d, x - t*0.03, cy - t*0.42 - k*t*0.13, t*0.06, DORADO, max(2, g//2))
+        else:
+            # vacia: una telarana en la ranura y una polilla saliendo
+            ox, oy = x - t*0.03, cy - t*0.31
+            for a in range(0, 180, 30):
+                ar = math.radians(180 + a)
+                d.line([(ox, oy), (ox + math.cos(ar)*t*0.2, oy + math.sin(ar)*t*0.2)], fill=(150, 150, 155), width=1)
+            for rr_ in (0.07, 0.13, 0.19):
+                d.arc([ox - t*rr_, oy - t*rr_, ox + t*rr_, oy + t*rr_], 180, 360, fill=(150, 150, 155), width=1)
+            px, py = x - t*0.25, cy - t*0.55
+            for lado in (-1, 1):
+                _ov(d, [px + lado*t*0.1 - t*0.06, py - t*0.05, px + lado*t*0.1 + t*0.06, py + t*0.05],
+                    (200, 190, 170), max(2, g//2))
+            d.ellipse([px - t*0.025, py - t*0.06, px + t*0.025, py + t*0.06], fill=GRIS_OSCURO)
+    return _hucha
+
+
 MAS_OBJETOS = {
     # el cuerpo y la salud
     "diente": _diente, "hueso": _hueso, "nariz": _nariz, "oreja": _oreja, "lengua": _lengua,
@@ -1591,9 +1745,17 @@ MAS_OBJETOS = {
     "palo_espuma": _palo_espuma, "cigarrillo": _cigarrillo, "colilla": _colilla,
     "cenicero": _cenicero_de(3), "cenicero_lleno": _cenicero_de(14), "cerveza": _cerveza, "copa": _copa,
     "vapeador": _vapeador,
+    "pulmones_grises": _pulmones_de((200, 175, 175), 9, (90, 85, 85)),
+    "pulmones_negros": _pulmones_de((120, 110, 110), 22, (35, 32, 32)),
+    "higado": _higado_de((180, 70, 60), 0, 0.0), "higado_graso": _higado_de((225, 180, 90), 7, 0.0),
+    "higado_cirrosis": _higado_de((120, 70, 50), 22, 0.18),
+    "paquete": _paquete_de(10), "paquete_medio": _paquete_de(4), "paquete_vacio": _paquete_de(0),
+    "colillas": _colillas_de(6), "colillas_monton": _colillas_de(34),
+    "hucha": _hucha_de(True), "hucha_vacia": _hucha_de(False),
 }
 # Los rehechos ganan a los de antes (y a los de España Contada, solo aqui).
 REHECHOS = {"arbol": _arbol, "sol": _sol, "nube": _nube, "pelota": _pelota, "dinero": _dinero,
             "estomago": _estomago, "mano": _mano, "nariz": _nariz, "lengua": _lengua, "frio": _frio,
             "queso": _queso, "cama": _cama, "escaner": _escaner, "musculo": _musculo,
-            "microscopio": _microscopio, "cerebro": _cerebro}
+            "microscopio": _microscopio, "cerebro": _cerebro,
+            "pulmones": _pulmones_de((245, 150, 165), 0, (0, 0, 0))}
