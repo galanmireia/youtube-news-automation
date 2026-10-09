@@ -72,7 +72,8 @@ it is not in the lists, it cannot be drawn. A visual has any of:
   "mascota": THE CHANNEL'S MASCOT, the star of every video: MOKORDO, a round purple drop with a
              "?" for hair. It is always moving. {{"accion": one of {acciones}, "x": 0.15-0.85,
              "espejo": true to face left, "gesto": a face from the list to override the action's,
-             "efecto": optional, "hace": optional, see DOING THINGS}}. Put it in MOST shots, doing what the sentence says (it is the
+             "efecto": optional, "hace": optional, see DOING THINGS, "desgaste": 0-1 ONLY in
+             drug videos, see DRUGS}}. Put it in MOST shots, doing what the sentence says (it is the
              viewer's buddy living the story): it enters hopping at the start of a section, thinks,
              points at the thing being explained, jumps when there is an idea, gets scared,
              laughs... Leave it out only for giant numbers or pure diagrams. The other characters
@@ -124,6 +125,17 @@ DOING THINGS ("hace"): Mokordo and the figuras can DO things to things and to ea
   coin" -> "da" with "con": "moneda". "Drink a glass of cold water" -> "bebe" with "vaso". "Scientists
   looked at the brain" -> the abuelo "mira" "a": "cerebro" (with the cerebro in "cosas"). The
   viewer must SEE what the voice says.
+DRUGS AND SUBSTANCES (alcohol, nicotine, caffeine, energy drinks, cannabis, cocaine...): the
+video is "What if Mokordo took X?" - an educational, honest look at what it does to the brain and
+the body, and why it hooks you. Mokordo is the one who tries it, and his "desgaste" (0 = healthy,
+1 = wrecked) goes UP shot by shot as the effects pile up: he gets thinner and paler, dark circles,
+spots, sunken cheeks, red eyes, cold sweat, shaky and slow. The feelings people chase are
+explained as THE TRAP ("at first you feel great - that's exactly why it's dangerous"), never as an
+advert. NEVER show or describe HOW it is taken (no injecting, snorting, smoking scene: just the
+object - "pastilla", "botella", "taza" - appears and we jump to the effects), no doses, no where to
+get it, no tips, nothing that makes it look cool. Show the addiction (wanting more, needing more),
+the damage and the cost. The LAST chapter: Mokordo quits and slowly recovers ("desgaste" back down
+to 0) and the narration says help exists. Keep every number true.
 "cuando" = the exact words of THIS shot's narration at which that thing pops in. THINGS APPEAR
 WHEN THE VOICE NAMES THEM: "with one fan it's hot... but with TWO fans" - the second fan pops in
 on "two fans". Give every object, word and arrow its "cuando", in the order they are said, so the
@@ -151,7 +163,7 @@ of narration in total.
 Return ONLY this JSON:
 {{
   "titulo": "YouTube title, curiosity-driven, max 60 characters, no clickbait lies (e.g. Why a Fan Can Kill You)",
-  "descripcion": "YouTube description: 2-3 short paragraphs that tease the video without spoiling the answer, then: 🔔 Subscribe to {canal} for the why behind everyday things.",
+  "descripcion": "YouTube description: 2-3 short paragraphs that tease the video without spoiling the answer, then: 🔔 Subscribe to {canal} for the why behind everyday things. (If the topic is a drug or an addiction, add at the end: If you or someone you know is struggling, talk to a doctor or a local support line - you're not alone.)",
   "tags": ["15-20 tags"],
   "miniatura": {{"cosas": [...], "textos": [...]}},
   "capitulos": [{{"titulo": "short chapter title", "resumen": "what it explains, with the key facts", "palabras": 250}}]

@@ -64,6 +64,41 @@ def _transforma(p, cx, base, estira, inclina):
     return (cx + x*math.cos(a) - y*math.sin(a), base + x*math.sin(a) + y*math.cos(a))
 
 
+# Donde salen los granos (en el cuerpo, lejos de la cara), por orden.
+_GRANOS = ((-0.62, 0.3), (0.58, 0.68), (-0.35, 0.82), (0.66, 0.25), (-0.7, 0.55), (0.3, 0.18),
+           (0.12, 0.88), (-0.55, 0.12), (0.72, 0.48), (-0.2, 0.2), (0.45, 0.85))
+
+
+def _desgaste(img, d, T, centro, r, g, h, ancho, alto, dg):
+    """Lo que la droga le va dejando en la cara y en el cuerpo."""
+    fino = max(2, int(g*0.6))
+    ojera = tuple(int(v) for v in (95 - 20*dg, 70 - 20*dg, 105 - 10*dg))
+    for lado in (-1, 1):
+        ex, ey = centro[0] + lado*r*0.33, centro[1] - r*0.12
+        if dg > 0.1:       # las ojeras, cada vez mas marcadas
+            ancha = max(2, int(g*(0.4 + 1.0*dg)))
+            d.arc([ex - r*0.24, ey - r*0.1, ex + r*0.24, ey + r*0.32], 15, 165, fill=ojera, width=ancha)
+            if dg > 0.55:
+                d.arc([ex - r*0.26, ey, ex + r*0.26, ey + r*0.44], 25, 155, fill=ojera, width=max(2, ancha//2))
+        if dg > 0.5:       # los ojos rojos: venitas
+            for k in (-1, 1):
+                d.line([(ex + lado*r*0.2, ey + k*r*0.04), (ex + lado*r*0.3, ey + k*r*0.09)], fill=(215, 50, 50),
+                       width=max(1, fino//2 + 1))
+        if dg > 0.35:      # las mejillas hundidas
+            mx, my = centro[0] + lado*r*0.72, centro[1] + r*0.25
+            d.arc([mx - r*0.14, my - r*0.25, mx + r*0.14, my + r*0.25], 90 + lado*70 - 45, 90 + lado*70 + 45,
+                  fill=_oscuro((150, 140, 150), 0.8), width=fino)
+    for lx, ly in _GRANOS[:int(round(dg*len(_GRANOS)))]:
+        gx, gy = T((lx*ancho, -ly*alto))
+        rg = h*0.016
+        d.ellipse([gx - rg, gy - rg, gx + rg, gy + rg], fill=(225, 80, 80), outline=(160, 40, 40), width=1)
+        d.ellipse([gx - rg*0.35, gy - rg*0.55, gx + rg*0.15, gy - rg*0.05], fill=(255, 210, 200))
+    if dg > 0.7:           # el sudor frio
+        sx, sy = centro[0] - r*1.05, centro[1] - r*0.55
+        gota = [(sx, sy - r*0.28), (sx + r*0.13, sy), (sx, sy + r*0.12), (sx - r*0.13, sy)]
+        d.polygon(gota, fill=(150, 205, 245), outline=TINTA)
+
+
 BRAZOS = {}      # el ultimo dibujado: lado -> (codo, mano), para orientar lo que lleva
 
 
@@ -87,18 +122,26 @@ def _hasta(hombro, punto, lado, h):
 
 def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((60, 20), (60, 20)),
            parpadeo=False, piernas=None, levanta=0.0, color=None, forma=None, pelo="?", gafas=False,
-           bigote=False, alcanza=None, pie_arriba=None):
+           bigote=False, alcanza=None, pie_arriba=None, desgaste=0.0):
     """Pinta la mascota. Devuelve la cabeza (cx, cy, radio, lado) para los
     efectos de garabato. brazos: (angulo, codo) por lado en grados; 0 es
     horizontal hacia fuera y + hacia abajo.
     alcanza: {lado: (x, y)} = esa mano va a ese punto (hacer cosquillas,
-    tocar, coger...); pie_arriba: el lado del pie que levanta."""
+    tocar, coger...); pie_arriba: el lado del pie que levanta.
+    desgaste: 0-1, lo que se le va quedando el cuerpo (los videos de "y si
+    Mokordo tomara..."): mas delgado y palido, ojeras, granos, mejillas
+    hundidas, ojos rojos, sudor, el "?" mustio."""
     from . import garabato
     d = ImageDraw.Draw(img)
     g = max(4, int(h*0.017))
     color = color or COLOR
     forma = forma or FORMA
     ancho, alto = _medidas(h, forma)
+    dg = min(1.0, max(0.0, float(desgaste or 0.0)))
+    if dg:
+        ancho *= 1 - 0.4*dg
+        alto *= 1 + 0.04*dg
+        color = tuple(int(c + (gris - c)*0.6*dg) for c, gris in zip(color, (168, 166, 150)))
     pie_y = suelo - levanta
     base = pie_y - h*0.07
     T = lambda p: _transforma(p, cx, base, estira, inclina)
@@ -164,7 +207,8 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
         manos.append(mano)
     top = T((0, -alto))
     if pelo == "?":       # solo Mokordo
-        garabato._letrero(img, "?", (top[0] + h*0.02, top[1] - h*0.07), h*0.2, TINTA, -12 + inclina*0.5)
+        garabato._letrero(img, "?", (top[0] + h*(0.02 + 0.06*dg), top[1] - h*(0.07 - 0.03*dg)), h*0.2*(1 - 0.2*dg),
+                          TINTA, -12 - 55*dg + inclina*0.5)
     elif pelo == "moño":
         rr = h*0.07
         d.ellipse([top[0] - rr, top[1] - rr*1.7, top[0] + rr, top[1] + rr*0.3], fill=_oscuro(color, 0.75),
@@ -177,6 +221,8 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
     centro = T((h*0.02, -alto*(0.7 if forma == "judia" else 0.58)))
     r = h*0.17
     garabato._cara_expresiva(d, centro, r, g, random.Random(1), gesto, tinta=TINTA)
+    if dg:
+        _desgaste(img, d, T, centro, r, g, h, ancho, alto, dg)
     if gafas:
         for lado in (-1, 1):
             ex, ey = centro[0] + lado*r*0.33, centro[1] - r*0.12
@@ -444,6 +490,15 @@ def entrada(p: dict, tipo: str, t: float, x: float, w: int, h: float, suelo: flo
     return p
 
 
+def _cansado(gesto, dg):
+    """Muy desgastado ya no sonrie por defecto."""
+    if dg > 0.6 and gesto in ("contento", "riendo", "neutro"):
+        return "triste"
+    if dg > 0.3 and gesto in ("contento", "riendo"):
+        return "neutro"
+    return gesto
+
+
 def estado_mascota(mascota: dict, t: float, dur: float, suelo: float, w: int, h_img: int) -> dict:
     """Como esta Mokordo en el segundo t (sin pintarlo todavia: antes se le
     puede retocar, para que haga algo con otro)."""
@@ -454,9 +509,18 @@ def estado_mascota(mascota: dict, t: float, dur: float, suelo: float, w: int, h_
     if not mascota.get("_ya") and accion != "entra":
         p = entrada(p, mascota.get("_entrada") or tipo_entrada(int(float(mascota.get("x", 0.5))*10)), t,
                     float(mascota.get("x", 0.5)), w, h, suelo)
-    return {"quien": "mokordo", "fig": mascota, "p": p, "h": h, "lado": lado, "suelo": suelo,
-            "cx": w*float(mascota.get("x", 0.5)) + (p.get("dx", 0.0) + p.get("temblor", 0.0))*h,
-            "gesto": str(mascota.get("gesto") or p.get("gesto") or "neutro"), "color": COLOR, "forma": FORMA,
+    dg = min(1.0, max(0.0, float(mascota.get("desgaste") or 0.0)))
+    temblor = 0.0
+    if dg:
+        # Sin fuerzas: se mueve menos, encorvado y temblando.
+        p["levanta"] = p.get("levanta", 0.0)*(1 - 0.6*dg)
+        p["inclina"] = p["inclina"]*(1 - 0.5*dg) + 7*dg*lado
+        p["estira"] = 1 + (p["estira"] - 1)*(1 - 0.5*dg) - 0.06*dg
+        temblor = math.sin(t*47)*0.009*dg
+    return {"quien": "mokordo", "fig": mascota, "p": p, "h": h, "lado": lado, "suelo": suelo, "desgaste": dg,
+            "cx": w*float(mascota.get("x", 0.5)) + (p.get("dx", 0.0) + p.get("temblor", 0.0) + temblor)*h,
+            "gesto": str(mascota.get("gesto") or _cansado(p.get("gesto") or "neutro", dg)), "color": COLOR,
+            "forma": FORMA,
             "pelo": "?", "brazo_lleva": bool(mascota.get("lleva")), "t": t}
 
 
@@ -473,7 +537,8 @@ def pinta_estado(img, e: dict):
                            inclina=p["inclina"]*lado, brazos=brazos, parpadeo=p.get("parpadeo", False),
                            piernas=p.get("piernas"), levanta=p.get("levanta", 0.0)*h, color=e["color"],
                            forma=e["forma"], pelo=e.get("pelo"), gafas=e.get("gafas", False),
-                           bigote=e.get("bigote", False), alcanza=e.get("alcanza"), pie_arriba=e.get("pie_arriba"))
+                           bigote=e.get("bigote", False), alcanza=e.get("alcanza"), pie_arriba=e.get("pie_arriba"),
+                           desgaste=e.get("desgaste", 0.0))
     if e["quien"] == "mokordo":
         d = ImageDraw.Draw(img)
         if p.get("rayas"):
