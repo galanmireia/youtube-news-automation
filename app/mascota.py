@@ -249,26 +249,13 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
 def _base(t):
     """Lo que hace siempre, encima de cualquier accion: respirar, balancearse
     y parpadear. Para que nunca este quieta."""
-    return {"estira": 1 + 0.07*math.sin(2*math.pi*t/1.2), "inclina": 9*math.sin(t*1.9),
+    return {"estira": 1 + 0.04*math.sin(2*math.pi*t/1.4), "inclina": 5*math.sin(t*1.7),
             "parpadeo": (t % 3.1) < 0.12}
 
 
 # MUCHO MAS MOVIMIENTO ("hay que darle mas movimiento, mucho mas"): lo que
-# hace cada accion, exagerado; y encima, unos saltitos de vez en cuando.
+# hace cada accion, exagerado, para que se note cual es.
 _EXAGERA = 2.4
-
-
-def _saltito(t):
-    """Un botecito cada poco: se agacha, sube y cae aplastandose."""
-    u = (t % 1.3)/1.3
-    if u < 0.12:
-        return 0.0, 1 - 0.2*math.sin(u/0.12*math.pi)
-    if u < 0.5:
-        v = (u - 0.12)/0.38
-        return 0.2*math.sin(v*math.pi), 1.15
-    if u < 0.62:
-        return 0.0, 1 - 0.25*math.sin((u - 0.5)/0.12*math.pi)
-    return 0.0, 1.0
 
 
 def _entra(t, dur, lado):
@@ -423,11 +410,9 @@ def postura(accion: str, t: float, dur: float, lado: int = 1) -> dict:
     p["inclina"] = p["inclina"] + propia.pop("inclina", 0.0)*_EXAGERA
     p.update(propia)
     p["levanta"] = min(0.6, p.get("levanta", 0.0)*_EXAGERA)
-    # Los saltitos solo cuando la accion no lo mueve ya del suelo.
-    if accion not in ("entra", "salta", "corre", "duerme", "triste", "asusta") and p["levanta"] < 0.05:
-        sube, aplasta = _saltito(t + 0.6)
-        p["levanta"] += sube
-        p["estira"] *= aplasta
+    # (Los saltitos de relleno, fuera: "sale el monigote botando todo el
+    # rato y no se diferencia una escena de otra". Cada accion se mueve a su
+    # manera y ya esta.)
     p["estira"] = min(1.4, max(0.66, p["estira"]))
     p["inclina"] = min(35.0, max(-35.0, p["inclina"]))
     return p
@@ -499,7 +484,7 @@ def entrada(p: dict, tipo: str, t: float, x: float, w: int, h: float, suelo: flo
         p["gesto"] = "sorpresa" if t < 0.7 else p.get("gesto")
     else:  # muelle
         crece = 1 - math.exp(-5.5*t)*math.cos(13*t)
-        p["estira"] = max(0.3, p["estira"]*crece)
+        p["estira"] = max(0.55, p["estira"]*crece)
         p["inclina"] = p["inclina"] + 18*math.exp(-3.5*t)*math.sin(t*19)
         p["levanta"] = p.get("levanta", 0.0) + max(0.0, math.sin(min(math.pi, (t - 0.25)*5)))*0.25*(t > 0.25)
         p["brazos"] = ((-100, -60), (-100, -60)) if 0.25 < t < 0.8 else p.get("brazos")
@@ -522,6 +507,8 @@ def estado_mascota(mascota: dict, t: float, dur: float, suelo: float, w: int, h_
     puede retocar, para que haga algo con otro)."""
     lado = -1 if mascota.get("espejo") else 1
     accion = str(mascota.get("accion") or "explica").lower()
+    if accion == "entra" and mascota.get("_ya"):
+        accion = "explica"          # ya estaba: no vuelve a entrar
     p = postura(accion, t, dur, lado)
     h = h_img*float(mascota.get("tam") or 0.5)
     if not mascota.get("_ya") and accion != "entra":

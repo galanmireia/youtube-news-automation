@@ -158,6 +158,18 @@ If the narration names something you can draw - an animal, an object, a body par
 MUST be on the page (a camel is a "camello", not a person alone). Label things that could be
 confused ("etiqueta"). A person alone on the page only for a pure reaction beat, and never two
 shots in a row. If something has no drawing, use the closest one plus an "etiqueta".
+THE DRAWING TELLS THE SENTENCE. Test every shot: with the sound OFF, could you guess what this
+sentence says from the drawing alone? If not, redo it. "Mokordo next to one floating object" is
+the laziest shot there is: at most ONE in five, never two in a row. Prefer, and MIX:
+  - a little SCENE of what the sentence describes: people doing it ("hace"), in a place ("ambiente")
+  - CAUSE -> EFFECT: thing, arrow ("flechas"), result
+  - a COMPARISON: A "igual" B, or A next to B with one "tachado", or two people reacting differently
+  - a LABELLED DIAGRAM: the brain with a big arrow and a word on the part being explained
+  - a GIANT number ("cifra") or a BIG word for the punchline
+  - Mokordo DOING the thing (hace) or reacting strongly (asusta, salta, rie, mareo...)
+Mokordo's "accion" must match the sentence and CHANGE from shot to shot ("explica" at most one in
+four, never twice in a row). Never the same composition two shots in a row. Change "ambiente" when
+the story moves to another place.
 ONE IDEA PER SHOT, big and in the middle. Mix: people reacting, objects explained, "THIS =
 THAT" equations (cosa + "igual" + cosa), giant numbers, a big word. Keep text and objects from
 overlapping the people. The same person keeps the same "quien" all video long.
@@ -638,6 +650,21 @@ def _acumula(anterior: dict | None, visual: dict) -> dict:
     return v
 
 
+def _siguen_ahi(antes: dict | None, visual: dict) -> dict:
+    """Quien ya estaba en el plano de antes no vuelve a entrar rebotando
+    (Mokordo entrando cada pocos segundos era "botando todo el rato"):
+    solo entran los que llegan nuevos."""
+    if not antes or visual.get("sigue"):
+        return visual
+    v = dict(visual)
+    if isinstance(v.get("mascota"), dict) and isinstance(antes.get("mascota"), dict):
+        v["mascota"] = dict(v["mascota"], _ya=True)
+    estaban = {str(f.get("quien")) for f in antes.get("figuras") or [] if isinstance(f, dict)}
+    v["figuras"] = [dict(f, _ya=True) if isinstance(f, dict) and str(f.get("quien")) in estaban else f
+                    for f in v.get("figuras") or []]
+    return v
+
+
 def _variante(visual: dict, k: int) -> dict:
     """El mismo plano dibujado de otra manera, para el trozo k (1, 2...) de un
     plano demasiado largo: todo en espejo (lo de la izquierda pasa a la
@@ -728,6 +755,7 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             if sin_mascota:
                 visual = _con_mascota(visual, p.get("narracion", ""), primero=k == 0)
             anterior = _acumula(anterior, visual)
+            anterior = _siguen_ahi(planos[-1][1] if planos and k else None, anterior)
             planos.append((str(p["narracion"]), anterior,
                            _PAUSA_CAPITULO if ultimo else _PAUSA_PLANO, n))
         if n == 0 and len(guion["capitulos"]) > 1:
@@ -848,20 +876,43 @@ _PIDE_RETOQUE = """Redo ONLY the "visual" of these shots - the narration stays e
 Some asked for drawings that did not exist when the script was written ("falta"): many exist NOW
 (check the lists above). Others are TOO EMPTY (a lonely person, a single thing): make them show
 what the sentence says - 2-4 things, everything the narration names that can be drawn, with
-"etiqueta" labels and "cuando" timings. Keep "sigue" as it was:
+"etiqueta" labels and "cuando" timings. Others are GENERIC (Mokordo next to an object, or the same
+picture as the shot before): turn each into a CONCRETE picture of THAT sentence - a little scene
+with people doing it ("hace"), a cause -> effect with an arrow, a comparison, a labelled diagram,
+a giant number - so that with the sound off you could guess the sentence; Mokordo's "accion" must
+fit it and differ from the neighbouring shots. Keep "sigue" as it was:
 {planos}
 
 Return ONLY: {{"planos": [{{"i": <same number>, "visual": {{...}}}}]}}"""
 
 
-def _pobre(visual: dict) -> bool:
+def _pobre(visual: dict, antes: dict | None = None) -> bool:
     """Un plano que no cuenta nada: una persona sola o una cosa suelta, sin
-    nada mas ("es simple, pero igual no habria que hacerlo tan simple")."""
+    nada mas ("es simple, pero igual no habria que hacerlo tan simple"); o
+    el de siempre, Mokordo al lado de una cosa sin hacer nada ("no veo que
+    se diferencie una escena de otra segun lo que esta contando"); o el
+    mismo dibujo que el plano de antes."""
     if visual.get("sigue") or visual.get("cifra") or visual.get("_careta"):
         return False
     cuenta = sum(len([x for x in visual.get(c) or [] if isinstance(x, dict)])
                  for c in ("figuras", "cosas", "textos", "flechas")) + (1 if visual.get("mascota") else 0)
-    return cuenta <= 1
+    if cuenta <= 1:
+        return True
+    ma = visual.get("mascota") if isinstance(visual.get("mascota"), dict) else None
+    hace = any(isinstance(x, dict) and x.get("hace") for x in [ma] + list(visual.get("figuras") or []))
+    cosas = [x for x in visual.get("cosas") or [] if isinstance(x, dict)]
+    if ma and not hace and not visual.get("figuras") and not visual.get("flechas") and len(cosas) <= 1 \
+            and str(ma.get("accion") or "explica") in ("explica", "senala", "entra", "piensa"):
+        return True
+    if antes and not antes.get("sigue"):
+        def huella(v):
+            m = v.get("mascota") if isinstance(v.get("mascota"), dict) else {}
+            return (str(m.get("accion")), tuple(sorted(str(c.get("que")) for c in v.get("cosas") or []
+                                                       if isinstance(c, dict))),
+                    tuple(sorted(str(f.get("quien")) for f in v.get("figuras") or [] if isinstance(f, dict))))
+        if huella(visual) == huella(antes):
+            return True
+    return False
 
 
 def retoca(guion: dict) -> int:
@@ -870,7 +921,8 @@ def retoca(guion: dict) -> int:
     sola llamada pequeña; si falla, se monta con lo que habia."""
     todos = [p for cap in guion.get("capitulos") or [] for p in cap.get("planos") or []]
     pendientes = [(i, p) for i, p in enumerate(todos)
-                  if str(p.get("falta") or "").strip() or _pobre(p.get("visual") or {})]
+                  if str(p.get("falta") or "").strip()
+                  or _pobre(p.get("visual") or {}, (todos[i - 1].get("visual") or {}) if i else None)]
     if not pendientes:
         return 0
     lista = "\n".join(json.dumps({"i": i, "narracion": p.get("narracion"), "falta": p.get("falta"),

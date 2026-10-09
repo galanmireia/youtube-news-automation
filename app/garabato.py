@@ -1307,6 +1307,27 @@ def _vida(img, e, cabezas, t, n):
     return img
 
 
+def _reacciona(estados, apariciones, t):
+    """Lo que se dibuja tiene que ver con lo que se cuenta: cuando la voz
+    nombra algo y aparece, Mokordo se gira hacia ello, lo señala con el brazo
+    estirado y pone cara de "¡mira!" (si no esta haciendo otra cosa)."""
+    recientes = [(tp, sitio) for tp, sitio in apariciones if sitio and 0 <= t - tp < 1.6]
+    if not recientes:
+        return
+    tp, (sx, sy, _st) = max(recientes, key=lambda r: r[0])
+    u = t - tp
+    for est in estados:
+        if est["quien"] != "mokordo" or interaccion.que_hace(est["fig"]):
+            continue
+        if abs(sx - est["cx"]) < est["h"]*0.3:
+            continue
+        est["lado"] = 1 if sx > est["cx"] else -1
+        est["alcanza"] = {est["lado"]: (sx, sy)}
+        est["gesto"] = "sorpresa" if u < 0.5 else "contento"
+        est["p"]["levanta"] = est["p"].get("levanta", 0.0) + max(0.0, math.sin(min(1.0, u/0.35)*math.pi))*0.12
+        est["p"]["inclina"] = est["p"]["inclina"]*0.3 + 8
+
+
 def _pega_girada(img, pieza, ax, ay, giro, x, y):
     """Pega la pieza girada `giro` grados sobre su punto (ax, ay), que cae en (x, y)."""
     if abs(giro) < 0.5:
@@ -1463,6 +1484,15 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
         t_ = alto*float(c.get("tam", 0.14))
         y_ = alto*float(c["y"]) if c.get("y") is not None else pies
         sitios[c["que"]] = (ancho*float(c.get("x", 0.5)), y_ - t_*0.5, t_)
+    # Cuando aparece algo (la voz lo nombra), Mokordo lo mira y lo señala.
+    apariciones, nuevas_ = [], 0
+    for c in e.get("_pop", []):
+        if c.get("_ya"):
+            continue
+        tp = float(c["_t"]) if c.get("_t") is not None else 0.1 + nuevas_*_PASO_COSAS
+        if c.get("_t") is None:
+            nuevas_ += 1
+        apariciones.append((tp, sitios.get(c["que"])))
     mueve = zlib.crc32(repr(sorted((visual or {}).items(), key=str)).encode())
     golpes, nuevas = [], 0
     for c in e.get("_pop", []):
@@ -1496,6 +1526,7 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                 estados.append(est)
             if mascota:
                 estados.append(_mascota.estado_mascota(mascota, reloj, segundos, pies, ancho, alto))
+            _reacciona(estados, apariciones, reloj)
             vuelan = interaccion.planifica(estados, sitios, ancho, reloj)
             # El que hace algo con otro, delante: si no, el otro le tapa la pluma.
             for est in sorted(estados, key=lambda x_: (1 if x_.get("alcanza") else 0, x_["cx"])):
