@@ -609,7 +609,9 @@ _ALIAS_OBJETOS = {"gear": "engranaje", "rueda_dentada": "engranaje", "engranajes
                   "vape": "vapeador", "vaper": "vapeador", "e_cigarette": "vapeador", "coffee": "taza",
                   "cafe": "taza", "energy_drink": "lata", "bebida_energetica": "lata",
                   "lungs": "pulmones", "liver": "higado", "pack": "paquete", "cigarette_pack": "paquete",
-                  "piggy_bank": "hucha", "butts": "colillas", "ashtray": "cenicero"}
+                  "piggy_bank": "hucha", "butts": "colillas", "ashtray": "cenicero",
+                  "bell": "campana", "alarm": "campana", "foam": "esponja", "foam_pad": "esponja",
+                  "sponge": "esponja", "espuma": "esponja"}
 
 
 def nombre_objeto(que) -> str:
@@ -748,7 +750,7 @@ def encima(img: Image.Image, visual: dict, t: float, segundos: float) -> Image.I
                 m._linea(d, [(cx + math.cos(a)*r0*e, cy + math.sin(a)*r0*e),
                              (cx + math.cos(a)*r1*e, cy + math.sin(a)*r1*e)], max(4, int(h*0.007)), rnd,
                          color=color, temblor=1.4)
-        valor = str(cifra["valor"])[:10]
+        valor = str(cifra["valor"])[:18]
         tam_valor = _que_quepa(valor, h*0.36, w*0.7)
         valor = _contando(valor, t - 0.1)
         _letrero(img, valor, (cx, cy), tam_valor, color, -2, e)

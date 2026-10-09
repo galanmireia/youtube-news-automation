@@ -722,6 +722,28 @@ def _encuadra(visuales: list) -> None:
         antes = quiere
 
 
+def _arregla(visual: dict) -> dict:
+    """Lo que el guion escribe a su manera y el dibujo no entendia: la accion
+    "señala" con ñ, un verbo de "hace" puesto como accion ("rasca", "da",
+    "mira", o "hace" a secas), el ambiente metido dentro de Mokordo."""
+    v = dict(visual)
+    ma = v.get("mascota")
+    if isinstance(ma, dict):
+        ma = dict(ma)
+        accion = str(ma.get("accion") or "explica").lower().replace("ñ", "n")
+        if accion in interaccion.VERBOS:
+            if not isinstance(ma.get("hace"), dict):
+                ma["hace"] = {"verbo": accion}
+            accion = "explica"
+        if accion not in mascota.ACCIONES:
+            accion = "explica"
+        ma["accion"] = accion
+        if ma.get("ambiente") and not v.get("ambiente"):
+            v["ambiente"] = ma.pop("ambiente")
+        v["mascota"] = ma
+    return v
+
+
 def _siguen_ahi(antes: dict | None, visual: dict) -> dict:
     """Quien ya estaba en el plano de antes no vuelve a entrar rebotando
     (Mokordo entrando cada pocos segundos era "botando todo el rato"):
@@ -824,6 +846,7 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
         for k, p in enumerate(cap["planos"]):
             ultimo = k == len(cap["planos"]) - 1
             visual = p.get("visual") or {}
+            visual = _arregla(visual)
             if sin_mascota:
                 visual = _con_mascota(visual, p.get("narracion", ""), primero=k == 0)
             anterior = _acumula(anterior, visual)

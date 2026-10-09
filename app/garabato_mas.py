@@ -1710,6 +1710,33 @@ def _hucha_de(llena):
     return _hucha
 
 
+def _campana(d, x, y, t, rnd, g, tinta=TINTA):
+    """Una campana (la alarma, el aviso)."""
+    cuerpo = [(x - t*0.38, y - t*0.18)] + [(x + math.cos(a)*t*0.3*(1 + 0.25*(1 - math.sin(a))),
+                                           y - t*0.55 - math.sin(a)*t*0.38) for a in
+                                          [k*math.pi/16 for k in range(17)]] + [(x + t*0.38, y - t*0.18)]
+    cuerpo[1:-1] = sorted(cuerpo[1:-1], key=lambda p: -p[0])
+    _cont(d, [(x + t*0.38, y - t*0.18)] + [p for p in cuerpo[1:-1]] + [(x - t*0.38, y - t*0.18)], DORADO, g, rnd)
+    _caja(d, [x - t*0.44, y - t*0.22, x + t*0.44, y - t*0.12], (230, 160, 20), g, radio=t*0.04)
+    _circ(d, x, y - t*0.07, t*0.07, (200, 140, 20), g)
+    _circ(d, x, y - t*0.97, t*0.05, (200, 140, 20), max(2, g//2))
+    for lado in (-1, 1):                # el tilin-tilin
+        for k in range(2):
+            r_ = t*(0.52 + 0.1*k)
+            d.arc([x - r_, y - t*0.6 - r_*0.6, x + r_, y - t*0.6 + r_*0.6], (200 if lado < 0 else -20) - 15,
+                  (200 if lado < 0 else -20) + 15, fill=tinta, width=max(2, g//2))
+
+
+def _esponja(d, x, y, t, rnd, g, tinta=TINTA):
+    """Una almohadilla de espuma (blandita, con sus poros)."""
+    _caja(d, [x - t*0.42, y - t*0.42, x + t*0.42, y], AMARILLO, g, radio=t*0.12)
+    rr = random.Random(8)
+    for _ in range(14):
+        px, py = x + rr.uniform(-t*0.34, t*0.34), y - rr.uniform(t*0.06, t*0.36)
+        rp = t*rr.uniform(0.015, 0.035)
+        d.ellipse([px - rp, py - rp, px + rp, py + rp], fill=(220, 170, 20))
+
+
 MAS_OBJETOS = {
     # el cuerpo y la salud
     "diente": _diente, "hueso": _hueso, "nariz": _nariz, "oreja": _oreja, "lengua": _lengua,
@@ -1751,7 +1778,7 @@ MAS_OBJETOS = {
     "higado_cirrosis": _higado_de((120, 70, 50), 22, 0.18),
     "paquete": _paquete_de(10), "paquete_medio": _paquete_de(4), "paquete_vacio": _paquete_de(0),
     "colillas": _colillas_de(6), "colillas_monton": _colillas_de(34),
-    "hucha": _hucha_de(True), "hucha_vacia": _hucha_de(False),
+    "hucha": _hucha_de(True), "hucha_vacia": _hucha_de(False), "campana": _campana, "esponja": _esponja,
 }
 # Los rehechos ganan a los de antes (y a los de España Contada, solo aqui).
 REHECHOS = {"arbol": _arbol, "sol": _sol, "nube": _nube, "pelota": _pelota, "dinero": _dinero,
