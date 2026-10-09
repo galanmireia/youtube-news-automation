@@ -1051,7 +1051,13 @@ def _escala_rebote(t: float) -> float:
 def _cosa_pop(img, c, pies, t):
     """Una cosa del plano, apareciendo con su golpe (crece de su centro)."""
     w, h = img.size
-    escala = _escala_rebote(t)
+    # CADA COSA ENTRA A SU MANERA: con su pop, cayendo desde arriba y
+    # rebotando, deslizandose desde el lado o girando como una moneda.
+    modo = (sum(map(ord, str(c["que"]))) + int(float(c.get("x", 0.5))*10)) % 4
+    if modo == 0 or t >= 0.8:
+        escala = _escala_rebote(t)
+    else:
+        escala = 1.0 if t > 0 else 0.0
     if escala <= 0.05:
         return
     tam = int(h*float(c.get("tam", 0.14)))
@@ -1083,6 +1089,19 @@ def _cosa_pop(img, c, pies, t):
     else:
         # Las del suelo dan botecitos.
         arriba -= vivo*tam*0.08*abs(math.sin(t*2.2 + fase))
+    if 0 < t < 0.8 and modo:
+        u = t/0.8
+        if modo == 1:      # cae y bota
+            alto_caida = (arriba + tam)*1.1
+            arriba -= alto_caida*abs(math.cos(u*math.pi*1.5))*(1 - u)**1.5
+        elif modo == 2:    # entra deslizandose desde el lado mas cercano
+            lado = -1 if x < w/2 else 1
+            x += lado*(w*0.6)*(1 - u)**3
+            giro += lado*25*(1 - u)**2
+        else:              # gira como una moneda
+            k = abs(math.cos(u*math.pi*3))*(1 - u) + u
+            pieza = pieza.resize((max(1, int(pieza.width*max(0.08, k))), pieza.height), Image.BILINEAR)
+            cx = cx*max(0.08, k)
     if abs(giro) < 0.3:
         img.paste(pieza, (int(x - cx), int(arriba)), pieza)
         return
@@ -1380,6 +1399,61 @@ def _vida(img, e, cabezas, t, n):
 _HABLAN = ("explica", "senala", "piensa", "encoge", "saluda", "triste", "entra")
 
 
+def _plan_de_camara(visual, e, segundos, apariciones, foco, ancho, alto, pies):
+    """LOS CORTES DE CAMARA dentro del plano ("no tienen dinamismo"): como
+    un montador, cada 2-3 segundos otro encuadre del mismo dibujo - cuando la
+    voz nombra algo, corte a eso; y si no pasa nada, primer plano de Mokordo,
+    plano medio, general... [(desde, foco)], foco = (x, y, zoom, t0, t1) o
+    None (general)."""
+    if visual.get("cifra") or visual.get("_careta") or visual.get("_encuadre") in ("color", "partido") \
+            or segundos < 3.2:
+        return []
+    ma = visual.get("mascota") if isinstance(visual.get("mascota"), dict) else None
+    figs = [f for f in e.get("figuras", []) if isinstance(f, dict)]
+    hay_hace = any(isinstance(x, dict) and x.get("hace") for x in [ma] + list(visual.get("figuras") or []))
+    gente = []
+    if ma:
+        gente.append((ancho*float(ma.get("x", 0.5)), alto*float(ma.get("tam") or 0.5)))
+    for f in figs:
+        gente.append((ancho*float(f.get("x", 0.5)), alto*0.45))
+    salta = ma and str(ma.get("accion") or "") in ("salta", "corre", "anda", "baila", "entra", "mareo")
+    def cerca():
+        if not gente or hay_hace or salta:      # (al saltar, de cerca se le cortaba la cabeza)
+            return medio()
+        gx, gh = gente[0]
+        return (gx, pies - gh*0.6, 1.6)
+    def medio():
+        if not gente:
+            return None
+        gx = sum(g[0] for g in gente)/len(gente)
+        return (gx, pies - max(g[1] for g in gente)*(0.7 if salta else 0.55), 1.25 if salta else 1.3)
+    marcas = []                      # (t, foco) sin tramo todavia
+    for tp, sitio in apariciones:
+        if sitio and 0.6 < tp < segundos - 0.8:
+            sx, sy, st = sitio
+            marcas.append((tp, (sx, sy, max(1.35, min(1.8, alto*0.5/max(1.0, st))))))
+            marcas.append((tp + 1.3, None))
+    marcas.sort(key=lambda m: m[0])
+    # huecos sin nada: un corte cada ~2.5 s, alternando
+    relleno, t, k = [], 0.0, 0
+    puntos = [0.0] + [m[0] for m in marcas] + [segundos]
+    for a_, b_ in zip(puntos, puntos[1:]):
+        t = a_ + 2.5
+        while t < b_ - 1.2:
+            relleno.append((t, (cerca, medio, lambda: None)[k % 3]()))
+            k += 1
+            t += 2.5
+    todos = sorted(marcas + relleno, key=lambda m: m[0])
+    plan, antes = [], foco
+    for i, (t0, f) in enumerate(todos):
+        if f == antes:
+            continue
+        t1 = todos[i + 1][0] if i + 1 < len(todos) else segundos
+        plan.append((t0, (f[0], f[1], f[2], t0, t1) if f else None))
+        antes = f
+    return plan
+
+
 def _miradas(estados, apariciones, t):
     """ADONDE MIRAN: a lo que tocan o señalan, a lo que acaba de aparecer, al
     que les hace algo; y si no, un poco hacia delante. Las pupilas se van
@@ -1506,7 +1580,9 @@ def _camara_viva(img, t, dur, mueve, golpes, foco=None):
     z = 1.06 + 0.14*s if mueve % 2 else 1.2 - 0.14*s
     if foco:
         # plano cercano / de detalle: encima de lo que importa, y acercandose
-        z = foco[2] + 0.12*s
+        if len(foco) > 3:
+            s = _suave_cam(min(1.0, max(0.0, (t - foco[3])/max(0.5, foco[4] - foco[3]))))
+        z = foco[2] + 0.1*s
     sacude = 0.0
     for tp in golpes:
         if 0 <= t - tp < 1.0:
@@ -1673,6 +1749,7 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
     elif encuadre == "detalle" and apariciones and apariciones[0][1]:
         sx, sy, st = apariciones[0][1]
         foco = (sx, sy, max(1.3, min(1.9, alto*0.55/max(1.0, st))))
+    cortes = _plan_de_camara(visual or {}, e, segundos, apariciones, foco, ancho, alto, pies)
     golpes, nuevas = [], 0
     for c in e.get("_pop", []):
         if c.get("_ya"):
@@ -1744,7 +1821,12 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                     continue
                 pieza, pcx, pbase = _pieza_cosa(nombre_objeto(o["que"]), int(o["tam"]), max(3, int(ancho*0.0045)))
                 _pega_girada(img, pieza, pieza.width/2, pieza.height/2, o["giro"], o["pos"][0], o["pos"][1])
-            img = _camara_viva(img, reloj, segundos, mueve, golpes, foco)
+            foco_ahora = foco
+            for t0_, f_ in cortes:
+                if reloj >= t0_:
+                    foco_ahora = f_
+            img = _camara_viva(img, reloj, segundos, mueve,
+                               golpes + [t0_ for t0_, _f in cortes if t0_ > 0.2], foco_ahora)
             if camara:
                 img = img.crop(camara).resize(tam, Image.BILINEAR)
             img = encima(img, visual or {}, reloj, segundos)
