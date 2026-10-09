@@ -365,7 +365,8 @@ _CARETA = 2.8     # segundos que se ve el titulo
 # Ninguna escena se queda mas de esto en pantalla, la haya escrito Claude
 # larga o no ("¿esta garantizado que haya una escena cada 10 segundos?"):
 # la que se pasa se parte en trozos y cada trozo es otro dibujo.
-_MAX_PLANO = 10.0
+_MAX_PLANO = 7.0
+_MAX_SIGUE = 3     # planos seguidos como mucho sobre el mismo dibujo ("sigue")
 _FPS_MASCOTA = 25  # todo se pinta a 25: la camara y los personajes no paran
 _DESLIZA = 0.28    # lo que tarda cada plano en entrar de lado, con su "whoosh"
 _POSES_DE_RELEVO = ("señala", "brazos_arriba", "mirando", "de_pie")
@@ -525,12 +526,23 @@ def _acumula(anterior: dict | None, visual: dict) -> dict:
     que ya estaba se marca "_ya" para que no vuelva a aparecer de golpe."""
     if not anterior or not visual.get("sigue"):
         return visual
+    if anterior.get("_cadena", 1) >= _MAX_SIGUE:
+        # MUCHAS ESCENAS: el mismo dibujo creciendo no dura mas de unos pocos
+        # planos; luego folio nuevo, con lo nuevo (y Mokordo, que entra otra
+        # vez rebotando).
+        nuevo = {c: v for c, v in visual.items() if c != "sigue"}
+        nuevo["ambiente"] = nuevo.get("ambiente") or anterior.get("ambiente")
+        if anterior.get("mascota") and not nuevo.get("mascota"):
+            nuevo["mascota"] = {c: v for c, v in anterior["mascota"].items() if c != "_ya"}
+            nuevo["mascota"]["accion"] = "explica"
+        return nuevo
     # Los que ya estaban no vuelven a entrar; los nuevos si.
     antes = {str(f.get("quien")) for f in anterior.get("figuras") or [] if isinstance(f, dict)}
     figuras = [dict(f, _ya=True) if str(f.get("quien")) in antes else f
                for f in visual.get("figuras") or [] if isinstance(f, dict)]
     figuras = figuras or [dict(f, _ya=True) for f in anterior.get("figuras") or [] if isinstance(f, dict)]
-    v = {"sigue": True, "figuras": figuras, "ambiente": visual.get("ambiente") or anterior.get("ambiente")}
+    v = {"sigue": True, "figuras": figuras, "ambiente": visual.get("ambiente") or anterior.get("ambiente"),
+         "_cadena": anterior.get("_cadena", 1) + 1}
     if visual.get("mascota") or anterior.get("mascota"):
         v["mascota"] = dict(visual.get("mascota") or dict(anterior["mascota"], accion="explica"),
                             _ya=bool(anterior.get("mascota")))

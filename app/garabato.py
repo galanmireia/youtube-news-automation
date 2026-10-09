@@ -764,8 +764,14 @@ def encima(img: Image.Image, visual: dict, t: float, segundos: float) -> Image.I
         x, y = w*float(tx.get("x", 0.5)), h*float(tx.get("y", 0.2))
         px = _que_quepa(texto, px, min(x, w - x)*2*0.95)
         desde = float(tx["_t"]) if tx.get("_t") is not None and not tx.get("_ya") else 0.15 + k*0.35
-        _letrero(img, texto, (x, y), px, _color(tx.get("color"), "rojo"), float(tx.get("giro") or 0),
-                 _escala_pop(t - desde))
+        # Tampoco los letreros se quedan quietos: se balancean y laten un poco
+        # (en grados enteros y pasos de 2 px, para reutilizar las piezas).
+        fase = len(texto) + k*1.3
+        vaiven = round(3*math.sin(t*2.3 + fase))
+        late = 1 + 0.04*math.sin(t*3.1 + fase)
+        y += h*0.01*math.sin(t*1.9 + fase)
+        _letrero(img, texto, (x, y), px, _color(tx.get("color"), "rojo"), float(tx.get("giro") or 0) + vaiven,
+                 _escala_pop(t - desde)*late)
     return img
 
 
