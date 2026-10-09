@@ -199,8 +199,50 @@ def _whoosh(seg, rng):
     return x*np.sin(np.pi*t)**2*(0.3 + 0.7*t)
 
 
+def _ding(seg, rng):
+    """La idea: una campanita clara."""
+    n = int(max(seg, 0.6)*HZ); t = np.arange(n)/HZ
+    return sum(np.sin(2*np.pi*f*t)*np.exp(-t/dec)*a for f, dec, a in
+               ((1318, 0.35, 1.0), (2637, 0.18, 0.4), (3951, 0.1, 0.2)))
+
+
+def _tos(seg, rng):
+    """Una tos: dos golpes de aire roncos."""
+    n = int(max(seg, 0.45)*HZ); t = np.arange(n)/HZ
+    x = _filtra(_ruido(n, rng, color=0.5), bajo=250, alto=2200)
+    x = x/(np.max(np.abs(x)) + 1e-9)
+    env = np.exp(-((t - 0.05)/0.05)**2) + 0.7*np.exp(-((t - 0.25)/0.05)**2)
+    return x*env + 0.3*np.sin(2*np.pi*140*t)*env
+
+
+def _hic(seg, rng):
+    """El hipo: un 'hic' corto que sube."""
+    n = int(max(seg, 0.2)*HZ); t = np.arange(n)/HZ
+    tono = 300 + 900*t/0.12
+    return np.sin(2*np.pi*np.cumsum(tono)/HZ)*np.exp(-t/0.05) + \
+        0.4*_filtra(_ruido(n, rng), bajo=1500, alto=5000)*np.exp(-t/0.02)
+
+
+def _puf(seg, rng):
+    """Aterrizar: un 'puf' de polvo, blandito."""
+    n = int(max(seg, 0.3)*HZ); t = np.arange(n)/HZ
+    x = _filtra(_ruido(n, rng, color=1), bajo=60, alto=700)
+    x = x/(np.max(np.abs(x)) + 1e-9)
+    return x*np.exp(-t/0.08) + 0.5*np.sin(2*np.pi*90*t)*np.exp(-t/0.05)
+
+
+def _chispa(seg, rng):
+    """Brillitos: notas agudas sueltas."""
+    n = int(max(seg, 0.5)*HZ); x = np.zeros(n)
+    for k in range(5):
+        ini = int(k*0.07*HZ)
+        t = np.arange(n - ini)/HZ
+        x[ini:] += np.sin(2*np.pi*rng.uniform(2500, 4200)*t)*np.exp(-t/0.06)*0.6
+    return x
+
+
 EFECTOS = {
-    "pop": _pop, "whoosh": _whoosh,
+    "pop": _pop, "whoosh": _whoosh, "ding": _ding, "tos": _tos, "hic": _hic, "puf": _puf, "chispa": _chispa,
     "golpe": _golpe, "boing": _boing, "zas": _zas,
     "campana": _campana, "gentio": _gentio, "fuego": _fuego, "pasos": _pasos,
     "espada": _espada, "tormenta": _tormenta, "mar": _mar, "monedas": _monedas,

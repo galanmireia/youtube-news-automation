@@ -279,19 +279,21 @@ def _salta(t, dur, lado):
     u = ciclo/0.8
     levanta = max(0.0, math.sin(min(math.pi, u*math.pi*1.4)))*0.32
     estira = 1.18 if 0.05 < u < 0.65 else 0.82
-    return {"levanta": levanta, "estira": estira, "gesto": "riendo", "brazos": ((-80, -10), (-80, -10))}
+    polvo = max(0.0, 1 - (u - 0.68)/0.25) if u > 0.68 and t > 0.7 else 0.0
+    return {"levanta": levanta, "estira": estira, "gesto": "riendo", "brazos": ((-80, -10), (-80, -10)),
+            "polvo": polvo}
 
 
 def _piensa(t, dur, lado):
     rasca = math.sin(t*12)
     br = ((40, 40), (-125 + 10*rasca, 60)) if lado > 0 else ((-125 + 10*rasca, 60), (40, 40))
-    return {"dx": 0.03*math.sin(t*2), "inclina": -6*lado + 3*math.sin(t*2), "gesto": "neutro", "brazos": br,
+    return {"dx": 0.03*math.sin(t*2), "inclina": -6*lado + 3*math.sin(t*2), "gesto": "pensativo", "brazos": br,
             "puntos": True}
 
 
 def _asusta(t, dur, lado):
     retro = min(1.0, t/1.2)
-    return {"dx": -lado*0.25*_suave(retro), "temblor": 0.025*math.sin(t*60), "gesto": "asustado",
+    return {"dx": -lado*0.25*_suave(retro), "temblor": 0.025*math.sin(t*60), "gesto": "asustado", "sudor": True,
             "brazos": ((-110, 70), (-110, 70)), "inclina": -8*lado, "piernas": t*14 if t < 1.2 else None,
             "estira": 0.95}
 
@@ -356,7 +358,7 @@ def _explica(t, dur, lado):
 
 
 def _mareo(t, dur, lado):
-    return {"gesto": "sorpresa", "inclina": 18*math.sin(t*3), "dx": 0.05*math.sin(t*3),
+    return {"gesto": "mareado", "inclina": 18*math.sin(t*3), "dx": 0.05*math.sin(t*3),
             "brazos": ((-30 + 30*math.sin(t*5), 60), (-30 - 30*math.sin(t*5), 60))}
 
 
@@ -409,7 +411,7 @@ def postura(accion: str, t: float, dur: float, lado: int = 1) -> dict:
     p["estira"] = p["estira"]*(1 + (propia.pop("estira", 1.0) - 1)*_EXAGERA)
     p["inclina"] = p["inclina"] + propia.pop("inclina", 0.0)*_EXAGERA
     p.update(propia)
-    p["levanta"] = min(0.42, p.get("levanta", 0.0)*_EXAGERA)    # que no se salga por arriba
+    p["levanta"] = min(0.32, p.get("levanta", 0.0)*_EXAGERA)    # que no se salga por arriba
     # (Los saltitos de relleno, fuera: "sale el monigote botando todo el
     # rato y no se diferencia una escena de otra". Cada accion se mueve a su
     # manera y ya esta.)
@@ -482,6 +484,7 @@ def entrada(p: dict, tipo: str, t: float, x: float, w: int, h: float, suelo: flo
         p["inclina"] = p["inclina"] + 10*math.exp(-3*t)*math.sin(t*14)
         p["brazos"] = ((-120, 60), (-120, 60)) if cayendo else p.get("brazos")
         p["gesto"] = "sorpresa" if t < 0.7 else p.get("gesto")
+        p["polvo"] = max(p.get("polvo", 0.0), min(1.0, golpe*1.5))
     else:  # muelle
         crece = 1 - math.exp(-5.5*t)*math.cos(13*t)
         p["estira"] = max(0.55, p["estira"]*crece)
@@ -560,6 +563,24 @@ def pinta_estado(img, e: dict):
             x0 = e["cx"] - lado*h*0.35
             d.line([(x0, y), (x0 - lado*h*(0.25 + 0.08*k), y)], fill=(150, 146, 140),
                    width=max(3, int(h*0.012)))
+    if p.get("polvo", 0) > 0.05:
+        # el polvo de aterrizar: nubecitas que salen a los lados de los pies
+        k_ = 1 - p["polvo"]
+        for lado_ in (-1, 1):
+            for j in range(3):
+                rr_ = h*(0.025 + 0.03*k_)*(1 - j*0.2)
+                px_ = e["cx"] + lado_*h*(0.22 + 0.25*k_ + j*0.07)
+                py_ = e["suelo"] - h*(0.02 + 0.05*k_ + j*0.015)
+                d.ellipse([px_ - rr_, py_ - rr_, px_ + rr_, py_ + rr_], fill=(232, 228, 220), outline=(200, 196, 188))
+    if p.get("sudor"):
+        # gotas de sudor que salen volando de la cabeza
+        for j in range(2):
+            u_ = (e["t"]*1.6 + j*0.5) % 1.0
+            gx = cabeza[0] + (-1 if j else 1)*h*(0.2 + 0.15*u_)
+            gy = cabeza[1] - h*(0.22 - 0.25*u_*u_)
+            rg = h*0.025
+            d.polygon([(gx, gy - rg*1.8), (gx + rg, gy), (gx, gy + rg), (gx - rg, gy)], fill=(150, 205, 245),
+                      outline=TINTA)
     if p.get("tos", 0) > 0.3:
         boca = (cabeza[0] + lado*h*0.08, cabeza[1] + h*0.07)
         for k in range(3):

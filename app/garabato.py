@@ -24,6 +24,7 @@ x, y y tam en fracciones de la pantalla; "y" de una cosa es su CENTRO (sin
 import logging
 import math
 import random
+import re
 import zlib
 from functools import lru_cache
 from pathlib import Path
@@ -688,13 +689,18 @@ def _pieza_letrero(texto, px, relleno, giro):
     return pieza
 
 
-def _letrero(img, texto, xy, px, relleno, giro, escala=1.0):
-    if escala <= 0.05 or not texto:
+def _letrero(img, texto, xy, px, relleno, giro, escala=1.0, escribe=1.0):
+    """escribe < 1: se esta escribiendo, se ve solo esa parte (de izquierda
+    a derecha, como a rotulador)."""
+    if escala <= 0.05 or not texto or escribe <= 0:
         return
     # El tamaño en pasos de 2 px: asi el "pop" reutiliza piezas ya hechas.
     px = max(8, int(px*escala)//2*2)
     pieza = _pieza_letrero(texto, px, tuple(relleno), round(float(giro), 1))
-    img.paste(pieza, (int(xy[0] - pieza.width/2), int(xy[1] - pieza.height/2)), pieza)
+    x0, y0 = int(xy[0] - pieza.width/2), int(xy[1] - pieza.height/2)
+    if escribe < 1:
+        pieza = pieza.crop((0, 0, max(1, int(pieza.width*escribe)), pieza.height))
+    img.paste(pieza, (x0, y0), pieza)
 
 
 def _que_quepa(texto: str, px: float, ancho: float) -> float:
@@ -702,6 +708,25 @@ def _que_quepa(texto: str, px: float, ancho: float) -> float:
     f = _fuente(px)
     largo = f.getlength(texto) or 1
     return px*min(1.0, ancho/largo)
+
+
+def _contando(valor: str, t: float, dura: float = 0.9) -> str:
+    """El numero gigante CUENTA hasta su valor (0... 12... 35°C), con los
+    mismos decimales y lo que lleve detras."""
+    m_ = re.match(r"^([^\d]*)(\d+(?:[.,]\d+)?)(.*)$", valor)
+    if not m_ or t >= dura:
+        return valor
+    antes, num, despues = m_.groups()
+    if re.fullmatch(r"\d{1,3}(,\d{3})+", num):          # 1,000 = mil, no un decimal
+        objetivo = int(num.replace(",", ""))
+        return antes + f"{int(objetivo*(1 - (1 - max(0.0, t)/dura)**3)):,}" + despues
+    sep = "," if "," in num else "."
+    dec = len(num.split(sep)[1]) if sep in num else 0
+    objetivo = float(num.replace(",", "."))
+    u = max(0.0, t)/dura
+    actual = objetivo*(1 - (1 - u)**3)
+    texto = f"{actual:.{dec}f}"
+    return antes + (texto.replace(".", ",") if sep == "," else texto) + despues
 
 
 def encima(img: Image.Image, visual: dict, t: float, segundos: float) -> Image.Image:
@@ -724,7 +749,9 @@ def encima(img: Image.Image, visual: dict, t: float, segundos: float) -> Image.I
                              (cx + math.cos(a)*r1*e, cy + math.sin(a)*r1*e)], max(4, int(h*0.007)), rnd,
                          color=color, temblor=1.4)
         valor = str(cifra["valor"])[:10]
-        _letrero(img, valor, (cx, cy), _que_quepa(valor, h*0.36, w*0.7), color, -2, e)
+        tam_valor = _que_quepa(valor, h*0.36, w*0.7)
+        valor = _contando(valor, t - 0.1)
+        _letrero(img, valor, (cx, cy), tam_valor, color, -2, e)
         pie = str(cifra.get("pie") or "")[:70]
         if pie:
             _letrero(img, pie, (w*0.5, h*0.85), _que_quepa(pie, h*0.075, w*0.86), TINTA, 0,
@@ -781,8 +808,10 @@ def encima(img: Image.Image, visual: dict, t: float, segundos: float) -> Image.I
         vaiven = round(3*math.sin(t*2.3 + fase))
         late = 1 + 0.04*math.sin(t*3.1 + fase)
         y += h*0.01*math.sin(t*1.9 + fase)
+        # se escribe de izquierda a derecha en un momento (a rotulador)
+        escribe = 1.0 if tx.get("_ya") else min(1.0, max(0.0, (t - desde)/max(0.25, 0.04*len(texto))))
         _letrero(img, texto, (x, y), px, _color(tx.get("color"), "rojo"), float(tx.get("giro") or 0) + vaiven,
-                 _escala_pop(t - desde)*late)
+                 min(1.0, 0.7 + 0.3*escribe)*late if escribe < 1 else late, escribe=escribe)
     return img
 
 
@@ -1238,6 +1267,19 @@ def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA, mira=None, habla=None):
         elif gesto == "asco":
             _ojo_abierto(d, cx, ey + r*0.02, r, g, tinta, mira=(-lado*0.6, 0), grande=0.75 if lado < 0 else 1.0)
             _ceja(d, cx, ey, r, g, tinta, lado, inclina=1.2 if lado < 0 else -0.8, alto=0.0 if lado < 0 else 0.1)
+        elif gesto == "pensativo":
+            # mirando arriba, a un lado, con una ceja levantada
+            _ojo_abierto(d, cx, ey, r, g, tinta, mira=mira or (0.6, -0.8))
+            _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.8 if lado > 0 else 0.4, alto=0.16 if lado > 0 else 0.02)
+        elif gesto == "mareado":
+            # ojos en espiral
+            for k in range(3):
+                rk = r*(0.05 + 0.04*k)
+                d.arc([cx - rk, ey - rk, cx + rk, ey + rk], 90*k + (180 if lado > 0 else 0), 90*k + 270 +
+                      (180 if lado > 0 else 0), fill=tinta, width=max(2, g//2))
+        elif gesto == "confuso":
+            _ojo_abierto(d, cx, ey, r, g, tinta, mira=mira or (0, 0), grande=1.2 if lado > 0 else 0.8)
+            _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.6 if lado > 0 else 0.8, alto=0.1)
         elif gesto == "bostezo":
             d.line([(cx - r*0.12, ey + r*0.02), (cx + r*0.12, ey + r*0.02)], fill=tinta, width=max(3, g))
             _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.5, alto=0.04)
@@ -1249,7 +1291,7 @@ def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA, mira=None, habla=None):
         for lado in (-1, 1):
             mx = c[0] + lado*r*0.52
             d.ellipse([mx - r*0.13, b[1] - r*0.2, mx + r*0.13, b[1] - r*0.06], fill=_ROSA_MOFLETE)
-    if habla is not None and habla >= 0.12 and gesto not in ("riendo", "asustado", "grito", "bostezo"):
+    if habla is not None and habla >= 0.12 and gesto not in ("riendo", "asustado", "grito", "bostezo", "mareado"):
         # HABLANDO: la boca se abre con la voz (y se ve la lengua si abre mucho)
         ancho_b, alto_b = r*(0.24 + 0.12*habla), r*(0.1 + 0.42*habla)
         sube = r*0.06 if gesto in ("contento", "enamorado") else 0
@@ -1281,6 +1323,12 @@ def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA, mira=None, habla=None):
         d.line(pts, fill=tinta, width=max(3, g))
         d.chord([b[0] + r*0.02, b[1] - r*0.02, b[0] + r*0.22, b[1] + r*0.24], 0, 180, fill=_LENGUA,
                 outline=tinta, width=max(2, g//2))
+    elif gesto == "pensativo":
+        # "mmm": la boca pequeña y torcida a un lado
+        d.line([(b[0] + r*0.02, b[1] + r*0.04), (b[0] + r*0.22, b[1] - r*0.02)], fill=tinta, width=max(3, g))
+    elif gesto in ("mareado", "confuso"):
+        pts = [(b[0] - r*0.24 + k*r*0.06, b[1] + r*0.04*math.sin(k*1.6)) for k in range(9)]
+        d.line(pts, fill=tinta, width=max(3, g), joint="curve")
     elif gesto == "bostezo":
         d.ellipse([b[0] - r*0.18, b[1] - r*0.16, b[0] + r*0.18, b[1] + r*0.38], fill=tinta)
         d.ellipse([b[0] - r*0.1, b[1] + r*0.14, b[0] + r*0.1, b[1] + r*0.32], fill=_LENGUA)
@@ -1494,6 +1542,13 @@ def _transicion(img, tipo, s):
         dx = {"derecha": w, "izquierda": -w}.get(tipo, 0)*(1 - e)
         dy = {"abajo": h, "arriba": -h}.get(tipo, 0)*(1 - e)
         lienzo.paste(img, (int(dx), int(dy)))
+        if s < 0.8:
+            # la estela del barrido (como un desenfoque de movimiento)
+            for k, alfa in ((1, 0.35), (2, 0.18)):
+                atras = Image.new("RGB", (w, h), garabato_ambiente.PAPEL)
+                atras.paste(img, (int(dx + (dx and math.copysign(w*0.06*k*(1 - e), dx))),
+                                  int(dy + (dy and math.copysign(h*0.06*k*(1 - e), dy)))))
+                lienzo = Image.blend(lienzo, atras, alfa*(1 - s))
         return lienzo
     if tipo == "zoom":
         k = max(0.05, 1 - math.exp(-6*s)*math.cos(9*s)*0.75)
@@ -1725,7 +1780,28 @@ def sonidos_del_plano(visual: dict, segundos: float) -> list:
         if not f.get("_ya"):
             llegan.append((_mascota.tipo_entrada(_mascota.semilla_entrada(f)), retraso + 0.22*i))
     for tipo, t0 in llegan:
-        salida.append(("whoosh", t0, 0.35) if tipo == "pared" else ("pop", t0 + (0.42 if tipo == "cae" else 0.05), 0.25))
+        if tipo == "pared":
+            salida.append(("whoosh", t0, 0.35))
+        elif tipo == "cae":
+            salida.append(("puf", t0 + 0.42, 0.3))
+        else:
+            salida.append(("pop", t0 + 0.05, 0.25))
+    # El sonido de lo que hace cada uno: la tos, el hipo, los pasos, el polvo
+    # al aterrizar de un salto, el "ding" de una idea.
+    quienes = ([ma] if ma else []) + [f for f in e.get("figuras", []) if isinstance(f, dict)]
+    for q in quienes:
+        accion = str(q.get("accion") or "").lower()
+        efecto = str(q.get("efecto") or "").lower()
+        if accion == "tose":
+            salida += [("tos", 0.1 + k*1.1, 0.45) for k in range(int(segundos/1.1) + 1)]
+        elif accion == "borracho":
+            salida += [("hic", 0.05 + k*1.7, 0.2) for k in range(int(segundos/1.7) + 1)]
+        elif accion == "salta":
+            salida += [("puf", 0.54 + k*0.8, 0.3) for k in range(1, int(segundos/0.8) + 1)]
+        elif accion in ("anda", "corre"):
+            salida.append(("pasos", 0.0, max(0.5, segundos)))
+        if efecto in ("idea", "bombilla", "bulb", "lightbulb"):
+            salida += [("ding", 0.25, 0.7), ("chispa", 0.3, 0.5)]
     for c in e.get("_pop", []):
         if c.get("_ya"):
             continue
