@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 from .garabato_mas import MAS_OBJETOS, REHECHOS
 from .garabato_bichos import ANIMALES
 from . import garabato_ambiente
+from . import garabato_mas
 from . import interaccion
 from . import mascota as _mascota
 
@@ -1330,6 +1331,12 @@ def _en_la_mano(img, est):
     pieza, pcx, pbase = _pieza_cosa(que, tam, max(3, int(img.width*0.0045)))
     if pieza.width < 2:
         return
+    if que == "cigarrillo" and o.get("consumo") is not None:
+        # el cigarro que se va gastando, cogido por el filtro
+        pieza = _pieza_cigarro(tam, max(2, int(img.width*0.003)), round(float(o["consumo"]), 2),
+                               round(float(o.get("ceniza", 0.0)), 1))
+        _pega_girada(img, pieza, tam*0.17, pieza.height/2, float(o.get("giro", 0.0)), mano[0], mano[1])
+        return
     if o.get("modo") == "punta":
         # cogida por abajo, y su punta hacia donde va (o siguiendo el brazo)
         destino = o.get("apunta") or (mano[0] + (mano[0] - codo[0]), mano[1] + (mano[1] - codo[1]))
@@ -1342,6 +1349,16 @@ def _en_la_mano(img, est):
         dx, dy = o.get("desplaza", (0.0, 0.0))
         _pega_girada(img, pieza, pieza.width/2, pieza.height*0.55, float(o.get("giro", 0.0)),
                      mano[0] + dx*est["h"], mano[1] - pieza.height*0.05 + dy*est["h"])
+
+
+@lru_cache(maxsize=64)
+def _pieza_cigarro(t: int, g: int, consumo: float, ceniza: float):
+    """El cigarro gastado en `consumo`, recortado: el filtro a la izquierda."""
+    w, h = int(t*1.6), int(t*0.6)
+    pieza = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    garabato_mas.cigarro(ImageDraw.Draw(pieza), t*0.55, h*0.5 + t*0.3 - t*0.08, t, g, consumo=consumo, ceniza=ceniza)
+    caja = pieza.getbbox() or (0, 0, w, h)
+    return pieza.crop((caja[0], 0, caja[2], h))
 
 
 def _humo(img, pos, r, alfa):
@@ -1499,6 +1516,11 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
             for o in vuelan:
                 if o["que"] == "humo":
                     _humo(img, o["pos"], o["tam"], o.get("alfa", 0.8))
+                    continue
+                if o["que"] == "ceniza":
+                    cx_, cy_ = o["pos"]
+                    ImageDraw.Draw(img).ellipse([cx_ - o["tam"], cy_ - o["tam"]*0.5, cx_ + o["tam"], cy_ + o["tam"]*0.5],
+                                                fill=(150, 150, 155))
                     continue
                 if nombre_objeto(o["que"]) not in OBJETOS_TODOS:
                     continue

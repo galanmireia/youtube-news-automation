@@ -135,6 +135,8 @@ advert - the whole video exists so that people DON'T do it. LEGAL ones (tobacco,
 alcohol, caffeine, energy drinks): Mokordo can be SEEN taking it, in a few shots, never looking
 cool: "hace" "fuma" with "cigarrillo" or "vapeador" (smoke clouds, then "accion": "tose"), "bebe"
 with "cerveza", "copa", "taza" or "lata", "accion": "borracho" for drunk (staggers, hiccups).
+The cigarette burns down by itself while he smokes. To show time passing: "cenicero" (a few
+butts) -> "cenicero_lleno" (overflowing) with "etiqueta": "DAY 1" / "DAY 30"; "colilla" = a butt.
 ILLEGAL drugs: NEVER show or describe how they are taken (no injecting, snorting or smoking it):
 just the object ("pastilla") appears and we jump to the effects. Never doses, where to get it,
 tips, or anything that makes it look cool. Show the addiction (wanting more, needing more),

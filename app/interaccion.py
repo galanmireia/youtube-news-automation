@@ -275,10 +275,20 @@ def planifica(estados: list, cosas: dict, ancho: int, t: float) -> list:
                 e["gesto"] = "neutro"
             if con:
                 vaper = "vape" in str(con) or con == "vapeador"
+                # el cigarro se va gastando: uno entero en unos 12 segundos, y
+                # la ceniza crece y se cae cada poco
+                consumo = min(0.92, max(0.0, v/12.0))
+                ceniza = (v/2.2) % 1.0
                 e["objeto"] = {"que": con, "modo": "centro", "escala": 0.75 if not vaper else 0.65,
                                "giro": (0 if s > 0 else 180) if not vaper else -s*70,
-                               "desplaza": (s*0.1, 0.0) if not vaper else (0.0, -0.05)}
-                punta = (mano[0] + s*e["h"]*0.2, mano[1] - e["h"]*0.06)
+                               "desplaza": (s*0.1, 0.0) if not vaper else (0.0, -0.05),
+                               "consumo": consumo if not vaper else None, "ceniza": ceniza}
+                tam = e["h"]*0.36*0.75
+                punta = (mano[0] + s*tam*(0.11 + 0.72*(1 - 0.9*consumo) + 0.06 + 0.22*ceniza), mano[1])
+                if not vaper and ceniza < 0.3 and v > 2.2:
+                    # la ceniza que se acaba de caer
+                    vuelan.append({"que": "ceniza", "pos": (punta[0] - s*tam*0.1, punta[1] + (ceniza/0.3)*e["h"]*0.35),
+                                   "tam": tam*0.06})
                 if not vaper:
                     for k in range(3):        # el hilo de humo de la punta
                         u2 = ((v*0.8 + k/3) % 1.0)

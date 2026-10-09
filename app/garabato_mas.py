@@ -1457,18 +1457,64 @@ def _palo_espuma(d, x, y, t, rnd, g, tinta=TINTA):
 # Lo de los videos de "y si Mokordo tomara...": el tabaco, el vaper y el
 # alcohol (lo legal se ve como se toma; lo ilegal, solo el objeto).
 # ---------------------------------------------------------------------------
-def _cigarrillo(d, x, y, t, rnd, g, tinta=TINTA):
-    """Tumbado: el filtro naranja a la izquierda, la brasa y la ceniza a la derecha."""
+def cigarro(d, x, y, t, g, consumo=0.0, ceniza=0.0, encendido=True):
+    """El cigarro tumbado (filtro a la izquierda) gastado en `consumo` (0-1):
+    el papel blanco se acorta, la ceniza gris crece en la punta y la brasa
+    brilla. Apagado y gastado del todo es la colilla."""
     largo, alto = t*1.0, t*0.16
     x0, y0 = x - largo/2, y - t*0.3
-    _caja(d, [x0, y0, x0 + largo*0.28, y0 + alto], NARANJA, g)
+    filtro = largo*0.28
+    papel = (largo - filtro)*(1 - 0.9*min(1.0, max(0.0, consumo)))
+    _caja(d, [x0, y0, x0 + filtro, y0 + alto], NARANJA, g)
     for k in range(3):
-        px = x0 + largo*(0.06 + k*0.08)
+        px = x0 + filtro*(0.2 + k*0.3)
         d.ellipse([px - g*0.5, y0 + alto*0.35, px + g*0.5, y0 + alto*0.65], fill=(200, 110, 20))
-    _caja(d, [x0 + largo*0.28, y0, x0 + largo*0.9, y0 + alto], BLANCO, g)
-    _caja(d, [x0 + largo*0.9, y0, x0 + largo, y0 + alto], GRIS, g)
-    d.ellipse([x0 + largo*0.93, y0 + alto*0.15, x0 + largo*1.03, y0 + alto*0.85], fill=(255, 90, 30))
-    d.ellipse([x0 + largo*0.96, y0 + alto*0.3, x0 + largo*1.01, y0 + alto*0.7], fill=(255, 210, 80))
+    fin = x0 + filtro + papel
+    if papel > g:
+        _caja(d, [x0 + filtro, y0, fin, y0 + alto], BLANCO, g)
+    if encendido:
+        gris = largo*0.04 + largo*0.22*min(1.0, max(0.0, ceniza))
+        _caja(d, [fin, y0 + alto*0.06, fin + gris, y0 + alto*0.94], (165, 165, 170), g)
+        for k in range(int(gris/(g*3))):
+            px = fin + g*1.5 + k*g*3
+            d.line([(px, y0 + alto*0.2), (px, y0 + alto*0.8)], fill=(130, 130, 135), width=max(1, g//3))
+        d.ellipse([fin - alto*0.25, y0 + alto*0.1, fin + alto*0.35, y0 + alto*0.9], fill=(255, 90, 30))
+        d.ellipse([fin - alto*0.05, y0 + alto*0.3, fin + alto*0.2, y0 + alto*0.7], fill=(255, 210, 80))
+    else:
+        d.line([(fin, y0 + alto*0.15), (fin - g, y0 + alto*0.5), (fin + g*0.5, y0 + alto*0.85)], fill=GRIS_OSCURO,
+               width=g)
+
+
+def _cigarrillo(d, x, y, t, rnd, g, tinta=TINTA):
+    cigarro(d, x, y, t, g)
+
+
+def _colilla(d, x, y, t, rnd, g, tinta=TINTA):
+    """La colilla apagada y aplastada."""
+    cigarro(d, x, y + t*0.25, t, g, consumo=1.0, encendido=False)
+
+
+def _cenicero_de(colillas):
+    def _cenicero(d, x, y, t, rnd, g, tinta=TINTA):
+        """El cenicero, con sus colillas (lleno: el paso de los dias)."""
+        _ov(d, [x - t*0.5, y - t*0.36, x + t*0.5, y - t*0.12], (120, 130, 140), g)
+        d.ellipse([x - t*0.38, y - t*0.32, x + t*0.38, y - t*0.17], fill=(90, 90, 95))
+        rr = random.Random(9)
+        for k in range(colillas):
+            cx_ = x + rr.uniform(-t*0.3, t*0.3)
+            cy_ = y - t*0.26 - rr.uniform(0, t*0.1*(1 + colillas/8))
+            ancho, alto = t*0.34, t*0.06
+            ang = math.radians(rr.uniform(-35, 35))
+            ca, sa = math.cos(ang), math.sin(ang)
+            gira = lambda px, py: (cx_ + px*ca - py*sa, cy_ + px*sa + py*ca)
+            d.polygon([gira(-ancho/2, -alto), gira(ancho/2, -alto), gira(ancho/2, alto), gira(-ancho/2, alto)],
+                      fill=BLANCO, outline=TINTA)
+            d.polygon([gira(-ancho/2, -alto), gira(-ancho*0.1, -alto), gira(-ancho*0.1, alto), gira(-ancho/2, alto)],
+                      fill=NARANJA, outline=TINTA)
+            d.line([gira(ancho/2, -alto), gira(ancho/2, alto)], fill=GRIS_OSCURO, width=max(2, g//2))
+        # el borde de delante, por encima de las colillas
+        d.chord([x - t*0.5, y - t*0.5, x + t*0.5, y], 0, 180, fill=(150, 160, 170), outline=TINTA, width=g)
+    return _cenicero
 
 
 def _cerveza(d, x, y, t, rnd, g, tinta=TINTA):
@@ -1542,7 +1588,8 @@ MAS_OBJETOS = {
     "candado": _candado, "iman": _iman, "regalo": _regalo, "trofeo": _trofeo, "dado": _dado,
     "altavoz": _altavoz, "atomo": _atomo, "diana": _diana, "balanza": _balanza, "pesa": _pesa,
     "robot": _robot, "moneda": _moneda, "engranaje": _engranaje, "escudo": _escudo,
-    "palo_espuma": _palo_espuma, "cigarrillo": _cigarrillo, "cerveza": _cerveza, "copa": _copa,
+    "palo_espuma": _palo_espuma, "cigarrillo": _cigarrillo, "colilla": _colilla,
+    "cenicero": _cenicero_de(3), "cenicero_lleno": _cenicero_de(14), "cerveza": _cerveza, "copa": _copa,
     "vapeador": _vapeador,
 }
 # Los rehechos ganan a los de antes (y a los de España Contada, solo aqui).
