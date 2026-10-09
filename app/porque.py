@@ -19,7 +19,7 @@ import shutil
 import time
 from pathlib import Path
 
-from . import garabato, llm_usage, mascota, monigotes
+from . import garabato, interaccion, llm_usage, mascota, monigotes
 from .config import CHANNEL_NAME, DATA_DIR, MUSIC_VOLUME
 from .largo import (FPS, LargoError, _FPS_DIBUJO, _ffmpeg, _json_de, _pregunta, _tuberia,
                     _voz_google)
@@ -38,6 +38,7 @@ _PAUSA_PLANO = 0.25
 # que solo existe aqui (manos en la cabeza, tumbado, muerto, calor, frio).
 _POSES = tuple(monigotes.POSES_VALIDAS) + garabato.POSES_EXTRA
 _ACCIONES = "; ".join(f'"{k}" = {v[1]}' for k, v in mascota.ACCIONES.items())
+_VERBOS = "; ".join(f'"{k}" = {v}' for k, v in interaccion.VERBOS.items())
 _GESTOS = tuple(monigotes.GESTOS_VALIDOS) + garabato.GESTOS_EXTRA
 _EFECTOS = ("sorpresa", "idea", "mareo", "confuso", "zzz", "enamorado", "sudor", "lagrimas", "humo",
             "caida", "salto", "temblor") + garabato.EFECTOS_EXTRA
@@ -71,7 +72,7 @@ it is not in the lists, it cannot be drawn. A visual has any of:
   "mascota": THE CHANNEL'S MASCOT, the star of every video: MOKORDO, a round purple drop with a
              "?" for hair. It is always moving. {{"accion": one of {acciones}, "x": 0.15-0.85,
              "espejo": true to face left, "gesto": a face from the list to override the action's,
-             "efecto": optional}}. Put it in MOST shots, doing what the sentence says (it is the
+             "efecto": optional, "hace": optional, see DOING THINGS}}. Put it in MOST shots, doing what the sentence says (it is the
              viewer's buddy living the story): it enters hopping at the start of a section, thinks,
              points at the thing being explained, jumps when there is an idea, gets scared,
              laughs... Leave it out only for giant numbers or pure diagrams. The other characters
@@ -86,7 +87,8 @@ it is not in the lists, it cannot be drawn. A visual has any of:
              on their head): they do it once and stay - otherwise omit it,
              "gesto": one of {gestos}, "efecto": one of {efectos} or omit,
              "lleva": what they hold: any object of the "cosas" list (a feather, a phone...)
-             or one of {llevables}, or omit; "espejo": true to face left}}
+             or one of {llevables}, or omit; "espejo": true to face left, "hace": optional, see
+             DOING THINGS}}
   "cosas":   0-5 objects: {{"que": one of {objetos}, "cuando": "two fans", "x": 0.05-0.95, "tam": 0.06-0.55 (height,
              fraction of the screen), "y": 0.1-0.9 = its CENTER if it floats (omit "y" and it
              stands at the bottom, level with the people's feet), "etiqueta": "CAMEL" = a small
@@ -106,6 +108,22 @@ it is not in the lists, it cannot be drawn. A visual has any of:
              (only the new ones appear). Build a drawing up step by step, the way Whymentary does:
              the fan... then the person sweating next to it... then the thermometer going up.
              Use it a lot: 2-4 shots in a row building one drawing, then a fresh page.
+DOING THINGS ("hace"): Mokordo and the figuras can DO things to things and to each other:
+  "hace": {{"verbo": one of {verbos},
+           "a": who or what they do it to: "pie" / "barriga" / "cabeza" / "boca" = their OWN foot,
+                belly, head, mouth; another character on the page by its quien ("persona",
+                "persona_b", "nino", "abuelo", "mokordo"; "persona:pie" = that person's foot); or an
+                object on the page by its "que" ("perro", "cerebro"),
+           "con": the object in their hand (any of the "cosas" list), "cuando": the words at which
+                they start}}
+  ACT IT OUT, LITERALLY: whenever the narration says someone does something physical, the drawing
+  SHOWS THEM DOING IT with "hace" - never a character just standing next to the object. "Grab a
+  feather and try to tickle your own foot" -> Mokordo {{"hace": {{"verbo": "cosquillas", "a": "pie",
+  "con": "pluma"}}}}. "Now let someone else tickle you" -> a figura with {{"verbo": "cosquillas",
+  "a": "mokordo", "con": "pluma"}} (Mokordo laughs and squirms by himself). "She hands him a
+  coin" -> "da" with "con": "moneda". "Drink a glass of cold water" -> "bebe" with "vaso". "Scientists
+  looked at the brain" -> the abuelo "mira" "a": "cerebro" (with the cerebro in "cosas"). The
+  viewer must SEE what the voice says.
 "cuando" = the exact words of THIS shot's narration at which that thing pops in. THINGS APPEAR
 WHEN THE VOICE NAMES THEM: "with one fan it's hot... but with TWO fans" - the second fan pops in
 on "two fans". Give every object, word and arrow its "cuando", in the order they are said, so the
@@ -254,7 +272,7 @@ def alarga(guion: dict, sistema: str, indice: str) -> list[str]:
 def _sistema(tema: str) -> str:
     dosier = _dosier(tema)
     return _INSTRUCCIONES.format(
-        canal=CHANNEL_NAME, acciones=_ACCIONES, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
+        canal=CHANNEL_NAME, acciones=_ACCIONES, verbos=_VERBOS, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
         gestos=_lista(_GESTOS), efectos=_lista(_EFECTOS),
         llevables=_lista(monigotes.LLEVABLES_EXPLICADOS), objetos=_lista(garabato.OBJETOS_VALIDOS),
         colores=_lista(garabato.COLORES), ambientes=_lista(garabato.garabato_ambiente.AMBIENTES),
@@ -292,7 +310,7 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
                "efecto": set(monigotes.EFECTOS_VALIDOS) | set(_EFECTOS),
                "lleva": set(monigotes.LLEVABLES_EXPLICADOS) | set(garabato.OBJETOS_VALIDOS),
                "quien": set(garabato.QUIENES)}
-    faltan, pedidos, usados = Counter(), [], Counter()
+    faltan, pedidos, usados, hacen = Counter(), [], Counter(), Counter()
     planos = 0
     palabras = 0
     for n, cap in enumerate(guion.get("capitulos") or [], start=1):
@@ -306,6 +324,16 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
                 que = garabato.nombre_objeto((c or {}).get("que"))
                 if que:
                     (usados if que in validos["que"] else faltan)[que if que in validos["que"] else f"objeto {que}"] += 1
+            for x in [v.get("mascota")] + list(v.get("figuras") or []):
+                h = (x or {}).get("hace") if isinstance(x, dict) else None
+                if isinstance(h, dict):
+                    verbo = str(h.get("verbo") or "").lower()
+                    if verbo not in interaccion.VERBOS:
+                        faltan[f"accion {verbo}"] += 1
+                    con = garabato.nombre_objeto(h.get("con"))
+                    if con and con not in validos["que"]:
+                        faltan[f"objeto {con}"] += 1
+                    hacen[verbo] += 1
             for f in v.get("figuras") or []:
                 for campo in ("quien", "pose", "pose_fin", "gesto", "efecto", "lleva"):
                     val = str((f or {}).get(campo) or "").lower()
@@ -319,7 +347,8 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
         lineas.append(f"{n}. {cap.get('titulo')} ({len(cap.get('planos') or [])} planos)")
     minutos = palabras/150
     lineas += ["", f"{planos} planos, {palabras} palabras (unos {minutos:.1f} minutos)",
-               "Objetos: " + ", ".join(f"{u} {c}" for u, c in usados.most_common(15))]
+               "Objetos: " + ", ".join(f"{u} {c}" for u, c in usados.most_common(15)),
+               "Acciones: " + (", ".join(f"{u} {c}" for u, c in hacen.most_common()) or "ninguna")]
     if minutos < 10.3:
         lineas.append(f"⚠️ Puede quedarse corto: {minutos:.1f} minutos calculados (minimo 10).")
     lista = [f"{x} (x{c})" for x, c in faltan.most_common()] + pedidos
@@ -441,6 +470,20 @@ def _al_nombrarlo(visual: dict, texto: str, hablado: float) -> dict:
                     x = dict(x, _t=round(max(0.1, k/len(frase)*hablado), 2))
             salida.append(x)
         v[campo] = salida
+    # Lo que HACEN ("hace"): empiezan cuando la voz lo dice.
+    def _hora(x):
+        h = x.get("hace") if isinstance(x, dict) else None
+        if not isinstance(h, dict) or not h.get("cuando") or x.get("_ya"):
+            return x
+        aguja = _normal(h["cuando"])
+        k = frase.find(aguja) if aguja else -1
+        if k < 0 and aguja:
+            larga = max(aguja.split(), key=len)
+            k = frase.find(larga) if len(larga) > 3 else -1
+        return dict(x, hace=dict(h, _t=round(max(0.3, k/len(frase)*hablado), 2))) if k >= 0 else x
+    if isinstance(v.get("mascota"), dict):
+        v["mascota"] = _hora(v["mascota"])
+    v["figuras"] = [_hora(f) for f in v.get("figuras") or []]
     # NUNCA EL FOLIO EN BLANCO ESPERANDO ("se queda la pantalla en blanco y
     # tienes que esperar a ver que sale"): si al empezar no hay nadie ni nada,
     # lo primero que se nombra esta desde el principio.
@@ -463,10 +506,18 @@ def _desde(visual: dict, segundo: float) -> dict:
     if segundo <= 0:
         return visual
     v = dict(visual)
-    # Los personajes ya entraron en el trozo anterior.
-    v["figuras"] = [dict(f, _ya=True) for f in visual.get("figuras") or [] if isinstance(f, dict)]
+    # Los personajes ya entraron en el trozo anterior; lo que estaban
+    # haciendo sigue (ya se habian acercado), y lo que aun no, a su hora.
+    def _sigue(x):
+        x = dict(x, _ya=True)
+        h = x.get("hace")
+        if isinstance(h, dict):
+            t0 = float(h["_t"]) if h.get("_t") is not None else interaccion.ARRANCA
+            x["hace"] = dict(h, _t=t0 - segundo)
+        return x
+    v["figuras"] = [_sigue(f) for f in visual.get("figuras") or [] if isinstance(f, dict)]
     if isinstance(visual.get("mascota"), dict):
-        v["mascota"] = dict(visual["mascota"], _ya=True)
+        v["mascota"] = _sigue(visual["mascota"])
     for campo in ("cosas", "textos", "flechas"):
         salida = []
         for x in visual.get(campo) or []:
@@ -540,12 +591,14 @@ def _acumula(anterior: dict | None, visual: dict) -> dict:
     antes = {str(f.get("quien")) for f in anterior.get("figuras") or [] if isinstance(f, dict)}
     figuras = [dict(f, _ya=True) if str(f.get("quien")) in antes else f
                for f in visual.get("figuras") or [] if isinstance(f, dict)]
-    figuras = figuras or [dict(f, _ya=True) for f in anterior.get("figuras") or [] if isinstance(f, dict)]
+    figuras = figuras or [{c: x for c, x in f.items() if c != "hace"} | {"_ya": True}
+                          for f in anterior.get("figuras") or [] if isinstance(f, dict)]
     v = {"sigue": True, "figuras": figuras, "ambiente": visual.get("ambiente") or anterior.get("ambiente"),
          "_cadena": anterior.get("_cadena", 1) + 1}
     if visual.get("mascota") or anterior.get("mascota"):
-        v["mascota"] = dict(visual.get("mascota") or dict(anterior["mascota"], accion="explica"),
-                            _ya=bool(anterior.get("mascota")))
+        llega = visual.get("mascota") or {c: x for c, x in anterior["mascota"].items() if c != "hace"} | {
+            "accion": "explica"}
+        v["mascota"] = dict(llega, _ya=bool(anterior.get("mascota")))
     for campo, tope in (("cosas", 5), ("textos", 3), ("flechas", 3)):
         viejos = [dict(x, _ya=True) for x in anterior.get(campo) or [] if isinstance(x, dict)]
         nuevos = [x for x in visual.get(campo) or [] if isinstance(x, dict)]
@@ -803,7 +856,7 @@ def retoca(guion: dict) -> int:
                                    "visual": p.get("visual")}, ensure_ascii=False)
                        for i, p in pendientes)
     sistema = _INSTRUCCIONES.format(
-        canal=CHANNEL_NAME, acciones=_ACCIONES, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
+        canal=CHANNEL_NAME, acciones=_ACCIONES, verbos=_VERBOS, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
         gestos=_lista(_GESTOS), efectos=_lista(_EFECTOS),
         llevables=_lista(monigotes.LLEVABLES_EXPLICADOS), objetos=_lista(garabato.OBJETOS_VALIDOS),
         colores=_lista(garabato.COLORES), ambientes=_lista(garabato.garabato_ambiente.AMBIENTES),

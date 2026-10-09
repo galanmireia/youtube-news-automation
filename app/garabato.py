@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 from .garabato_mas import MAS_OBJETOS, REHECHOS
 from .garabato_bichos import ANIMALES
 from . import garabato_ambiente
+from . import interaccion
 from . import mascota as _mascota
 
 # La letra de Whymentary: rotulador redondo, trazo parejo (Architects
@@ -806,6 +807,8 @@ def _spec(visual: dict) -> dict:
     for f, pedido in zip(e["figuras"], figuras):
         if pedido.get("_ya"):
             f["_ya"] = True       # ya estaba en el plano anterior: no vuelve a entrar
+        if isinstance(pedido.get("hace"), dict):
+            f["hace"] = pedido["hace"]     # lo que hace con algo o con alguien
     for f, pedido in zip(e["figuras"], pedidos):
         for campo in ("pose", "pose_fin"):
             if pedido[campo] == "manos_cabeza":
@@ -1294,6 +1297,45 @@ def _vida(img, e, cabezas, t, n):
     return img
 
 
+def _pega_girada(img, pieza, ax, ay, giro, x, y):
+    """Pega la pieza girada `giro` grados sobre su punto (ax, ay), que cae en (x, y)."""
+    if abs(giro) < 0.5:
+        img.paste(pieza, (int(x - ax), int(y - ay)), pieza)
+        return
+    vx, vy = ax - pieza.width/2, ay - pieza.height/2
+    girada = pieza.rotate(giro, resample=Image.BILINEAR, expand=True)
+    a = math.radians(giro)
+    nx = girada.width/2 + vx*math.cos(a) + vy*math.sin(a)
+    ny = girada.height/2 - vx*math.sin(a) + vy*math.cos(a)
+    img.paste(girada, (int(x - nx), int(y - ny)), girada)
+
+
+def _en_la_mano(img, est):
+    """Lo que lleva mientras hace algo: la pluma por el canon apuntando a
+    donde hace cosquillas, el vaso inclinado hacia la boca, la manzana..."""
+    o = est["objeto"]
+    lado = est["lado"]
+    codo, mano = _mascota.BRAZOS.get(lado, (None, None))
+    que = nombre_objeto(o.get("que"))
+    if mano is None or que not in OBJETOS_TODOS:
+        return
+    tam = max(8, int(est["h"]*0.36*float(o.get("escala", 1.0))))
+    pieza, pcx, pbase = _pieza_cosa(que, tam, max(3, int(img.width*0.0045)))
+    if pieza.width < 2:
+        return
+    if o.get("modo") == "punta":
+        # cogida por abajo, y su punta hacia donde va (o siguiendo el brazo)
+        destino = o.get("apunta") or (mano[0] + (mano[0] - codo[0]), mano[1] + (mano[1] - codo[1]))
+        vx, vy = destino[0] - mano[0], destino[1] - mano[1]
+        if math.hypot(vx, vy) < 1:
+            vx, vy = lado, -1
+        giro = math.degrees(math.atan2(-vx, -vy))
+        _pega_girada(img, pieza, pcx, pbase, giro, mano[0], mano[1])
+    else:
+        _pega_girada(img, pieza, pieza.width/2, pieza.height*0.55, float(o.get("giro", 0.0)), mano[0],
+                     mano[1] - pieza.height*0.05)
+
+
 def _camara_viva(img, t, dur, mueve, golpes):
     """LA CAMARA QUE NUNCA ESTA QUIETA ("mas movimiento, mucho mas"): en cada
     plano se acerca o se aleja y se desliza hacia un lado (cada plano a su
@@ -1374,6 +1416,13 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
     e["figuras"] = []
     camara = None          # la familia ya trae su camara que respira
     paso_hervor = max(1, round(fps/6))
+    # Donde esta cada cosa del folio, por si alguien hace algo con ella
+    # (acariciar al perro, mirar el cerebro con la lupa).
+    sitios = {}
+    for c in e.get("_pop", []):
+        t_ = alto*float(c.get("tam", 0.14))
+        y_ = alto*float(c["y"]) if c.get("y") is not None else pies
+        sitios[c["que"]] = (ancho*float(c.get("x", 0.5)), y_ - t_*0.5, t_)
     mueve = zlib.crc32(repr(sorted((visual or {}).items(), key=str)).encode())
     golpes, nuevas = [], 0
     for c in e.get("_pop", []):
@@ -1398,21 +1447,40 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
             reloj = n/fps
             img = _vida(img, e, list(cabezas), reloj, n)
             doodles = dict(e.get("_doodles", []))
-            for i, fig in sorted(enumerate(familia), key=lambda par: par[1].get("x", 0.5)):
-                cab, manos, hf = _mascota.personaje(img, fig, reloj, segundos, pies, ancho, alto)
-                if fig.get("lleva") in OBJETOS_TODOS and manos:
-                    pieza, pcx, pbase = _pieza_cosa(fig["lleva"], int(hf*0.4), max(3, int(ancho*0.0045)))
-                    mx, my = manos[1]
-                    img.paste(pieza, (int(mx - pcx), int(my - pbase + hf*0.15)), pieza)
-                if i in doodles:
-                    _garabato_en_cabeza(img, ImageDraw.Draw(img), doodles[i], cab, reloj,
-                                        random.Random(n//paso_hervor))
+            # Primero como esta cada uno; luego lo que hacen entre ellos
+            # (acercarse, la mano al pie, el otro riendose); luego se pintan.
+            estados = []
+            for i, fig in enumerate(familia):
+                est = _mascota.estado_personaje(fig, reloj, segundos, pies, ancho, alto)
+                est["i"] = i
+                estados.append(est)
             if mascota:
-                cabeza, efecto = _mascota.pinta(img, mascota, reloj, segundos, pies)
-                efecto = mascota.get("efecto") or efecto
-                if efecto in _GARABATOS or efecto in EFECTOS_EXTRA:
-                    _garabato_en_cabeza(img, ImageDraw.Draw(img), _GARABATOS.get(efecto, efecto), cabeza,
-                                        reloj, random.Random(n//paso_hervor))
+                estados.append(_mascota.estado_mascota(mascota, reloj, segundos, pies, ancho, alto))
+            vuelan = interaccion.planifica(estados, sitios, ancho, reloj)
+            # El que hace algo con otro, delante: si no, el otro le tapa la pluma.
+            for est in sorted(estados, key=lambda x_: (1 if x_.get("alcanza") else 0, x_["cx"])):
+                cab, manos = _mascota.pinta_estado(img, est)
+                fig = est["fig"]
+                if est.get("objeto"):
+                    _en_la_mano(img, est)
+                elif est.get("i") is not None and fig.get("lleva") in OBJETOS_TODOS and manos \
+                        and est.get("brazo_lleva"):
+                    pieza, pcx, pbase = _pieza_cosa(fig["lleva"], int(est["h"]*0.4), max(3, int(ancho*0.0045)))
+                    mx, my = manos[1]
+                    img.paste(pieza, (int(mx - pcx), int(my - pbase + est["h"]*0.15)), pieza)
+                if est.get("i") is not None and est["i"] in doodles:
+                    _garabato_en_cabeza(img, ImageDraw.Draw(img), doodles[est["i"]], cab, reloj,
+                                        random.Random(n//paso_hervor))
+                if est["quien"] == "mokordo":
+                    efecto = mascota.get("efecto") or est["p"].get("efecto")
+                    if efecto in _GARABATOS or efecto in EFECTOS_EXTRA:
+                        _garabato_en_cabeza(img, ImageDraw.Draw(img), _GARABATOS.get(efecto, efecto), cab,
+                                            reloj, random.Random(n//paso_hervor))
+            for o in vuelan:
+                if nombre_objeto(o["que"]) not in OBJETOS_TODOS:
+                    continue
+                pieza, pcx, pbase = _pieza_cosa(nombre_objeto(o["que"]), int(o["tam"]), max(3, int(ancho*0.0045)))
+                _pega_girada(img, pieza, pieza.width/2, pieza.height/2, o["giro"], o["pos"][0], o["pos"][1])
             img = _camara_viva(img, reloj, segundos, mueve, golpes)
             if camara:
                 img = img.crop(camara).resize(tam, Image.BILINEAR)
@@ -1469,6 +1537,7 @@ def sonidos_del_plano(visual: dict, segundos: float) -> list:
             sin_hora += 1
     if (visual or {}).get("cifra"):
         salida.append(("pop", 0.1, 0.25))
+    salida += interaccion.sonidos(visual or {}, segundos)
     for _i, _tipo in e.get("_doodles", []):
         salida.append(("pop", 0.2, 0.25))
     return [s for s in salida if s[1] < segundos]

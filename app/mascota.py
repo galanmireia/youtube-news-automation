@@ -64,12 +64,35 @@ def _transforma(p, cx, base, estira, inclina):
     return (cx + x*math.cos(a) - y*math.sin(a), base + x*math.sin(a) + y*math.cos(a))
 
 
+BRAZOS = {}      # el ultimo dibujado: lado -> (codo, mano), para orientar lo que lleva
+
+
+def pie_levantado(cx, pie_y, h, forma, lado):
+    """Donde queda el pie que levanta hacia delante (para hacerse cosquillas)."""
+    ancho, _alto = _medidas(h, forma)
+    return (cx + lado*(ancho*1.25 + h*0.1), pie_y - h*0.16)
+
+
+def _hasta(hombro, punto, lado, h):
+    """El brazo (angulo, codo) para que la mano llegue a `punto` (o lo mas
+    cerca que pueda): dos tramos, el codo hacia abajo."""
+    l1, l2 = h*0.15, h*0.13
+    dx, dy = (punto[0] - hombro[0])*lado, punto[1] - hombro[1]
+    d = min(max(math.hypot(dx, dy), (l1 + l2)*0.3), (l1 + l2)*0.985)
+    fi = math.atan2(dy, dx)
+    codo = math.pi - math.acos(max(-1.0, min(1.0, (l1*l1 + l2*l2 - d*d)/(2*l1*l2))))
+    alfa = math.acos(max(-1.0, min(1.0, (l1*l1 + d*d - l2*l2)/(2*l1*d))))
+    return math.degrees(fi + alfa), -math.degrees(codo)
+
+
 def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((60, 20), (60, 20)),
            parpadeo=False, piernas=None, levanta=0.0, color=None, forma=None, pelo="?", gafas=False,
-           bigote=False):
+           bigote=False, alcanza=None, pie_arriba=None):
     """Pinta la mascota. Devuelve la cabeza (cx, cy, radio, lado) para los
     efectos de garabato. brazos: (angulo, codo) por lado en grados; 0 es
-    horizontal hacia fuera y + hacia abajo."""
+    horizontal hacia fuera y + hacia abajo.
+    alcanza: {lado: (x, y)} = esa mano va a ese punto (hacer cosquillas,
+    tocar, coger...); pie_arriba: el lado del pie que levanta."""
     from . import garabato
     d = ImageDraw.Draw(img)
     g = max(4, int(h*0.017))
@@ -86,6 +109,8 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
         paso = math.sin(piernas + (0 if lado < 0 else math.pi))*h*0.05 if piernas is not None else 0.0
         arriba = T((lado*ancho*0.42, 0))
         pie = (cx + lado*ancho*0.42 + paso, pie_y - max(0.0, -paso)*0.6)
+        if pie_arriba == lado:
+            continue          # el pie levantado va delante del cuerpo: luego
         d.line([arriba, pie], fill=TINTA, width=int(g*2.6))
         d.line([arriba, pie], fill=color, width=int(g*1.3))
         d.ellipse([pie[0] - h*0.05 + lado*h*0.015, pie[1] - h*0.03, pie[0] + h*0.05 + lado*h*0.015, pie[1] + h*0.012],
@@ -109,15 +134,29 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
     img.paste(capa, (x0, y0), mascara)
     d = ImageDraw.Draw(img)
     d.line(pts + [pts[0]], fill=TINTA, width=g, joint="curve")
+    if pie_arriba in (-1, 1):
+        # La pierna levantada hacia delante, por encima del cuerpo, con la
+        # planta a la vista (para hacerse cosquillas en el pie).
+        lado = pie_arriba
+        arriba = T((lado*ancho*0.55, -alto*0.12))
+        pie = pie_levantado(cx, pie_y, h, forma, lado)
+        d.line([arriba, pie], fill=TINTA, width=int(g*2.6))
+        d.line([arriba, pie], fill=color, width=int(g*1.3))
+        d.ellipse([pie[0] - h*0.035, pie[1] - h*0.055, pie[0] + h*0.035, pie[1] + h*0.055],
+                  fill=_oscuro(color, 0.7), outline=TINTA, width=g)
     # Los brazos DELANTE del cuerpo: detras, el que saluda o el que se
     # levanta quedaba escondido.
     manos = []
+    BRAZOS.clear()
     for lado, (ang, codo) in zip((-1, 1), brazos):
         hombro = T((lado*ancho*1.0, -alto*0.42))
+        if alcanza and alcanza.get(lado):
+            ang, codo = _hasta(hombro, alcanza[lado], lado, h)
         a1 = math.radians(ang)
         c = (hombro[0] + lado*math.cos(a1)*h*0.15, hombro[1] + math.sin(a1)*h*0.15)
         a2 = math.radians(ang + codo)
         mano = (c[0] + lado*math.cos(a2)*h*0.13, c[1] + math.sin(a2)*h*0.13)
+        BRAZOS[lado] = (c, mano)
         d.line([hombro, c, mano], fill=TINTA, width=int(g*2.6), joint="curve")
         d.line([hombro, c, mano], fill=color, width=int(g*1.3), joint="curve")
         d.ellipse([mano[0] - g*1.7, mano[1] - g*1.7, mano[0] + g*1.7, mano[1] + g*1.7], fill=color, outline=TINTA,
@@ -396,7 +435,7 @@ def entrada(p: dict, tipo: str, t: float, x: float, w: int, h: float, suelo: flo
         p["gesto"] = "sorpresa" if t < 0.7 else p.get("gesto")
     else:  # muelle
         crece = 1 - math.exp(-5.5*t)*math.cos(13*t)
-        p["estira"] = max(0.12, p["estira"]*crece)
+        p["estira"] = max(0.3, p["estira"]*crece)
         p["inclina"] = p["inclina"] + 18*math.exp(-3.5*t)*math.sin(t*19)
         p["levanta"] = p.get("levanta", 0.0) + max(0.0, math.sin(min(math.pi, (t - 0.25)*5)))*0.25*(t > 0.25)
         p["brazos"] = ((-100, -60), (-100, -60)) if 0.25 < t < 0.8 else p.get("brazos")
@@ -405,9 +444,9 @@ def entrada(p: dict, tipo: str, t: float, x: float, w: int, h: float, suelo: flo
     return p
 
 
-def pinta(img, mascota: dict, t: float, dur: float, suelo: float):
-    """La mascota del plano en el segundo t. Devuelve la cabeza o None."""
-    w, h_img = img.size
+def estado_mascota(mascota: dict, t: float, dur: float, suelo: float, w: int, h_img: int) -> dict:
+    """Como esta Mokordo en el segundo t (sin pintarlo todavia: antes se le
+    puede retocar, para que haga algo con otro)."""
     lado = -1 if mascota.get("espejo") else 1
     accion = str(mascota.get("accion") or "explica").lower()
     p = postura(accion, t, dur, lado)
@@ -415,26 +454,47 @@ def pinta(img, mascota: dict, t: float, dur: float, suelo: float):
     if not mascota.get("_ya") and accion != "entra":
         p = entrada(p, mascota.get("_entrada") or tipo_entrada(int(float(mascota.get("x", 0.5))*10)), t,
                     float(mascota.get("x", 0.5)), w, h, suelo)
-    cx = w*float(mascota.get("x", 0.5)) + (p.get("dx", 0.0) + p.get("temblor", 0.0))*h
-    gesto = str(mascota.get("gesto") or p.get("gesto") or "neutro")
+    return {"quien": "mokordo", "fig": mascota, "p": p, "h": h, "lado": lado, "suelo": suelo,
+            "cx": w*float(mascota.get("x", 0.5)) + (p.get("dx", 0.0) + p.get("temblor", 0.0))*h,
+            "gesto": str(mascota.get("gesto") or p.get("gesto") or "neutro"), "color": COLOR, "forma": FORMA,
+            "pelo": "?", "t": t}
+
+
+def pinta_estado(img, e: dict):
+    """Pinta un personaje (Mokordo o de la familia) como dice su estado.
+    Devuelve (cabeza, manos)."""
+    p, lado, h = e["p"], e["lado"], e["h"]
     brazos = p.get("brazos", ((60, 20), (60, 20)))
     if lado < 0:
         brazos = (brazos[1], brazos[0])
-    cabeza, _manos = dibuja(img, cx, suelo, h, gesto=gesto, estira=p["estira"], inclina=p["inclina"]*lado,
-                            brazos=brazos, parpadeo=p.get("parpadeo", False), piernas=p.get("piernas"),
-                            levanta=p.get("levanta", 0.0)*h)
-    d = ImageDraw.Draw(img)
-    if p.get("rayas"):
-        for k in range(3):
-            y = suelo - h*(0.25 + k*0.18)
-            x0 = cx - lado*h*0.35
-            d.line([(x0, y), (x0 - lado*h*(0.25 + 0.08*k), y)], fill=(150, 146, 140), width=max(3, int(h*0.012)))
-    if p.get("puntos"):
-        from . import garabato
-        for k in range(3):
-            garabato._letrero(img, ".", (cabeza[0] + lado*(h*0.3 + k*h*0.09), cabeza[1] - h*0.25 - k*h*0.05),
-                              h*0.2, TINTA, 0, garabato._escala_pop(t - 0.3 - k*0.35))
-    return cabeza, p.get("efecto")
+    if e.get("brazo_lleva"):
+        brazos = (brazos[0], (-20, -10))      # la mano que lleva algo, adelante
+    cabeza, manos = dibuja(img, e["cx"], e["suelo"], h, gesto=e["gesto"], estira=p["estira"],
+                           inclina=p["inclina"]*lado, brazos=brazos, parpadeo=p.get("parpadeo", False),
+                           piernas=p.get("piernas"), levanta=p.get("levanta", 0.0)*h, color=e["color"],
+                           forma=e["forma"], pelo=e.get("pelo"), gafas=e.get("gafas", False),
+                           bigote=e.get("bigote", False), alcanza=e.get("alcanza"), pie_arriba=e.get("pie_arriba"))
+    if e["quien"] == "mokordo":
+        d = ImageDraw.Draw(img)
+        if p.get("rayas"):
+            for k in range(3):
+                y = e["suelo"] - h*(0.25 + k*0.18)
+                x0 = e["cx"] - lado*h*0.35
+                d.line([(x0, y), (x0 - lado*h*(0.25 + 0.08*k), y)], fill=(150, 146, 140),
+                       width=max(3, int(h*0.012)))
+        if p.get("puntos"):
+            from . import garabato
+            for k in range(3):
+                garabato._letrero(img, ".", (cabeza[0] + lado*(h*0.3 + k*h*0.09), cabeza[1] - h*0.25 - k*h*0.05),
+                                  h*0.2, TINTA, 0, garabato._escala_pop(e["t"] - 0.3 - k*0.35))
+    return cabeza, manos
+
+
+def pinta(img, mascota: dict, t: float, dur: float, suelo: float):
+    """La mascota del plano en el segundo t. Devuelve la cabeza y su efecto."""
+    e = estado_mascota(mascota, t, dur, suelo, *img.size)
+    cabeza, _manos = pinta_estado(img, e)
+    return cabeza, e["p"].get("efecto")
 
 
 # ---------------------------------------------------------------------------
@@ -466,8 +526,8 @@ def semilla_entrada(figura: dict) -> int:
     return sum(map(ord, str(figura.get("quien", "")))) + int(float(figura.get("x", 0.5))*10)
 
 
-def personaje(img, figura: dict, t: float, dur: float, suelo: float, w: int, h_img: int):
-    """Un personaje de la familia en el segundo t. Devuelve (cabeza, manos)."""
+def estado_personaje(figura: dict, t: float, dur: float, suelo: float, w: int, h_img: int) -> dict:
+    """Como esta un personaje de la familia en el segundo t, sin pintarlo."""
     quien = figura.get("quien") if figura.get("quien") in FAMILIA else "persona"
     rasgos = FAMILIA[quien]
     pose = str(figura.get("pose_fin") or figura.get("pose") or "de_pie")
@@ -482,15 +542,15 @@ def personaje(img, figura: dict, t: float, dur: float, suelo: float, w: int, h_i
         p = entrada(p, figura.get("_entrada") or tipo_entrada(semilla_entrada(figura)),
                     t - float(figura.get("_retraso", 0.0)), float(figura.get("x", 0.5)), w, h, suelo)
     # los extras se mueven algo menos de su sitio que Mokordo (que no se crucen)
-    cx = w*float(figura.get("x", 0.5)) + (p.get("dx", 0.0)*0.5 + p.get("temblor", 0.0))*h
-    brazos = p.get("brazos", ((60, 20), (60, 20)))
-    if lado < 0:
-        brazos = (brazos[1], brazos[0])
-    if figura.get("lleva"):
-        brazos = (brazos[0], (-20, -10))      # la mano que lleva algo, adelante
-    cabeza, manos = dibuja(img, cx, suelo, h, gesto=gesto if gesto != "neutro" else p.get("gesto", "neutro"),
-                           estira=p["estira"], inclina=p["inclina"]*lado, brazos=brazos,
-                           parpadeo=p.get("parpadeo", False), piernas=p.get("piernas"),
-                           levanta=p.get("levanta", 0.0)*h, color=rasgos["color"], forma=rasgos["forma"],
-                           pelo=rasgos["pelo"], gafas=rasgos.get("gafas", False), bigote=rasgos.get("bigote", False))
-    return cabeza, manos, h
+    return {"quien": quien, "fig": figura, "p": p, "h": h, "lado": lado, "suelo": suelo,
+            "cx": w*float(figura.get("x", 0.5)) + (p.get("dx", 0.0)*0.5 + p.get("temblor", 0.0))*h,
+            "gesto": gesto if gesto != "neutro" else p.get("gesto", "neutro"), "color": rasgos["color"],
+            "forma": rasgos["forma"], "pelo": rasgos["pelo"], "gafas": rasgos.get("gafas", False),
+            "bigote": rasgos.get("bigote", False), "brazo_lleva": bool(figura.get("lleva")), "t": t}
+
+
+def personaje(img, figura: dict, t: float, dur: float, suelo: float, w: int, h_img: int):
+    """Un personaje de la familia en el segundo t. Devuelve (cabeza, manos, alto)."""
+    e = estado_personaje(figura, t, dur, suelo, w, h_img)
+    cabeza, manos = pinta_estado(img, e)
+    return cabeza, manos, e["h"]
