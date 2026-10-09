@@ -651,6 +651,26 @@ def _acumula(anterior: dict | None, visual: dict) -> dict:
     return v
 
 
+def _boca_de(voz) -> list:
+    """Lo fuerte que suena la voz en cada fotograma (0-1): con eso se abre y
+    se cierra la boca de Mokordo, como si lo estuviera contando el."""
+    import numpy as np
+    if not len(voz):
+        return []
+    muestras = np.array(voz.get_array_of_samples(), dtype=np.float32)
+    if voz.channels > 1:
+        muestras = muestras.reshape(-1, voz.channels).mean(axis=1)
+    paso = max(1, int(voz.frame_rate/FPS))
+    n = len(muestras)//paso
+    if not n:
+        return []
+    rms = np.sqrt((muestras[:n*paso].reshape(n, paso)**2).mean(axis=1))
+    techo = float(np.percentile(rms, 95)) or 1.0
+    nivel = np.clip(rms/techo, 0, 1)
+    nivel = np.convolve(nivel, np.ones(2)/2, mode="same")
+    return [round(float(v), 2) if v > 0.12 else 0.0 for v in nivel]
+
+
 def _encuadre_que_pide(v: dict) -> str:
     """El encuadre que le va a un plano por lo que tiene."""
     if v.get("cifra") or v.get("_careta"):
@@ -842,6 +862,7 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
     narracion = carpeta / "narracion.m4a"
     voz.export(narracion, format="ipod", bitrate="128k")
 
+    habla = _boca_de(voz)
     fronteras, t = [0], 0.0
     for d in duraciones:
         t += d
@@ -861,6 +882,9 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
                 # Lo que "sigue" no entra deslizandose: es el mismo dibujo creciendo.
                 entra = j > 0 or not visual.get("sigue")
                 fps_plano = _FPS_MASCOTA
+                if dibujo.get("mascota"):
+                    # la boca de Mokordo, al ritmo de la voz
+                    dibujo = dict(dibujo, _habla=habla[inicio:inicio + fotogramas])
                 if entra:
                     # cada plano entra de una manera (de lado, de arriba, con zoom...)
                     dibujo = dict(dibujo, _transicion=garabato.TRANSICIONES[cuenta_trans % len(garabato.TRANSICIONES)])

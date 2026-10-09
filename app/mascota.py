@@ -122,7 +122,7 @@ def _hasta(hombro, punto, lado, h):
 
 def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((60, 20), (60, 20)),
            parpadeo=False, piernas=None, levanta=0.0, color=None, forma=None, pelo="?", gafas=False,
-           bigote=False, alcanza=None, pie_arriba=None, desgaste=0.0):
+           bigote=False, alcanza=None, pie_arriba=None, desgaste=0.0, mira=None, habla=None, pelo_giro=0.0):
     """Pinta la mascota. Devuelve la cabeza (cx, cy, radio, lado) para los
     efectos de garabato. brazos: (angulo, codo) por lado en grados; 0 es
     horizontal hacia fuera y + hacia abajo.
@@ -208,7 +208,7 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
     top = T((0, -alto))
     if pelo == "?":       # solo Mokordo
         garabato._letrero(img, "?", (top[0] + h*(0.02 + 0.06*dg), top[1] - h*(0.07 - 0.03*dg)), h*0.2*(1 - 0.2*dg),
-                          TINTA, -12 - 55*dg + inclina*0.5)
+                          TINTA, -12 - 55*dg + inclina*0.5 + pelo_giro)
     elif pelo == "moño":
         rr = h*0.07
         d.ellipse([top[0] - rr, top[1] - rr*1.7, top[0] + rr, top[1] + rr*0.3], fill=_oscuro(color, 0.75),
@@ -220,7 +220,7 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
                        top[1] - h*0.06], fill=(110, 190, 90), outline=TINTA, width=max(2, g//2))
     centro = T((h*0.02, -alto*(0.7 if forma == "judia" else 0.58)))
     r = h*0.17
-    garabato._cara_expresiva(d, centro, r, g, random.Random(1), gesto, tinta=TINTA)
+    garabato._cara_expresiva(d, centro, r, g, random.Random(1), gesto, tinta=TINTA, mira=mira, habla=habla)
     if dg:
         _desgaste(img, d, T, centro, r, g, h, ancho, alto, dg)
     if gafas:
@@ -409,7 +409,7 @@ def postura(accion: str, t: float, dur: float, lado: int = 1) -> dict:
     p["estira"] = p["estira"]*(1 + (propia.pop("estira", 1.0) - 1)*_EXAGERA)
     p["inclina"] = p["inclina"] + propia.pop("inclina", 0.0)*_EXAGERA
     p.update(propia)
-    p["levanta"] = min(0.6, p.get("levanta", 0.0)*_EXAGERA)
+    p["levanta"] = min(0.42, p.get("levanta", 0.0)*_EXAGERA)    # que no se salga por arriba
     # (Los saltitos de relleno, fuera: "sale el monigote botando todo el
     # rato y no se diferencia una escena de otra". Cada accion se mueve a su
     # manera y ya esta.)
@@ -529,6 +529,13 @@ def estado_mascota(mascota: dict, t: float, dur: float, suelo: float, w: int, h_
             "pelo": "?", "brazo_lleva": bool(mascota.get("lleva")), "t": t}
 
 
+def _muelle_pelo(e):
+    """El "?" va con retraso, como un muelle: se queda atras cuando el cuerpo
+    se inclina o salta y luego se pasa de largo."""
+    p, t = e["p"], e["t"]
+    return -0.6*p["inclina"]*e["lado"] + 14*p.get("levanta", 0.0)*math.sin(t*9) + 4*math.sin(t*3.3)
+
+
 def pinta_estado(img, e: dict):
     """Pinta un personaje (Mokordo o de la familia) como dice su estado.
     Devuelve (cabeza, manos)."""
@@ -543,7 +550,8 @@ def pinta_estado(img, e: dict):
                            piernas=p.get("piernas"), levanta=p.get("levanta", 0.0)*h, color=e["color"],
                            forma=e["forma"], pelo=e.get("pelo"), gafas=e.get("gafas", False),
                            bigote=e.get("bigote", False), alcanza=e.get("alcanza"), pie_arriba=e.get("pie_arriba"),
-                           desgaste=e.get("desgaste", 0.0))
+                           desgaste=e.get("desgaste", 0.0), mira=e.get("mira"), habla=e.get("habla"),
+                           pelo_giro=_muelle_pelo(e))
     # Los efectos de la accion (las rayas de correr, la tos, el hipo...).
     d = ImageDraw.Draw(img)
     if p.get("rayas"):

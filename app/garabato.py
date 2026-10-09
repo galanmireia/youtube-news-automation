@@ -1036,6 +1036,11 @@ def _cosa_pop(img, c, pies, t):
     # Crece desde su centro, no desde el suelo: el centro se queda quieto.
     medio = y - tam*0.5
     arriba = medio - (base - tam*0.5*escala)
+    if flota and escala > 0.3:
+        # su sombrita en el suelo, mas pequeña cuanto mas alta flota
+        lejos = max(0.0, min(1.0, (pies - y)/(h*0.6)))
+        sw = tam*0.45*(1 - 0.5*lejos)*min(1.0, escala)
+        ImageDraw.Draw(img).ellipse([x - sw, pies - h*0.012, x + sw, pies + h*0.012], fill=(226, 223, 216))
     # Y despues no se queda quieta: se menea (y si flota, sube y baja).
     fase = (sum(map(ord, c["que"])) % 11)*0.57 + float(c.get("x", 0.5))*5
     vivo = min(1.0, max(0.0, (t - 0.4)/0.3))
@@ -1207,7 +1212,9 @@ def _ceja(d, cx, cy, r, g, tinta, lado, inclina=0.0, alto=0.0):
     d.line([(fuera, y - inclina*r*0.04), (dentro, y + inclina*r*0.08)], fill=tinta, width=max(3, int(g*1.1)))
 
 
-def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA):
+def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA, mira=None, habla=None):
+    """La cara. mira: (dx, dy) de -1 a 1, adonde miran las pupilas; habla:
+    0-1, lo abierta que tiene la boca al hablar (None = no habla)."""
     o = r*0.33
     ey = c[1] - r*0.12
     b = (c[0], c[1] + r*0.38)
@@ -1220,7 +1227,7 @@ def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA):
             d.arc([cx - r*0.13, ey - r*0.08, cx + r*0.13, ey + r*0.14], 200, 340, fill=tinta, width=max(3, g))
             _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.4, alto=0.06)
         elif gesto in ("sorpresa", "asustado", "grito"):
-            _ojo_abierto(d, cx, ey, r, g, tinta, grande=1.25, pupila=0.6)
+            _ojo_abierto(d, cx, ey, r, g, tinta, mira=mira or (0, 0), grande=1.25, pupila=0.6)
             _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.6 if gesto == "asustado" else -0.2, alto=0.14)
         elif gesto == "enfadado":
             _ojo_abierto(d, cx, ey, r, g, tinta, mira=(0, 0.3), grande=0.9)
@@ -1235,12 +1242,24 @@ def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA):
             d.line([(cx - r*0.12, ey + r*0.02), (cx + r*0.12, ey + r*0.02)], fill=tinta, width=max(3, g))
             _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.5, alto=0.04)
         else:
-            _ojo_abierto(d, cx, ey, r, g, tinta, mira=(0.15, 0))
-            _ceja(d, cx, ey, r, g, tinta, lado, inclina=0.0, alto=0.06)
+            _ojo_abierto(d, cx, ey, r, g, tinta, mira=mira or (0.15, 0))
+            # al hablar, las cejas acompañan un poco
+            _ceja(d, cx, ey, r, g, tinta, lado, inclina=0.0, alto=0.06 + 0.05*(habla or 0))
     if gesto in ("contento", "riendo", "enamorado"):
         for lado in (-1, 1):
             mx = c[0] + lado*r*0.52
             d.ellipse([mx - r*0.13, b[1] - r*0.2, mx + r*0.13, b[1] - r*0.06], fill=_ROSA_MOFLETE)
+    if habla is not None and habla >= 0.12 and gesto not in ("riendo", "asustado", "grito", "bostezo"):
+        # HABLANDO: la boca se abre con la voz (y se ve la lengua si abre mucho)
+        ancho_b, alto_b = r*(0.24 + 0.12*habla), r*(0.1 + 0.42*habla)
+        sube = r*0.06 if gesto in ("contento", "enamorado") else 0
+        d.chord([b[0] - ancho_b, b[1] - alto_b*0.35 - sube, b[0] + ancho_b, b[1] + alto_b - sube], 0, 180, fill=tinta)
+        d.chord([b[0] - ancho_b, b[1] - alto_b*0.5 - sube, b[0] + ancho_b, b[1] + alto_b*0.1 - sube], 0, 180,
+                fill=tinta)
+        if habla > 0.5:
+            d.chord([b[0] - ancho_b*0.55, b[1] + alto_b*0.3 - sube, b[0] + ancho_b*0.55, b[1] + alto_b*0.95 - sube],
+                    180, 360, fill=_LENGUA)
+        return
     if gesto == "riendo":
         d.chord([b[0] - r*0.36, b[1] - r*0.16, b[0] + r*0.36, b[1] + r*0.46], 0, 180, fill=tinta)
         d.chord([b[0] - r*0.2, b[1] + r*0.14, b[0] + r*0.2, b[1] + r*0.44], 0, 180, fill=_LENGUA)
@@ -1305,6 +1324,36 @@ def _vida(img, e, cabezas, t, n):
         if i < len(cabezas):
             _garabato_en_cabeza(img, d, tipo, cabezas[i], t, rnd)
     return img
+
+
+# Las acciones en las que Mokordo "habla" (mueve la boca con la voz).
+_HABLAN = ("explica", "senala", "piensa", "encoge", "saluda", "triste", "entra")
+
+
+def _miradas(estados, apariciones, t):
+    """ADONDE MIRAN: a lo que tocan o señalan, a lo que acaba de aparecer, al
+    que les hace algo; y si no, un poco hacia delante. Las pupilas se van
+    hacia alli."""
+    recientes = [sitio for tp, sitio in apariciones if sitio and 0 <= t - tp < 2.5]
+    for est in estados:
+        cabeza = (est["cx"], est["suelo"] - est["h"]*0.55)
+        punto = None
+        if est.get("alcanza"):
+            punto = list(est["alcanza"].values())[0]
+        elif recientes:
+            punto = recientes[-1][:2]
+        else:
+            otros = [o for o in estados if o is not est]
+            # al que le esta haciendo algo (o al de al lado)
+            for o in otros:
+                if o.get("alcanza") and any(abs(px - est["cx"]) < est["h"]*0.6 for px, _py in o["alcanza"].values()):
+                    punto = (o["cx"], o["suelo"] - o["h"]*0.55)
+        if punto is None:
+            est["mira"] = (0.35*est["lado"], 0.0)
+            continue
+        dx, dy = punto[0] - cabeza[0], punto[1] - cabeza[1]
+        n_ = math.hypot(dx, dy) or 1.0
+        est["mira"] = (dx/n_, dy/n_*0.8)
 
 
 def _reacciona(estados, apariciones, t):
@@ -1404,7 +1453,7 @@ def _camara_viva(img, t, dur, mueve, golpes, foco=None):
     aparece algo."""
     ancho, alto = img.size
     s = _suave_cam(min(1.0, t/max(0.5, dur)))
-    z = 1.02 + 0.15*s if mueve % 2 else 1.17 - 0.15*s
+    z = 1.06 + 0.14*s if mueve % 2 else 1.2 - 0.14*s
     if foco:
         # plano cercano / de detalle: encima de lo que importa, y acercandose
         z = foco[2] + 0.12*s
@@ -1557,7 +1606,8 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
         if c.get("_t") is None:
             nuevas_ += 1
         apariciones.append((tp, sitios.get(c["que"])))
-    mueve = zlib.crc32(repr(sorted((visual or {}).items(), key=str)).encode())
+    habla_env = list((visual or {}).get("_habla") or [])
+    mueve = zlib.crc32(repr(sorted(((k, v) for k, v in (visual or {}).items() if k != "_habla"), key=str)).encode())
     foco = None
     ma_ = (visual or {}).get("mascota") if isinstance((visual or {}).get("mascota"), dict) else None
     if encuadre == "cerca" and ma_:
@@ -1600,6 +1650,12 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                 estados.append(_mascota.estado_mascota(mascota, reloj, segundos, pies, ancho, alto))
             _reacciona(estados, apariciones, reloj)
             vuelan = interaccion.planifica(estados, sitios, ancho, reloj)
+            _miradas(estados, apariciones, reloj)
+            if habla_env and n < len(habla_env):
+                for est in estados:
+                    if est["quien"] == "mokordo" and not est.get("alcanza") and not interaccion.que_hace(est["fig"]) \
+                            and str(est["fig"].get("accion") or "explica") in _HABLAN:
+                        est["habla"] = habla_env[n]
             # El que hace algo con otro, delante: si no, el otro le tapa la pluma.
             for est in sorted(estados, key=lambda x_: (1 if x_.get("alcanza") else 0, x_["cx"])):
                 cab, manos = _mascota.pinta_estado(img, est)
