@@ -899,7 +899,7 @@ def _spec(visual: dict) -> dict:
 
 _GARABATOS = {"sudor": "sudor", "lagrimas": "lagrimas", "mareo": "espiral", "confuso": "dudas",
               "idea": "idea", "zzz": "zzz", "enamorado": "corazones", "sorpresa": "alerta",
-              "humo": "enfado"}
+              "humo": "enfado", "bombilla": "idea", "bulb": "idea", "lightbulb": "idea"}
 _PULSO = 0.12       # el temblor del trazo, comparado con España Contada
 _GROSOR = 0.85      # y su grosor
 _ACERCA = 1.32      # lo que se acerca la camara cuando solo salen monigotes
@@ -1397,7 +1397,7 @@ def _humo(img, pos, r, alfa):
     img.paste(nube, (int(pos[0] - r - 2), int(pos[1] - r - 2)), nube)
 
 
-def _camara_viva(img, t, dur, mueve, golpes):
+def _camara_viva(img, t, dur, mueve, golpes, foco=None):
     """LA CAMARA QUE NUNCA ESTA QUIETA ("mas movimiento, mucho mas"): en cada
     plano se acerca o se aleja y se desliza hacia un lado (cada plano a su
     manera), con un vaiven de mano; y da un golpecito de zoom cada vez que
@@ -1405,6 +1405,9 @@ def _camara_viva(img, t, dur, mueve, golpes):
     ancho, alto = img.size
     s = _suave_cam(min(1.0, t/max(0.5, dur)))
     z = 1.02 + 0.15*s if mueve % 2 else 1.17 - 0.15*s
+    if foco:
+        # plano cercano / de detalle: encima de lo que importa, y acercandose
+        z = foco[2] + 0.12*s
     sacude = 0.0
     for tp in golpes:
         if 0 <= t - tp < 1.0:
@@ -1416,9 +1419,63 @@ def _camara_viva(img, t, dur, mueve, golpes):
     hx, hy = (ancho - cw)/2, (alto - ch)/2
     ox = hx*(1 + lado*(0.8*s - 0.4) + 0.18*math.sin(t*1.1 + mueve % 7)) + sacude*ancho*0.006
     oy = hy*(1.2 + 0.2*math.sin(t*1.5 + mueve % 5)) + sacude*alto*0.006
+    if foco:
+        ox = foco[0] - cw/2 + ancho*0.01*math.sin(t*1.1) + sacude*ancho*0.006
+        oy = foco[1] - ch/2 + alto*0.01*math.sin(t*1.4) + sacude*alto*0.006
     ox = min(max(0.0, ox), ancho - cw)
     oy = min(max(0.0, oy), alto - ch)
     return img.crop((int(ox), int(oy), int(ox + cw), int(oy + ch))).resize((ancho, alto), Image.BILINEAR)
+
+
+# Los fondos de color de los planos "color" y "partido" (nunca el morado de
+# Mokordo).
+COLORES_FONDO = ((255, 214, 92), (140, 205, 250), (160, 228, 180), (255, 178, 160), (255, 236, 200),
+                 (190, 225, 255))
+TRANSICIONES = ("derecha", "abajo", "zoom", "izquierda", "giro", "arriba")
+_DURA_TRANSICION = 0.35
+
+
+def _transicion(img, tipo, s):
+    """El plano entrando (s de 0 a 1): de lado, de arriba o abajo, de un
+    zoom con rebote o girando."""
+    w, h = img.size
+    e = 1 - (1 - s)**3
+    lienzo = Image.new("RGB", (w, h), garabato_ambiente.PAPEL)
+    if tipo in ("derecha", "izquierda", "arriba", "abajo"):
+        dx = {"derecha": w, "izquierda": -w}.get(tipo, 0)*(1 - e)
+        dy = {"abajo": h, "arriba": -h}.get(tipo, 0)*(1 - e)
+        lienzo.paste(img, (int(dx), int(dy)))
+        return lienzo
+    if tipo == "zoom":
+        k = max(0.05, 1 - math.exp(-6*s)*math.cos(9*s)*0.75)
+    else:
+        k = 0.55 + 0.45*e
+    pieza = img.resize((max(1, int(w*k)), max(1, int(h*k))), Image.BILINEAR)
+    if tipo == "giro":
+        pieza = pieza.rotate(-35*(1 - e), resample=Image.BILINEAR, expand=False,
+                             fillcolor=garabato_ambiente.PAPEL)
+    if k >= 1:
+        x0, y0 = (pieza.width - w)//2, (pieza.height - h)//2
+        return pieza.crop((x0, y0, x0 + w, y0 + h))
+    lienzo.paste(pieza, ((w - pieza.width)//2, (h - pieza.height)//2))
+    return lienzo
+
+
+def _fondo_de_encuadre(fondo, encuadre, color, tam):
+    """El fondo de color (o partido en dos) debajo del ambiente."""
+    w, h = tam
+    base = np.zeros((h, w, 3), np.uint8)
+    if encuadre == "partido":
+        otro = COLORES_FONDO[(COLORES_FONDO.index(color) + 2) % len(COLORES_FONDO)]
+        base[:, :w//2] = color
+        base[:, w//2:] = otro
+        base[:, w//2 - 4:w//2 + 4] = (30, 30, 34)
+    else:
+        base[:] = color
+    if fondo is None:
+        return base
+    papel = np.all(fondo == np.array(garabato_ambiente.PAPEL, np.uint8), axis=-1)
+    return np.where(papel[..., None], base, fondo)
 
 
 def _suave_cam(s):
@@ -1453,6 +1510,13 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
     fondo = None
     if e.get("_ambiente", "nada") != "nada" or apoyados:
         fondo = garabato_ambiente.fondo(e.get("_ambiente", "nada"), tam, pies, apoyados)
+    # EL ENCUADRE del plano (para que no parezca todo lo mismo): general,
+    # cerca (Mokordo de cerca), detalle (la cosa de la que se habla), color
+    # (el folio entero de color) o partido (dos colores, para comparar).
+    encuadre = str((visual or {}).get("_encuadre") or "general")
+    if encuadre in ("color", "partido"):
+        color = COLORES_FONDO[int((visual or {}).get("_color", 0)) % len(COLORES_FONDO)]
+        fondo = _fondo_de_encuadre(fondo, encuadre, color, tam)
     # SI SOLO SALEN ELLOS, MAS GRANDES ("que ocupen mas en pantalla"): la
     # camara se acerca a los monigotes, con los pies abajo del todo.
     camara = None
@@ -1494,6 +1558,14 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
             nuevas_ += 1
         apariciones.append((tp, sitios.get(c["que"])))
     mueve = zlib.crc32(repr(sorted((visual or {}).items(), key=str)).encode())
+    foco = None
+    ma_ = (visual or {}).get("mascota") if isinstance((visual or {}).get("mascota"), dict) else None
+    if encuadre == "cerca" and ma_:
+        hm = alto*float(ma_.get("tam") or 0.5)
+        foco = (ancho*float(ma_.get("x", 0.5)), pies - hm*0.6, 1.65)
+    elif encuadre == "detalle" and apariciones and apariciones[0][1]:
+        sx, sy, st = apariciones[0][1]
+        foco = (sx, sy, max(1.3, min(1.9, alto*0.55/max(1.0, st))))
     golpes, nuevas = [], 0
     for c in e.get("_pop", []):
         if c.get("_ya"):
@@ -1559,10 +1631,12 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                     continue
                 pieza, pcx, pbase = _pieza_cosa(nombre_objeto(o["que"]), int(o["tam"]), max(3, int(ancho*0.0045)))
                 _pega_girada(img, pieza, pieza.width/2, pieza.height/2, o["giro"], o["pos"][0], o["pos"][1])
-            img = _camara_viva(img, reloj, segundos, mueve, golpes)
+            img = _camara_viva(img, reloj, segundos, mueve, golpes, foco)
             if camara:
                 img = img.crop(camara).resize(tam, Image.BILINEAR)
             img = encima(img, visual or {}, reloj, segundos)
+            if (visual or {}).get("_transicion") and reloj < _DURA_TRANSICION:
+                img = _transicion(img, visual["_transicion"], reloj/_DURA_TRANSICION)
         except StopIteration:
             break
         finally:

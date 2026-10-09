@@ -430,7 +430,6 @@ _CARETA = 2.8     # segundos que se ve el titulo
 _MAX_PLANO = 7.0
 _MAX_SIGUE = 3     # planos seguidos como mucho sobre el mismo dibujo ("sigue")
 _FPS_MASCOTA = 25  # todo se pinta a 25: la camara y los personajes no paran
-_DESLIZA = 0.28    # lo que tarda cada plano en entrar de lado, con su "whoosh"
 _POSES_DE_RELEVO = ("señala", "brazos_arriba", "mirando", "de_pie")
 
 
@@ -500,7 +499,9 @@ def _al_nombrarlo(visual: dict, texto: str, hablado: float) -> dict:
                     larga = max(aguja.split(), key=len)
                     k = frase.find(larga) if len(larga) > 3 else -1
                 if k >= 0:
-                    x = dict(x, _t=round(max(0.1, k/len(frase)*hablado), 2))
+                    # un pelin antes de que suene: si no, lo de la ultima palabra
+                    # salia cuando ya se acababa el plano
+                    x = dict(x, _t=round(max(0.1, k/len(frase)*hablado - 0.3), 2))
             salida.append(x)
         v[campo] = salida
     # Lo que HACEN ("hace"): empiezan cuando la voz lo dice.
@@ -650,6 +651,57 @@ def _acumula(anterior: dict | None, visual: dict) -> dict:
     return v
 
 
+def _encuadre_que_pide(v: dict) -> str:
+    """El encuadre que le va a un plano por lo que tiene."""
+    if v.get("cifra") or v.get("_careta"):
+        return "general"
+    ma = v.get("mascota") if isinstance(v.get("mascota"), dict) else None
+    figs = [f for f in v.get("figuras") or [] if isinstance(f, dict)]
+    cosas = [c for c in v.get("cosas") or [] if isinstance(c, dict)]
+    textos = [t for t in v.get("textos") or [] if isinstance(t, dict)]
+    if not ma and not figs and not cosas and textos:
+        return "color"                      # solo palabras: folio de color
+    if len(cosas) >= 2 and any(c.get("que") == "igual" or c.get("tachado") for c in cosas):
+        return "partido"                    # una comparacion
+    hace = any(isinstance(x, dict) and x.get("hace") for x in [ma] + figs)
+    if len(figs) == 2 and not ma and not hace and figs[0].get("gesto") != figs[1].get("gesto"):
+        return "partido"
+    if ma and not figs and not cosas and not hace and \
+            str(ma.get("accion") or "") not in ("corre", "anda", "entra", "baila"):
+        return "cerca"                      # una reaccion: Mokordo de cerca
+    if len(cosas) == 1 and not figs and not ma and cosas[0].get("cuando"):
+        return "detalle"
+    return "general"
+
+
+def _encuadra(visuales: list) -> None:
+    """LOS ENCUADRES ("todo el rato parece lo mismo"): cada plano el que le
+    va, nunca el mismo dos veces seguidas, y de vez en cuando el folio de
+    color para dar un golpe. Los "sigue" se quedan con el del dibujo que
+    crece (sin acercarse, que se vea lo nuevo)."""
+    antes, desde_color, n_color = None, 0, 0
+    for v in visuales:
+        if v.get("sigue") and antes:
+            v["_encuadre"] = antes if antes in ("general", "color", "partido") else "general"
+            v["_color"] = n_color
+            antes = v["_encuadre"]
+            continue
+        quiere = _encuadre_que_pide(v)
+        if quiere == antes:
+            # (el de cerca solo cuando no hay nada mas que ver: si no, se
+            # quedaban fuera la cosa, la flecha y el letrero)
+            quiere = ("color" if desde_color >= 3 else "general") if quiere == "general" else "general"
+        if quiere == "general" and desde_color >= 5 and not v.get("_careta"):
+            quiere = "color"
+        if quiere in ("color", "partido"):
+            n_color += 1
+            desde_color = 0
+        else:
+            desde_color += 1
+        v["_encuadre"], v["_color"] = quiere, n_color
+        antes = quiere
+
+
 def _siguen_ahi(antes: dict | None, visual: dict) -> dict:
     """Quien ya estaba en el plano de antes no vuelve a entrar rebotando
     (Mokordo entrando cada pocos segundos era "botando todo el rato"):
@@ -764,6 +816,7 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             # campana): el titulo a rotulador y el nombre del canal debajo.
             planos.append(("", _cartel_titulo(guion.get("titulo") or ""), _CARETA, n))
 
+    _encuadra([v for _t, v, _p, _c in planos])
     voz = AudioSegment.empty()
     duraciones, inicios_cap = [], {}
     for i, (texto, _v, pausa, cap) in enumerate(planos):
@@ -794,6 +847,7 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
         t += d
         fronteras.append(round(t*FPS))
     trozos, ruidos = [], []
+    cuenta_trans = 0
     for i, (_texto, visual, _p, _c) in enumerate(planos):
         if parar is not None and parar():
             from .pipeline import GenerationStopped
@@ -807,8 +861,12 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
                 # Lo que "sigue" no entra deslizandose: es el mismo dibujo creciendo.
                 entra = j > 0 or not visual.get("sigue")
                 fps_plano = _FPS_MASCOTA
+                if entra:
+                    # cada plano entra de una manera (de lado, de arriba, con zoom...)
+                    dibujo = dict(dibujo, _transicion=garabato.TRANSICIONES[cuenta_trans % len(garabato.TRANSICIONES)])
+                    cuenta_trans += 1
                 _tuberia(garabato.fotos(dibujo, segundos, fps_plano), fotogramas, mp4, zoom=False, brillo=0,
-                         desliza=_DESLIZA if entra else 0, fps_entrada=fps_plano)
+                         desliza=0, fps_entrada=fps_plano)
                 if entra:
                     ruidos.append(("whoosh", max(0.0, inicio/FPS - 0.12), 0.4))
                 ruidos += [(n, inicio/FPS + t0, d) for n, t0, d in garabato.sonidos_del_plano(dibujo, segundos)]
