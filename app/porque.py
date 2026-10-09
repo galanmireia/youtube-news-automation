@@ -131,9 +131,13 @@ the body, and why it hooks you. Mokordo is the one who tries it, and his "desgas
 1 = wrecked) goes UP shot by shot as the effects pile up: he gets thinner and paler, dark circles,
 spots, sunken cheeks, red eyes, cold sweat, shaky and slow. The feelings people chase are
 explained as THE TRAP ("at first you feel great - that's exactly why it's dangerous"), never as an
-advert. NEVER show or describe HOW it is taken (no injecting, snorting, smoking scene: just the
-object - "pastilla", "botella", "taza" - appears and we jump to the effects), no doses, no where to
-get it, no tips, nothing that makes it look cool. Show the addiction (wanting more, needing more),
+advert - the whole video exists so that people DON'T do it. LEGAL ones (tobacco, vaping,
+alcohol, caffeine, energy drinks): Mokordo can be SEEN taking it, in a few shots, never looking
+cool: "hace" "fuma" with "cigarrillo" or "vapeador" (smoke clouds, then "accion": "tose"), "bebe"
+with "cerveza", "copa", "taza" or "lata", "accion": "borracho" for drunk (staggers, hiccups).
+ILLEGAL drugs: NEVER show or describe how they are taken (no injecting, snorting or smoking it):
+just the object ("pastilla") appears and we jump to the effects. Never doses, where to get it,
+tips, or anything that makes it look cool. Show the addiction (wanting more, needing more),
 the damage and the cost. The LAST chapter: Mokordo quits and slowly recovers ("desgaste" back down
 to 0) and the narration says help exists. Keep every number true.
 "cuando" = the exact words of THIS shot's narration at which that thing pops in. THINGS APPEAR

@@ -31,15 +31,17 @@ VERBOS = {
     "abraza": "hugs another character",
     "mira": "looks closely at the target through a magnifying glass",
     "muestra": "holds the object up high, showing it off",
+    "fuma": "smokes the object in hand (a cigarette, a vape): puffs, smoke clouds come out, coughs "
+            "(only tobacco and vaping)",
 }
 # Con que lo hace si el guion no lo dice.
 _CON = {"cosquillas": "pluma", "mira": "lupa", "bebe": "vaso", "come": "manzana", "lanza": "pelota",
-        "da": "regalo"}
+        "da": "regalo", "fuma": "cigarrillo"}
 # A donde va la mano si "a" es otro personaje sin parte.
 _PARTE = {"cosquillas": "barriga", "toca": "barriga", "golpea": "cabeza", "rasca": "cabeza", "da": "mano",
           "empuja": "barriga", "abraza": "barriga", "lanza": "barriga", "mira": "cabeza"}
 # Si no dice "a": su propio...
-_A_SOLO = {"come": "boca", "bebe": "boca", "huele": "boca", "rasca": "cabeza", "cosquillas": "barriga",
+_A_SOLO = {"come": "boca", "bebe": "boca", "huele": "boca", "fuma": "boca", "rasca": "cabeza", "cosquillas": "barriga",
            "toca": "barriga"}
 PARTES = ("pie", "barriga", "cabeza", "boca", "mano")
 _DE_CERCA = ("cosquillas", "toca", "golpea", "rasca", "da", "empuja", "abraza")
@@ -254,6 +256,43 @@ def planifica(estados: list, cosas: dict, ancho: int, t: float) -> list:
             if con:
                 giro = -s*55*cerca if verbo == "bebe" else 0
                 e["objeto"] = {"que": con, "modo": "centro", "escala": escala, "giro": giro}
+        elif verbo == "fuma":
+            # Cada calada: la mano a la boca, aspira (la brasa se enciende),
+            # baja la mano y echa el humo. Y entre caladas, el hilo de humo.
+            ciclo = (v % 2.6)/2.6
+            cerca = math.sin(min(1.0, ciclo/0.45)*math.pi/2) if ciclo < 0.45 else \
+                max(0.0, 1 - (ciclo - 0.45)/0.15)
+            e["p"]["inclina"] *= 0.4
+            if e["gesto"] in ("contento", "riendo"):
+                e["gesto"] = "neutro"          # que no parezca que lo disfruta
+            boca = ancla(e, "boca", s)
+            lejos = (e["cx"] + s*e["h"]*0.45, e["suelo"] - e["h"]*0.38)
+            mano = (lejos[0] + (boca[0] + s*e["h"]*0.05 - lejos[0])*cerca,
+                    lejos[1] + (boca[1] + e["h"]*0.04 - lejos[1])*cerca)
+            e["alcanza"] = {s: mano}
+            if 0.3 < ciclo < 0.45:
+                e["p"]["estira"] *= 1.04            # aspira
+                e["gesto"] = "neutro"
+            if con:
+                vaper = "vape" in str(con) or con == "vapeador"
+                e["objeto"] = {"que": con, "modo": "centro", "escala": 0.75 if not vaper else 0.65,
+                               "giro": (0 if s > 0 else 180) if not vaper else -s*70,
+                               "desplaza": (s*0.1, 0.0) if not vaper else (0.0, -0.05)}
+                punta = (mano[0] + s*e["h"]*0.2, mano[1] - e["h"]*0.06)
+                if not vaper:
+                    for k in range(3):        # el hilo de humo de la punta
+                        u2 = ((v*0.8 + k/3) % 1.0)
+                        vuelan.append({"que": "humo", "pos": (punta[0] + math.sin(u2*7 + k)*e["h"]*0.03,
+                                                              punta[1] - u2*e["h"]*0.4),
+                                       "tam": e["h"]*(0.025 + 0.04*u2), "alfa": 0.7*(1 - u2)})
+            echa = (v % 2.6) - 2.6*0.6
+            if echa > 0:                     # echa el humo: una nube que crece y sube
+                for k in range(4):
+                    u2 = echa/1.0 - k*0.12
+                    if 0 < u2 < 1:
+                        vuelan.append({"que": "humo", "pos": (boca[0] + s*e["h"]*(0.08 + u2*0.35),
+                                                              boca[1] - u2*e["h"]*0.3 + k*e["h"]*0.02),
+                                       "tam": e["h"]*(0.05 + 0.13*u2), "alfa": 0.85*(1 - u2)})
         elif verbo == "mira":
             punto = meta or (e["cx"] + s*e["h"]*0.8, e["suelo"] - e["h"]*0.4)
             # la lupa entre sus ojos y lo que mira

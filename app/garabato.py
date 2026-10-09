@@ -602,7 +602,10 @@ _ALIAS_OBJETOS = {"gear": "engranaje", "rueda_dentada": "engranaje", "engranajes
                   "shield": "escudo", "escudo_placeholder": "escudo", "foam_stick": "palo_espuma",
                   "palo": "palo_espuma", "stick": "palo_espuma", "goggles": "gafas_vr",
                   "video_goggles": "gafas_vr", "gafas": "gafas_vr", "coil": "bobina",
-                  "magnetic_coil": "bobina"}
+                  "magnetic_coil": "bobina", "cigarette": "cigarrillo", "cigarro": "cigarrillo",
+                  "tabaco": "cigarrillo", "beer": "cerveza", "wine": "copa", "vino": "copa",
+                  "vape": "vapeador", "vaper": "vapeador", "e_cigarette": "vapeador", "coffee": "taza",
+                  "cafe": "taza", "energy_drink": "lata", "bebida_energetica": "lata"}
 
 
 def nombre_objeto(que) -> str:
@@ -1336,8 +1339,22 @@ def _en_la_mano(img, est):
         giro = math.degrees(math.atan2(-vx, -vy))
         _pega_girada(img, pieza, pcx, pbase, giro, mano[0], mano[1])
     else:
-        _pega_girada(img, pieza, pieza.width/2, pieza.height*0.55, float(o.get("giro", 0.0)), mano[0],
-                     mano[1] - pieza.height*0.05)
+        dx, dy = o.get("desplaza", (0.0, 0.0))
+        _pega_girada(img, pieza, pieza.width/2, pieza.height*0.55, float(o.get("giro", 0.0)),
+                     mano[0] + dx*est["h"], mano[1] - pieza.height*0.05 + dy*est["h"])
+
+
+def _humo(img, pos, r, alfa):
+    """Una bocanada de humo: gris clarito y medio transparente."""
+    r = max(2, int(r))
+    a = int(255*max(0.0, min(1.0, alfa)))
+    if a < 8:
+        return
+    nube = Image.new("RGBA", (r*2 + 4, r*2 + 4), (0, 0, 0, 0))
+    dn = ImageDraw.Draw(nube)
+    dn.ellipse([2, 2, r*2 + 2, r*2 + 2], fill=(214, 214, 220, int(a*0.85)), outline=(150, 150, 160, a),
+               width=max(1, r//10))
+    img.paste(nube, (int(pos[0] - r - 2), int(pos[1] - r - 2)), nube)
 
 
 def _camara_viva(img, t, dur, mueve, golpes):
@@ -1480,6 +1497,9 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                         _garabato_en_cabeza(img, ImageDraw.Draw(img), _GARABATOS.get(efecto, efecto), cab,
                                             reloj, random.Random(n//paso_hervor))
             for o in vuelan:
+                if o["que"] == "humo":
+                    _humo(img, o["pos"], o["tam"], o.get("alfa", 0.8))
+                    continue
                 if nombre_objeto(o["que"]) not in OBJETOS_TODOS:
                     continue
                 pieza, pcx, pbase = _pieza_cosa(nombre_objeto(o["que"]), int(o["tam"]), max(3, int(ancho*0.0045)))

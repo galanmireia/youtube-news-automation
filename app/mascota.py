@@ -378,6 +378,22 @@ def _duerme(t, dur, lado):
             "brazos": ((85, 0), (85, 0)), "inclina": 6, "efecto": "zzz"}
 
 
+def _tose(t, dur, lado):
+    """Tose: cada poco un golpe de tos que le dobla (y le salen nubecitas)."""
+    u = (t % 1.1)/1.1
+    golpe = math.exp(-((u - 0.15)/0.07)**2) + 0.7*math.exp(-((u - 0.4)/0.07)**2)
+    return {"gesto": "grito" if golpe > 0.4 else "triste", "estira": 1 - 0.14*golpe, "inclina": 16*golpe*lado,
+            "brazos": ((70 - 120*golpe, 60), (70, 10)), "tos": golpe}
+
+
+def _borracho(t, dur, lado):
+    """Borracho: se tambalea, da traspies y le da hipo."""
+    v = math.sin(t*1.7)
+    return {"gesto": "contento" if int(t/2.2) % 2 else "sorpresa", "dx": 0.12*v, "inclina": 18*math.sin(t*1.3),
+            "piernas": t*5 if abs(v) > 0.6 else None, "brazos": ((-30 + 40*v, 50), (-30 - 40*v, 50)),
+            "hipo": (t % 1.7) < 0.5, "rojo": True}
+
+
 ACCIONES = {
     "entra": (_entra, "enters hopping from the side and stops, surprised (first shot of a section)"),
     "explica": (_explica, "talks with its hands (the default)"),
@@ -394,6 +410,8 @@ ACCIONES = {
     "saluda": (_saluda, "waves hello or goodbye"),
     "mareo": (_mareo, "dizzy, confused, wobbling"),
     "duerme": (_duerme, "sleeps, snoring (zzz)"),
+    "tose": (_tose, "coughs hard, bent over (smoke, sick)"),
+    "borracho": (_borracho, "drunk: staggers, sways, hiccups (alcohol videos only)"),
 }
 
 
@@ -539,19 +557,34 @@ def pinta_estado(img, e: dict):
                            forma=e["forma"], pelo=e.get("pelo"), gafas=e.get("gafas", False),
                            bigote=e.get("bigote", False), alcanza=e.get("alcanza"), pie_arriba=e.get("pie_arriba"),
                            desgaste=e.get("desgaste", 0.0))
-    if e["quien"] == "mokordo":
-        d = ImageDraw.Draw(img)
-        if p.get("rayas"):
-            for k in range(3):
-                y = e["suelo"] - h*(0.25 + k*0.18)
-                x0 = e["cx"] - lado*h*0.35
-                d.line([(x0, y), (x0 - lado*h*(0.25 + 0.08*k), y)], fill=(150, 146, 140),
-                       width=max(3, int(h*0.012)))
-        if p.get("puntos"):
-            from . import garabato
-            for k in range(3):
-                garabato._letrero(img, ".", (cabeza[0] + lado*(h*0.3 + k*h*0.09), cabeza[1] - h*0.25 - k*h*0.05),
-                                  h*0.2, TINTA, 0, garabato._escala_pop(e["t"] - 0.3 - k*0.35))
+    # Los efectos de la accion (las rayas de correr, la tos, el hipo...).
+    d = ImageDraw.Draw(img)
+    if p.get("rayas"):
+        for k in range(3):
+            y = e["suelo"] - h*(0.25 + k*0.18)
+            x0 = e["cx"] - lado*h*0.35
+            d.line([(x0, y), (x0 - lado*h*(0.25 + 0.08*k), y)], fill=(150, 146, 140),
+                   width=max(3, int(h*0.012)))
+    if p.get("tos", 0) > 0.3:
+        boca = (cabeza[0] + lado*h*0.08, cabeza[1] + h*0.07)
+        for k in range(3):
+            rk = h*(0.02 + 0.015*k)*p["tos"]
+            bx, by = boca[0] + lado*h*(0.1 + 0.07*k), boca[1] - h*0.02*k
+            d.ellipse([bx - rk, by - rk, bx + rk, by + rk], fill=(225, 225, 230), outline=(150, 150, 160))
+    if p.get("rojo"):
+        # los mofletes colorados del que ha bebido
+        for k in (-1, 1):
+            mx, my = cabeza[0] + k*h*0.12, cabeza[1] + h*0.03
+            d.ellipse([mx - h*0.04, my - h*0.022, mx + h*0.04, my + h*0.022], fill=(240, 110, 120))
+    if p.get("hipo"):
+        from . import garabato
+        garabato._letrero(img, "hic!", (cabeza[0] + lado*h*0.32, cabeza[1] - h*0.28), h*0.12, TINTA, -10*lado,
+                          garabato._escala_pop((e["t"] % 1.7)))
+    if p.get("puntos"):
+        from . import garabato
+        for k in range(3):
+            garabato._letrero(img, ".", (cabeza[0] + lado*(h*0.3 + k*h*0.09), cabeza[1] - h*0.25 - k*h*0.05),
+                              h*0.2, TINTA, 0, garabato._escala_pop(e["t"] - 0.3 - k*0.35))
     return cabeza, manos
 
 

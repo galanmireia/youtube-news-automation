@@ -1453,6 +1453,63 @@ def _palo_espuma(d, x, y, t, rnd, g, tinta=TINTA):
         d.ellipse([px - rp, py - rp, px + rp, py + rp], fill=(220, 170, 20))
 
 
+# ---------------------------------------------------------------------------
+# Lo de los videos de "y si Mokordo tomara...": el tabaco, el vaper y el
+# alcohol (lo legal se ve como se toma; lo ilegal, solo el objeto).
+# ---------------------------------------------------------------------------
+def _cigarrillo(d, x, y, t, rnd, g, tinta=TINTA):
+    """Tumbado: el filtro naranja a la izquierda, la brasa y la ceniza a la derecha."""
+    largo, alto = t*1.0, t*0.16
+    x0, y0 = x - largo/2, y - t*0.3
+    _caja(d, [x0, y0, x0 + largo*0.28, y0 + alto], NARANJA, g)
+    for k in range(3):
+        px = x0 + largo*(0.06 + k*0.08)
+        d.ellipse([px - g*0.5, y0 + alto*0.35, px + g*0.5, y0 + alto*0.65], fill=(200, 110, 20))
+    _caja(d, [x0 + largo*0.28, y0, x0 + largo*0.9, y0 + alto], BLANCO, g)
+    _caja(d, [x0 + largo*0.9, y0, x0 + largo, y0 + alto], GRIS, g)
+    d.ellipse([x0 + largo*0.93, y0 + alto*0.15, x0 + largo*1.03, y0 + alto*0.85], fill=(255, 90, 30))
+    d.ellipse([x0 + largo*0.96, y0 + alto*0.3, x0 + largo*1.01, y0 + alto*0.7], fill=(255, 210, 80))
+
+
+def _cerveza(d, x, y, t, rnd, g, tinta=TINTA):
+    """Una jarra de cerveza con su espuma."""
+    w = t*0.5
+    d.arc([x + w*0.35, y - t*0.72, x + w*0.95, y - t*0.25], 270, 90, fill=TINTA, width=int(g*2.6))
+    d.arc([x + w*0.35, y - t*0.72, x + w*0.95, y - t*0.25], 270, 90, fill=(250, 220, 120), width=int(g*1.2))
+    _caja(d, [x - w/2, y - t*0.8, x + w/2, y], (250, 196, 50), g, radio=t*0.05)
+    for k in range(4):
+        bx = x - w*0.3 + k*w*0.2
+        d.ellipse([bx - g*0.6, y - t*(0.2 + 0.12*(k % 2)) - g*0.6, bx + g*0.6, y - t*(0.2 + 0.12*(k % 2)) + g*0.6],
+                  fill=(255, 235, 160))
+    espuma = [(x - w*0.42 + k*w*0.28, y - t*0.82 - (k % 2)*t*0.04, t*0.14) for k in range(4)]
+    for bx, by, br in espuma:          # la raya solo por fuera
+        d.ellipse([bx - br - g, by - br - g, bx + br + g, by + br + g], fill=TINTA)
+    for bx, by, br in espuma:
+        d.ellipse([bx - br, by - br, bx + br, by + br], fill=BLANCO)
+
+
+def _copa(d, x, y, t, rnd, g, tinta=TINTA):
+    """Una copa de vino tinto."""
+    _ov(d, [x - t*0.22, y - t*0.04, x + t*0.22, y + t*0.02], (235, 240, 245), g)
+    d.line([(x, y - t*0.02), (x, y - t*0.45)], fill=TINTA, width=int(g*1.6))
+    copa = [(x - math.cos(a)*t*0.28, y - t*1.0 + math.sin(a)*t*0.55) for a in [k*math.pi/24 for k in range(25)]]
+    d.polygon(copa, fill=(235, 240, 245))
+    nivel = y - t*0.8
+    vino = [p for p in copa if p[1] >= nivel]
+    if len(vino) > 2:
+        d.polygon([(vino[0][0], nivel)] + vino + [(vino[-1][0], nivel)], fill=(150, 20, 50))
+    d.line(copa, fill=TINTA, width=g, joint="curve")
+    d.line([copa[0], copa[-1]], fill=TINTA, width=max(2, g//2))
+
+
+def _vapeador(d, x, y, t, rnd, g, tinta=TINTA):
+    """Un vaper: el cuerpo de colores, la boquilla y la lucecita."""
+    _caja(d, [x - t*0.14, y - t*0.8, x + t*0.14, y], (120, 90, 210), g, radio=t*0.06)
+    _caja(d, [x - t*0.08, y - t*1.0, x + t*0.08, y - t*0.8], GRIS_OSCURO, g, radio=t*0.03)
+    _caja(d, [x - t*0.09, y - t*0.6, x + t*0.09, y - t*0.35], CELESTE, max(2, g//2))
+    d.ellipse([x - t*0.04, y - t*0.2, x + t*0.04, y - t*0.12], fill=(120, 240, 160))
+
+
 MAS_OBJETOS = {
     # el cuerpo y la salud
     "diente": _diente, "hueso": _hueso, "nariz": _nariz, "oreja": _oreja, "lengua": _lengua,
@@ -1485,7 +1542,8 @@ MAS_OBJETOS = {
     "candado": _candado, "iman": _iman, "regalo": _regalo, "trofeo": _trofeo, "dado": _dado,
     "altavoz": _altavoz, "atomo": _atomo, "diana": _diana, "balanza": _balanza, "pesa": _pesa,
     "robot": _robot, "moneda": _moneda, "engranaje": _engranaje, "escudo": _escudo,
-    "palo_espuma": _palo_espuma,
+    "palo_espuma": _palo_espuma, "cigarrillo": _cigarrillo, "cerveza": _cerveza, "copa": _copa,
+    "vapeador": _vapeador,
 }
 # Los rehechos ganan a los de antes (y a los de España Contada, solo aqui).
 REHECHOS = {"arbol": _arbol, "sol": _sol, "nube": _nube, "pelota": _pelota, "dinero": _dinero,
