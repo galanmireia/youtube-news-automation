@@ -728,6 +728,10 @@ def run_literal(
     try:
         _stage(variant, 1, "Traduciendo tu guion al formato del video...")
         script = translate_literal_script(raw_text, variant=variant, parar=_stop_requested.is_set)
+        # Y el titulo del video (miniatura y YouTube) tambien es el suyo: la
+        # traduccion se inventaba uno ("no has puesto bien el titulo").
+        if forced_topic:
+            script["title"] = forced_topic
 
         raw_sens = script.get("is_sensitive", False)
         is_sensitive = (raw_sens.strip().lower() == "true"
