@@ -593,6 +593,21 @@ def _gorro(d, cab, rc, g, rnd, cual):
                    (x+rc*.7, arriba-rc*.55), (x+rc*1.0, arriba+rc*.12),
                    (x-rc*1.0, arriba+rc*.12)], g, rnd, color=rojo)
         d.line([(x+rc*.55, arriba-rc*.62), (x+rc*.75, arriba-rc*.88)], fill=rojo, width=g)
+    elif cual == "almirante":       # Colon: bonete oscuro con ribete de oro y pluma blanca
+        # "Colón con gorro de capitán": el bicornio es de 1800 y el de pico es
+        # de marinero raso. El capitan de las carabelas lleva el bonete de
+        # terciopelo de los retratos de Colon, y la pluma lo dice de lejos.
+        oscuro = (40, 44, 70)
+        d.chord([x-rc*1.12, arriba-rc*0.95, x+rc*1.12, arriba+rc*0.55], 180, 360,
+                fill=oscuro, outline=TINTA, width=g)
+        d.rounded_rectangle([x-rc*1.18, arriba-rc*0.30, x+rc*1.18, arriba+rc*0.06],
+                            radius=int(rc*0.12), fill=oro, outline=TINTA, width=max(2, g//2))
+        pluma = [(x+rc*0.55, arriba-rc*0.40), (x+rc*0.95, arriba-rc*1.45),
+                 (x+rc*1.45, arriba-rc*1.75), (x+rc*1.15, arriba-rc*1.05), (x+rc*0.75, arriba-rc*0.38)]
+        d.polygon(pluma, fill=(250, 250, 246))
+        _linea(d, pluma + [pluma[0]], max(2, g//2), rnd, temblor=0.8)
+        d.ellipse([x+rc*0.42, arriba-rc*0.42, x+rc*0.72, arriba-rc*0.12], fill=ROJO,
+                  outline=TINTA, width=max(2, g//2))
     elif cual == "marinero":        # gorro de pico
         _linea(d, [(x-rc*1.05, arriba+rc*.05), (x, arriba-rc*.75),
                    (x+rc*1.05, arriba+rc*.05)], g, rnd, color=azul)
@@ -2082,6 +2097,7 @@ GORROS_EXPLICADOS = {
     "mitra":      "obispo, inquisidor",
     "monje":      "capucha de fraile o monje",
     "boina":      "el campesino, el pueblo, el XIX y XX",
+    "almirante":  "gorro de CAPITAN de las carabelas: bonete oscuro con ribete de oro y pluma blanca. Colon, el almirante, el capitan de un barco antiguo (el bicornio 'comandante' es de 1800)",
     "marinero":   "gorro de marinero",
     "peluca":     "peluca blanca empolvada del XVIII: Borbones, cortesanos, ministros",
     "turbante":   "Al-Andalus, sultanes, embajadores de Oriente",
@@ -4033,6 +4049,16 @@ def _piso(d, w, h, suelo, clase, rnd, g):
                     rnd, max(2, g//2), color=(150, 126, 96))
     elif clase == "hierba":
         d.rectangle([0, suelo, w, h], fill=(122, 193, 96))
+    elif clase == "arena":
+        # La playa: arena clara, la orilla mojada arriba y alguna concha.
+        d.rectangle([0, suelo, w, h], fill=(236, 212, 158))
+        d.rectangle([0, suelo, w, suelo + h*0.025], fill=(206, 186, 140))
+        pts = [(x, suelo + h*0.025 + h*0.006*math.sin(x/(w*0.06))) for x in range(0, w + 16, 16)]
+        _linea(d, pts, max(2, g//2), rnd, color=(246, 248, 244), temblor=1.0)
+        for _ in range(10):
+            cx, cy, r = rnd.uniform(0, w), rnd.uniform(suelo + h*0.05, h), h*rnd.uniform(.004, .008)
+            d.ellipse([cx - r*1.4, cy - r, cx + r*1.4, cy + r], fill=(246, 226, 210),
+                      outline=(196, 160, 120))
     elif clase == "nada":
         d.rectangle([0, suelo, w, h], fill=(252, 252, 250))
     elif clase == "linea":
@@ -4278,6 +4304,13 @@ _DECORADOS = {
                      "cuelga": [("antorcha", .12, .46, .10), ("antorcha", .88, .46, .10),
                                 ("cadenas", .30, .44, .12), ("cadenas", .70, .44, .12)],
                      "velas": []},
+    # La llegada: arena, palmeras y las tres carabelas fondeadas detras. La
+    # selva es tierra adentro; Colon y Rodrigo de Triana pisan la orilla.
+    "playa":        {"pared": "cielo_mar", "piso": "arena",
+                     "fondo": [("playa", .5, 1.0, 1.0)], "muebles": [], "delante": [],
+                     "cuelga": [("barco", .34, .628, .075), ("barco", .52, .632, .062),
+                                ("barco", .67, .628, .052)],
+                     "velas": []},
     "selva":        {"pared": "cielo", "piso": "hierba",
                      "fondo": [("selva", .5, 1.0, 1.0)],
                      "muebles": [], "delante": [], "cuelga": [], "velas": []},
@@ -4328,6 +4361,7 @@ DECORADOS_EXPLICADOS = {
     "dormitorio":  "el dormitorio de un rey: cortinones rojos, tapiz, ventana de noche. La cama la pone la postura en_cama",
     "puerto":      "el muelle con barcos en el mar: flotas, la Armada, Colon zarpando, los que llegan",
     "mazmorra":    "carcel de piedra con reja, cadenas y antorchas: presos, Inquisicion, cautivos",
+    "playa":       "UNA PLAYA DE LAS AMERICAS: arena, palmeras y las tres carabelas fondeadas en el mar. La llegada de Colon, el desembarco, cualquier playa o isla",
     "selva":       "la selva de las Americas, con palmeras: Colon, Cortes, Pizarro, expediciones",
     "acampada":    "una plaza de ciudad tomada por una acampada: tiendas de campaña de colores y pancartas. Protestas, la Puerta del Sol, el 15-M, sentadas",
     "piso":        "un piso de alquiler normal del siglo XX (tiene RADIO: NUNCA para historias de antes de 1900; una casa antigua es la cocina): papel pintado, visillos, cuadro, reloj de pared. Caseros, inquilinos, familias de ahora",
@@ -4403,6 +4437,34 @@ def _selva(d, w, h, suelo, rnd, g):
         bx = w*(0.05 + 0.15*k)
         d.pieslice([bx - w*0.09, suelo - h*0.07, bx + w*0.09, suelo + h*0.03], 180, 360,
                    fill=oscuro if k % 2 else verde, outline=TINTA)
+
+
+def _playa(d, w, h, suelo, rnd, g):
+    """Una playa de las Americas: dos palmeras inclinadas en los lados, que
+    dejan el centro libre para la gente, y matas bajas al pie."""
+    verde, oscuro, tronco = (58, 138, 64), (34, 100, 48), (132, 94, 58)
+    for px, alto, lado in ((.07, .40, 1), (.93, .34, -1)):
+        bx, top = w*px, suelo - h*alto
+        pts = [(bx + lado*w*0.07*(i/6)**1.6, suelo - (suelo - top)*i/6) for i in range(7)]
+        _linea(d, pts, int(g*2.4), rnd, color=tronco, temblor=1)
+        for i in range(1, 6):
+            px_, py_ = pts[i]
+            _linea(d, [(px_ - w*0.012, py_), (px_ + w*0.012, py_ + h*0.004)], max(2, g//2), rnd,
+                   color=(100, 70, 44), temblor=0.5)
+        cx, cy = pts[-1]
+        for a in range(7):
+            ang = math.pi*(1.05 + a*0.15)
+            fx, fy = cx + math.cos(ang)*w*0.17, cy + math.sin(ang)*h*0.04 + h*0.05*abs(math.cos(ang))
+            d.polygon([(cx, cy), (fx, fy), (cx + (fx - cx)*0.6, fy + h*0.022)], fill=verde, outline=oscuro)
+            fx2 = cx - math.cos(ang)*w*0.17
+            d.polygon([(cx, cy), (fx2, fy), (cx + (fx2 - cx)*0.6, fy + h*0.022)], fill=verde, outline=oscuro)
+        for k in (-1, 1):                       # los cocos
+            r = h*0.008
+            d.ellipse([cx + k*r*1.3 - r, cy + r*0.6 - r, cx + k*r*1.3 + r, cy + r*0.6 + r],
+                      fill=(110, 76, 40), outline=TINTA)
+    for bx in (w*0.02, w*0.16, w*0.84, w*0.98):
+        d.pieslice([bx - w*0.07, suelo - h*0.05, bx + w*0.07, suelo + h*0.03], 180, 360,
+                   fill=verde, outline=TINTA)
 
 
 def _ventana_piso(d, cx, cy, ancho, alto, rnd, g):
@@ -4729,6 +4791,7 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "cortinas":       _cortinas(d, w, h, suelo, rnd, g)
     elif que == "reja":           _reja(d, X, h*y, T, h*tam*0.7, rnd, g)
     elif que == "selva":          _selva(d, w, h, suelo, rnd, g)
+    elif que == "playa":          _playa(d, w, h, suelo, rnd, g)
     elif que == "ventana_piso":   _ventana_piso(d, X, h*y, T, h*tam*0.62, rnd, g)
     elif que == "cuadro":         _cuadro(d, X, h*y, T, rnd, g)
     elif que == "reloj":          _reloj_pared(d, X, h*y, T, rnd, g)
