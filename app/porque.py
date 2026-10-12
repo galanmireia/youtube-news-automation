@@ -129,6 +129,14 @@ DOING THINGS ("hace"): Mokordo and the figuras can DO things to things and to ea
   coin" -> "da" with "con": "moneda". "Drink a glass of cold water" -> "bebe" with "vaso". "Scientists
   looked at the brain" -> the abuelo "mira" "a": "cerebro" (with the cerebro in "cosas"). The
   viewer must SEE what the voice says.
+  DAILY LIFE: Mokordo really does the routines the video talks about - "washes his face" ->
+  {{"verbo": "lava", "con": "jabon"}} (foam, then water); "moisturizer" -> "crema"; "face mask" ->
+  "mascarilla"; "brush your teeth" -> "cepilla"; "shower" -> "ducha"; "towel" -> "seca"; "lifting
+  weights" -> "pesas"; "jump rope" -> "comba"; "scrolling your phone" -> "movil"; "working on a
+  laptop" -> "teclea"; "gaming" -> "juega"; "take a pill" -> "pastilla"; "weigh yourself" ->
+  "pesa_se"; "fever" -> "termometro"; "a cold" -> "estornuda"; "cooking" -> "cocina"; "binge eating"
+  -> "atraca"; "the alarm goes off" -> "despierta". Use them OFTEN: a video about a routine shows
+  the routine many times, in different shots.
 DRUGS AND SUBSTANCES (alcohol, nicotine, caffeine, energy drinks, cannabis, cocaine...): the
 video is "What if Mokordo took X?" - an educational, honest look at what it does to the brain and
 the body, and why it hooks you. Mokordo is the one who tries it, and his "desgaste" (0 = healthy,
@@ -197,7 +205,8 @@ Return ONLY this JSON:
   "miniatura": {{"cosas": [...], "textos": [...]}},
   "capitulos": [{{"titulo": "short chapter title", "resumen": "what it explains, with the key facts", "palabras": 250,
                   "escenario": "where this chapter happens, one of {escenarios}",
-                  "cuerpo": {{"gordo": 0.3}}, "dia": "DAY 7"}}]
+                  "cuerpo": {{"gordo": 0.3}}, "dia": "DAY 7", "complemento": "",
+                  "medidores": {{"ENERGY": 0.4}}}}]
 }}
 MOKORDO'S JOURNEY. Mokordo, the mascot, LIVES the topic from start to end and the viewer must
 SEE him change as the video goes. For each chapter decide:
@@ -212,6 +221,11 @@ SEE him change as the video goes. For each chapter decide:
               Use {{}} for topics where his body does not change.
   "dia":      a short time label shown in the corner while that chapter plays ("DAY 1", "DAY 7",
               "WEEK 2", "HOUR 3", "AGE 70"), when the topic is a timeline; otherwise "".
+  "complemento": what Mokordo wears in that chapter, or "": {complementos}.
+  "medidores": 1-3 game-style bars in the corner, each 0-1 at the END of the chapter, the SAME
+              names all video long, moving with the story: {{"ENERGY": 0.2, "SLEEP": 0.1}} for no
+              sleep, {{"SKIN": 0.9, "CONFIDENCE": 0.8}} for skincare, {{"HEALTH": 0.3, "MONEY": 0.1}}
+              for smoking. {{}} if the topic doesn't need them.
 "miniatura": the thumbnail, drawn in the same visual format: dead simple and readable on a
 phone - two objects and an "igual" sign, or one object and 1-3 big words.
 Chapters: 5 to 8; the first one is the HOOK (short); together about {palabras} words."""
@@ -254,7 +268,8 @@ def escribe_guion(tema: str, parar=None) -> dict:
         tema=tema, palabras=_PALABRAS, canal=CHANNEL_NAME,
         escenarios=_lista(escenarios.ESCENARIOS),
         rasgos="; ".join(f'"{k}" = {v}' for k, v in mascota.RASGOS.items()),
-        desgaste='; "desgaste" = wrecked by a drug (thin, grey, sick), ONLY in drug videos'),
+        desgaste='; "desgaste" = wrecked by a drug (thin, grey, sick), ONLY in drug videos',
+        complementos="; ".join(f'"{k}" = {v}' for k, v in mascota.COMPLEMENTOS.items())),
         "why-indice", 8000)
     capitulos = [c for c in plan.get("capitulos") or [] if isinstance(c, dict)]
     if not capitulos:
@@ -292,7 +307,8 @@ def escribe_guion(tema: str, parar=None) -> dict:
         hechos.append({"titulo": c.get("titulo", ""), "planos": planos, "_pedidas": pedidas[i],
                        "resumen": c.get("resumen", ""), "escenario": c.get("escenario") or "",
                        "cuerpo": c.get("cuerpo") if isinstance(c.get("cuerpo"), dict) else {},
-                       "dia": str(c.get("dia") or "")})
+                       "dia": str(c.get("dia") or ""), "complemento": str(c.get("complemento") or ""),
+                       "medidores": c.get("medidores") if isinstance(c.get("medidores"), dict) else {}})
     plan["capitulos"] = hechos
     alarga(plan, sistema, indice)
     return plan
@@ -419,6 +435,10 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
         extra = f" · {cap.get('escenario') or 'sin sitio'} · Mokordo: {cuerpo}"
         if cap.get("dia"):
             extra += f" · {cap['dia']}"
+        if cap.get("complemento"):
+            extra += f" · {cap['complemento']}"
+        if cap.get("medidores"):
+            extra += " · " + ", ".join(f"{k} {v}" for k, v in _medidores_de(cap["medidores"]).items())
         lineas.append(f"{n}. {cap.get('titulo')} ({len(cap.get('planos') or [])} planos){extra}")
     minutos = palabras/150
     lineas += ["", f"{planos} planos, {palabras} palabras (unos {minutos:.1f} minutos)",
@@ -656,8 +676,23 @@ def _con_sitio(visual: dict, sitio: str) -> dict:
     return dict(visual, ambiente=sitio or "salon")
 
 
-def _con_cuerpo(visual: dict, cuerpo: dict, dia) -> dict:
+def _medidores_de(medidores) -> dict:
+    sale = {}
+    for k, v in (medidores or {}).items() if isinstance(medidores, dict) else ():
+        try:
+            sale[str(k).upper()[:10]] = min(1.0, max(0.0, float(v)))
+        except (TypeError, ValueError):
+            pass
+    return dict(list(sale.items())[:3])
+
+
+def _con_cuerpo(visual: dict, cuerpo: dict, dia, complemento=None, medidores=None) -> dict:
     v = dict(visual)
+    if medidores:
+        v["_medidores"] = medidores
+    if complemento in mascota.COMPLEMENTOS and isinstance(v.get("mascota"), dict) \
+            and not v["mascota"].get("complemento"):
+        v["mascota"] = dict(v["mascota"], complemento=complemento)
     if cuerpo and isinstance(v.get("mascota"), dict):
         ma = dict(v["mascota"])
         propio = _rasgos_de(ma.get("cuerpo"))
@@ -931,10 +966,16 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
     todos = [p for cap in guion["capitulos"] for p in cap["planos"]]
     # Un guion de antes de Mokordo (casi ningun plano lo trae): se le pone solo.
     cuerpo_antes = {}
+    medidores_antes = {}
     sitio = ""
     for n, cap in enumerate(guion["capitulos"]):
         anterior = None
         cuerpo_fin = _rasgos_de(cap.get("cuerpo"))
+        medidores_fin = _medidores_de(cap.get("medidores"))
+        if not medidores_antes:
+            # El primer capitulo es el punto de partida: las barras empiezan
+            # ahi y desde ahi se mueven.
+            medidores_antes = dict(medidores_fin)
         sitio = _sitio_valido(cap.get("escenario")) or sitio
         for k, p in enumerate(cap["planos"]):
             ultimo = k == len(cap["planos"]) - 1
@@ -950,10 +991,14 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             # EL CUERPO, plano a plano: de como acabo el capitulo anterior a
             # como acaba este, sin saltos.
             avance = (k + 1)/len(cap["planos"])
-            anterior = _con_cuerpo(anterior, _interpola(cuerpo_antes, cuerpo_fin, avance), cap.get("dia"))
+            anterior = _con_cuerpo(anterior, _interpola(cuerpo_antes, cuerpo_fin, avance), cap.get("dia"),
+                                   cap.get("complemento"),
+                                   _interpola(medidores_antes, medidores_fin, avance) if medidores_fin else {})
             planos.append((str(p["narracion"]), anterior,
                            _PAUSA_CAPITULO if ultimo else _PAUSA_PLANO, n))
         cuerpo_antes = cuerpo_fin
+        if medidores_fin:
+            medidores_antes = medidores_fin
         if n == 0 and len(guion["capitulos"]) > 1:
             # EL TITULO, DETRAS DEL GANCHO, como la careta de España Contada:
             # "¿has puesto la intro?". Tres segundos en silencio (solo la

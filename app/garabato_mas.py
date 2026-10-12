@@ -1737,7 +1737,142 @@ def _esponja(d, x, y, t, rnd, g, tinta=TINTA):
         d.ellipse([px - rp, py - rp, px + rp, py + rp], fill=(220, 170, 20))
 
 
+# ---- LA VIDA DIARIA DE MOKORDO (lavarse, cuidarse, hacer deporte, pantallas,
+# cocinar, ponerse malo). Ella: "tiene que aparecer como se limpia la cara,
+# saliendo jabon" - y todo lo demas que haga en los videos de "que pasa si".
+
+def _jabon(d, x, y, t, rnd, g, tinta=TINTA):
+    """La pastilla de jabon con sus burbujas."""
+    _caja(d, [x - t*0.4, y - t*0.32, x + t*0.4, y], (250, 196, 214), g, radio=t*0.14)
+    d.rounded_rectangle([x - t*0.28, y - t*0.26, x + t*0.1, y - t*0.18], radius=int(t*0.04), fill=(255, 230, 238))
+    for bx, by, br in ((-0.2, 0.45, 0.09), (0.05, 0.55, 0.12), (0.28, 0.42, 0.07)):
+        _circ(d, x + bx*t, y - by*t, br*t, (240, 248, 255), max(2, g//2))
+        d.ellipse([x + bx*t - br*t*0.5, y - by*t - br*t*0.6, x + bx*t - br*t*0.1, y - by*t - br*t*0.2],
+                  fill=(255, 255, 255))
+
+
+def _cepillo_dientes(d, x, y, t, rnd, g, tinta=TINTA):
+    """El cepillo de dientes, de lado, con su pasta."""
+    _caja(d, [x - t*0.5, y - t*0.12, x + t*0.3, y - t*0.04], (90, 160, 230), g, radio=t*0.04)
+    _caja(d, [x + t*0.22, y - t*0.14, x + t*0.5, y - t*0.06], (250, 250, 252), g, radio=t*0.02)
+    for k in range(6):
+        bx = x + t*(0.25 + 0.045*k)
+        d.line([(bx, y - t*0.14), (bx, y - t*0.24)], fill=(120, 190, 240), width=max(2, g//2))
+    _cont(d, [(x + t*0.24, y - t*0.24), (x + t*0.48, y - t*0.26), (x + t*0.46, y - t*0.32),
+              (x + t*0.28, y - t*0.31)], (250, 250, 252), max(2, g//2), rnd)
+    d.line([(x + t*0.3, y - t*0.28), (x + t*0.44, y - t*0.29)], fill=(110, 200, 220), width=max(2, g//2))
+
+
+def _toalla(d, x, y, t, rnd, g, tinta=TINTA):
+    """La toalla doblada, a rayas."""
+    _caja(d, [x - t*0.42, y - t*0.5, x + t*0.42, y], (120, 190, 230), g, radio=t*0.06)
+    for k in range(3):
+        yy = y - t*(0.12 + 0.07*k)
+        d.line([(x - t*0.4, yy), (x + t*0.4, yy)], fill=(255, 255, 255), width=max(2, g))
+    d.line([(x - t*0.42, y - t*0.36), (x + t*0.42, y - t*0.36)], fill=TINTA, width=max(2, g//2))
+
+
+def _bote_crema(d, x, y, t, rnd, g, tinta=TINTA):
+    """El tarro de crema abierto, con la crema blanca."""
+    _caja(d, [x - t*0.36, y - t*0.42, x + t*0.36, y], (246, 196, 214), g, radio=t*0.08)
+    _caja(d, [x - t*0.24, y - t*0.3, x + t*0.24, y - t*0.14], (255, 255, 255), max(2, g//2), radio=t*0.03)
+    d.line([(x - t*0.16, y - t*0.22), (x + t*0.16, y - t*0.22)], fill=(230, 120, 160), width=max(2, g//2))
+    _ov(d, [x - t*0.34, y - t*0.54, x + t*0.34, y - t*0.38], (252, 250, 246), g)
+    _cont(d, [(x - t*0.12, y - t*0.48), (x, y - t*0.62), (x + t*0.1, y - t*0.5)], (255, 255, 255), max(2, g//2), rnd)
+
+
+def _pepino(d, x, y, t, rnd, g, tinta=TINTA):
+    """Una rodaja de pepino (la de la mascarilla)."""
+    cy = y - t*0.3
+    _circ(d, x, cy, t*0.3, (70, 150, 70), g)
+    _circ(d, x, cy, t*0.24, (190, 230, 160), max(2, g//2))
+    for k in range(6):
+        a = k*math.pi/3
+        d.ellipse([x + math.cos(a)*t*0.12 - t*0.025, cy + math.sin(a)*t*0.12 - t*0.035,
+                   x + math.cos(a)*t*0.12 + t*0.025, cy + math.sin(a)*t*0.12 + t*0.035], fill=(240, 250, 220))
+
+
+def _bascula(d, x, y, t, rnd, g, tinta=TINTA):
+    """La bascula de baño con su esfera."""
+    _caja(d, [x - t*0.48, y - t*0.16, x + t*0.48, y], (236, 238, 242), g, radio=t*0.06)
+    _caja(d, [x - t*0.16, y - t*0.14, x + t*0.16, y - t*0.05], (40, 44, 54), max(2, g//2), radio=t*0.02)
+    d.line([(x - t*0.1, y - t*0.095), (x + t*0.1, y - t*0.095)], fill=(120, 240, 160), width=max(2, g//2))
+
+
+def _comba(d, x, y, t, rnd, g, tinta=TINTA):
+    """La comba enrollada con sus asas."""
+    d.arc([x - t*0.35, y - t*0.6, x + t*0.35, y], 0, 360, fill=(230, 90, 80), width=max(3, g))
+    for lado in (-1, 1):
+        _caja(d, [x + lado*t*0.4 - t*0.06, y - t*0.42, x + lado*t*0.4 + t*0.06, y - t*0.12], (250, 200, 70), g,
+              radio=t*0.03)
+
+
+def _mando(d, x, y, t, rnd, g, tinta=TINTA):
+    """El mando de la consola."""
+    cy = y - t*0.25
+    _cont(d, [(x - t*0.45, cy - t*0.12), (x + t*0.45, cy - t*0.12), (x + t*0.5, cy + t*0.15),
+              (x + t*0.32, cy + t*0.22), (x + t*0.18, cy + t*0.08), (x - t*0.18, cy + t*0.08),
+              (x - t*0.32, cy + t*0.22), (x - t*0.5, cy + t*0.15)], (60, 64, 74), g, rnd)
+    d.line([(x - t*0.32, cy), (x - t*0.18, cy)], fill=(240, 240, 240), width=max(2, g))
+    d.line([(x - t*0.25, cy - t*0.07), (x - t*0.25, cy + t*0.07)], fill=(240, 240, 240), width=max(2, g))
+    for k, (bx, by, c) in enumerate(((0.25, -0.04, (240, 80, 80)), (0.33, 0.03, (90, 200, 120)),
+                                     (0.17, 0.03, (90, 150, 240)))):
+        _circ(d, x + bx*t, cy + by*t, t*0.04, c, max(1, g//3))
+
+
+def _portatil(d, x, y, t, rnd, g, tinta=TINTA):
+    """El portatil abierto con la pantalla encendida."""
+    _caja(d, [x - t*0.42, y - t*0.62, x + t*0.42, y - t*0.12], (60, 64, 74), g, radio=t*0.03)
+    _caja(d, [x - t*0.36, y - t*0.56, x + t*0.36, y - t*0.18], (140, 200, 240), max(2, g//2))
+    for k in range(4):
+        d.line([(x - t*0.3, y - t*(0.5 - 0.07*k)), (x + t*(0.2 - 0.1*(k % 2)), y - t*(0.5 - 0.07*k))],
+               fill=(255, 255, 255), width=max(2, g//2))
+    _cont(d, [(x - t*0.48, y - t*0.12), (x + t*0.48, y - t*0.12), (x + t*0.55, y), (x - t*0.55, y)],
+          (170, 176, 188), g, rnd)
+
+
+def _sarten(d, x, y, t, rnd, g, tinta=TINTA):
+    """La sarten con un huevo frito."""
+    _ov(d, [x - t*0.4, y - t*0.3, x + t*0.25, y], (60, 64, 74), g)
+    _caja(d, [x + t*0.22, y - t*0.19, x + t*0.6, y - t*0.12], (120, 80, 50), g, radio=t*0.03)
+    _ov(d, [x - t*0.28, y - t*0.24, x + t*0.12, y - t*0.06], (255, 255, 255), max(2, g//2))
+    _circ(d, x - t*0.08, y - t*0.15, t*0.06, (250, 200, 50), max(2, g//2))
+
+
+def _patatas(d, x, y, t, rnd, g, tinta=TINTA):
+    """Las patatas fritas en su cucurucho rojo."""
+    for k in range(7):
+        px = x - t*0.22 + k*t*0.075
+        alto = t*(0.6 + 0.12*((k*5) % 3))
+        _caja(d, [px - t*0.03, y - alto, px + t*0.03, y - t*0.3], (250, 210, 80), max(2, g//2))
+    _cont(d, [(x - t*0.32, y - t*0.42), (x + t*0.32, y - t*0.42), (x + t*0.24, y), (x - t*0.24, y)],
+          (230, 60, 50), g, rnd)
+    _circ(d, x, y - t*0.22, t*0.08, (250, 210, 80), max(2, g//2))
+
+
+def _gafas_sol(d, x, y, t, rnd, g, tinta=TINTA):
+    """Unas gafas de sol."""
+    cy = y - t*0.2
+    for lado in (-1, 1):
+        _cont(d, [(x + lado*t*0.05, cy - t*0.1), (x + lado*t*0.42, cy - t*0.1), (x + lado*t*0.38, cy + t*0.1),
+                  (x + lado*t*0.1, cy + t*0.1)], (40, 44, 54), g, rnd)
+        d.line([(x + lado*t*0.12, cy - t*0.04), (x + lado*t*0.22, cy - t*0.07)], fill=(160, 200, 240), width=max(2, g//2))
+    d.line([(x - t*0.05, cy - t*0.06), (x + t*0.05, cy - t*0.06)], fill=TINTA, width=max(2, g))
+
+
+def _auriculares(d, x, y, t, rnd, g, tinta=TINTA):
+    """Unos cascos de musica."""
+    d.arc([x - t*0.38, y - t*0.8, x + t*0.38, y - t*0.1], 180, 360, fill=TINTA, width=max(3, int(g*1.6)))
+    for lado in (-1, 1):
+        _caja(d, [x + lado*t*0.38 - t*0.1, y - t*0.48, x + lado*t*0.38 + t*0.1, y - t*0.18], (230, 80, 90), g,
+              radio=t*0.05)
+
+
 MAS_OBJETOS = {
+    # la vida diaria
+    "jabon": _jabon, "cepillo_dientes": _cepillo_dientes, "toalla": _toalla, "bote_crema": _bote_crema,
+    "pepino": _pepino, "bascula": _bascula, "comba": _comba, "mando": _mando, "portatil": _portatil,
+    "sarten": _sarten, "patatas": _patatas, "gafas_sol": _gafas_sol, "auriculares": _auriculares,
     # el cuerpo y la salud
     "diente": _diente, "hueso": _hueso, "nariz": _nariz, "oreja": _oreja, "lengua": _lengua,
     "sangre": _gota_de(ROJO), "musculo": _musculo, "jeringa": _jeringa, "tirita": _tirita,

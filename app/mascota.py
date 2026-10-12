@@ -239,6 +239,94 @@ def _detalles_cara(img, d, centro, r, g, h, cu, color, parpadeo):
                 _destello(d, centro[0] + dx*r, centro[1] + dy*r, r*rr*(0.7 + 0.6*k))
 
 
+# LO QUE SE PONE. Mokordo en el gimnasio con su cinta, en la cama con el gorro
+# de dormir, en la playa con gafas de sol: se lee el sitio y lo que hace de un
+# vistazo, y cambia de un capitulo a otro.
+COMPLEMENTOS = {
+    "gorro_dormir": "a striped nightcap with a pompom (sleep, bed, tired)",
+    "cinta":        "a red sweatband on the forehead (gym, sport, running)",
+    "gafas_sol":    "sunglasses (beach, sun, summer, cool)",
+    "toalla_cabeza": "a towel wrapped on the head (after the shower, skincare, spa)",
+    "gorro_chef":   "a white chef's hat (cooking, kitchen, food)",
+    "auriculares":  "headphones (music, gaming, focus, commuting)",
+    "gorro_fiesta": "a party hat (party, birthday, celebration)",
+    "bufanda":      "a red scarf (cold, winter, sick with a cold)",
+}
+
+
+def _complemento(d, que, centro, r, top, g, h, inclina, ancho):
+    """Lo que se pone, sobre su cuerpo de gota: los gorros en la punta, la
+    cinta por la frente de lado a lado, los cascos en los costados."""
+    cx, cy = centro
+    tx, ty = top
+    gl = max(2, g//2)
+    if que == "gorro_dormir":
+        base = ty + r*0.35
+        pts = [(tx - r*0.8, base), (tx - r*0.1, base - r*0.95), (tx + r*0.75, base - r*0.5), (tx + r*1.25, base + r*0.25),
+               (tx + r*0.8, base)]
+        d.polygon(pts, fill=(110, 150, 220), outline=TINTA)
+        for k in (0.35, 0.65):
+            a = (pts[0][0] + (pts[2][0] - pts[0][0])*k, pts[0][1] + (pts[2][1] - pts[0][1])*k)
+            d.line([a, (a[0] + r*0.3, a[1] + r*0.35)], fill=(240, 244, 252), width=max(3, g))
+        d.rounded_rectangle([tx - r*0.88, base - r*0.12, tx + r*0.88, base + r*0.14], radius=int(r*0.1),
+                            fill=(240, 244, 252), outline=TINTA, width=gl)
+        d.ellipse([tx + r*1.1, base + r*0.15, tx + r*1.42, base + r*0.47], fill=(240, 244, 252), outline=TINTA, width=gl)
+    elif que == "cinta":
+        y = ty + (cy - ty)*0.42
+        w_ = ancho*0.72
+        d.rounded_rectangle([cx - w_, y - r*0.11, cx + w_, y + r*0.11], radius=int(r*0.08), fill=(226, 64, 64),
+                            outline=TINTA, width=gl)
+        d.line([(cx - w_*0.97, y), (cx + w_*0.97, y)], fill=(255, 255, 255), width=gl)
+    elif que == "gafas_sol":
+        for lado in (-1, 1):
+            ex, ey = cx + lado*r*0.33, cy - r*0.12
+            d.rounded_rectangle([ex - r*0.28, ey - r*0.18, ex + r*0.28, ey + r*0.2], radius=int(r*0.12), fill=(34, 36, 44),
+                                outline=TINTA, width=gl)
+            d.line([(ex - r*0.16, ey - r*0.08), (ex - r*0.02, ey - r*0.14)], fill=(170, 200, 240), width=gl)
+        d.line([(cx - r*0.06, cy - r*0.18), (cx + r*0.06, cy - r*0.18)], fill=TINTA, width=max(2, g))
+    elif que == "toalla_cabeza":
+        base = ty + r*0.3
+        for dx, dy, rr in ((-0.45, -0.1, 0.55), (0.45, -0.12, 0.55), (0.0, -0.5, 0.62)):
+            d.ellipse([tx + dx*r - rr*r, base + dy*r - rr*r*0.7, tx + dx*r + rr*r, base + dy*r + rr*r*0.7],
+                      fill=(250, 180, 196), outline=TINTA, width=gl)
+        for k in range(3):
+            d.arc([tx - r*0.8, base - r*(0.85 - 0.22*k), tx + r*0.8, base + r*(0.25 - 0.05*k)], 200, 340,
+                  fill=(255, 220, 228), width=gl)
+    elif que == "gorro_chef":
+        base = ty + r*0.25
+        d.rectangle([tx - r*0.62, base - r*0.4, tx + r*0.62, base + r*0.05], fill=(255, 255, 255), outline=TINTA, width=gl)
+        for dx, rr in ((-0.45, 0.42), (0.0, 0.52), (0.45, 0.42)):
+            d.ellipse([tx + dx*r - rr*r, base - r*1.1 - rr*r*0.6, tx + dx*r + rr*r, base - r*0.35 + rr*r*0.2],
+                      fill=(255, 255, 255), outline=TINTA, width=gl)
+        d.rectangle([tx - r*0.6, base - r*0.45, tx + r*0.6, base - r*0.27], fill=(255, 255, 255))
+    elif que == "auriculares":
+        lado_x = ancho*0.98
+        y = cy - r*0.25
+        d.arc([cx - lado_x, ty - r*0.25, cx + lado_x, y + (y - ty)], 180, 360, fill=TINTA, width=max(4, int(g*1.8)))
+        for lado in (-1, 1):
+            d.rounded_rectangle([cx + lado*lado_x - r*0.2, y - r*0.32, cx + lado*lado_x + r*0.2, y + r*0.3],
+                                radius=int(r*0.12), fill=(226, 64, 80), outline=TINTA, width=gl)
+    elif que == "gorro_fiesta":
+        base = ty + r*0.2
+        pts = [(tx - r*0.45, base), (tx + r*0.05, base - r*1.1), (tx + r*0.5, base)]
+        d.polygon(pts, fill=(250, 200, 70), outline=TINTA)
+        for k in (0.33, 0.66):
+            y = base - r*1.1*k
+            hw = r*0.47*(1 - k)
+            d.line([(tx + r*0.05 - hw, y), (tx + r*0.05 + hw, y)], fill=(226, 64, 120), width=max(3, g))
+        d.ellipse([tx - r*0.07, base - r*1.25, tx + r*0.17, base - r*1.02], fill=(90, 180, 240), outline=TINTA)
+    elif que == "bufanda":
+        y = cy + r*0.85
+        w_ = ancho*1.0
+        d.rounded_rectangle([cx - w_, y - r*0.18, cx + w_, y + r*0.2], radius=int(r*0.15), fill=(210, 50, 56),
+                            outline=TINTA, width=gl)
+        d.rounded_rectangle([cx + r*0.35, y, cx + r*0.7, y + r*0.9], radius=int(r*0.1), fill=(210, 50, 56), outline=TINTA,
+                            width=gl)
+        for k in range(3):
+            d.line([(cx + r*0.38, y + r*(0.3 + 0.2*k)), (cx + r*0.67, y + r*(0.3 + 0.2*k))], fill=(250, 230, 230),
+                   width=gl)
+
+
 BRAZOS = {}      # el ultimo dibujado: lado -> (codo, mano), para orientar lo que lleva
 
 
@@ -263,7 +351,7 @@ def _hasta(hombro, punto, lado, h):
 def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((60, 20), (60, 20)),
            parpadeo=False, piernas=None, levanta=0.0, color=None, forma=None, pelo="?", gafas=False,
            bigote=False, alcanza=None, pie_arriba=None, desgaste=0.0, mira=None, habla=None, pelo_giro=0.0,
-           cuerpo=None):
+           cuerpo=None, complemento=None):
     """Pinta la mascota. Devuelve la cabeza (cx, cy, radio, lado) para los
     efectos de garabato. brazos: (angulo, codo) por lado en grados; 0 es
     horizontal hacia fuera y + hacia abajo.
@@ -382,6 +470,8 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
     if dg:
         _desgaste(img, d, T, centro, r, g, h, ancho, alto, dg)
     _detalles_cara(img, d, centro, r, g, h, cu, color, parpadeo)
+    if complemento in COMPLEMENTOS:
+        _complemento(d, complemento, centro, r, top, g, h, inclina, ancho)
     if gafas:
         for lado in (-1, 1):
             ex, ey = centro[0] + lado*r*0.33, centro[1] - r*0.12
@@ -693,7 +783,7 @@ def estado_mascota(mascota: dict, t: float, dur: float, suelo: float, w: int, h_
             "gesto": str(mascota.get("gesto") or _cansado(p.get("gesto") or "neutro", dg)), "color": COLOR,
             "forma": FORMA,
             "pelo": "?", "brazo_lleva": bool(mascota.get("lleva")), "t": t,
-            "cuerpo": mascota.get("cuerpo")}
+            "cuerpo": mascota.get("cuerpo"), "complemento": mascota.get("complemento")}
 
 
 def _muelle_pelo(e):
@@ -718,7 +808,7 @@ def pinta_estado(img, e: dict):
                            forma=e["forma"], pelo=e.get("pelo"), gafas=e.get("gafas", False),
                            bigote=e.get("bigote", False), alcanza=e.get("alcanza"), pie_arriba=e.get("pie_arriba"),
                            desgaste=e.get("desgaste", 0.0), mira=e.get("mira"), habla=e.get("habla"),
-                           pelo_giro=_muelle_pelo(e), cuerpo=e.get("cuerpo"))
+                           pelo_giro=_muelle_pelo(e), cuerpo=e.get("cuerpo"), complemento=e.get("complemento"))
     # Los efectos de la accion (las rayas de correr, la tos, el hipo...).
     d = ImageDraw.Draw(img)
     if p.get("rayas"):

@@ -1623,6 +1623,86 @@ def _pieza_cigarro(t: int, g: int, consumo: float, ceniza: float):
     return pieza.crop((caja[0], 0, caja[2], h))
 
 
+def _particula(img, o) -> bool:
+    """Lo que sale de lo que hace (interaccion._vida_diaria): espuma, agua,
+    crema, la mascarilla, el brillo del movil, la comba, migas, el RING y el
+    ACHOO. Devuelve False si no es una particula (es un objeto)."""
+    que = o.get("que")
+    x, y = o["pos"]
+    r = max(2.0, float(o.get("tam", 6)))
+    alfa = max(0.0, min(1.0, float(o.get("alfa", 1.0))))
+    if que == "burbuja":
+        d = ImageDraw.Draw(img)
+        d.ellipse([x - r, y - r, x + r, y + r], fill=(246, 250, 255), outline=(150, 180, 210), width=max(1, int(r*0.15)))
+        d.ellipse([x - r*0.55, y - r*0.6, x - r*0.1, y - r*0.15], fill=(255, 255, 255))
+        return True
+    if que == "agua":
+        if alfa < 0.05:
+            return True
+        capa = Image.new("RGBA", (int(r*2.4) + 4, int(r*3.2) + 4), (0, 0, 0, 0))
+        dc = ImageDraw.Draw(capa)
+        a = int(255*alfa)
+        c = (150, 205, 245, a) if not o.get("sudor") else (160, 210, 250, a)
+        w_, h_ = capa.size
+        dc.polygon([(w_/2, 2), (w_ - 2, h_*0.62), (w_/2, h_ - 2), (2, h_*0.62)], fill=c, outline=(70, 120, 170, a))
+        img.paste(capa, (int(x - w_/2), int(y - h_/2)), capa)
+        return True
+    if que == "crema":
+        if alfa < 0.05:
+            return True
+        capa = Image.new("RGBA", (int(r*2) + 4, int(r*2) + 4), (0, 0, 0, 0))
+        ImageDraw.Draw(capa).ellipse([2, 2, r*2 + 2, r*1.6 + 2], fill=(255, 255, 255, int(235*alfa)),
+                                     outline=(210, 210, 220, int(255*alfa)))
+        img.paste(capa, (int(x - r), int(y - r*0.8)), capa)
+        return True
+    if que == "destello":
+        _mascota._destello(ImageDraw.Draw(img), x, y, r)
+        return True
+    if que == "mascarilla":
+        if alfa < 0.05:
+            return True
+        capa = Image.new("RGBA", (int(r*2.4) + 4, int(r*2.4) + 4), (0, 0, 0, 0))
+        dc = ImageDraw.Draw(capa)
+        c0 = (r*1.2 + 2, r*1.2 + 2)
+        dc.ellipse([c0[0] - r*1.0, c0[1] - r*0.95, c0[0] + r*1.0, c0[1] + r*0.95], fill=(170, 220, 160, int(235*alfa)),
+                   outline=(110, 170, 110, int(255*alfa)), width=3)
+        for k in range(10):                       # la textura de la crema
+            a_ = k*0.7
+            px, py = c0[0] + math.cos(a_)*r*0.6, c0[1] + math.sin(a_*1.3)*r*0.6
+            dc.ellipse([px - r*0.05, py - r*0.04, px + r*0.05, py + r*0.04], fill=(200, 240, 190, int(255*alfa)))
+        img.paste(capa, (int(x - c0[0]), int(y - c0[1])), capa)
+        return True
+    if que == "pantalla":
+        # la luz azul del movil subiendo hasta la cara
+        hx, hy = o.get("hacia", (x, y - r))
+        capa = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        ImageDraw.Draw(capa).polygon([(x - r*0.15, y), (x + r*0.15, y), (hx + r*0.9, hy), (hx - r*0.9, hy)],
+                                     fill=(140, 200, 255, 60))
+        img.paste(capa, (0, 0), capa)
+        return True
+    if que == "comba_arco":
+        # la cuerda: un arco que da la vuelta (por arriba, por delante, por abajo)
+        d = ImageDraw.Draw(img)
+        fase, ancho_ = float(o.get("fase", 0)), float(o.get("ancho", r*0.4))
+        alto_ = r*0.75*math.cos(fase*2*math.pi)
+        caja = [x - ancho_, y - abs(alto_) if alto_ > 0 else y, x + ancho_, y if alto_ > 0 else y + abs(alto_)*0.5]
+        if caja[3] - caja[1] > 2:
+            d.arc(caja, 180 if alto_ > 0 else 0, 360 if alto_ > 0 else 180, fill=(230, 90, 80), width=max(3, int(r*0.012)))
+        else:
+            d.line([(caja[0], y), (caja[2], y)], fill=(230, 90, 80), width=max(3, int(r*0.012)))
+        return True
+    if que == "miga":
+        ImageDraw.Draw(img).polygon([(x, y - r), (x + r, y), (x, y + r*0.8), (x - r*0.9, y)], fill=(210, 160, 90),
+                                    outline=(140, 100, 50))
+        return True
+    if que in ("numero", "zzz", "ring"):
+        texto = o.get("texto") or ("z Z" if que == "zzz" else "RING!")
+        giro = -8 + (6*math.sin(float(o.get("fase", 0))*30) if que == "ring" else 0)
+        _letrero(img, texto, (x, y), r, (226, 60, 60) if que != "zzz" else (90, 110, 200), giro)
+        return True
+    return False
+
+
 def _humo(img, pos, r, alfa):
     """Una bocanada de humo: gris clarito y medio transparente."""
     r = max(2, int(r))
@@ -1695,6 +1775,30 @@ def _etiqueta_dia(img, texto: str):
     for k in (0.3, 0.7):
         d.ellipse([x0 + ancho*k - 7, y0 - 9, x0 + ancho*k + 7, y0 + 9], fill=(40, 40, 46))
     _letrero(img, texto, (x0 + ancho/2, y0 + alto*0.66), alto*0.42, (40, 40, 46), 0)
+
+
+def _medidores(img, medidores: dict):
+    """Las barras de la esquina, como en un videojuego: ENERGY, SLEEP,
+    HEALTH... Van de 0 a 1 y cambian con el video, como el cuerpo de Mokordo.
+    Verde si esta alta, amarilla a medias, roja si esta baja. El nombre va
+    DENTRO de la barra: fuera pisaba las palabras grandes del plano."""
+    filas = [(str(k).upper()[:10], max(0.0, min(1.0, float(v)))) for k, v in list(medidores.items())[:3]
+             if isinstance(v, (int, float))]
+    if not filas:
+        return
+    w, h = img.size
+    d = ImageDraw.Draw(img)
+    ancho, alto = w*0.2, h*0.05
+    x0 = w - ancho - w*0.025
+    for k, (nombre, valor) in enumerate(filas):
+        y0 = h*0.04 + k*alto*1.3
+        color = (90, 200, 110) if valor > 0.6 else ((250, 196, 60) if valor > 0.3 else (230, 70, 70))
+        d.rounded_rectangle([x0, y0, x0 + ancho, y0 + alto], radius=int(alto*0.45), fill=(255, 255, 255),
+                            outline=(40, 40, 46), width=4)
+        if valor > 0.02:
+            d.rounded_rectangle([x0 + 5, y0 + 5, x0 + 5 + (ancho - 10)*valor, y0 + alto - 5], radius=int(alto*0.35),
+                                fill=color)
+        _letrero(img, nombre, (x0 + ancho*0.5, y0 + alto*0.52), alto*0.62, (40, 40, 46), 0)
 
 
 def _transicion(img, tipo, s):
@@ -1905,6 +2009,8 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                     ImageDraw.Draw(img).ellipse([cx_ - o["tam"], cy_ - o["tam"]*0.5, cx_ + o["tam"], cy_ + o["tam"]*0.5],
                                                 fill=(150, 150, 155))
                     continue
+                if _particula(img, o):
+                    continue
                 if nombre_objeto(o["que"]) not in OBJETOS_TODOS:
                     continue
                 pieza, pcx, pbase = _pieza_cosa(nombre_objeto(o["que"]), int(o["tam"]), max(3, int(ancho*0.0045)))
@@ -1925,6 +2031,8 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                 img = encima(img, visual or {}, reloj, segundos)
             if (visual or {}).get("_dia"):
                 _etiqueta_dia(img, str(visual["_dia"]))
+            if (visual or {}).get("_medidores"):
+                _medidores(img, visual["_medidores"])
             if (visual or {}).get("_transicion") and reloj < _DURA_TRANSICION:
                 img = _transicion(img, visual["_transicion"], reloj/_DURA_TRANSICION)
         except StopIteration:

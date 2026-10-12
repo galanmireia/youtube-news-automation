@@ -30,10 +30,11 @@ from . import escenarios as _escenarios
 # tienen escenario entero van a el: "casa" es el salon, "hospital" la
 # consulta, "ciudad" la calle. Ella: "rellenar todas las escenas para que no
 # haya cosas en blanco".
-_ALIAS = {"casa": "salon", "hospital": "consulta", "ciudad": "calle", "super": "supermercado",
+_ALIAS = {"casa": "salon", "ciudad": "calle", "super": "supermercado", "nieve": "montana",
+          "coche": "carretera", "restaurant": "restaurante",
           "baño": "bano", "habitacion": "dormitorio", "gym": "gimnasio", "clase": "colegio"}
 AMBIENTES = tuple(_escenarios.ESCENARIOS) + ("campo", "desierto", "noche", "espacio", "cielo", "casa",
-                                              "hospital", "ciudad", "nada")
+                                              "ciudad", "nada")
 
 # El sitio que pega cuando el guion no dice ninguno.
 _POR_COSAS = (

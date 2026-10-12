@@ -38,6 +38,12 @@ ESCENARIOS = {
     "playa":        "beach: sea, sand, umbrella, sun, waves (sun, tanning, summer, holidays)",
     "colegio":      "classroom: blackboard, desks, clock, posters (learning, school, memory, kids)",
     "fiesta":       "party / bar: colored lights, bar counter with bottles, dance floor (party, alcohol, night out)",
+    "restaurante":  "fast food restaurant: counter, menu board with burgers, tables, neon sign (junk food, eating out)",
+    "piscina":      "swimming pool: blue water, tiles, ladder, lifebuoy, sun (swimming, summer, chlorine)",
+    "montana":      "snowy mountain: peaks, pine trees, snow on the ground (cold, hiking, altitude, winter)",
+    "carretera":    "road with cars and traffic lights, city in the distance (driving, commuting, pollution)",
+    "avion":        "inside a plane: rows of seats, round windows with clouds (flying, jet lag, travel)",
+    "hospital":     "hospital room: bed with an IV drip, heart monitor, curtain (being ill, surgery, recovery)",
 }
 
 
@@ -481,6 +487,131 @@ def _pinta(nombre, w, h, pies, rnd):
             x = w*k/19
             y = h*0.24 + h*0.04*math.sin(k*0.9)
             d.ellipse([x - 7, y - 7, x + 7, y + 7], fill=((250, 220, 90), (250, 90, 160), (90, 200, 250))[k % 3])
+    elif nombre == "restaurante":
+        img = _degradado(w, h, (250, 236, 210), (240, 222, 190))
+        d = ImageDraw.Draw(img)
+        _suelo(d, w, h, pies, (226, 90, 80), (200, 70, 64))
+        for i in range(0, 20, 2):                                  # suelo a cuadros
+            for j in range(4):
+                y0 = pies - h*0.06 + (h - pies + h*0.06)*j/4
+                d.rectangle([w*i/20 + (w/20 if j % 2 else 0), y0, w*(i + 1)/20 + (w/20 if j % 2 else 0),
+                             y0 + (h - pies + h*0.06)/4], fill=(250, 246, 236))
+        d.rectangle([w*0.32, h*0.06, w*0.68, h*0.3], fill=(40, 44, 54), outline=TINTA, width=6)   # menu
+        for k, (txt, c) in enumerate((("BURGER  $5", (250, 210, 80)), ("FRIES  $2", (250, 250, 250)),
+                                      ("SODA  $1", (120, 200, 250)))):
+            _texto(d, (w*0.36, h*(0.09 + 0.07*k)), txt, h*0.045, c)
+        d.rectangle([w*0.0, h*0.48, w*0.38, pies - h*0.06], fill=(226, 70, 64), outline=TINTA, width=5)  # mostrador
+        d.rectangle([w*0.0, h*0.46, w*0.4, h*0.49], fill=(250, 210, 80), outline=TINTA, width=3)
+        d.rounded_rectangle([w*0.06, h*0.36, w*0.14, h*0.46], radius=8, fill=(60, 64, 74), outline=TINTA, width=3)
+        for x0 in (0.72, 0.86):                                   # mesas
+            d.ellipse([w*x0, h*0.52, w*(x0 + 0.12), h*0.56], fill=(250, 210, 80), outline=TINTA, width=3)
+            d.line([P(x0 + 0.06, 0.56), P(x0 + 0.06, pies/h - 0.06)], fill=TINTA, width=8)
+        _texto(d, (w*0.74, h*0.12), "OPEN 24H", h*0.06, (250, 90, 150))
+    elif nombre == "piscina":
+        img = _degradado(w, h, (160, 214, 248), (214, 238, 252))
+        d = ImageDraw.Draw(img)
+        d.ellipse([w*0.84, h*0.06, w*0.93, h*0.06 + w*0.09], fill=(252, 220, 100))
+        d.rectangle([0, h*0.32, w, pies - h*0.06], fill=(240, 244, 248))                             # pared
+        for i in range(30):
+            d.line([(i*w/30, h*0.32), (i*w/30, pies - h*0.06)], fill=(214, 224, 232), width=2)
+        d.rectangle([0, pies - h*0.06, w, h], fill=(90, 190, 230))                                   # agua
+        for k in range(5):
+            y = pies + k*(h - pies)/5
+            for j in range(9):
+                x = w*(j*0.12 + 0.04*k)
+                d.arc([x, y - h*0.01, x + w*0.07, y + h*0.015], 200, 340, fill=(200, 240, 252), width=4)
+        d.line([(0, pies - h*0.06), (w, pies - h*0.06)], fill=(255, 255, 255), width=10)
+        for xx in (0.08, 0.12):                                                                       # escalera
+            d.arc([w*xx - w*0.03, h*0.5, w*xx + w*0.01, h*0.62], 180, 360, fill=(170, 176, 188), width=8)
+            d.line([P(xx + 0.01, 0.56), P(xx + 0.01, pies/h + 0.04)], fill=(170, 176, 188), width=8)
+        cx, cy, r = w*0.85, h*0.47, h*0.07                                                           # salvavidas
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(240, 80, 70), outline=TINTA, width=4)
+        d.ellipse([cx - r*0.5, cy - r*0.5, cx + r*0.5, cy + r*0.5], fill=(240, 244, 248), outline=TINTA, width=3)
+        for a in range(4):
+            aa = a*math.pi/2 + math.pi/4
+            d.line([(cx + math.cos(aa)*r*0.55, cy + math.sin(aa)*r*0.55), (cx + math.cos(aa)*r*0.95, cy + math.sin(aa)*r*0.95)],
+                   fill=(255, 255, 255), width=12)
+    elif nombre == "montana":
+        img = _degradado(w, h, (176, 210, 240), (226, 238, 248))
+        d = ImageDraw.Draw(img)
+        for x0, x1, top, c in ((-0.1, 0.5, 0.12, (150, 160, 190)), (0.3, 0.95, 0.06, (130, 140, 176)),
+                               (0.65, 1.2, 0.18, (150, 160, 190))):
+            pico = (w*(x0 + x1)/2, h*top)
+            d.polygon([(w*x0, pies - h*0.1), pico, (w*x1, pies - h*0.1)], fill=c, outline=TINTA)
+            d.polygon([(pico[0] - w*(x1 - x0)*0.12, pico[1] + h*0.12), pico, (pico[0] + w*(x1 - x0)*0.12, pico[1] + h*0.12),
+                       (pico[0] + w*(x1 - x0)*0.04, pico[1] + h*0.09), (pico[0], pico[1] + h*0.13),
+                       (pico[0] - w*(x1 - x0)*0.05, pico[1] + h*0.09)], fill=(255, 255, 255))
+        _suelo(d, w, h, pies, (246, 248, 252), (220, 228, 238), "liso")
+        for x, alto in ((0.05, 0.3), (0.14, 0.22), (0.86, 0.32), (0.95, 0.24)):                        # pinos
+            tx, base = w*x, pies - h*0.04
+            d.rectangle([tx - h*0.012, base - h*0.05, tx + h*0.012, base], fill=(120, 86, 60))
+            for k in range(3):
+                yb = base - h*0.04 - k*h*alto*0.25
+                d.polygon([(tx - h*alto*0.3*(1 - k*0.25), yb), (tx, yb - h*alto*0.4), (tx + h*alto*0.3*(1 - k*0.25), yb)],
+                          fill=(70, 140, 100), outline=TINTA)
+                d.line([(tx - h*alto*0.2*(1 - k*0.25), yb - h*0.01), (tx + h*alto*0.2*(1 - k*0.25), yb - h*0.01)],
+                       fill=(255, 255, 255), width=5)
+        for k in range(40):                                                                             # copos
+            x, y = rnd.uniform(0, w), rnd.uniform(0, pies)
+            d.ellipse([x - 3, y - 3, x + 3, y + 3], fill=(255, 255, 255))
+    elif nombre == "carretera":
+        img = _degradado(w, h, (176, 214, 246), (226, 240, 250))
+        d = ImageDraw.Draw(img)
+        for k in range(9):                                                                             # ciudad lejos
+            x = w*k/9
+            alto = h*(0.12 + 0.1*((k*5) % 3))
+            d.rectangle([x, pies - h*0.25 - alto, x + w/10, pies - h*0.25], fill=(196, 206, 222), outline=(170, 180, 196))
+        d.rectangle([0, pies - h*0.25, w, pies - h*0.06], fill=(120, 190, 100))
+        d.rectangle([0, pies - h*0.06, w, h], fill=(90, 94, 104))
+        for k in range(8):
+            d.rectangle([w*(k/8 + 0.02), pies + h*0.06, w*(k/8 + 0.08), pies + h*0.075], fill=(250, 240, 200))
+        for x, c in ((0.1, (226, 70, 64)), (0.82, (90, 150, 230))):                                     # coches
+            cx, cy = w*x, pies - h*0.1
+            d.rounded_rectangle([cx - w*0.07, cy - h*0.06, cx + w*0.07, cy + h*0.02], radius=14, fill=c, outline=TINTA, width=4)
+            d.polygon([(cx - w*0.04, cy - h*0.06), (cx - w*0.025, cy - h*0.11), (cx + w*0.03, cy - h*0.11),
+                       (cx + w*0.045, cy - h*0.06)], fill=(190, 220, 245), outline=TINTA)
+            for dx in (-0.045, 0.045):
+                d.ellipse([cx + w*dx - h*0.025, cy, cx + w*dx + h*0.025, cy + h*0.05], fill=(40, 40, 46))
+        d.rectangle([w*0.66, h*0.3, w*0.68, pies - h*0.1], fill=(60, 64, 74))                           # semaforo
+        d.rounded_rectangle([w*0.645, h*0.18, w*0.695, h*0.32], radius=8, fill=(40, 44, 54), outline=TINTA, width=3)
+        for k, c in enumerate(((240, 70, 60), (250, 200, 60), (90, 200, 110))):
+            d.ellipse([w*0.66, h*(0.19 + 0.043*k), w*0.68, h*(0.19 + 0.043*k) + w*0.02], fill=c)
+    elif nombre == "avion":
+        img = _degradado(w, h, (236, 238, 244), (220, 224, 234))
+        d = ImageDraw.Draw(img)
+        _suelo(d, w, h, pies, (120, 130, 160), (100, 110, 140), "liso")
+        d.chord([-w*0.1, -h*0.3, w*1.1, h*0.4], 0, 180, fill=(246, 246, 250), outline=(200, 204, 214), width=4)
+        for k in range(6):                                                                            # ventanillas
+            x = w*(0.08 + 0.16*k)
+            d.rounded_rectangle([x, h*0.18, x + w*0.06, h*0.33], radius=30, fill=(170, 214, 246), outline=(150, 156, 170), width=6)
+            d.ellipse([x + w*0.01, h*0.24, x + w*0.05, h*0.28], fill=(255, 255, 255))
+        for lado, xs in ((-1, (0.0, 0.12, 0.24)), (1, (0.68, 0.8, 0.92))):                            # asientos
+            for x in xs:
+                d.rounded_rectangle([w*x, h*0.4, w*(x + 0.09), pies - h*0.06], radius=16, fill=(70, 90, 160), outline=TINTA, width=4)
+                d.rounded_rectangle([w*x + 6, h*0.4, w*(x + 0.09) - 6, h*0.46], radius=10, fill=(250, 250, 252))
+    elif nombre == "hospital":
+        img = _degradado(w, h, (228, 240, 246), (210, 228, 236))
+        d = ImageDraw.Draw(img)
+        _suelo(d, w, h, pies, (206, 220, 226), (186, 200, 208))
+        d.rectangle([w*0.0, h*0.48, w*0.3, h*0.58], fill=(250, 250, 252), outline=TINTA, width=4)          # cama
+        d.rectangle([w*0.02, h*0.42, w*0.04, pies - h*0.06], fill=(170, 176, 188))
+        d.rectangle([w*0.0, h*0.56, w*0.3, h*0.6], fill=(120, 180, 210), outline=TINTA, width=3)
+        for xx in (0.03, 0.27):
+            d.line([P(xx, 0.6), P(xx, pies/h - 0.06)], fill=(170, 176, 188), width=8)
+        d.line([P(0.34, 0.12), P(0.34, pies/h - 0.06)], fill=(170, 176, 188), width=6)                    # gotero
+        d.rounded_rectangle([w*0.32, h*0.13, w*0.36, h*0.24], radius=10, fill=(220, 240, 250), outline=TINTA, width=3)
+        d.line([P(0.34, 0.24), P(0.3, 0.5)], fill=(150, 200, 230), width=3)
+        d.rounded_rectangle([w*0.78, h*0.14, w*0.95, h*0.32], radius=10, fill=(40, 44, 54), outline=TINTA, width=5)  # monitor
+        pts, x = [], w*0.79
+        for k in range(14):
+            pico = (k % 5 == 2)
+            pts.append((x + k*w*0.011, h*(0.23 - (0.06 if pico else 0) + (0.03 if k % 5 == 3 else 0))))
+        d.line(pts, fill=(110, 240, 140), width=4)
+        d.line([P(0.86, 0.32), P(0.86, pies/h - 0.06)], fill=(170, 176, 188), width=8)
+        for k in range(6):                                                                             # cortina
+            x = w*(0.55 + 0.03*k)
+            d.line([(x, h*0.05), (x + w*0.01, h*0.44)], fill=(160, 200, 220), width=18)
+        d.line([P(0.53, 0.05), P(0.75, 0.05)], fill=(150, 156, 166), width=6)
     else:
         return None
     return img
