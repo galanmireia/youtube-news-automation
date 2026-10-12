@@ -42,9 +42,10 @@ def _medidas(h, forma):
     return (h*0.24, h*0.9) if forma == "judia" else (h*0.36, h*0.78)
 
 
-def _cuerpo(alto, ancho, forma="judia", n=72):
+def _cuerpo(alto, ancho, forma="judia", n=72, barriga=0.0):
     """El cuerpo en coordenadas locales, (0, 0) = centro de abajo: la judia
-    (alta) o la gota (rechoncha, mas estrecha arriba)."""
+    (alta) o la gota (rechoncha, mas estrecha arriba). 'barriga' (0-1)
+    ensancha la parte de abajo: Mokordo engordando."""
     pts = []
     ex = 2.6 if forma == "judia" else 2.2
     for i in range(n):
@@ -54,6 +55,8 @@ def _cuerpo(alto, ancho, forma="judia", n=72):
         y = math.copysign(abs(sy)**(2/ex), sy)
         t = (y + 1)/2
         r = ancho*(1.08 - 0.22*t) if forma == "judia" else ancho*(1.1 - 0.35*t**1.6)
+        if barriga:
+            r *= 1 + 0.22*barriga*math.sin(math.pi*min(1.0, t*1.6))
         pts.append((x*r, -alto*t))
     return pts
 
@@ -99,6 +102,143 @@ def _desgaste(img, d, T, centro, r, g, h, ancho, alto, dg):
         d.polygon(gota, fill=(150, 205, 245), outline=TINTA)
 
 
+# ---------------------------------------------------------------------------
+# EL CUERPO QUE CAMBIA. Ella: "que se note mucho como va en base a como va
+# pasando el video: que se vaya degenerando, que se vaya poniendo mas gordo...
+# ¿que pasa si te haces skincare durante un mes? pues que se le vea la cara
+# brillante". Cada rasgo va de 0 a 1 y el guion lo sube o lo baja plano a
+# plano; porque.py lo interpola, asi que el cambio es continuo.
+# ---------------------------------------------------------------------------
+RASGOS = {
+    "gordo":   "fatter: wider body, round belly, double chin, puffy cheeks, thicker arms",
+    "musculo": "muscular: broader, thick arms with biceps, pecs and abs",
+    "brillo":  "glowing skin (skincare, healthy): brighter, shiny highlight, sparkles, rosy cheeks",
+    "granos":  "acne: pimples on the face and body",
+    "ojeras":  "tired / no sleep: dark circles, heavy eyelids, a bit grey",
+    "palido":  "pale, washed out (ill, no sun, anemia)",
+    "moreno":  "tanned (sun, beach)",
+    "quemado": "sunburnt: red skin, red nose, peeling",
+}
+
+
+def rasgos_cuerpo(cuerpo) -> dict:
+    cu = {k: 0.0 for k in RASGOS}
+    for k, v in (cuerpo or {}).items():
+        if k in cu:
+            try:
+                cu[k] = min(1.0, max(0.0, float(v)))
+            except (TypeError, ValueError):
+                pass
+    return cu
+
+
+def _mezcla(a, b, k):
+    return tuple(int(x + (y - x)*k) for x, y in zip(a, b))
+
+
+def color_del_cuerpo(color, cu):
+    """El color de la piel segun el cuerpo: palido, moreno, quemado, brillante."""
+    if cu["palido"]:
+        color = _mezcla(color, (222, 218, 226), 0.55*cu["palido"])
+    if cu["ojeras"]:
+        color = _mezcla(color, (170, 166, 176), 0.25*cu["ojeras"])
+    if cu["moreno"]:
+        color = _mezcla(color, (130, 84, 110), 0.5*cu["moreno"])
+    if cu["quemado"]:
+        color = _mezcla(color, (236, 96, 96), 0.5*cu["quemado"])
+    if cu["brillo"]:
+        color = _mezcla(color, (205, 170, 255), 0.45*cu["brillo"])
+    return color
+
+
+def _detalles_cuerpo(d, T, cu, color, g, h, ancho, alto):
+    fino = max(2, int(g*0.55))
+    oscuro = _oscuro(color, 0.72)
+    if cu["gordo"] > 0.2:
+        # el ombligo y el pliegue de la barriga
+        k = cu["gordo"]
+        o = T((0, -alto*0.2))
+        d.ellipse([o[0] - g*0.6, o[1] - g*0.4, o[0] + g*0.6, o[1] + g*0.6], fill=oscuro)
+        a, b = T((-ancho*0.55, -alto*0.32)), T((ancho*0.55, -alto*0.02))
+        d.arc([min(a[0], b[0]), min(a[1], b[1]), max(a[0], b[0]), max(a[1], b[1])], 200, 340,
+              fill=oscuro, width=max(2, int(fino*k + 1)))
+    if cu["musculo"] > 0.25:
+        k = cu["musculo"]
+        # pectorales y tableta
+        for lado in (-1, 1):
+            a, b = T((lado*ancho*0.08, -alto*0.5)), T((lado*ancho*0.62, -alto*0.38))
+            d.arc([min(a[0], b[0]), min(a[1], b[1]) - h*0.03, max(a[0], b[0]), max(a[1], b[1]) + h*0.03],
+                  10 if lado > 0 else 90, 90 if lado > 0 else 170, fill=oscuro, width=fino)
+        for fila in range(3):
+            for lado in (-1, 1):
+                c = T((lado*ancho*0.16, -alto*(0.3 - 0.075*fila)))
+                rr = h*0.022*(0.6 + 0.4*k)
+                d.rounded_rectangle([c[0] - rr, c[1] - rr*0.7, c[0] + rr, c[1] + rr*0.7], radius=int(rr*0.5),
+                                    outline=oscuro, width=max(1, fino - 1))
+    if cu["granos"] > 0.05:
+        for lx, ly in _GRANOS[:int(round(cu["granos"]*len(_GRANOS)))]:
+            gx, gy = T((lx*ancho, -ly*alto*0.5))
+            rg = h*0.014
+            d.ellipse([gx - rg, gy - rg, gx + rg, gy + rg], fill=(225, 80, 80), outline=(160, 40, 40), width=1)
+    if cu["quemado"] > 0.4:
+        # la piel que se pela: unas escamitas blancas
+        for lx, ly in ((-0.4, 0.55), (0.35, 0.3), (-0.15, 0.25), (0.5, 0.6)):
+            px, py = T((lx*ancho, -ly*alto))
+            d.arc([px - h*0.02, py - h*0.01, px + h*0.02, py + h*0.02], 200, 340, fill=(255, 240, 235),
+                  width=max(2, fino))
+
+
+def _destello(d, x, y, r, color=(255, 236, 140)):
+    d.polygon([(x, y - r), (x + r*0.25, y - r*0.25), (x + r, y), (x + r*0.25, y + r*0.25), (x, y + r),
+               (x - r*0.25, y + r*0.25), (x - r, y), (x - r*0.25, y - r*0.25)], fill=color, outline=(200, 160, 40))
+
+
+def _detalles_cara(img, d, centro, r, g, h, cu, color, parpadeo):
+    fino = max(2, int(g*0.6))
+    if cu["gordo"] > 0.25:
+        # papada y mofletes
+        k = cu["gordo"]
+        d.arc([centro[0] - r*0.55, centro[1] + r*0.35, centro[0] + r*0.55, centro[1] + r*(0.75 + 0.2*k)],
+              20, 160, fill=_oscuro(color, 0.7), width=fino)
+        for lado in (-1, 1):
+            mx, my = centro[0] + lado*r*0.62, centro[1] + r*0.18
+            d.ellipse([mx - r*0.2*(1 + k), my - r*0.12*(1 + k), mx + r*0.2*(1 + k), my + r*0.12*(1 + k)],
+                      fill=_mezcla(color, (240, 130, 150), 0.45))
+    if cu["ojeras"] > 0.1:
+        k = cu["ojeras"]
+        ojera = (95, 70, 105)
+        for lado in (-1, 1):
+            ex, ey = centro[0] + lado*r*0.33, centro[1] - r*0.12
+            d.arc([ex - r*0.24, ey - r*0.08, ex + r*0.24, ey + r*0.34], 15, 165, fill=ojera,
+                  width=max(2, int(g*(0.4 + 1.0*k))))
+            if k > 0.5 and not parpadeo:
+                # los parpados caidos: media persiana sobre el ojo
+                d.chord([ex - r*0.21, ey - r*0.24, ex + r*0.21, ey + r*0.2], 180, 360, fill=color)
+                d.line([(ex - r*0.21, ey - r*0.02), (ex + r*0.21, ey - r*0.02)], fill=TINTA, width=max(2, g//2))
+    if cu["granos"] > 0.05:
+        sitios = ((-0.62, 0.05), (0.55, -0.45), (0.7, 0.25), (-0.4, -0.55), (0.1, 0.55), (-0.75, 0.35))
+        for lx, ly in sitios[:max(1, int(round(cu["granos"]*len(sitios))))]:
+            gx, gy = centro[0] + lx*r, centro[1] + ly*r
+            rg = r*0.07
+            d.ellipse([gx - rg, gy - rg, gx + rg, gy + rg], fill=(225, 80, 80), outline=(160, 40, 40), width=1)
+            d.ellipse([gx - rg*0.35, gy - rg*0.55, gx + rg*0.1, gy - rg*0.1], fill=(255, 210, 200))
+    if cu["quemado"] > 0.2:
+        # la nariz y los mofletes rojos
+        for lado in (-1, 1):
+            mx, my = centro[0] + lado*r*0.55, centro[1] + r*0.2
+            d.ellipse([mx - r*0.2, my - r*0.1, mx + r*0.2, my + r*0.1], fill=(230, 70, 70))
+    if cu["brillo"] > 0.15:
+        k = cu["brillo"]
+        for lado in (-1, 1):
+            mx, my = centro[0] + lado*r*0.58, centro[1] + r*0.2
+            d.ellipse([mx - r*0.17, my - r*0.09, mx + r*0.17, my + r*0.09], fill=(250, 150, 190))
+        # el brillo de la piel recien hidratada, y los destellos alrededor
+        for k_, (dx, dy, rr) in enumerate(((-1.25, -0.9, 0.22), (1.2, -0.7, 0.18), (1.05, 0.55, 0.14),
+                                           (-1.15, 0.45, 0.12))):
+            if k_ < 1 + int(k*3.5):
+                _destello(d, centro[0] + dx*r, centro[1] + dy*r, r*rr*(0.7 + 0.6*k))
+
+
 BRAZOS = {}      # el ultimo dibujado: lado -> (codo, mano), para orientar lo que lleva
 
 
@@ -122,7 +262,8 @@ def _hasta(hombro, punto, lado, h):
 
 def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((60, 20), (60, 20)),
            parpadeo=False, piernas=None, levanta=0.0, color=None, forma=None, pelo="?", gafas=False,
-           bigote=False, alcanza=None, pie_arriba=None, desgaste=0.0, mira=None, habla=None, pelo_giro=0.0):
+           bigote=False, alcanza=None, pie_arriba=None, desgaste=0.0, mira=None, habla=None, pelo_giro=0.0,
+           cuerpo=None):
     """Pinta la mascota. Devuelve la cabeza (cx, cy, radio, lado) para los
     efectos de garabato. brazos: (angulo, codo) por lado en grados; 0 es
     horizontal hacia fuera y + hacia abajo.
@@ -142,10 +283,17 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
         ancho *= 1 - 0.4*dg
         alto *= 1 + 0.04*dg
         color = tuple(int(c + (gris - c)*0.6*dg) for c, gris in zip(color, (168, 166, 150)))
+    cu = rasgos_cuerpo(cuerpo)
+    if cu["gordo"]:
+        ancho *= 1 + 0.28*cu["gordo"]
+        alto *= 1 - 0.05*cu["gordo"]
+    if cu["musculo"]:
+        ancho *= 1 + 0.12*cu["musculo"]
+    color = color_del_cuerpo(color, cu)
     pie_y = suelo - levanta
     base = pie_y - h*0.07
     T = lambda p: _transforma(p, cx, base, estira, inclina)
-    pts = [T(p) for p in _cuerpo(alto, ancho, forma)]
+    pts = [T(p) for p in _cuerpo(alto, ancho, forma, barriga=cu["gordo"])]
     k = max(0.3, 1 - levanta/(h*0.8))
     d.ellipse([cx - ancho*1.1*k, suelo - h*0.02*k, cx + ancho*1.1*k, suelo + h*0.02*k], fill=(222, 218, 210))
     for lado in (-1, 1):
@@ -166,9 +314,10 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
     loc = [(px - x0, py - y0) for px, py in pts]
     capa = Image.new("RGB", (max(1, x1 - x0), max(1, y1 - y0)), color)
     dc = ImageDraw.Draw(capa)
-    for (a, b), relleno in ((((ancho*0.25, 0), (ancho*1.9, -alto*1.05)), _oscuro(color, 0.88)),
-                            (((-ancho*0.62, -alto*0.88), (-ancho*0.42, -alto*0.66)),
-                             tuple(min(255, int(v*1.1 + 25)) for v in color))):
+    bri = cu["brillo"]
+    for (a, b), relleno in ((((ancho*0.25, 0), (ancho*1.9, -alto*1.05)), _oscuro(color, 0.88 + 0.06*bri)),
+                            (((-ancho*(0.62 + 0.04*bri), -alto*0.88), (-ancho*(0.42 - 0.04*bri), -alto*0.66)),
+                             tuple(min(255, int(v*1.1 + 25 + 25*bri)) for v in color))):
         p0, p1 = T(a), T(b)
         dc.ellipse([min(p0[0], p1[0]) - x0, min(p0[1], p1[1]) - y0, max(p0[0], p1[0]) - x0, max(p0[1], p1[1]) - y0],
                    fill=relleno)
@@ -177,6 +326,7 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
     img.paste(capa, (x0, y0), mascara)
     d = ImageDraw.Draw(img)
     d.line(pts + [pts[0]], fill=TINTA, width=g, joint="curve")
+    _detalles_cuerpo(d, T, cu, color, g, h, ancho, alto)
     if pie_arriba in (-1, 1):
         # La pierna levantada hacia delante, por encima del cuerpo, con la
         # planta a la vista (para hacerse cosquillas en el pie).
@@ -200,8 +350,16 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
         a2 = math.radians(ang + codo)
         mano = (c[0] + lado*math.cos(a2)*h*0.13, c[1] + math.sin(a2)*h*0.13)
         BRAZOS[lado] = (c, mano)
-        d.line([hombro, c, mano], fill=TINTA, width=int(g*2.6), joint="curve")
-        d.line([hombro, c, mano], fill=color, width=int(g*1.3), joint="curve")
+        grueso = 1 + 2.4*cu["musculo"] + 0.8*cu["gordo"]
+        d.line([hombro, c, mano], fill=TINTA, width=int(g*(1.3*grueso + 1.3)), joint="curve")
+        d.line([hombro, c, mano], fill=color, width=int(g*1.3*grueso), joint="curve")
+        if cu["musculo"] > 0.15:
+            # el biceps: una bola en el brazo, entre el hombro y el codo
+            bx, by = (hombro[0]*0.4 + c[0]*0.6), (hombro[1]*0.4 + c[1]*0.6) - g*0.6
+            rb = g*(1.4 + 3.0*cu["musculo"])
+            d.ellipse([bx - rb, by - rb, bx + rb, by + rb*0.8], fill=color, outline=TINTA, width=max(2, g//2))
+            d.arc([bx - rb*0.6, by - rb*0.7, bx + rb*0.2, by - rb*0.1], 200, 300,
+                  fill=tuple(min(255, v + 50) for v in color), width=max(2, g//3))
         d.ellipse([mano[0] - g*1.7, mano[1] - g*1.7, mano[0] + g*1.7, mano[1] + g*1.7], fill=color, outline=TINTA,
                   width=max(2, g//2))
         manos.append(mano)
@@ -223,6 +381,7 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
     garabato._cara_expresiva(d, centro, r, g, random.Random(1), gesto, tinta=TINTA, mira=mira, habla=habla)
     if dg:
         _desgaste(img, d, T, centro, r, g, h, ancho, alto, dg)
+    _detalles_cara(img, d, centro, r, g, h, cu, color, parpadeo)
     if gafas:
         for lado in (-1, 1):
             ex, ey = centro[0] + lado*r*0.33, centro[1] - r*0.12
@@ -525,11 +684,16 @@ def estado_mascota(mascota: dict, t: float, dur: float, suelo: float, w: int, h_
         p["inclina"] = p["inclina"]*(1 - 0.5*dg) + 7*dg*lado
         p["estira"] = 1 + (p["estira"] - 1)*(1 - 0.5*dg) - 0.06*dg
         temblor = math.sin(t*47)*0.009*dg
+    gordo = rasgos_cuerpo(mascota.get("cuerpo"))["gordo"]
+    if gordo:
+        # Pesa: salta menos y se balancea mas lento.
+        p["levanta"] = p.get("levanta", 0.0)*(1 - 0.45*gordo)
     return {"quien": "mokordo", "fig": mascota, "p": p, "h": h, "lado": lado, "suelo": suelo, "desgaste": dg,
             "cx": w*float(mascota.get("x", 0.5)) + (p.get("dx", 0.0) + p.get("temblor", 0.0) + temblor)*h,
             "gesto": str(mascota.get("gesto") or _cansado(p.get("gesto") or "neutro", dg)), "color": COLOR,
             "forma": FORMA,
-            "pelo": "?", "brazo_lleva": bool(mascota.get("lleva")), "t": t}
+            "pelo": "?", "brazo_lleva": bool(mascota.get("lleva")), "t": t,
+            "cuerpo": mascota.get("cuerpo")}
 
 
 def _muelle_pelo(e):
@@ -554,7 +718,7 @@ def pinta_estado(img, e: dict):
                            forma=e["forma"], pelo=e.get("pelo"), gafas=e.get("gafas", False),
                            bigote=e.get("bigote", False), alcanza=e.get("alcanza"), pie_arriba=e.get("pie_arriba"),
                            desgaste=e.get("desgaste", 0.0), mira=e.get("mira"), habla=e.get("habla"),
-                           pelo_giro=_muelle_pelo(e))
+                           pelo_giro=_muelle_pelo(e), cuerpo=e.get("cuerpo"))
     # Los efectos de la accion (las rayas de correr, la tos, el hipo...).
     d = ImageDraw.Draw(img)
     if p.get("rayas"):

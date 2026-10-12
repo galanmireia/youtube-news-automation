@@ -1676,6 +1676,27 @@ TRANSICIONES = ("derecha", "abajo", "zoom", "izquierda", "giro", "arriba")
 _DURA_TRANSICION = 0.35
 
 
+def _etiqueta_dia(img, texto: str):
+    """La hoja de calendario de la esquina ("DAY 7", "WEEK 2", "1 HOUR"):
+    el tiempo que lleva Mokordo con lo que cuenta el video. Ella: "que se
+    note mucho como va en base a como va pasando el video"."""
+    texto = texto.strip().upper()[:14]
+    if not texto:
+        return
+    w, h = img.size
+    d = ImageDraw.Draw(img)
+    x0, y0 = w*0.025, h*0.04
+    ancho, alto = max(h*0.2, h*0.045*len(texto) + h*0.06), h*0.13
+    d.rounded_rectangle([x0 + 6, y0 + 8, x0 + ancho + 6, y0 + alto + 8], radius=int(h*0.02), fill=(0, 0, 0, 60))
+    d.rounded_rectangle([x0, y0, x0 + ancho, y0 + alto], radius=int(h*0.02), fill=(255, 255, 255),
+                        outline=(40, 40, 46), width=5)
+    d.rounded_rectangle([x0, y0, x0 + ancho, y0 + alto*0.32], radius=int(h*0.02), fill=(226, 64, 64),
+                        outline=(40, 40, 46), width=5)
+    for k in (0.3, 0.7):
+        d.ellipse([x0 + ancho*k - 7, y0 - 9, x0 + ancho*k + 7, y0 + 9], fill=(40, 40, 46))
+    _letrero(img, texto, (x0 + ancho/2, y0 + alto*0.66), alto*0.42, (40, 40, 46), 0)
+
+
 def _transicion(img, tipo, s):
     """El plano entrando (s de 0 a 1): de lado, de arriba o abajo, de un
     zoom con rebote o girando."""
@@ -1902,6 +1923,8 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                 img = img.crop(camara).resize(tam, Image.BILINEAR)
             if not (foco_ahora and foco_ahora[0] == "inserto"):
                 img = encima(img, visual or {}, reloj, segundos)
+            if (visual or {}).get("_dia"):
+                _etiqueta_dia(img, str(visual["_dia"]))
             if (visual or {}).get("_transicion") and reloj < _DURA_TRANSICION:
                 img = _transicion(img, visual["_transicion"], reloj/_DURA_TRANSICION)
         except StopIteration:

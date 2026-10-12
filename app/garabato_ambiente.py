@@ -23,13 +23,24 @@ from . import monigotes as m
 PAPEL = (252, 252, 250)
 TRAZO = (150, 150, 150)
 
-AMBIENTES = ("campo", "desierto", "playa", "ciudad", "casa", "cocina", "laboratorio", "colegio",
-             "hospital", "noche", "espacio", "cielo", "nada")
+from . import escenarios as _escenarios
+
+# Los sitios ENTEROS (escenarios.py) y los de folio con cuatro trazos que
+# quedan (campo, desierto, noche, espacio, cielo). Los nombres viejos que ya
+# tienen escenario entero van a el: "casa" es el salon, "hospital" la
+# consulta, "ciudad" la calle. Ella: "rellenar todas las escenas para que no
+# haya cosas en blanco".
+_ALIAS = {"casa": "salon", "hospital": "consulta", "ciudad": "calle", "super": "supermercado",
+          "baño": "bano", "habitacion": "dormitorio", "gym": "gimnasio", "clase": "colegio"}
+AMBIENTES = tuple(_escenarios.ESCENARIOS) + ("campo", "desierto", "noche", "espacio", "cielo", "casa",
+                                              "hospital", "ciudad", "nada")
 
 # El sitio que pega cuando el guion no dice ninguno.
 _POR_COSAS = (
     ("desierto", {"camello", "serpiente", "calor"}),
-    ("playa", {"pez", "tiburon", "ola", "pulpo"}),
+    ("playa", {"pez", "tiburon", "ola", "pulpo", "sol"}),
+    ("bano", {"crema", "espejo", "cepillo", "jabon", "toalla"}),
+    ("gimnasio", {"pesa", "mancuerna", "zapatilla"}),
     ("espacio", {"cohete", "tierra", "estrella", "atomo", "luna"}),
     ("campo", {"caballo", "vaca", "oveja", "cerdo", "gallina", "conejo", "perro", "gato", "tortuga",
                "rana", "leon", "elefante", "abeja", "mosquito", "pajaro", "arbol", "planta", "toro"}),
@@ -37,13 +48,14 @@ _POR_COSAS = (
                      "escaner", "cerebro"}),
     ("cocina", {"nevera", "microondas", "pizza", "huevo", "hamburguesa", "taza", "queso", "sal",
                 "cebolla", "tarta", "pan", "chocolate", "palomitas"}),
-    ("casa", {"cama", "sofa", "tele", "almohada", "lavadora", "inodoro", "ducha", "ventilador",
+    ("salon", {"cama", "sofa", "tele", "almohada", "lavadora", "inodoro", "ducha", "ventilador",
               "despertador", "ordenador", "lampara"}),
 )
 
 
 def elige(visual: dict, cosas: list) -> str:
-    pedido = str(visual.get("ambiente") or "").lower()
+    pedido = str(visual.get("ambiente") or visual.get("escenario") or "").lower()
+    pedido = _ALIAS.get(pedido, pedido)
     if pedido in AMBIENTES:
         return pedido
     if visual.get("cifra") or not (visual.get("figuras") or cosas):
@@ -231,13 +243,28 @@ def fondo(ambiente: str, tam: tuple, pies: float, apoyados: list) -> np.ndarray:
     """El fondo del plano como array: el ambiente y la sombra de cada cosa
     apoyada [(x, ancho)] en fracciones de pantalla."""
     w, h = tam
-    img = Image.new("RGB", tam, PAPEL)
+    ambiente = _ALIAS.get(ambiente, ambiente)
+    entero = _escenarios.pinta(ambiente, tam, pies)
+    if entero is not None:
+        img = Image.fromarray(entero)
+        sombra = (0, 0, 0, 60)
+    else:
+        img = Image.new("RGB", tam, PAPEL)
+        sombra = None
     d = ImageDraw.Draw(img)
     g = max(2, int(w*0.0022))
-    _pinta(d, ambiente, w, h, pies, g, random.Random(sum(map(ord, ambiente))))
+    if entero is None:
+        _pinta(d, ambiente, w, h, pies, g, random.Random(sum(map(ord, ambiente))))
     for x, ancho in apoyados:
         cx, rx = w*x, w*ancho/2
-        d.ellipse([cx - rx, pies - h*0.012, cx + rx, pies + h*0.016], fill=(226, 226, 224))
+        caja = [cx - rx, pies - h*0.012, cx + rx, pies + h*0.016]
+        if sombra:
+            capa = Image.new("RGBA", tam, (0, 0, 0, 0))
+            ImageDraw.Draw(capa).ellipse(caja, fill=sombra)
+            img = Image.alpha_composite(img.convert("RGBA"), capa).convert("RGB")
+            d = ImageDraw.Draw(img)
+        else:
+            d.ellipse(caja, fill=(226, 226, 224))
     return np.asarray(img)
 
 

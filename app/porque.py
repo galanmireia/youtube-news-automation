@@ -19,7 +19,7 @@ import shutil
 import time
 from pathlib import Path
 
-from . import garabato, interaccion, llm_usage, mascota, monigotes
+from . import escenarios, garabato, interaccion, llm_usage, mascota, monigotes
 from .config import CHANNEL_NAME, DATA_DIR, MUSIC_VOLUME
 from .largo import (FPS, LargoError, _FPS_DIBUJO, _ffmpeg, _json_de, _pregunta, _tuberia,
                     _voz_google)
@@ -101,10 +101,14 @@ it is not in the lists, it cannot be drawn. A visual has any of:
              big straight arrow (pointing at something, "goes up", "goes down")}}
   "cifra":   a GIANT number with rays, alone on the page: {{"valor": "35°C", "pie": "short
              caption", "color": ...}} (use it for the key numbers; then no figuras/cosas)
-  "ambiente": where the drawing happens, doodled lightly around it so the page is not bare:
-             one of {ambientes} (a horse -> "campo": grass and sun; a camel -> "desierto"; a
-             person in bed -> "casa"). Give one to every fresh drawing; "nada" only for words,
-             numbers and diagrams.
+  "ambiente": THE PLACE where the shot happens - a full, colorful set behind the drawing:
+             one of {ambientes}. The full sets: "bano" (bathroom, skincare), "dormitorio"
+             (bedroom), "cocina" (kitchen), "salon" (living room), "gimnasio" (gym), "oficina"
+             (office), "calle" (street), "parque" (park), "supermercado", "consulta" (doctor),
+             "laboratorio" (lab), "playa" (beach), "colegio" (classroom), "fiesta" (party/bar);
+             light ones for nature and space: "campo", "desierto", "noche", "espacio", "cielo".
+             EVERY fresh drawing has one - the chapter's place unless the sentence takes Mokordo
+             somewhere else. Never a blank page (only a giant "cifra" gets its own page).
   "sigue":   true = KEEP the previous shot's drawing and ADD this shot's new things to it
              (only the new ones appear). Build a drawing up step by step, the way Whymentary does:
              the fan... then the person sweating next to it... then the thermometer going up.
@@ -152,7 +156,11 @@ page fills up while the sentence goes (start the shot with little on it).
 Special: pose "manos_cabeza" = hands on the head (panic, stress); pose "tumbado" = lying on the
 floor; gesto "muerto" = X eyes and tongue out (comic fainted/dead); efecto "calor" / "frio" =
 heat waves / cold shivers all around the person.
-THE STYLE is Whymentary's: a white page, clean simple drawings, big red handwritten words.
+THE STYLE: Mokordo's world - every shot is a real place (the "ambiente" set), with clean simple
+drawings on top and big red handwritten words. Mokordo is the protagonist of EVERY shot: the
+viewer follows him through the whole video, and his body changes as the story goes (the
+program does that from the chapter plan) - make him notice it: he looks in the mirror, pokes
+his belly, admires his glowing face, yawns with dark circles.
 NEVER EMPTY: simple drawings, but every shot shows 2-4 things that SHOW what the sentence says.
 If the narration names something you can draw - an animal, an object, a body part, a food - it
 MUST be on the page (a camel is a "camello", not a person alone). Label things that could be
@@ -187,8 +195,23 @@ Return ONLY this JSON:
   "descripcion": "YouTube description: 2-3 short paragraphs that tease the video without spoiling the answer, then: 🔔 Subscribe to {canal} for the why behind everyday things. (If the topic is a drug or an addiction, add at the end: If you or someone you know is struggling, talk to a doctor or a local support line - you're not alone.)",
   "tags": ["15-20 tags"],
   "miniatura": {{"cosas": [...], "textos": [...]}},
-  "capitulos": [{{"titulo": "short chapter title", "resumen": "what it explains, with the key facts", "palabras": 250}}]
+  "capitulos": [{{"titulo": "short chapter title", "resumen": "what it explains, with the key facts", "palabras": 250,
+                  "escenario": "where this chapter happens, one of {escenarios}",
+                  "cuerpo": {{"gordo": 0.3}}, "dia": "DAY 7"}}]
 }}
+MOKORDO'S JOURNEY. Mokordo, the mascot, LIVES the topic from start to end and the viewer must
+SEE him change as the video goes. For each chapter decide:
+  "escenario": the place where Mokordo is (bathroom for skincare, kitchen for food, bedroom for
+              sleep, gym for exercise...). Change the place when the story moves.
+  "cuerpo":   how Mokordo's body looks at the END of that chapter, each trait 0 (not at all) to 1
+              (extreme), only the ones that matter: {rasgos}{desgaste}. They grow chapter by
+              chapter so the change is BIG and obvious by the end (e.g. "a month of skincare":
+              brillo 0.2 -> 0.5 -> 0.8 -> 1 and granos 0.6 -> 0.3 -> 0; "a week of fast food":
+              gordo 0.2 -> 0.4 -> 0.7 -> 1). The first chapter starts normal. If the video ends with
+              Mokordo stopping or recovering, the last chapter brings traits back down.
+              Use {{}} for topics where his body does not change.
+  "dia":      a short time label shown in the corner while that chapter plays ("DAY 1", "DAY 7",
+              "WEEK 2", "HOUR 3", "AGE 70"), when the topic is a timeline; otherwise "".
 "miniatura": the thumbnail, drawn in the same visual format: dead simple and readable on a
 phone - two objects and an "igual" sign, or one object and 1-3 big words.
 Chapters: 5 to 8; the first one is the HOOK (short); together about {palabras} words."""
@@ -197,6 +220,10 @@ _PIDE_CAPITULO = """THE VIDEO (already decided):
 {indice}
 
 Write chapter {n}: «{titulo}» - {resumen}
+This chapter happens in: {escenario}. Mokordo's body goes from {cuerpo_ini} to {cuerpo_fin} during it
+(the program changes his body by itself, shot by shot - you make the narration and the drawings
+match: say it, show it, have him react to it, check himself in the mirror...). Mokordo is in
+EVERY shot: he is the one living this.
 AT LEAST {palabras} words of narration - that is about {n_planos} SHOTS of {pmin}-{pmax} words each
 (one sentence, 5-9 seconds). The video must last 10 minutes or more, so do NOT cut it short:
 go deeper - examples, studies, analogies, a little scene. The drawing changes with every shot:
@@ -223,12 +250,18 @@ def _dosier(tema: str) -> str:
 
 def escribe_guion(tema: str, parar=None) -> dict:
     sistema = _sistema(tema)
-    plan = _pregunta(sistema, _PIDE_INDICE.format(tema=tema, palabras=_PALABRAS, canal=CHANNEL_NAME),
-                     "why-indice", 8000)
+    plan = _pregunta(sistema, _PIDE_INDICE.format(
+        tema=tema, palabras=_PALABRAS, canal=CHANNEL_NAME,
+        escenarios=_lista(escenarios.ESCENARIOS),
+        rasgos="; ".join(f'"{k}" = {v}' for k, v in mascota.RASGOS.items()),
+        desgaste='; "desgaste" = wrecked by a drug (thin, grey, sick), ONLY in drug videos'),
+        "why-indice", 8000)
     capitulos = [c for c in plan.get("capitulos") or [] if isinstance(c, dict)]
     if not capitulos:
         raise LargoError("el indice no trae capitulos")
-    indice = "\n".join(f"{i + 1}. {c.get('titulo')}: {c.get('resumen')}" for i, c in enumerate(capitulos))
+    indice = "\n".join(f"{i + 1}. {c.get('titulo')}: {c.get('resumen')}"
+                       f" [place: {c.get('escenario') or '-'}; Mokordo at the end: {c.get('cuerpo') or 'normal'}"
+                       f"{'; ' + str(c.get('dia')) if c.get('dia') else ''}]" for i, c in enumerate(capitulos))
     # Lo que se pide a cada capitulo, escalado para que entre todos sumen las
     # palabras de diez minutos aunque el indice se quede corto.
     pedidas = [max(80, int(c.get("palabras") or 0)) for c in capitulos]
@@ -247,6 +280,9 @@ def escribe_guion(tema: str, parar=None) -> dict:
                   if i == len(capitulos) - 1 else "")
         cap = _pregunta(sistema, _PIDE_CAPITULO.format(
             indice=indice, n=i + 1, titulo=c.get("titulo", ""), resumen=c.get("resumen", ""),
+            escenario=c.get("escenario") or "any fitting place",
+            cuerpo_ini=(capitulos[i - 1].get("cuerpo") if i else None) or "normal",
+            cuerpo_fin=c.get("cuerpo") or "normal",
             palabras=pedidas[i], n_planos=max(4, round(pedidas[i]/16)), pmin=_PALABRAS_PLANO[0],
             pmax=_PALABRAS_PLANO[1], anterior=anterior, cierre=cierre), f"why-capitulo-{i + 1}")
         planos = [p for p in cap.get("planos") or []
@@ -254,7 +290,9 @@ def escribe_guion(tema: str, parar=None) -> dict:
         if not planos:
             raise LargoError(f"el capitulo {i + 1} ha salido vacio")
         hechos.append({"titulo": c.get("titulo", ""), "planos": planos, "_pedidas": pedidas[i],
-                       "resumen": c.get("resumen", "")})
+                       "resumen": c.get("resumen", ""), "escenario": c.get("escenario") or "",
+                       "cuerpo": c.get("cuerpo") if isinstance(c.get("cuerpo"), dict) else {},
+                       "dia": str(c.get("dia") or "")})
     plan["capitulos"] = hechos
     alarga(plan, sistema, indice)
     return plan
@@ -377,7 +415,11 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
                         faltan[f"{clave} {val}"] += 1
     lineas = [f"«{guion.get('titulo')}»", ""]
     for n, cap in enumerate(guion.get("capitulos") or [], start=1):
-        lineas.append(f"{n}. {cap.get('titulo')} ({len(cap.get('planos') or [])} planos)")
+        cuerpo = ", ".join(f"{k} {v}" for k, v in _rasgos_de(cap.get("cuerpo")).items()) or "normal"
+        extra = f" · {cap.get('escenario') or 'sin sitio'} · Mokordo: {cuerpo}"
+        if cap.get("dia"):
+            extra += f" · {cap['dia']}"
+        lineas.append(f"{n}. {cap.get('titulo')} ({len(cap.get('planos') or [])} planos){extra}")
     minutos = palabras/150
     lineas += ["", f"{planos} planos, {palabras} palabras (unos {minutos:.1f} minutos)",
                "Objetos: " + ", ".join(f"{u} {c}" for u, c in usados.most_common(15)),
@@ -580,6 +622,54 @@ _PISTAS_ACCION = (
 )
 
 
+_RASGOS_TODOS = tuple(mascota.RASGOS) + ("desgaste",)
+
+
+def _rasgos_de(cuerpo) -> dict:
+    sale = {}
+    for k, v in (cuerpo or {}).items() if isinstance(cuerpo, dict) else ():
+        if k in _RASGOS_TODOS:
+            try:
+                sale[k] = min(1.0, max(0.0, float(v)))
+            except (TypeError, ValueError):
+                pass
+    return sale
+
+
+def _interpola(a: dict, b: dict, t: float) -> dict:
+    return {k: round(a.get(k, 0.0) + (b.get(k, 0.0) - a.get(k, 0.0))*t, 3) for k in set(a) | set(b)}
+
+
+def _sitio_valido(nombre) -> str:
+    nombre = garabato.garabato_ambiente._ALIAS.get(str(nombre or "").lower(), str(nombre or "").lower())
+    return nombre if nombre in garabato.garabato_ambiente.AMBIENTES and nombre != "nada" else ""
+
+
+def _con_sitio(visual: dict, sitio: str) -> dict:
+    """NINGUN PLANO EN BLANCO. Ella: "rellenar todas las escenas para que no
+    haya cosas en blanco". Un dibujo nuevo sin sitio va al del capitulo (o al
+    ultimo que hubo); las cifras gigantes y la careta siguen en su folio."""
+    if visual.get("sigue") or visual.get("cifra") or visual.get("_careta"):
+        return visual
+    if _sitio_valido(visual.get("ambiente")):
+        return visual
+    return dict(visual, ambiente=sitio or "salon")
+
+
+def _con_cuerpo(visual: dict, cuerpo: dict, dia) -> dict:
+    v = dict(visual)
+    if cuerpo and isinstance(v.get("mascota"), dict):
+        ma = dict(v["mascota"])
+        propio = _rasgos_de(ma.get("cuerpo"))
+        ma["cuerpo"] = {**{k: x for k, x in cuerpo.items() if k != "desgaste"}, **propio}
+        if "desgaste" in cuerpo and not ma.get("desgaste"):
+            ma["desgaste"] = cuerpo["desgaste"]
+        v["mascota"] = ma
+    if dia:
+        v["_dia"] = str(dia)
+    return v
+
+
 def _con_mascota(visual: dict, texto: str, primero: bool) -> dict:
     """Mokordo en un plano que no lo trae (los guiones de antes de que
     existiera): la accion sale de lo que dice la frase y se pone donde no
@@ -587,7 +677,7 @@ def _con_mascota(visual: dict, texto: str, primero: bool) -> dict:
     if visual.get("mascota") or visual.get("cifra") or visual.get("_careta") or visual.get("sigue"):
         return visual
     figuras = [f for f in visual.get("figuras") or [] if isinstance(f, dict)]
-    if len(figuras) >= 2:
+    if len(figuras) >= 3:
         return visual
     frase = str(texto).lower()
     accion = "entra" if primero else None
@@ -840,19 +930,30 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
     planos = []     # (texto, visual, pausa, capitulo)
     todos = [p for cap in guion["capitulos"] for p in cap["planos"]]
     # Un guion de antes de Mokordo (casi ningun plano lo trae): se le pone solo.
-    sin_mascota = sum(1 for p in todos if (p.get("visual") or {}).get("mascota")) < len(todos)*0.1
+    cuerpo_antes = {}
+    sitio = ""
     for n, cap in enumerate(guion["capitulos"]):
         anterior = None
+        cuerpo_fin = _rasgos_de(cap.get("cuerpo"))
+        sitio = _sitio_valido(cap.get("escenario")) or sitio
         for k, p in enumerate(cap["planos"]):
             ultimo = k == len(cap["planos"]) - 1
             visual = p.get("visual") or {}
             visual = _arregla(visual)
-            if sin_mascota:
-                visual = _con_mascota(visual, p.get("narracion", ""), primero=k == 0)
+            # MOKORDO EN TODOS. Ella: "utilizar a Mokordo siempre como el
+            # principal". Antes solo se le ponia a los guiones viejos.
+            visual = _con_mascota(visual, p.get("narracion", ""), primero=k == 0)
+            visual = _con_sitio(visual, sitio)
+            sitio = _sitio_valido(visual.get("ambiente")) or sitio
             anterior = _acumula(anterior, visual)
             anterior = _siguen_ahi(planos[-1][1] if planos and k else None, anterior)
+            # EL CUERPO, plano a plano: de como acabo el capitulo anterior a
+            # como acaba este, sin saltos.
+            avance = (k + 1)/len(cap["planos"])
+            anterior = _con_cuerpo(anterior, _interpola(cuerpo_antes, cuerpo_fin, avance), cap.get("dia"))
             planos.append((str(p["narracion"]), anterior,
                            _PAUSA_CAPITULO if ultimo else _PAUSA_PLANO, n))
+        cuerpo_antes = cuerpo_fin
         if n == 0 and len(guion["capitulos"]) > 1:
             # EL TITULO, DETRAS DEL GANCHO, como la careta de España Contada:
             # "¿has puesto la intro?". Tres segundos en silencio (solo la
