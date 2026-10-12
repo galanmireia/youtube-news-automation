@@ -686,6 +686,48 @@ async def handle_alargar_command(update: Update, context: ContextTypes.DEFAULT_T
             await update.message.reply_text("Error alargando el guion, revisa los logs.")
 
 
+async def _manda_cortos(bot, cortos) -> None:
+    """Los shorts verticales del video, para subirlos a TikTok / Shorts."""
+    await bot.send_message(chat_id=TELEGRAM_CHAT_ID,
+                           text=f"Y {len(cortos)} shorts verticales del mismo video, para TikTok y YouTube Shorts:")
+    for n, (mp4, de_que) in enumerate(cortos, start=1):
+        try:
+            with open(mp4, "rb") as f:
+                await bot.send_video(chat_id=TELEGRAM_CHAT_ID, video=f, caption=f"Short {n}: {de_que}"[:1000],
+                                     supports_streaming=True, read_timeout=300, write_timeout=300)
+        except Exception:
+            logger.exception("No se ha podido mandar el short %s", mp4)
+
+
+async def handle_cortos_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/cortos: vuelve a sacar los shorts verticales del ultimo video en
+    ingles (sin dibujar nada: se recortan del video ya montado)."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    if _pipeline_lock.locked():
+        await update.message.reply_text("Ya hay una generacion en curso, espera a que termine.")
+        return
+    from . import cortos
+    hay = cortos.ultimo()
+    if hay is None:
+        await update.message.reply_text("No encuentro ningun video en ingles montado del que sacar shorts.")
+        return
+    await update.message.reply_text("Saco los shorts del ultimo video, un par de minutos...")
+    video, carpeta = hay
+    loop = asyncio.get_running_loop()
+    async with _pipeline_lock:
+        try:
+            hechos = await loop.run_in_executor(None, cortos.saca, video, carpeta)
+        except Exception:
+            logger.exception("Error sacando los shorts")
+            await update.message.reply_text("Error sacando los shorts, revisa los logs.")
+            return
+    if not hechos:
+        await update.message.reply_text("No ha salido ningun short.")
+        return
+    await _manda_cortos(context.bot, hechos)
+
+
 async def _run_why_montaje_and_notify(bot) -> None:
     from .porque import run_montaje
     loop = asyncio.get_running_loop()
@@ -697,10 +739,17 @@ async def _run_why_montaje_and_notify(bot) -> None:
         except Exception:
             logger.exception("Error enviando el video %s a Telegram", video_id)
 
+    def on_cortos(cortos) -> None:
+        future = asyncio.run_coroutine_threadsafe(_manda_cortos(bot, cortos), loop)
+        try:
+            future.result()
+        except Exception:
+            logger.exception("Error enviando los shorts a Telegram")
+
     async with _pipeline_lock:
         pulso = asyncio.create_task(_latido(bot))
         try:
-            await asyncio.wait_for(loop.run_in_executor(None, run_montaje, on_done), timeout=3*60*60)
+            await asyncio.wait_for(loop.run_in_executor(None, run_montaje, on_done, on_cortos), timeout=3*60*60)
         except Exception:
             logger.exception("Error montando el video en ingles")
             await bot.send_message(chat_id=TELEGRAM_CHAT_ID,
@@ -2453,6 +2502,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("alargar", handle_alargar_command))
     application.add_handler(CommandHandler("guion", handle_guion_command))
     application.add_handler(CommandHandler("vozgratis", handle_vozgratis_command))
+    application.add_handler(CommandHandler("cortos", handle_cortos_command))
     application.add_handler(CommandHandler("reset", handle_reset_command))
     application.add_handler(CommandHandler("parar", handle_stop_command))
     application.add_handler(CommandHandler("voces", handle_voices_command))

@@ -241,12 +241,159 @@ def _chispa(seg, rng):
     return x
 
 
+# ---------------------------------------------------------------------------
+# LOS SONIDOS DE LOS GAGS DE MOKORDO ("en los dibujos la mitad de la gracia
+# es el sonido"): uno por golpe, todos de dibujo animado.
+# ---------------------------------------------------------------------------
+def _silbato(seg, rng, desde, hasta):
+    """El silbato de embolo: la nota que sube (crece) o baja (encoge)."""
+    n = int(max(seg, 0.7)*HZ); t = np.arange(n)/HZ
+    k = np.clip(t/(n/HZ*0.85), 0, 1)
+    tono = desde*np.exp(np.log(hasta/desde)*k)*(1 + 0.012*np.sin(2*np.pi*6*t))
+    fase = 2*np.pi*np.cumsum(tono)/HZ
+    aire = _filtra(_ruido(n, rng), bajo=800, alto=5000)
+    aire = aire/(np.max(np.abs(aire)) + 1e-9)
+    return (np.sin(fase) + 0.15*np.sin(2*fase) + 0.08*aire)*_env(n, .02, .9, 1.2)
+
+
+def _silbato_sube(seg, rng):
+    return _silbato(seg, rng, 380, 1500)
+
+
+def _silbato_baja(seg, rng):
+    return _silbato(seg, rng, 1500, 300)
+
+
+def _clang(seg, rng):
+    """El yunque: metal grave que vibra."""
+    n = int(max(seg, 1.2)*HZ); t = np.arange(n)/HZ
+    x = sum(a*np.sin(2*np.pi*f*t)*np.exp(-t/d) for f, a, d in
+            ((196, 1.0, 0.5), (523, 0.7, 0.35), (1046, 0.4, 0.2), (1567, 0.3, 0.12), (2490, 0.2, 0.08)))
+    return x + 0.2*_filtra(_ruido(n, rng), bajo=1500, alto=5000)*np.exp(-t/0.01)
+
+
+def _zap(seg, rng):
+    """El rayo / la descarga: zumbido electrico que chisporrotea."""
+    n = int(max(seg, 0.6)*HZ); t = np.arange(n)/HZ
+    zumbido = np.sign(np.sin(2*np.pi*110*t))*0.5 + np.sign(np.sin(2*np.pi*167*t))*0.3
+    chispas = _filtra(_ruido(n, rng), bajo=1200, alto=4500)*(rng.random(n) > 0.6)
+    return _filtra(zumbido + 0.5*chispas, alto=3500)*_env(n, .002, .8, 1.5)
+
+
+def _latido(seg, rng):
+    """El corazon a tope: pum-pum, pum-pum."""
+    n = int(max(seg, 1.0)*HZ); t = np.arange(n)/HZ
+    x = np.zeros(n)
+    ciclo = 0.45
+    for k in range(int(seg/ciclo) + 1):
+        for off, a in ((0.0, 1.0), (0.14, 0.7)):
+            ini = k*ciclo + off
+            u = t - ini
+            dentro = (u >= 0) & (u < 0.2)
+            x[dentro] += a*np.sin(2*np.pi*55*u[dentro])*np.exp(-u[dentro]/0.05)
+    return x
+
+
+def _vapor(seg, rng):
+    """La olla express: el pitido y el chorro de vapor."""
+    n = int(max(seg, 1.2)*HZ); t = np.arange(n)/HZ
+    pito = np.sin(2*np.pi*(1900 + 60*np.sin(2*np.pi*7*t))*t)*0.5
+    chorro = _filtra(_ruido(n, rng), bajo=2500, alto=9000)
+    chorro = chorro/(np.max(np.abs(chorro)) + 1e-9)
+    return (pito + chorro*0.8)*_env(n, .05, 1.5, 1.0)
+
+
+def _trombon(seg, rng):
+    """El trombon triste: wah, wah, wah, waaaah."""
+    n = int(max(seg, 2.2)*HZ); t = np.arange(n)/HZ
+    x = np.zeros(n)
+    for k, (f0, f1, ini, dur) in enumerate(((294, 287, 0.0, 0.35), (277, 270, 0.4, 0.35), (262, 255, 0.8, 0.35),
+                                           (247, 220, 1.2, 1.0))):
+        u = t - ini
+        dentro = (u >= 0) & (u < dur)
+        f = f0 + (f1 - f0)*np.clip(u/dur, 0, 1) + (4*np.sin(2*np.pi*6*u) if k == 3 else 0)
+        fase = 2*np.pi*np.cumsum(np.where(dentro, f, 0))/HZ
+        env = np.where(dentro, np.clip(u/0.04, 0, 1)*np.clip((dur - u)/0.08, 0, 1), 0)
+        x += env*(np.sin(fase) + 0.5*np.sin(2*fase) + 0.3*np.sin(3*fase))
+    return x
+
+
+def _fantasma(seg, rng):
+    """El alma que se va: un uuuuh que flota."""
+    n = int(max(seg, 1.5)*HZ); t = np.arange(n)/HZ
+    tono = 520 + 160*np.sin(2*np.pi*0.7*t) + 15*np.sin(2*np.pi*5.5*t)
+    return np.sin(2*np.pi*np.cumsum(tono)/HZ)*np.sin(np.pi*np.clip(t/(n/HZ), 0, 1))
+
+
+def _grunido(seg, rng):
+    """El zombi: un gruñido grave y ronco."""
+    n = int(max(seg, 1.2)*HZ); t = np.arange(n)/HZ
+    tono = 85 + 10*np.sin(2*np.pi*1.3*t)
+    base = np.sign(np.sin(2*np.pi*np.cumsum(tono)/HZ))
+    ronco = _filtra(_ruido(n, rng, color=1), bajo=80, alto=900)
+    ronco = ronco/(np.max(np.abs(ronco)) + 1e-9)
+    return _filtra(base*0.6 + ronco*0.6, alto=1200)*np.sin(np.pi*np.clip(t/(n/HZ), 0, 1))
+
+
+def _ronquido(seg, rng):
+    """Cabezada: un ronquido que entra."""
+    n = int(max(seg, 1.0)*HZ); t = np.arange(n)/HZ
+    ronco = _filtra(_ruido(n, rng, color=1), bajo=60, alto=500)
+    ronco = ronco/(np.max(np.abs(ronco)) + 1e-9)
+    return ronco*(0.5 + 0.5*np.sin(2*np.pi*28*t))*np.sin(np.pi*np.clip(t/(n/HZ), 0, 1))**2
+
+
+def _llanto(seg, rng):
+    """Llorar a moco tendido: buaaa con hipidos."""
+    n = int(max(seg, 1.6)*HZ); t = np.arange(n)/HZ
+    tono = 430 - 120*np.clip(t/(n/HZ), 0, 1) + 25*np.sin(2*np.pi*7*t)
+    v = np.sin(2*np.pi*np.cumsum(tono)/HZ)
+    return (v + 0.4*np.sin(2*2*np.pi*np.cumsum(tono)/HZ))*(0.6 + 0.4*np.abs(np.sin(2*np.pi*1.4*t)))*_env(n, .05, 1.4, 1)
+
+
+def _muelle(seg, rng):
+    """El muelle de arpa de boca (el de España Contada es el boing): twang."""
+    n = int(max(seg, 0.7)*HZ); t = np.arange(n)/HZ
+    tono = 110*(1 + 0.6*np.exp(-t/0.12))
+    fase = 2*np.pi*np.cumsum(tono)/HZ
+    return sum(np.sin(k*fase)*a for k, a in ((1, 1.0), (3, 0.6), (5, 0.4), (7, 0.25)))*\
+        (0.5 + 0.5*np.sin(2*np.pi*9*t))*_env(n, .003, .5, 2.0)
+
+
+def _estira(seg, rng):
+    """El globo que se hincha: un chirrido de goma que sube."""
+    n = int(max(seg, 1.2)*HZ); t = np.arange(n)/HZ
+    tono = 220*np.exp(np.log(3.5)*np.clip(t/(n/HZ), 0, 1))
+    chirrido = np.sign(np.sin(2*np.pi*np.cumsum(tono)/HZ))*(rng.random(n) > 0.3)
+    return _filtra(chirrido, bajo=150, alto=3000)*_env(n, .05, 1.2, 0.8)
+
+
+def _traqueteo(seg, rng):
+    """Temblar: un traqueteo rapido."""
+    n = int(max(seg, 1.0)*HZ); t = np.arange(n)/HZ
+    golpes = (np.sin(2*np.pi*24*t) > 0.7).astype(float)
+    ruido = _filtra(_ruido(n, rng), bajo=300, alto=3000)
+    return ruido*golpes*_env(n, .01, 1.5, 0.6)
+
+
+def _splat(seg, rng):
+    """Caer de cara: un plof humedo."""
+    n = int(max(seg, 0.5)*HZ); t = np.arange(n)/HZ
+    x = _filtra(_ruido(n, rng, color=1), bajo=100, alto=1800)
+    x = x/(np.max(np.abs(x)) + 1e-9)
+    return x*np.exp(-t/0.07) + 0.8*np.sin(2*np.pi*(120 - 60*t)*t)*np.exp(-t/0.08)
+
+
 EFECTOS = {
     "pop": _pop, "whoosh": _whoosh, "ding": _ding, "tos": _tos, "hic": _hic, "puf": _puf, "chispa": _chispa,
     "golpe": _golpe, "boing": _boing, "zas": _zas,
     "campana": _campana, "gentio": _gentio, "fuego": _fuego, "pasos": _pasos,
     "espada": _espada, "tormenta": _tormenta, "mar": _mar, "monedas": _monedas,
     "puerta": _puerta, "caballo": _caballo,
+    "silbato_sube": _silbato_sube, "silbato_baja": _silbato_baja, "clang": _clang, "zap": _zap,
+    "latido": _latido, "vapor": _vapor, "trombon": _trombon, "fantasma": _fantasma, "grunido": _grunido,
+    "ronquido": _ronquido, "llanto": _llanto, "muelle": _muelle, "estira": _estira, "traqueteo": _traqueteo,
+    "splat": _splat,
 }
 EFECTOS_VALIDOS = tuple(EFECTOS)
 

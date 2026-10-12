@@ -206,11 +206,15 @@ def _detalles_cara(img, d, centro, r, g, h, cu, color, parpadeo):
                       fill=_mezcla(color, (240, 130, 150), 0.45))
     if cu["ojeras"] > 0.1:
         k = cu["ojeras"]
-        ojera = (95, 70, 105)
+        ojera = (78, 52, 92)
         for lado in (-1, 1):
             ex, ey = centro[0] + lado*r*0.33, centro[1] - r*0.12
             d.arc([ex - r*0.24, ey - r*0.08, ex + r*0.24, ey + r*0.34], 15, 165, fill=ojera,
-                  width=max(2, int(g*(0.4 + 1.0*k))))
+                  width=max(2, int(g*(0.6 + 1.8*k))))
+            if k > 0.45:
+                # la bolsa de debajo: otra raya mas abajo
+                d.arc([ex - r*0.2, ey + r*0.0, ex + r*0.2, ey + r*0.42], 30, 150, fill=ojera,
+                      width=max(2, int(g*(0.3 + 1.0*(k - 0.45)))))
             if k > 0.5 and not parpadeo:
                 # los parpados caidos: media persiana sobre el ojo
                 d.chord([ex - r*0.21, ey - r*0.24, ex + r*0.21, ey + r*0.2], 180, 360, fill=color)
@@ -348,6 +352,11 @@ def _hasta(hombro, punto, lado, h):
     return math.degrees(fi + alfa), -math.degrees(codo)
 
 
+# Los gags (gags.py) pintan a Mokordo en una capa que luego deforman: la
+# sombra del suelo la ponen ellos, que si no gira con el.
+SIN_SOMBRA = [False]
+
+
 def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((60, 20), (60, 20)),
            parpadeo=False, piernas=None, levanta=0.0, color=None, forma=None, pelo="?", gafas=False,
            bigote=False, alcanza=None, pie_arriba=None, desgaste=0.0, mira=None, habla=None, pelo_giro=0.0,
@@ -383,7 +392,8 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
     T = lambda p: _transforma(p, cx, base, estira, inclina)
     pts = [T(p) for p in _cuerpo(alto, ancho, forma, barriga=cu["gordo"])]
     k = max(0.3, 1 - levanta/(h*0.8))
-    d.ellipse([cx - ancho*1.1*k, suelo - h*0.02*k, cx + ancho*1.1*k, suelo + h*0.02*k], fill=(222, 218, 210))
+    if not SIN_SOMBRA[0]:
+        d.ellipse([cx - ancho*1.1*k, suelo - h*0.02*k, cx + ancho*1.1*k, suelo + h*0.02*k], fill=(222, 218, 210))
     for lado in (-1, 1):
         paso = math.sin(piernas + (0 if lado < 0 else math.pi))*h*0.05 if piernas is not None else 0.0
         arriba = T((lado*ancho*0.42, 0))
@@ -465,7 +475,7 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
             d.ellipse([top[0] + h*0.01 + (lado - 1)*h*0.035, top[1] - h*0.1, top[0] + h*0.01 + (lado + 1)*h*0.035,
                        top[1] - h*0.06], fill=(110, 190, 90), outline=TINTA, width=max(2, g//2))
     centro = T((h*0.02, -alto*(0.7 if forma == "judia" else 0.58)))
-    r = h*0.17
+    r = h*0.27      # la cara mas grande: en el movil no se leian los gestos
     garabato._cara_expresiva(d, centro, r, g, random.Random(1), gesto, tinta=TINTA, mira=mira, habla=habla)
     if dg:
         _desgaste(img, d, T, centro, r, g, h, ancho, alto, dg)
@@ -774,7 +784,22 @@ def estado_mascota(mascota: dict, t: float, dur: float, suelo: float, w: int, h_
         p["inclina"] = p["inclina"]*(1 - 0.5*dg) + 7*dg*lado
         p["estira"] = 1 + (p["estira"] - 1)*(1 - 0.5*dg) - 0.06*dg
         temblor = math.sin(t*47)*0.009*dg
-    gordo = rasgos_cuerpo(mascota.get("cuerpo"))["gordo"]
+    cu = rasgos_cuerpo(mascota.get("cuerpo"))
+    cansado = max(cu["ojeras"], cu["palido"]*0.8)
+    gesto = p.get("gesto") or "neutro"
+    if cansado > 0.15:
+        # AGOTADO SE NOTA EN TODO ("el dia 3 tiene la misma cara feliz que
+        # el dia 1"): encorvado, sin botar, y la cara se le cae.
+        p["levanta"] = p.get("levanta", 0.0)*(1 - 0.7*cansado)
+        p["inclina"] = p["inclina"]*(1 - 0.4*cansado) + 9*cansado*lado
+        p["estira"] = p["estira"]*(1 - 0.07*cansado)
+        temblor += math.sin(t*1.3)*0.012*cansado
+        if cansado > 0.4 and gesto in ("contento", "riendo", "neutro", "pensativo", "enamorado"):
+            gesto = "agotado"
+        elif gesto in ("contento", "riendo", "enamorado"):
+            gesto = "neutro"
+        p["gesto"] = gesto
+    gordo = cu["gordo"]
     if gordo:
         # Pesa: salta menos y se balancea mas lento.
         p["levanta"] = p.get("levanta", 0.0)*(1 - 0.45*gordo)

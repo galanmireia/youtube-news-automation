@@ -19,7 +19,7 @@ import shutil
 import time
 from pathlib import Path
 
-from . import escenarios, garabato, interaccion, llm_usage, mascota, monigotes
+from . import escenarios, gags, garabato, interaccion, llm_usage, mascota, monigotes
 from .config import DATA_DIR, MUSIC_VOLUME
 
 # Este modulo es SOLO del canal en ingles: su nombre no sale de la config,
@@ -43,10 +43,12 @@ _PAUSA_PLANO = 0.25
 _POSES = tuple(monigotes.POSES_VALIDAS) + garabato.POSES_EXTRA
 _ACCIONES = "; ".join(f'"{k}" = {v[1]}' for k, v in mascota.ACCIONES.items())
 _VERBOS = "; ".join(f'"{k}" = {v}' for k, v in interaccion.VERBOS.items())
+_GAGS = "; ".join(f'"{k}" = {v}' for k, v in gags.GAGS.items())
 _GESTOS = tuple(monigotes.GESTOS_VALIDOS) + garabato.GESTOS_EXTRA
 _EFECTOS = ("sorpresa", "idea", "mareo", "confuso", "zzz", "enamorado", "sudor", "lagrimas", "humo",
             "caida", "salto", "temblor") + garabato.EFECTOS_EXTRA
 _PAUSA_CAPITULO = 0.8
+_PAUSA_GAG = 0.6
 _PENDIENTE = Path(DATA_DIR) / "porque_pendiente.json"
 # El ultimo guion ya montado: /remontar lo vuelve a montar sin pagar otro
 # guion (si cambia el estilo, o algo sale mal en el video).
@@ -76,8 +78,8 @@ it is not in the lists, it cannot be drawn. A visual has any of:
   "mascota": THE CHANNEL'S MASCOT, the star of every video: MOKORDO, a round purple drop with a
              "?" for hair. It is always moving. {{"accion": one of {acciones}, "x": 0.15-0.85,
              "espejo": true to face left, "gesto": a face from the list to override the action's,
-             "efecto": optional, "hace": optional, see DOING THINGS, "desgaste": 0-1 ONLY in
-             drug videos, see DRUGS}}. Put it in MOST shots, doing what the sentence says (it is the
+             "efecto": optional, "hace": optional, see DOING THINGS, "gag": optional, see GAGS,
+             "desgaste": 0-1 ONLY in drug videos, see DRUGS}}. Put it in MOST shots, doing what the sentence says (it is the
              viewer's buddy living the story): it enters hopping at the start of a section, thinks,
              points at the thing being explained, jumps when there is an idea, gets scared,
              laughs... Leave it out only for giant numbers or pure diagrams. The other characters
@@ -188,8 +190,20 @@ the laziest shot there is: at most ONE in five, never two in a row. Prefer, and 
   - a LABELLED DIAGRAM: the brain with a big arrow and a word on the part being explained
   - a GIANT number ("cifra") or a BIG word for the punchline
   - Mokordo DOING the thing (hace) or reacting strongly (asusta, salta, rie, mareo...)
-Mokordo's "accion" must match the sentence and CHANGE from shot to shot ("explica" at most one in
-four, never twice in a row). Never the same composition two shots in a row. Change "ambiente" when
+SPEECH BUBBLES: when a character says something in the story, give it "dice": {{"texto": "WHAT DAY
+IS IT?", "cuando": "the words"}} (max 5 words, on "mascota" or a "figuras" person): a white bubble
+over their head, so the viewer sees WHO talks.
+GAGS - BE EXAGGERATED, LIKE A CARTOON. A viewer who saw the last video said: "it's repetitive,
+he always does the same 5 or 6 things, the things he does must be VERY exaggerated". Standing
+there and waving his arms is boring. Mokordo must LIVE the sentence in an over-the-top cartoon
+way: {{"gag": {{"tipo": one of {gags}, "cuando": "the words when it happens"}}}}.
+Use a gag in at least ONE shot in THREE, and every gag at most twice per video (vary them!).
+Match it to the sentence: no sleep -> "cabezada", "zombi", "alma", "de_cara"; caffeine ->
+"tiembla", "corazon"; a shocking fact -> "ojos_fuera", "rayo"; overeating -> "infla"; feeling
+crushed -> "aplasta" (with "texto": the word on the anvil, e.g. "TIRED", "BILLS"); giving up ->
+"derrite"; anger/stress/fever -> "vapor"; sneeze -> "sale_volando"; confusion -> "gira".
+Mokordo's "accion" must match the sentence and CHANGE from shot to shot ("explica", "senala",
+"piensa" and "asusta" together at most one shot in five; never the same accion twice in a row). Never the same composition two shots in a row. Change "ambiente" when
 the story moves to another place.
 ONE IDEA PER SHOT, big and in the middle. Mix: people reacting, objects explained, "THIS =
 THAT" equations (cosa + "igual" + cosa), giant numbers, a big word. Keep text and objects from
@@ -211,7 +225,7 @@ Return ONLY this JSON:
   "capitulos": [{{"titulo": "short chapter title", "resumen": "what it explains, with the key facts", "palabras": 250,
                   "escenario": "where this chapter happens, one of {escenarios}",
                   "cuerpo": {{"gordo": 0.3}}, "dia": "DAY 7", "complemento": "",
-                  "medidores": {{"ENERGY": 0.4}}}}]
+                  "medidores": {{"ENERGY": 0.4}}, "avance": false}}]
 }}
 MOKORDO'S JOURNEY. Mokordo, the mascot, LIVES the topic from start to end and the viewer must
 SEE him change as the video goes. For each chapter decide:
@@ -233,7 +247,14 @@ SEE him change as the video goes. For each chapter decide:
               for smoking. {{}} if the topic doesn't need them.
 "miniatura": the thumbnail, drawn in the same visual format: dead simple and readable on a
 phone - two objects and an "igual" sign, or one object and 1-3 big words.
-Chapters: 5 to 8; the first one is the HOOK (short); together about {palabras} words."""
+TELL IT AS A STORY, NOT A LESSON (a viewer said: "it's boring, like a science class"): Mokordo has
+a GOAL (a bet with his friend Bob, a challenge, a dare), things go wrong and ESCALATE chapter by
+chapter, there are recurring characters (Bob, a doctor, a boss) who talk in speech bubbles,
+running jokes, and an ending (he wins, loses, learns). The facts are what happens TO HIM.
+THE COLD OPEN: chapter 1 can be a flash-forward ("avance": true) of 2 short shots showing Mokordo
+at his WORST (the most extreme body, and the "dia" of that moment): "This is Mokordo on day
+six... six days ago he was fine. Let's go back." Then chapter 2 starts the story from the start.
+Chapters: 5 to 9; the first one is the HOOK (short); together about {palabras} words."""
 
 _PIDE_CAPITULO = """THE VIDEO (already decided):
 {indice}
@@ -313,7 +334,8 @@ def escribe_guion(tema: str, parar=None) -> dict:
                        "resumen": c.get("resumen", ""), "escenario": c.get("escenario") or "",
                        "cuerpo": c.get("cuerpo") if isinstance(c.get("cuerpo"), dict) else {},
                        "dia": str(c.get("dia") or ""), "complemento": str(c.get("complemento") or ""),
-                       "medidores": c.get("medidores") if isinstance(c.get("medidores"), dict) else {}})
+                       "medidores": c.get("medidores") if isinstance(c.get("medidores"), dict) else {},
+                       "avance": bool(c.get("avance")) and i == 0})
     plan["capitulos"] = hechos
     alarga(plan, sistema, indice)
     return plan
@@ -364,7 +386,7 @@ def alarga(guion: dict, sistema: str, indice: str) -> list[str]:
 def _sistema(tema: str) -> str:
     dosier = _dosier(tema)
     return _INSTRUCCIONES.format(
-        canal=CHANNEL_NAME, acciones=_ACCIONES, verbos=_VERBOS, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
+        canal=CHANNEL_NAME, acciones=_ACCIONES, verbos=_VERBOS, gags=_GAGS, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
         gestos=_lista(_GESTOS), efectos=_lista(_EFECTOS),
         llevables=_lista(monigotes.LLEVABLES_EXPLICADOS), objetos=_lista(garabato.OBJETOS_VALIDOS),
         colores=_lista(garabato.COLORES), ambientes=_lista(garabato.garabato_ambiente.AMBIENTES),
@@ -403,6 +425,8 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
                "lleva": set(monigotes.LLEVABLES_EXPLICADOS) | set(garabato.OBJETOS_VALIDOS),
                "quien": set(garabato.QUIENES)}
     faltan, pedidos, usados, hacen = Counter(), [], Counter(), Counter()
+    poses, chistes, seguidas = Counter(), Counter(), 0
+    anterior = None
     planos = 0
     palabras = 0
     for n, cap in enumerate(guion.get("capitulos") or [], start=1):
@@ -412,6 +436,23 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
             if p.get("falta"):
                 pedidos.append(f"cap. {n}, plano {k}: {p['falta']}")
             v = p.get("visual") or {}
+            ma = v.get("mascota") if isinstance(v.get("mascota"), dict) else None
+            if v.get("cifra") and not ma:
+                chistes["(cifra)"] += 1      # el montaje le pone a Mokordo reaccionando
+                anterior = "cifra"
+            if ma:
+                g = gags.tipo_de(ma.get("gag"))
+                if ma.get("gag") and not g:
+                    faltan[f"gag {ma.get('gag')}"] += 1
+                hace_ = (ma.get("hace") or {}).get("verbo") if isinstance(ma.get("hace"), dict) else None
+                que_hace = f"gag {g}" if g else (f"hace {hace_}" if hace_ else str(ma.get("accion") or "explica"))
+                if g:
+                    chistes[g] += 1
+                else:
+                    poses[que_hace] += 1
+                if que_hace == anterior:
+                    seguidas += 1
+                anterior = que_hace
             for c in v.get("cosas") or []:
                 que = garabato.nombre_objeto((c or {}).get("que"))
                 if que:
@@ -449,8 +490,21 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
     lineas += ["", f"{planos} planos, {palabras} palabras (unos {minutos:.1f} minutos)",
                "Objetos: " + ", ".join(f"{u} {c}" for u, c in usados.most_common(15)),
                "Acciones: " + (", ".join(f"{u} {c}" for u, c in hacen.most_common()) or "ninguna")]
+    lineas.append("Gags: " + (", ".join(f"{u} {c}" for u, c in chistes.most_common()) or "ninguno"))
     if minutos < 10.3:
         lineas.append(f"⚠️ Puede quedarse corto: {minutos:.1f} minutos calculados (minimo 10).")
+    # LO REPETITIVO ("al final me acuerdo de 5 o 6 cosas que hace y siempre
+    # hace lo mismo"): avisos, para corregirlo antes de montar.
+    sosas = sum(c for x, c in poses.items() if x in ("explica", "senala", "piensa", "asusta"))
+    if planos and sosas > planos*0.2:
+        lineas.append(f"⚠️ Repetitivo: {sosas} de {planos} planos son explica/senala/piensa/asusta (max. 1 de cada 5).")
+    if planos and sum(chistes.values()) < planos/3:
+        lineas.append(f"⚠️ Poco exagerado: {sum(chistes.values())} gags en {planos} planos (min. 1 de cada 3).")
+    for g, c in chistes.items():
+        if c > 2 and g != "(cifra)":
+            lineas.append(f"⚠️ El gag {g} sale {c} veces (max. 2).")
+    if seguidas:
+        lineas.append(f"⚠️ {seguidas} veces Mokordo hace lo mismo dos planos seguidos.")
     lista = [f"{x} (x{c})" for x, c in faltan.most_common()] + pedidos
     lineas += ["", "⚠️ PIDE COSAS QUE NO ESTAN DIBUJADAS:"] + [f"- {x}" for x in lista] if lista \
         else ["", "✅ Todo lo que pide esta dibujado."]
@@ -610,8 +664,28 @@ def _al_nombrarlo(visual: dict, texto: str, hablado: float) -> dict:
             larga = max(aguja.split(), key=len)
             k = frase.find(larga) if len(larga) > 3 else -1
         return dict(x, hace=dict(h, _t=round(max(0.3, k/len(frase)*hablado), 2))) if k >= 0 else x
+    def _habla(x):
+        # el bocadillo sale cuando la voz dice esas palabras
+        d = x.get("dice") if isinstance(x, dict) else None
+        if not isinstance(d, dict) or not d.get("cuando") or x.get("_ya"):
+            return x
+        aguja = _normal(d["cuando"])
+        k = frase.find(aguja) if aguja else -1
+        return dict(x, dice=dict(d, _t=round(max(0.2, k/len(frase)*hablado - 0.2), 2))) if k >= 0 else x
+    if isinstance(v.get("mascota"), dict):
+        v["mascota"] = _habla(v["mascota"])
+    v["figuras"] = [_habla(f) for f in v.get("figuras") or []]
     if isinstance(v.get("mascota"), dict):
         v["mascota"] = _hora(v["mascota"])
+        g = v["mascota"].get("gag")
+        if isinstance(g, dict) and g.get("cuando") and not v["mascota"].get("_ya"):
+            aguja = _normal(g["cuando"])
+            k = frase.find(aguja) if aguja else -1
+            if k < 0 and aguja:
+                larga = max(aguja.split(), key=len)
+                k = frase.find(larga) if len(larga) > 3 else -1
+            if k >= 0:
+                v["mascota"] = dict(v["mascota"], gag=dict(g, _t=round(max(0.2, k/len(frase)*hablado - 0.15), 2)))
     v["figuras"] = [_hora(f) for f in v.get("figuras") or []]
     # NUNCA EL FOLIO EN BLANCO ESPERANDO ("se queda la pantalla en blanco y
     # tienes que esperar a ver que sale"): si al empezar no hay nadie ni nada,
@@ -721,10 +795,32 @@ def _medidores_de(medidores) -> dict:
     return dict(list(sale.items())[:3])
 
 
+def _fuera_del_marcador(texto, medidores: bool, dia: bool):
+    """Que las barras (arriba a la derecha) y el calendario (arriba a la
+    izquierda) no tapen las palabras: "COFFEE", "OOPS", "STARVI..." salian
+    medio escondidas detras de ENERGY/FOCUS/MOOD."""
+    if not isinstance(texto, dict):
+        return texto
+    try:
+        x, y = float(texto.get("x", 0.5)), float(texto.get("y", 0.15))
+    except (TypeError, ValueError):
+        return texto
+    medio = min(0.4, 0.028*len(str(texto.get("texto") or ""))*float(texto.get("tam") or 0.12)/0.12)
+    if medidores and y < 0.27 and x + medio > 0.76:
+        x = max(0.5, 0.75 - medio)
+        if x + medio > 0.76:
+            y = 0.32
+    if dia and y < 0.16 and x - medio < 0.16:
+        x = max(x, 0.17 + medio)
+    return dict(texto, x=round(x, 3), y=round(y, 3))
+
+
 def _con_cuerpo(visual: dict, cuerpo: dict, dia, complemento=None, medidores=None) -> dict:
     v = dict(visual)
     if medidores:
         v["_medidores"] = medidores
+    if medidores or dia:
+        v["textos"] = [_fuera_del_marcador(x, bool(medidores), bool(dia)) for x in v.get("textos") or []]
     if complemento in mascota.COMPLEMENTOS and isinstance(v.get("mascota"), dict) \
             and not v["mascota"].get("complemento"):
         v["mascota"] = dict(v["mascota"], complemento=complemento)
@@ -762,10 +858,21 @@ def _antes_despues(guion: dict) -> dict | None:
             "sitio": caps[k].get("escenario") or caps[inicio].get("escenario") or "salon"}
 
 
+_REACCIONES_CIFRA = ("ojos_fuera", "encoge", "rayo", "vapor", "tiembla", "derrite", "corazon", "gira")
+_REACCIONES_CIFRA_TURNO = [0]
+
+
 def _con_mascota(visual: dict, texto: str, primero: bool) -> dict:
     """Mokordo en un plano que no lo trae (los guiones de antes de que
     existiera): la accion sale de lo que dice la frase y se pone donde no
     tape nada."""
+    if visual.get("cifra") and not visual.get("mascota") and not visual.get("_careta"):
+        # LA CIFRA CON MOKORDO AL LADO, reaccionando a lo bestia: si no, la
+        # ficha del numero era una diapositiva y se cortaba la historia.
+        # una distinta cada vez, por turno
+        _REACCIONES_CIFRA_TURNO[0] += 1
+        gag = _REACCIONES_CIFRA[_REACCIONES_CIFRA_TURNO[0] % len(_REACCIONES_CIFRA)]
+        return dict(visual, mascota={"accion": "explica", "x": 0.22, "tam": 0.5, "gag": {"tipo": gag, "_t": 0.6}})
     if visual.get("mascota") or visual.get("cifra") or visual.get("_careta") or visual.get("sigue"):
         return visual
     figuras = [f for f in visual.get("figuras") or [] if isinstance(f, dict)]
@@ -913,6 +1020,11 @@ def _arregla(visual: dict) -> dict:
     if isinstance(ma, dict):
         ma = dict(ma)
         accion = str(ma.get("accion") or "explica").lower().replace("ñ", "n")
+        if gags.tipo_de(accion) and not ma.get("gag"):
+            ma["gag"] = {"tipo": gags.tipo_de(accion)}     # el gag puesto como accion
+            accion = "explica"
+        if ma.get("gag") and not gags.tipo_de(ma.get("gag")):
+            ma.pop("gag", None)                              # uno que no existe: fuera
         if accion in interaccion.VERBOS:
             if not isinstance(ma.get("hace"), dict):
                 ma["hace"] = {"verbo": accion}
@@ -923,6 +1035,17 @@ def _arregla(visual: dict) -> dict:
         if ma.get("ambiente") and not v.get("ambiente"):
             v["ambiente"] = ma.pop("ambiente")
         v["mascota"] = ma
+    # LO QUE FLOTA ("las tazas y la bateria flotando en el aire, como en un
+    # powerpoint"): las cosas de verdad (una taza, una pizza, una bascula) se
+    # apoyan en el suelo; solo flotan los iconos (cerebro, corazon, sol...).
+    if v.get("cosas") and v.get("ambiente") != "nada":
+        cosas = []
+        for c in v["cosas"]:
+            if isinstance(c, dict) and c.get("y") is not None and garabato.nombre_objeto(c.get("que")) \
+                    not in garabato._SIN_MESA and float(c.get("tam") or 0.2) <= 0.35:
+                c = {k: x for k, x in c.items() if k != "y"}
+            cosas.append(c)
+        v["cosas"] = cosas
     return v
 
 
@@ -991,20 +1114,32 @@ def _trozos_del_plano(visual: dict, fotogramas: int) -> list:
     if n <= 1:
         return [(visual, fotogramas)]
     cortes = [round(fotogramas*j/n) for j in range(n + 1)]
-    return [(visual if j == 0 else _variante(visual, j), cortes[j + 1] - cortes[j]) for j in range(n)]
+    trozos = []
+    for j in range(n):
+        v = visual if j == 0 else _variante(visual, j)
+        ma = v.get("mascota") if j else None
+        if isinstance(ma, dict) and isinstance(ma.get("gag"), dict):
+            # el gag sigue donde iba (tirado, derretido...), no vuelve a empezar
+            g = dict(ma["gag"])
+            g["_t"] = float(g.get("_t", 0.3)) - cortes[j]/FPS
+            v = dict(v, mascota=dict(ma, gag=g))
+        trozos.append((v, cortes[j + 1] - cortes[j]))
+    return trozos
 
 
 def _cartel_titulo(titulo: str, sitio: str = "") -> dict:
     """El titulo en grande, en una o dos lineas, y WHY THOUGH debajo; encima
     del sitio del primer capitulo (era el unico plano en folio blanco)."""
-    palabras = titulo.upper().split()
+    # sin el parentesis ("(Cartoon Experiment)"): en la careta no cabia
+    palabras = re.sub(r"\s*\(.*?\)\s*", " ", titulo).upper().split()
     if len(" ".join(palabras)) > 22 and len(palabras) > 1:
         corte = max(1, len(palabras)//2)
         lineas = [" ".join(palabras[:corte]), " ".join(palabras[corte:])]
     else:
         lineas = [" ".join(palabras)]
     textos = [{"texto": l, "x": 0.5, "y": 0.36 + k*0.18 - (0.09 if len(lineas) == 1 else 0),
-               "tam": 0.16, "color": "rojo", "giro": -2} for k, l in enumerate(lineas)]
+               "tam": round(min(0.16, 0.16*19/max(1, len(l))), 3), "color": "rojo", "giro": -2}
+              for k, l in enumerate(lineas)]
     textos.append({"texto": CHANNEL_NAME.upper(), "x": 0.5, "y": 0.8, "tam": 0.07, "color": "negro"})
     careta = {"textos": textos, "_careta": True}
     if _sitio_valido(sitio):
@@ -1038,6 +1173,12 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             # ahi y desde ahi se mueven.
             medidores_antes = dict(medidores_fin)
         sitio = _sitio_valido(cap.get("escenario")) or sitio
+        if cap.get("salta") or cap.get("avance") or (n > 0 and guion["capitulos"][n - 1].get("avance")):
+            # EL AVANCE ("empezar por lo mas bestia"): el video abre con
+            # Mokordo hecho polvo en el dia 6 y luego vuelve al principio. El
+            # cuerpo y las barras saltan de golpe, no se interpolan.
+            cuerpo_antes = dict(cuerpo_fin)
+            medidores_antes = dict(medidores_fin)
         for k, p in enumerate(cap["planos"]):
             ultimo = k == len(cap["planos"]) - 1
             visual = p.get("visual") or {}
@@ -1055,8 +1196,10 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             anterior = _con_cuerpo(anterior, _interpola(cuerpo_antes, cuerpo_fin, avance), cap.get("dia"),
                                    cap.get("complemento"),
                                    _interpola(medidores_antes, medidores_fin, avance) if medidores_fin else {})
-            planos.append((str(p["narracion"]), anterior,
-                           _PAUSA_CAPITULO if ultimo else _PAUSA_PLANO, n))
+            pausa = _PAUSA_CAPITULO if ultimo else _PAUSA_PLANO
+            if isinstance(anterior.get("mascota"), dict) and gags.tipo_de(anterior["mascota"].get("gag")):
+                pausa += _PAUSA_GAG       # que el golpe se vea antes de seguir hablando
+            planos.append((str(p["narracion"]), anterior, pausa, n))
         cuerpo_antes = cuerpo_fin
         if medidores_fin:
             medidores_antes = medidores_fin
@@ -1197,6 +1340,12 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
         segundo = 0.0 if n == 0 else inicios_cap.get(n, 0.0)
         marcas.append(f"{_minuto(segundo)} {cap['titulo']}")
 
+    try:
+        from . import cortos
+        cortos.apunta(planos, fronteras, FPS, guion, carpeta)
+    except Exception:
+        logger.warning("why: sin datos para los shorts.", exc_info=True)
+
     for p in list(carpeta.glob("plano_*")) + list(carpeta.glob("voz_*")):
         p.unlink(missing_ok=True)
     for p in (mudo, narracion, con_voz, carpeta / "con_efectos.mp4", carpeta / "efectos.wav"):
@@ -1262,7 +1411,7 @@ def retoca(guion: dict) -> int:
                                    "visual": p.get("visual")}, ensure_ascii=False)
                        for i, p in pendientes)
     sistema = _INSTRUCCIONES.format(
-        canal=CHANNEL_NAME, acciones=_ACCIONES, verbos=_VERBOS, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
+        canal=CHANNEL_NAME, acciones=_ACCIONES, verbos=_VERBOS, gags=_GAGS, quienes=_lista(garabato.QUIENES), poses=_lista(_POSES),
         gestos=_lista(_GESTOS), efectos=_lista(_EFECTOS),
         llevables=_lista(monigotes.LLEVABLES_EXPLICADOS), objetos=_lista(garabato.OBJETOS_VALIDOS),
         colores=_lista(garabato.COLORES), ambientes=_lista(garabato.garabato_ambiente.AMBIENTES),
@@ -1286,7 +1435,7 @@ def retoca(guion: dict) -> int:
     return hechos
 
 
-def run_montaje(on_done) -> list[int]:
+def run_montaje(on_done, on_cortos=None) -> list[int]:
     """PASO 2 (/montar): el video del guion que dejo /why."""
     from . import storage
     from .pipeline import GenerationStopped, _stop_requested, cleanup_finished_video_files
@@ -1316,4 +1465,14 @@ def run_montaje(on_done) -> list[int]:
     logger.info("Video #%s (why) generado y pendiente de aprobacion.", video_id)
     if on_done is not None:
         on_done(video_id)
+    if on_cortos is not None:
+        # Los shorts para TikTok / YouTube Shorts, del mismo video.
+        try:
+            from . import cortos
+            hechos = cortos.saca(Path(video), carpeta)
+            logger.info("why: %s shorts.", len(hechos))
+            if hechos:
+                on_cortos(hechos)
+        except Exception:
+            logger.warning("why: los shorts han fallado.", exc_info=True)
     return [video_id]

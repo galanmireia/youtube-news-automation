@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 from .garabato_mas import MAS_OBJETOS, REHECHOS
 from .garabato_bichos import ANIMALES
 from . import garabato_ambiente
+from . import gags
 from . import garabato_mas
 from . import interaccion
 from . import mascota as _mascota
@@ -655,7 +656,7 @@ m._POSES["manos_cabeza"] = {
     "brazos": [[(0, -.66), (-.36, -.78), (-.25, -.96)], [(0, -.66), (.36, -.78), (.25, -.96)]],
     "piernas": [[(0, -.38), (-.10, -.19), (-.14, 0)], [(0, -.38), (.10, -.19), (.14, 0)]]}
 POSES_EXTRA = ("manos_cabeza", "tumbado")
-GESTOS_EXTRA = ("muerto",)
+GESTOS_EXTRA = ("muerto", "agotado", "dormido")
 EFECTOS_EXTRA = ("calor", "frio")
 
 
@@ -741,6 +742,11 @@ def encima(img: Image.Image, visual: dict, t: float, segundos: float) -> Image.I
         color = _color(cifra.get("color"), "rojo")
         e = _escala_pop(t - 0.1)
         cx, cy = w*0.5, h*0.43
+        if isinstance(visual.get("mascota"), dict):
+            # con Mokordo al lado reaccionando ("las fichas con numeros
+            # cortan la historia"): la cifra, a la derecha y algo mas pequeña
+            cx = w*(0.62 if float(visual["mascota"].get("x", 0.2)) < 0.5 else 0.38)
+            e *= 0.82
         if e > 0:
             n = 26
             giro = t*0.08
@@ -751,12 +757,12 @@ def encima(img: Image.Image, visual: dict, t: float, segundos: float) -> Image.I
                              (cx + math.cos(a)*r1*e, cy + math.sin(a)*r1*e)], max(4, int(h*0.007)), rnd,
                          color=color, temblor=1.4)
         valor = str(cifra["valor"])[:18]
-        tam_valor = _que_quepa(valor, h*0.36, w*0.7)
+        tam_valor = _que_quepa(valor, h*0.36, w*(0.5 if cx != w*0.5 else 0.7))
         valor = _contando(valor, t - 0.1)
         _letrero(img, valor, (cx, cy), tam_valor, color, -2, e)
         pie = str(cifra.get("pie") or "")[:70]
         if pie:
-            _letrero(img, pie, (w*0.5, h*0.85), _que_quepa(pie, h*0.075, w*0.86), TINTA, 0,
+            _letrero(img, pie, (cx, h*0.85), _que_quepa(pie, h*0.075, w*(0.6 if cx != w*0.5 else 0.86)), TINTA, 0,
                      _escala_pop(t - 0.5))
     for k, f in enumerate(visual.get("flechas") or []):
         try:
@@ -850,6 +856,8 @@ def _spec(visual: dict) -> dict:
             f["_ya"] = True       # ya estaba en el plano anterior: no vuelve a entrar
         if isinstance(pedido.get("hace"), dict):
             f["hace"] = pedido["hace"]     # lo que hace con algo o con alguien
+        if pedido.get("dice"):
+            f["dice"] = pedido["dice"]     # su bocadillo
     for f, pedido in zip(e["figuras"], pedidos):
         for campo in ("pose", "pose_fin"):
             if pedido[campo] == "manos_cabeza":
@@ -1304,6 +1312,18 @@ def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA, mira=None, habla=None):
         elif gesto == "bostezo":
             d.line([(cx - r*0.12, ey + r*0.02), (cx + r*0.12, ey + r*0.02)], fill=tinta, width=max(3, g))
             _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.5, alto=0.04)
+        elif gesto == "agotado":
+            # AGOTADO ("el dia 3 tiene la misma cara feliz que el dia 1"):
+            # el parpado le tapa medio ojo y la pupila se le cae.
+            ro = r*0.15
+            d.chord([cx - ro, ey - ro*1.15, cx + ro, ey + ro*1.15], 0, 180, fill=(255, 255, 255), outline=tinta,
+                    width=max(2, g//2))
+            rp = ro*0.42
+            d.ellipse([cx - rp, ey + ro*0.25, cx + rp, ey + ro*0.25 + rp*2], fill=tinta)
+            d.line([(cx - ro*1.15, ey + ro*0.05), (cx + ro*1.15, ey - ro*0.05*lado)], fill=tinta, width=max(3, g))
+            _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.3, alto=-0.02)
+        elif gesto == "dormido":
+            d.arc([cx - r*0.13, ey - r*0.1, cx + r*0.13, ey + r*0.1], 20, 160, fill=tinta, width=max(3, g))
         else:
             _ojo_abierto(d, cx, ey, r, g, tinta, mira=mira or (0.15, 0))
             # al hablar, las cejas acompañan un poco
@@ -1350,6 +1370,11 @@ def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA, mira=None, habla=None):
     elif gesto in ("mareado", "confuso"):
         pts = [(b[0] - r*0.24 + k*r*0.06, b[1] + r*0.04*math.sin(k*1.6)) for k in range(9)]
         d.line(pts, fill=tinta, width=max(3, g), joint="curve")
+    elif gesto == "agotado":
+        pts = [(b[0] - r*0.2 + k*r*0.05, b[1] + r*0.06 + r*0.025*math.sin(k*1.4)) for k in range(9)]
+        d.line(pts, fill=tinta, width=max(3, g), joint="curve")
+    elif gesto == "dormido":
+        d.ellipse([b[0] - r*0.07, b[1] + r*0.02, b[0] + r*0.07, b[1] + r*0.16], fill=tinta)
     elif gesto == "bostezo":
         d.ellipse([b[0] - r*0.18, b[1] - r*0.16, b[0] + r*0.18, b[1] + r*0.38], fill=tinta)
         d.ellipse([b[0] - r*0.1, b[1] + r*0.14, b[0] + r*0.1, b[1] + r*0.32], fill=_LENGUA)
@@ -1739,7 +1764,38 @@ def _humo(img, pos, r, alfa):
     img.paste(nube, (int(pos[0] - r - 2), int(pos[1] - r - 2)), nube)
 
 
-def _camara_viva(img, t, dur, mueve, golpes, foco=None):
+def _bocadillo(img, dice, cab, h, t):
+    """EL BOCADILLO ("Doctor: when did you last sleep?" lo decia el narrador
+    y no se entendia quien hablaba): un globo blanco encima de la cabeza,
+    con su piquito hacia la boca. dice = "texto" o {"texto", "_t"}."""
+    texto = dice if isinstance(dice, str) else str(dice.get("texto") or "")
+    texto = texto.strip().upper()[:34]
+    if not texto:
+        return
+    desde = 0.3 if isinstance(dice, str) or dice.get("_t") is None else float(dice["_t"])
+    e = _escala_pop(t - desde)
+    if e <= 0.05:
+        return
+    w, hh = img.size
+    px = _que_quepa(texto, hh*0.06, w*0.3)
+    ancho = min(w*0.36, max(hh*0.2, len(texto)*px*0.62 + hh*0.06))*e
+    alto = (px*1.7)*e
+    cx = min(w - ancho/2 - w*0.02, max(ancho/2 + w*0.02, cab[0] + (w*0.5 - cab[0])*0.25))
+    cy = max(alto/2 + hh*0.05, cab[1] - h*0.42 - alto/2)
+    d = ImageDraw.Draw(img)
+    g = max(3, int(hh*0.004))
+    # el piquito, hacia la cabeza
+    pico = [(cx - ancho*0.08, cy + alto*0.4), (cx + ancho*0.08, cy + alto*0.4),
+            (cab[0] + (cx - cab[0])*0.3, cab[1] - h*0.2)]
+    d.polygon(pico, fill=(255, 255, 255), outline=TINTA)
+    d.line([pico[0], pico[2], pico[1]], fill=TINTA, width=g)
+    d.rounded_rectangle([cx - ancho/2, cy - alto/2, cx + ancho/2, cy + alto/2], radius=int(alto*0.45),
+                        fill=(255, 255, 255), outline=TINTA, width=g)
+    d.line([(pico[0][0] + g, pico[0][1] - g), (pico[1][0] - g, pico[1][1] - g)], fill=(255, 255, 255), width=g*2)
+    _letrero(img, texto, (cx, cy), px, TINTA, 0, e)
+
+
+def _camara_viva(img, t, dur, mueve, golpes, foco=None, fuertes=()):
     """LA CAMARA QUE NUNCA ESTA QUIETA ("mas movimiento, mucho mas"): en cada
     plano se acerca o se aleja y se desliza hacia un lado (cada plano a su
     manera), con un vaiven de mano; y da un golpecito de zoom cada vez que
@@ -1758,6 +1814,12 @@ def _camara_viva(img, t, dur, mueve, golpes, foco=None):
             u = t - tp
             z += 0.07*math.sin(min(1.0, u/0.1)*math.pi/2)*math.exp(-u*5)
             sacude += math.exp(-u*9)*math.sin(u*55)
+    for tp, k in fuertes:
+        # LOS GOLPES DE LOS GAGS: la pantalla entera tiembla
+        if 0 <= t - tp < 0.9:
+            u = t - tp
+            z += 0.06*k*math.exp(-u*6)
+            sacude += 4.5*k*math.exp(-u*7)*math.sin(u*48)
     lado = 1 if (mueve >> 1) % 2 else -1
     cw, ch = ancho/z, alto/z
     hx, hy = (ancho - cw)/2, (alto - ch)/2
@@ -2037,8 +2099,14 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
             nuevas += 1
     animacion = m.animar(e, segundos=segundos, fps=fps, tam=tam, calma=calma, una_vez=True)
     n = 0
+    bocadillos = []
+    gag_golpes, gag_cerca = gags.camara(visual or {})
+    if (visual or {}).get("cifra"):
+        gag_cerca = None            # la cifra tiene que verse entera
+    cara_mokordo = None
     while True:
         cabezas.clear()
+        bocadillos.clear()
         # El trazo de Whymentary: liso, sin el pulso de España Contada, y
         # algo mas fino. Solo mientras se dibuja este fotograma.
         m.figura, m.PULSO, m.GROSOR, m._cara = espia, _PULSO, _GROSOR, _cara_expresiva
@@ -2072,7 +2140,15 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                 for o in est.get("debajo") or []:
                     _particula(img, o)
             for est in sorted(estados, key=lambda x_: (1 if x_.get("alcanza") else 0, x_["cx"])):
-                cab, manos = _mascota.pinta_estado(img, est)
+                fig = est["fig"]
+                if est["quien"] == "mokordo" and gags.tipo_de(est["fig"].get("gag")):
+                    cab, manos = gags.pinta(img, est, est["fig"]["gag"], reloj)
+                else:
+                    cab, manos = _mascota.pinta_estado(img, est)
+                if est["quien"] == "mokordo" and cab:
+                    cara_mokordo = (cab[0], cab[1], est["h"])
+                if cab and isinstance(fig.get("dice"), (dict, str)):
+                    bocadillos.append((fig["dice"], cab, est["h"]))
                 fig = est["fig"]
                 if est.get("objeto"):
                     _en_la_mano(img, est)
@@ -2103,16 +2179,23 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                     continue
                 pieza, pcx, pbase = _pieza_cosa(nombre_objeto(o["que"]), int(o["tam"]), max(3, int(ancho*0.0045)))
                 _pega_girada(img, pieza, pieza.width/2, pieza.height/2, o["giro"], o["pos"][0], o["pos"][1])
+            for dice_, cab_, h_ in bocadillos:
+                _bocadillo(img, dice_, cab_, h_, reloj)
             foco_ahora = foco
             for t0_, f_ in cortes:
                 if reloj >= t0_:
                     foco_ahora = f_
+            if gag_cerca is not None and reloj >= gag_cerca and cara_mokordo and \
+                    not (foco_ahora and foco_ahora[0] == "inserto"):
+                # EL ZOOM A LA CARA en el gag (se le salen los ojos, echa vapor...)
+                foco_ahora = (cara_mokordo[0], cara_mokordo[1] + cara_mokordo[2]*0.15, 1.28,
+                              gag_cerca, gag_cerca + 0.25)
             if foco_ahora and foco_ahora[0] == "inserto":
                 img = _inserto(foco_ahora[1], reloj - foco_ahora[2], tam, mueve)
                 img = encima(img, {k_: v_ for k_, v_ in (visual or {}).items() if k_ != "flechas"}, reloj, segundos)
             else:
                 img = _camara_viva(img, reloj, segundos, mueve,
-                                   golpes + [t0_ for t0_, _f in cortes if t0_ > 0.2], foco_ahora)
+                                   golpes + [t0_ for t0_, _f in cortes if t0_ > 0.2], foco_ahora, gag_golpes)
             if camara:
                 img = img.crop(camara).resize(tam, Image.BILINEAR)
             if not (foco_ahora and foco_ahora[0] == "inserto"):
@@ -2200,6 +2283,7 @@ def sonidos_del_plano(visual: dict, segundos: float) -> list:
     if (visual or {}).get("cifra"):
         salida.append(("pop", 0.1, 0.25))
     salida += interaccion.sonidos(visual or {}, segundos)
+    salida += gags.sonidos(visual or {}, segundos)
     for _i, _tipo in e.get("_doodles", []):
         salida.append(("pop", 0.2, 0.25))
     return [s for s in salida if s[1] < segundos]
