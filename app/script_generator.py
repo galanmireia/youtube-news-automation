@@ -2195,6 +2195,39 @@ def _lineas_de_narrador(raw_text: str) -> list[str]:
 _CITA_ANGULAR = re.compile(r'«([^»]{2,})»')
 
 
+def _comillas_de_dentro(raw_text: str) -> str:
+    """Las comillas DENTRO de una frase entre «» pasan a ser simples (‘ ’).
+
+    Narrador: «En 1981 se alargo a “Fiesta Nacional de España y Dia de la
+    Hispanidad”.» Para el video, todo lo que va entre “ ” o « » es algo que
+    DICE un personaje, con su globo y su voz: el nombre salia como un
+    bocadillo sin dueño, el traductor no sabia a quien darselo y el Dia de la
+    Hispanidad se tiro seis veces. Con comillas simples se lee igual y nadie
+    lo toma por dialogo."""
+    lineas = []
+    for linea in raw_text.split("\n"):
+        if "«" in linea:
+            dentro = []
+            nivel = 0
+            abierta = False
+            for c in linea:
+                if c == "«":
+                    nivel += 1
+                elif c == "»":
+                    nivel = max(0, nivel - 1)
+                elif nivel and c == "“":
+                    c = "‘"
+                elif nivel and c == "”":
+                    c = "’"
+                elif nivel and c == '"':
+                    c = "’" if abierta else "‘"
+                    abierta = not abierta
+                dentro.append(c)
+            linea = "".join(dentro)
+        lineas.append(linea)
+    return "\n".join(lineas)
+
+
 def _citas_de_la_linea(linea: str) -> list[str]:
     return _CITA_ANGULAR.findall(linea) if "«" in linea else _CITA_SUELTA.findall(linea)
 
@@ -2296,7 +2329,12 @@ def _quita_acotaciones_leidas(raw_text: str, script: dict) -> list[str]:
     # modelo escribio las frases sin «», esto las tomo por acotaciones y se
     # quedo la narracion vacia: tres intentos tirados. Una frase que es de un
     # personaje no se quita nunca; se le devuelven las comillas.
-    dialogos = ({_normaliza_frase(q) for q in bocadillos.todas_las_comillas(raw_text)}
+    # Solo lo que va en una linea CON NOMBRE ("Anselmo: «...»"). Con todas las
+    # comillas del texto, el trozo «En 1981, el nombre se alargo a “...» de la
+    # linea del Narrador (cortado en sus comillas de dentro) salia como frase
+    # de personaje, se le ponian «» y el Dia de la Hispanidad se tiro otras
+    # tres veces.
+    dialogos = ({_normaliza_frase(q) for q in _lineas_de_personaje(raw_text)}
                 - {_normaliza_frase(l) for l in lineas_narrador} - {""})
     quitadas, recomilladas = [], []
     trozos_de_cita = re.compile(r'([«“"][^»”"]*[»”"])')
@@ -2476,6 +2514,7 @@ def translate_literal_script(raw_text: str, variant: str = "short", parar=None) 
     """
     if variant != "short":
         raise ValueError("un guion literal solo se dibuja en formato Short (monigotes): el largo no tiene monigotes")
+    raw_text = _comillas_de_dentro(raw_text)
 
     prompt = _PLANTILLA_LITERAL.format(
         channel_name=CHANNEL_NAME,
