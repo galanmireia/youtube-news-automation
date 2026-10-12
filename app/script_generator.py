@@ -947,6 +947,9 @@ catedral, sale un fondo liso.
                    o quitalo si no lleva nada. Si el guion dice que alguien coge, mira por,
                    enseña o sujeta algo, ESO es lo que lleva: un catalejo en el suelo no es
                    mirar por el catalejo.
+       "letrero":  SOLO con "lleva":"cartel": lo que pone el cartel, en pocas palabras (hasta 6),
+                   p.ej. "FIESTA DE LA RAZA". Si el guion dice que nombre o aviso lleva el
+                   cartel, ponlo aqui: es lo que hace que el cartel cuente algo
        "efecto":   LO QUE LE PASA, encima de lo que hace - es de lo que mas risa da. Uno de:
 {bloque_efectos}
                    o quitalo si no le pasa nada. Si el guion dice que alguien se cae, se desmaya,
@@ -2044,7 +2047,7 @@ Y lo que LE PASA a alguien es su "efecto": "se cae al suelo" o "se desmaya" es "
 de alegria" es "salto", "tiembla" es "temblor", "echa humo" o "explota de rabia" es "humo", "se
 queda de piedra" o "se entera" es "sorpresa", "se duerme" o "ronca" es "zzz", "llora" es
 "lagrimas", "le pega una bofetada" o "un tortazo" es "bofetada" en el que la RECIBE, "una
-corona enorme" o "que le tapa la cara" es el gorro "corona_grande", "en pijama" es el gorro "dormir", "con gorro de capitán" o "de almirante" es el gorro "almirante", "en la playa" es el decorado "playa", "se marea" es "mareo", "se le ocurre" o "se le ilumina la cara" es "idea", "no
+corona enorme" o "que le tapa la cara" es el gorro "corona_grande", "en pijama" es el gorro "dormir", "con gorro de capitán" o "de almirante" es el gorro "almirante", "en la playa" es el decorado "playa", "un cartel" o "cambia el cartel" es "lleva": "cartel" con su "letrero" (el nombre que toque en esa escena), "un montón de carteles" es la cosa "carteles", "un pergamino larguísimo" es "lleva": "pergamino_largo", "una calle de hoy en fiesta" o "el 12 de octubre en la calle" es el decorado "fiesta", "se marea" es "mareo", "se le ocurre" o "se le ilumina la cara" es "idea", "no
 entiende nada" es "confuso", "mira a camara" es "camara" (la camara se le acerca a la cara), "se
 enamora" es "enamorado". Y lo que tiene en la mano va en "lleva": "mira con el catalejo" es
 "lleva":"catalejo", "se mete el premio en el bolsillo" es "lleva":"dinero", "con la espada en la

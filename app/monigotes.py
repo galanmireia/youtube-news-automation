@@ -1871,7 +1871,8 @@ LLEVABLES_EXPLICADOS = {
     "cesta":     "una cesta",
     "bandera_espana": "una bandera en la mano (vale cualquier bandera_ de las cosas)",
     "pancarta":  "una pancarta de manifestacion EN ALTO que dice ¡VIVIENDA!: SOLO protestas y huelgas. Para cualquier otro cartel, letrero o aviso es 'cartel'",
-    "cartel":    "un cartel o letrero en la mano, a la altura del pecho: el que cambia los carteles, avisos, anuncios, nombres",
+    "cartel":    "un cartel o letrero en la mano, a la altura del pecho: el que cambia los carteles, avisos, anuncios, nombres. Lo que pone va en \"letrero\"",
+    "pergamino_largo": "un pergamino LARGUISIMO desenrollado que le cae hasta el suelo: leyes eternas, listas interminables, nombres larguisimos, la factura",
     "movil":     "un movil en la mano: el Bizum, la foto, el que lo graba todo",
     "periodico": "un periodico: ultima hora, la noticia, el que lo lee en alto",
     "pelota":    "una pelota en la mano: el juego de pelota, el partido",
@@ -1882,13 +1883,13 @@ LLEVABLES_EXPLICADOS = {
 }
 _TAM_LLEVADO = {"pelota": 0.14, "vaso": 0.17, "maletin": 0.22, "calendario": 0.32, "espada": 0.40, "antorcha": 0.30, "bandera": 0.50, "pergamino": 0.20,
                 "carta": 0.16, "dinero": 0.18, "libro": 0.16, "cesta": 0.20,
-                "pancarta": 0.60, "cartel": 0.40, "movil": 0.16, "periodico": 0.26}
+                "pancarta": 0.60, "cartel": 0.52, "movil": 0.16, "periodico": 0.26}
 
 
 def _llevable(que) -> str | None:
     que = (que or "").strip().lower()
     if que in LLEVABLES_EXPLICADOS or (que.startswith("bandera") and que in COSAS):
-        return que if COSAS.get(que) or que == "catalejo" else None
+        return que if COSAS.get(que) or que in ("catalejo", "pergamino_largo") else None
     return None
 
 
@@ -1919,6 +1920,32 @@ def _pinta_llevado(d, f, x, y, alto, rnd, rasgos):
         cy = y + p["cuello"][1]*alto + alto*0.03
         _ataud(d, cx - s*alto*0.12, cy, alto*0.42, rnd, max(3, int(alto*0.012)))
         return
+    if que == "pergamino_largo":
+        # De la mano al suelo: el rollo arriba, la tira que cae y el final
+        # enroscado en el suelo, delante de los pies.
+        mx, my = p["brazos"][1][-1]
+        hx, hy = x + mx*alto*s*anc, y + my*alto
+        papel = (240, 226, 186)
+        ancho = alto*0.22
+        hy -= alto*0.12                       # lo coge por arriba, cerca del rollo
+        pie = (x + s*alto*0.48, y + alto*0.02)
+        tira = [(hx - ancho/2, hy), (hx + ancho/2, hy),
+                (pie[0] + ancho/2, pie[1]), (pie[0] - ancho/2, pie[1])]
+        d.polygon(tira, fill=papel)
+        _linea(d, [tira[0], tira[3]], max(2, g//2), rnd, temblor=0.8)
+        _linea(d, [tira[1], tira[2]], max(2, g//2), rnd, temblor=0.8)
+        for k in range(1, 14):
+            t_ = k/14
+            ax = hx + (pie[0] - hx)*t_
+            ay = hy + (pie[1] - hy)*t_
+            _linea(d, [(ax - ancho*.32, ay), (ax + ancho*.28, ay)], max(1, g//3), rnd,
+                   color=(120, 100, 70), temblor=0.5)
+        d.rounded_rectangle([hx - ancho*.62, hy - alto*.025, hx + ancho*.62, hy + alto*.025],
+                            radius=int(alto*.02), fill=(214, 196, 150), outline=TINTA, width=max(2, g//2))
+        r = alto*0.07
+        d.ellipse([pie[0] - r*1.6, pie[1] - r*1.4, pie[0] + r*1.6, pie[1] + r*0.4],
+                  fill=(214, 196, 150), outline=TINTA, width=max(2, g//2))
+        return
     if que == "catalejo":
         rc = alto*0.145*(rasgos or {}).get("cabeza", 1.0)
         hx = x + p["cuello"][0]*alto*s*anc
@@ -1929,12 +1956,19 @@ def _pinta_llevado(d, f, x, y, alto, rnd, rasgos):
     hx, hy = x + mx*alto*s*anc, y + my*alto
     clase = "bandera" if que.startswith("bandera") else que
     tam = alto*_TAM_LLEVADO.get(clase, 0.18)
+    if que == "cartel":
+        _cartel_mano(d, hx, hy + tam*0.45, tam, rnd, max(3, g), texto=f.get("letrero"))
+        return
     dibuja = COSAS.get(que)
     if dibuja:
         # La mano lo coge por abajo: el palo de la bandera, la empuñadura, el
         # borde de la carta.
         agarre = 0.15 if clase in ("bandera", "espada", "antorcha", "pancarta") else 0.45
         dibuja(d, hx, hy + tam*agarre, tam, rnd, max(3, g))
+
+
+# Lo que pone el cartel que lleva en la mano: "FIESTA DE LA RAZA" son 17.
+_LARGO_LETRERO = 48
 
 
 # Lo que se lleva al hombro va DETRAS del cuerpo: el ataud pintado encima le
@@ -2159,6 +2193,7 @@ def limpia(spec: dict) -> dict:
             "papel": (str(f.get("papel") or "").strip()[:_LARGO_PAPEL] or None),
             "efecto": _una_de(f.get("efecto"), EFECTOS_VALIDOS, "") or None,
             "lleva": _llevable(f.get("lleva")),
+            "letrero": (" ".join(str(f.get("letrero") or "").split())[:_LARGO_LETRERO] or None),
             "efecto_desde": (float(f["efecto_desde"])
                              if isinstance(f.get("efecto_desde"), (int, float)) else None),
         })
@@ -3413,22 +3448,80 @@ def _pancarta(d, x, y, t, rnd, g, tinta=TINTA):
     d.text((x - d.textlength(texto, font=f)/2, y0 + alto*0.26), texto, font=f, fill=ROJO_ESPAÑA)
 
 
-def _cartel_mano(d, x, y, t, rnd, g, tinta=TINTA):
-    """Un cartel en la mano, a la altura del pecho: tablero blanco con un
-    titulo rojo y renglones a mano. El que cambia los carteles, el aviso, el
-    anuncio. La pancarta dice «¡VIVIENDA!» y es de manifestacion: en el Dia de
-    la Hispanidad el funcionario salia con ella, tapandose la cara."""
+def _cartel_mano(d, x, y, t, rnd, g, tinta=TINTA, texto=None):
+    """Un cartel en la mano, a la altura del pecho: tablero blanco. Con
+    "letrero" lleva escrito lo que pone (FIESTA DE LA RAZA, SE VENDE...); sin
+    el, un titulo rojo y renglones a mano. La pancarta dice «¡VIVIENDA!» y es
+    de manifestacion: en el Dia de la Hispanidad el funcionario salia con
+    ella, tapandose la cara."""
     ancho, alto = t*1.0, t*0.66
     x0, y0 = x - ancho/2, y - alto
     d.rectangle([x0, y0, x0 + ancho, y], fill=(250, 248, 240))
     _linea(d, [(x0, y0), (x0 + ancho, y0), (x0 + ancho, y), (x0, y), (x0, y0)],
            g, rnd, color=tinta, temblor=1.0)
+    texto = " ".join(str(texto or "").split()).upper()
+    if texto:
+        _letras_en_caja(d, texto, x0 + ancho*0.07, y0 + alto*0.10, ancho*0.86, alto*0.80,
+                        ROJO_ESPAÑA)
+        return
     for k, (izq, der, color, grueso) in enumerate(((.16, .84, ROJO_ESPAÑA, 1.5), (.14, .86, tinta, 0.8),
                                                    (.14, .70, tinta, 0.8))):
         yy = y0 + alto*(0.26 + 0.25*k)
         pts = [(x0 + ancho*(izq + (der - izq)*i/10), yy + alto*0.035*math.sin(i*1.9 + k))
                for i in range(11)]
         _linea(d, pts, max(2, int(g*grueso)), rnd, color=color, temblor=0.6)
+
+
+def _letras_en_caja(d, texto, x0, y0, ancho, alto, color):
+    """El texto en 1, 2 o 3 renglones, con la letra mas grande que quepa."""
+    from itertools import combinations
+    palabras = texto.split()
+    mejor = None
+    # Todos los cortes posibles en 1, 2 o 3 renglones, y se queda el de la
+    # letra mas grande: "DIA DE LA / HISPANIDAD" y no "DIA DE / LA HISPANIDAD".
+    opciones = [[texto]]
+    for n in (2, 3):
+        for cortes in combinations(range(1, len(palabras)), n - 1):
+            c = (0,) + cortes + (len(palabras),)
+            opciones.append([" ".join(palabras[c[k]:c[k + 1]]) for k in range(n)])
+    for lineas in opciones:
+        n = len(lineas)
+        px = int(alto/(n*1.25))
+        for _ in range(16):
+            f = _fuente_cartel(px)
+            if max(d.textlength(l, font=f) for l in lineas) <= ancho or px <= 8:
+                break
+            px = int(px*0.9)
+        if mejor is None or px > mejor[0]:
+            mejor = (px, lineas)
+    px, lineas = mejor
+    f = _fuente_cartel(px)
+    salto = px*1.12
+    arriba = y0 + (alto - salto*len(lineas))/2
+    for k, l in enumerate(lineas):
+        d.text((x0 + (ancho - d.textlength(l, font=f))/2, arriba + k*salto), l, font=f, fill=color)
+
+
+def _carteles(d, x, y, t, rnd, g, tinta=TINTA):
+    """Un monton de carteles viejos, torcidos y tachados en rojo: lo que
+    cambio de nombre, lo que ya no vale, el funcionario harto."""
+    papel = (244, 236, 214)
+    for k, (dx, dy, giro) in enumerate(((-.30, 0, -8), (.28, 0, 10), (-.05, -.30, 4),
+                                        (.18, -.58, -12), (-.20, -.62, 9))):
+        cx, cy = x + t*dx, y - t*.16 + t*dy
+        a = math.radians(giro)
+        ca, sa = math.cos(a), math.sin(a)
+        hw, hh = t*.30, t*.17
+        pts = [(cx + px*ca - py*sa, cy + px*sa + py*ca)
+               for px, py in ((-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh))]
+        d.polygon(pts, fill=papel)
+        _linea(d, pts + [pts[0]], max(2, g//2), rnd, color=tinta, temblor=0.8)
+        for r in (-.35, .15):
+            a0 = (cx + (-hw*.7)*ca - (hh*r)*sa, cy + (-hw*.7)*sa + (hh*r)*ca)
+            a1 = (cx + (hw*.7)*ca - (hh*r)*sa, cy + (hw*.7)*sa + (hh*r)*ca)
+            _linea(d, [a0, a1], max(2, g//3), rnd, color=(110, 100, 90), temblor=0.6)
+        _linea(d, [pts[0], pts[2]], max(2, g//2), rnd, color=ROJO_ESPAÑA, temblor=0.6)
+        _linea(d, [pts[1], pts[3]], max(2, g//2), rnd, color=ROJO_ESPAÑA, temblor=0.6)
 
 
 def _movil(d, x, y, t, rnd, g, tinta=TINTA):
@@ -3629,7 +3722,7 @@ COSAS = {
     "cofre": _cofre, "barril": _barril, "antorcha": _antorcha, "catalejo": _catalejo,
     "carta": _carta, "cadenas": _cadenas,
     "campana": lambda d, x, y, t, rnd, g, tinta=TINTA: _campana(d, x, y, t, rnd, g),
-    "pancarta": _pancarta, "cartel": _cartel_mano, "movil": _movil, "periodico": _periodico, "camara_tv": _camara_tv,
+    "pancarta": _pancarta, "cartel": _cartel_mano, "carteles": _carteles, "movil": _movil, "periodico": _periodico, "camara_tv": _camara_tv,
     "tienda": _tienda, "ambulancia": _ambulancia, "ataud": _ataud, "calendario": _calendario,
     "pelota": _pelota, "vaso": _vaso, "maletin": _maletin,
     "nube": _nube, "sol": _sol,
@@ -4336,6 +4429,13 @@ _DECORADOS = {
     # La plaza tomada: las casas, las tiendas de campaña ya plantadas y las
     # pancartas. Las tiendas iban como "cosas" y en el #107 el guion no las
     # pidio: si el sitio ES una acampada, las tiendas son del sitio.
+    # La calle de hoy en un dia de fiesta: banderines rojos y amarillos de
+    # lado a lado y banderas de España. El 12 de octubre, cualquier fiesta.
+    "fiesta":       {"pared": "cielo", "piso": "adoquines",
+                     "fondo": [("casas", .5, 1.0, 1.0), ("banderines", .5, 1.0, 1.0)],
+                     "muebles": [], "delante": [],
+                     "cuelga": [("bandera_espana", .07, .50, .13), ("bandera_espana", .80, .50, .13)],
+                     "velas": []},
     "acampada":     {"pared": "cielo", "piso": "adoquines",
                      "fondo": [("casas", .5, 1.0, 1.0)],
                      "muebles": [("acampada", .5, 0, 1.0)], "delante": [], "cuelga": [],
@@ -4382,6 +4482,7 @@ DECORADOS_EXPLICADOS = {
     "mazmorra":    "carcel de piedra con reja, cadenas y antorchas: presos, Inquisicion, cautivos",
     "playa":       "UNA PLAYA DE LAS AMERICAS: arena, palmeras y las tres carabelas fondeadas en el mar. La llegada de Colon, el desembarco, cualquier playa o isla",
     "selva":       "la selva de las Americas, con palmeras: Colon, Cortes, Pizarro, expediciones",
+    "fiesta":      "UNA CALLE EN FIESTA, DE HOY: banderines rojos y amarillos de lado a lado y banderas de España. El 12 de octubre, la Fiesta Nacional, cualquier celebracion en la calle",
     "acampada":    "una plaza de ciudad tomada por una acampada: tiendas de campaña de colores y pancartas. Protestas, la Puerta del Sol, el 15-M, sentadas",
     "piso":        "un piso de alquiler normal del siglo XX (tiene RADIO: NUNCA para historias de antes de 1900; una casa antigua es la cocina): papel pintado, visillos, cuadro, reloj de pared. Caseros, inquilinos, familias de ahora",
 }
@@ -4456,6 +4557,22 @@ def _selva(d, w, h, suelo, rnd, g):
         bx = w*(0.05 + 0.15*k)
         d.pieslice([bx - w*0.09, suelo - h*0.07, bx + w*0.09, suelo + h*0.03], 180, 360,
                    fill=oscuro if k % 2 else verde, outline=TINTA)
+
+
+def _banderines(d, w, h, suelo, rnd, g):
+    """Dos guirnaldas de banderines rojos y amarillos de lado a lado, colgadas
+    entre las casas: la calle en fiesta."""
+    for k, (alto, caida) in enumerate(((0.16, 0.05), (0.27, 0.04))):
+        y0 = h*alto
+        n = 13
+        pts = [(w*i/n, y0 + h*caida*4*(i/n)*(1 - i/n)) for i in range(n + 1)]
+        _linea(d, pts, max(2, g//2), rnd, temblor=0.6)
+        for i in range(n):
+            (ax, ay), (bx, by) = pts[i], pts[i + 1]
+            color = ROJO_ESPAÑA if (i + k) % 2 else ORO_ESPAÑA
+            tri = [(ax + (bx - ax)*.12, ay + (by - ay)*.12), (ax + (bx - ax)*.88, ay + (by - ay)*.88),
+                   ((ax + bx)/2, (ay + by)/2 + h*0.035)]
+            d.polygon(tri, fill=color, outline=TINTA)
 
 
 def _playa(d, w, h, suelo, rnd, g):
@@ -4793,6 +4910,7 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "costa":          _costa(d, w, suelo, h, rnd, g)
     elif que == "mezquitas":
         _mezquitas(d, w, suelo - h*0.06, h*0.22, rnd, g)
+    elif que == "banderines":     _banderines(d, w, h, suelo, rnd, g)
     elif que == "casas":
         for k in range(5):
             px = w*(0.08 + 0.21*k)
