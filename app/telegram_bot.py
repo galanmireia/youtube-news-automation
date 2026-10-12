@@ -644,6 +644,25 @@ async def handle_guion_command(update: Update, context: ContextTypes.DEFAULT_TYP
                                      "\n\nManda /montar para hacer el video.")[:4000])
 
 
+async def handle_vozgratis_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/vozgratis si|no: la voz de Why Though, Piper (gratis, en el servidor)
+    o la de Google (de pago por caracter). Sin nada, dice cual se usa."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    from . import voz_piper
+    arg = re.sub(r"^/\w+(@\w+)?\s*", "", update.message.text or "", count=1).strip().lower()
+    if arg in ("si", "sí", "on", "piper"):
+        voz_piper.elige(True)
+    elif arg in ("no", "off", "google"):
+        voz_piper.elige(False)
+    elif arg:
+        await update.message.reply_text("Usa /vozgratis si o /vozgratis no.")
+        return
+    await update.message.reply_text(
+        "Voz de Why Though: Piper (gratis). Para volver a Google: /vozgratis no" if voz_piper.activa()
+        else "Voz de Why Though: Google (de pago). Para la gratis: /vozgratis si")
+
+
 async def handle_alargar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/alargar: el guion en ingles que espera se ha quedado corto - se le
     añaden planos a los capitulos cortos, sin reescribirlo."""
@@ -2433,6 +2452,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("why", handle_why_command))
     application.add_handler(CommandHandler("alargar", handle_alargar_command))
     application.add_handler(CommandHandler("guion", handle_guion_command))
+    application.add_handler(CommandHandler("vozgratis", handle_vozgratis_command))
     application.add_handler(CommandHandler("reset", handle_reset_command))
     application.add_handler(CommandHandler("parar", handle_stop_command))
     application.add_handler(CommandHandler("voces", handle_voices_command))

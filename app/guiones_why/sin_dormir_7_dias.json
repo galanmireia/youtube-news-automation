@@ -580,6 +580,35 @@
      "falta": ""
     },
     {
+     "narracion": "At night, your body temperature drops a little, and that drop helps you fall asleep. It's one reason a cool room helps.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.35
+      },
+      "cosas": [
+       {
+        "que": "luna",
+        "x": 0.78,
+        "tam": 0.16,
+        "y": 0.3,
+        "cuando": "At night"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "COOL ROOM",
+        "x": 0.72,
+        "y": 0.15,
+        "tam": 0.09,
+        "color": "azul",
+        "cuando": "cool room"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
      "narracion": "It doesn't. It just wakes him up for about ten minutes.",
      "visual": {
       "mascota": {
@@ -641,6 +670,17 @@
         "cuando": "fourth time"
        }
       ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "In fact, after only seventeen to nineteen hours awake, people perform about as badly as someone who's had a couple of drinks.",
+     "visual": {
+      "cifra": {
+       "valor": "17 H",
+       "pie": "awake = like a couple of drinks",
+       "color": "naranja"
+      }
      },
      "falta": ""
     },
@@ -1427,6 +1467,34 @@
      "falta": ""
     },
     {
+     "narracion": "Studies estimate that drowsy driving plays a part in about one in six deadly car crashes.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "coche",
+        "x": 0.72,
+        "tam": 0.3,
+        "cuando": "drowsy driving"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "1 IN 6",
+        "x": 0.72,
+        "y": 0.15,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "one in six"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
      "narracion": "It's like a smoke detector that goes off every time you make toast.",
      "visual": {
       "mascota": {
@@ -1807,6 +1875,34 @@
         "tam": 0.09,
         "color": "rojo",
         "cuando": "dreaming"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And it even hurts more. Without sleep, the brain turns up the volume on pain, so the same bump feels worse.",
+     "visual": {
+      "mascota": {
+       "accion": "triste",
+       "x": 0.45
+      },
+      "textos": [
+       {
+        "texto": "OUCH!",
+        "x": 0.75,
+        "y": 0.22,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "hurts more"
+       },
+       {
+        "texto": "PAIN +",
+        "x": 0.25,
+        "y": 0.2,
+        "tam": 0.1,
+        "color": "naranja",
+        "cuando": "volume on pain"
        }
       ]
      },
@@ -2453,6 +2549,26 @@
         "tam": 0.1,
         "color": "azul",
         "cuando": "same time"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And if you're a teenager, you need even more. Experts recommend eight to ten hours a night.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.35
+      },
+      "textos": [
+       {
+        "texto": "8-10 H",
+        "x": 0.72,
+        "y": 0.22,
+        "tam": 0.12,
+        "color": "azul",
+        "cuando": "eight to ten hours"
        }
       ]
      },

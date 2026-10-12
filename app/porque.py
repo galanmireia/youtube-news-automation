@@ -534,8 +534,11 @@ _VOCES_MAX_MB = 400
 def _voz_guardada(texto: str, destino: Path):
     import hashlib
     from pydub import AudioSegment
+    from . import voz_piper
     from .config import TTS_LANGUAGE_CODE, TTS_VOICE_NAME
-    clave = hashlib.sha1(f"{TTS_LANGUAGE_CODE}|{TTS_VOICE_NAME}|{texto}".encode("utf-8")).hexdigest()
+    gratis = voz_piper.activa()
+    voz = f"piper|{voz_piper.NOMBRE}|{voz_piper.RITMO}" if gratis else f"{TTS_LANGUAGE_CODE}|{TTS_VOICE_NAME}"
+    clave = hashlib.sha1(f"{voz}|{texto}".encode("utf-8")).hexdigest()
     guardada = _VOCES / f"{clave}.wav"
     if guardada.exists():
         try:
@@ -544,7 +547,8 @@ def _voz_guardada(texto: str, destino: Path):
             return audio
         except Exception:
             logger.warning("why: voz guardada ilegible; se vuelve a pedir.", exc_info=True)
-    audio = _voz_google(texto, destino, ritmo_pedido=None)
+    audio = (voz_piper.sintetiza(texto, destino) if gratis
+             else _voz_google(texto, destino, ritmo_pedido=None))
     try:
         _VOCES.mkdir(parents=True, exist_ok=True)
         audio.export(guardada, format="wav")
