@@ -20,7 +20,11 @@ import time
 from pathlib import Path
 
 from . import escenarios, garabato, interaccion, llm_usage, mascota, monigotes
-from .config import CHANNEL_NAME, DATA_DIR, MUSIC_VOLUME
+from .config import DATA_DIR, MUSIC_VOLUME
+
+# Este modulo es SOLO del canal en ingles: su nombre no sale de la config,
+# que por defecto es "España Contada" (y asi salio en la careta de un ensayo).
+CHANNEL_NAME = "Why Though"
 from .largo import (FPS, LargoError, _FPS_DIBUJO, _ffmpeg, _json_de, _pregunta, _tuberia,
                     _voz_google)
 
@@ -135,7 +139,8 @@ DOING THINGS ("hace"): Mokordo and the figuras can DO things to things and to ea
   weights" -> "pesas"; "jump rope" -> "comba"; "scrolling your phone" -> "movil"; "working on a
   laptop" -> "teclea"; "gaming" -> "juega"; "take a pill" -> "pastilla"; "weigh yourself" ->
   "pesa_se"; "fever" -> "termometro"; "a cold" -> "estornuda"; "cooking" -> "cocina"; "binge eating"
-  -> "atraca"; "the alarm goes off" -> "despierta". Use them OFTEN: a video about a routine shows
+  -> "atraca"; "the alarm goes off" -> "despierta"; "sleeps", "goes to bed" -> "acuesta" (in bed, under
+  the blanket - never "duerme" standing next to a bed). Use them OFTEN: a video about a routine shows
   the routine many times, in different shots.
 DRUGS AND SUBSTANCES (alcohol, nicotine, caffeine, energy drinks, cannabis, cocaine...): the
 video is "What if Mokordo took X?" - an educational, honest look at what it does to the brain and
@@ -450,6 +455,30 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
     lineas += ["", "⚠️ PIDE COSAS QUE NO ESTAN DIBUJADAS:"] + [f"- {x}" for x in lista] if lista \
         else ["", "✅ Todo lo que pide esta dibujado."]
     return "\n".join(lineas), lista
+
+
+# LOS GUIONES ESCRITOS A MANO (por Claude Code, revisados plano a plano antes
+# de subirlos). Ella: "¿y por que no me generas tu los videos? me los haces
+# mejor". Van en el repo; /guion nombre los deja esperando como si los hubiera
+# escrito /why, sin pagar el guion, y /montar los hace con la voz buena.
+_A_MANO = Path(__file__).parent / "guiones_why"
+
+
+def guiones_a_mano() -> list[str]:
+    return sorted(p.stem for p in _A_MANO.glob("*.json"))
+
+
+def cargar_a_mano(nombre: str) -> str:
+    """Deja el guion escrito a mano esperando a /montar; devuelve el resumen."""
+    ruta = _A_MANO / f"{Path(nombre).stem}.json"
+    if not ruta.is_file():
+        raise LargoError(f"no hay ningun guion que se llame {nombre!r}")
+    guion = json.loads(ruta.read_text())
+    guion["_tema"] = guion.get("_tema") or guion.get("titulo") or ruta.stem
+    guion["_a_mano"] = True
+    _PENDIENTE.write_text(json.dumps(guion, ensure_ascii=False, indent=1))
+    texto, _ = revisa(guion)
+    return texto
 
 
 def run_guion(tema: str) -> str:
@@ -1146,6 +1175,10 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
         palabras = [t_.get("texto") for t_ in (mini.get("textos") or []) if isinstance(t_, dict) and t_.get("texto")]
         texto = (palabras[0] if palabras else str(guion.get("titulo") or ""))[:22].upper()
         if texto:
+            # con su sombra oscura debajo: amarillo solo no se leia sobre el suelo claro
+            for dx, dy in ((6, 6), (-3, 3), (3, -3), (-3, -3)):
+                garabato._letrero(ultima, texto, (ultima.width*0.5 + dx, ultima.height*0.9 + dy), ultima.height*0.11,
+                                  (30, 30, 36), -2)
             garabato._letrero(ultima, texto, (ultima.width*0.5, ultima.height*0.9), ultima.height*0.11,
                               (255, 214, 50), -2)
     else:
@@ -1257,7 +1290,8 @@ def run_montaje(on_done) -> list[int]:
     cleanup_finished_video_files()
     guion = json.loads(_PENDIENTE.read_text())
     carpeta = Path(DATA_DIR) / f"why_{int(time.time())}"
-    if retoca(guion):
+    # Los escritos a mano ya estan revisados: no se retocan (y no se paga).
+    if not guion.get("_a_mano") and retoca(guion):
         _PENDIENTE.write_text(json.dumps(guion, ensure_ascii=False, indent=1))
     try:
         logger.info("[why] Voz y dibujos de %r...", guion.get("_tema"))

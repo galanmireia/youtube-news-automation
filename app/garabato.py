@@ -1691,6 +1691,29 @@ def _particula(img, o) -> bool:
         else:
             d.line([(caja[0], y), (caja[2], y)], fill=(230, 90, 80), width=max(3, int(r*0.012)))
         return True
+    if que == "cabecero":
+        # detras de Mokordo: el cabecero de madera y la almohada
+        d = ImageDraw.Draw(img)
+        d.rounded_rectangle([x - r*0.62, y - r*0.92, x + r*0.62, y - r*0.1], radius=int(r*0.12), fill=(150, 104, 70),
+                            outline=(40, 40, 46), width=5)
+        d.rounded_rectangle([x - r*0.52, y - r*0.82, x + r*0.52, y - r*0.2], radius=int(r*0.08), fill=(176, 126, 86))
+        d.rounded_rectangle([x - r*0.42, y - r*0.62, x + r*0.42, y - r*0.42], radius=int(r*0.09),
+                            fill=(255, 255, 255), outline=(40, 40, 46), width=4)
+        return True
+    if que == "manta":
+        # delante: la manta hasta el pecho con el embozo blanco, y las patas
+        d = ImageDraw.Draw(img)
+        top = y - r*0.42
+        d.rounded_rectangle([x - r*0.66, top, x + r*0.66, y + r*0.03], radius=int(r*0.06), fill=(110, 150, 220),
+                            outline=(40, 40, 46), width=5)
+        d.rounded_rectangle([x - r*0.66, top, x + r*0.66, top + r*0.08], radius=int(r*0.04), fill=(244, 246, 252),
+                            outline=(40, 40, 46), width=4)
+        for k in range(4):
+            yy = top + r*(0.15 + 0.06*k)
+            d.line([(x - r*0.6, yy), (x + r*0.6, yy)], fill=(140, 176, 236), width=3)
+        for px in (x - r*0.6, x + r*0.6):
+            d.rectangle([px - r*0.03, y + r*0.03, px + r*0.03, y + r*0.07], fill=(120, 84, 56), outline=(40, 40, 46))
+        return True
     if que == "miga":
         ImageDraw.Draw(img).polygon([(x, y - r), (x + r, y), (x, y + r*0.8), (x - r*0.9, y)], fill=(210, 160, 90),
                                     outline=(140, 100, 50))
@@ -2045,6 +2068,9 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                             and str(est["fig"].get("accion") or "explica") in _HABLAN:
                         est["habla"] = habla_env[n]
             # El que hace algo con otro, delante: si no, el otro le tapa la pluma.
+            for est in estados:
+                for o in est.get("debajo") or []:
+                    _particula(img, o)
             for est in sorted(estados, key=lambda x_: (1 if x_.get("alcanza") else 0, x_["cx"])):
                 cab, manos = _mascota.pinta_estado(img, est)
                 fig = est["fig"]

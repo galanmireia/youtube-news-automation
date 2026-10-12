@@ -1,0 +1,2525 @@
+{
+ "titulo": "What Happens If You Don't Sleep for 7 Days",
+ "descripcion": "What would really happen to your body if you stayed awake for seven days straight? Mokordo tries it, so you don't have to.\n\nFrom the first night on your phone to microsleeps, junk food cravings, hallucinations and the brain's night-shift cleaning crew, here's what sleep loss does to you, day by day, and how your body recovers.\n\nThis video is for education only. Don't try it: going without sleep is dangerous.\n\n🔔 Subscribe to Why Though for the why behind everyday things.",
+ "tags": [
+  "sleep deprivation",
+  "what happens if you don't sleep",
+  "7 days without sleep",
+  "no sleep for a week",
+  "sleep science",
+  "why do we sleep",
+  "microsleep",
+  "randy gardner",
+  "caffeine adenosine",
+  "melatonin",
+  "blue light",
+  "sleep and memory",
+  "glymphatic system",
+  "brain cleaning",
+  "insomnia",
+  "health facts",
+  "body facts",
+  "animated explainer",
+  "why though",
+  "mokordo"
+ ],
+ "miniatura": {
+  "textos": [
+   {
+    "texto": "7 DAYS NO SLEEP"
+   }
+  ]
+ },
+ "capitulos": [
+  {
+   "titulo": "The challenge",
+   "planos": [
+    {
+     "narracion": "What would happen to your body if you didn't sleep at all, not for one night, but for seven days in a row?",
+     "visual": {
+      "mascota": {
+       "accion": "entra",
+       "x": 0.5
+      },
+      "textos": [
+       {
+        "texto": "7 DAYS",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "seven days"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Your brain, your heart, your face, even your hunger would start to change, and some of it happens faster than you think.",
+     "visual": {
+      "mascota": {
+       "accion": "piensa",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "cerebro",
+        "x": 0.62,
+        "tam": 0.2,
+        "y": 0.32,
+        "cuando": "Your brain"
+       },
+       {
+        "que": "corazon",
+        "x": 0.82,
+        "tam": 0.16,
+        "y": 0.32,
+        "cuando": "your heart"
+       },
+       {
+        "que": "pizza",
+        "x": 0.72,
+        "tam": 0.18,
+        "y": 0.68,
+        "cuando": "your hunger"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "So Mokordo, our very brave and slightly foolish friend, is going to try it for us.",
+     "visual": {
+      "mascota": {
+       "accion": "salta",
+       "x": 0.5
+      },
+      "textos": [
+       {
+        "texto": "BRAVE?",
+        "x": 0.78,
+        "y": 0.25,
+        "tam": 0.1,
+        "color": "naranja",
+        "cuando": "foolish"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Don't worry, nobody gets hurt. But please, don't try this one at home.",
+     "visual": {
+      "mascota": {
+       "accion": "saluda",
+       "x": 0.5
+      },
+      "textos": [
+       {
+        "texto": "DON'T TRY THIS",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.1,
+        "color": "rojo",
+        "cuando": "don't try"
+       }
+      ]
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "salon",
+   "cuerpo": {},
+   "dia": "",
+   "complemento": "",
+   "medidores": {
+    "ENERGY": 0.9,
+    "FOCUS": 0.9,
+    "MOOD": 0.85
+   }
+  },
+  {
+   "titulo": "Night one",
+   "planos": [
+    {
+     "narracion": "Day one. It's eleven at night, Mokordo is in his pajamas, and he is not going to sleep.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45
+      },
+      "cosas": [
+       {
+        "que": "cama",
+        "x": 0.8,
+        "tam": 0.25,
+        "cuando": "pajamas"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "To stay busy, he does what millions of people do every night. He grabs his phone.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "movil",
+        "cuando": "grabs his phone"
+       }
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "The screen glows on his face, and that light tells his brain one thing: it's still daytime.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "movil"
+       }
+      },
+      "textos": [
+       {
+        "texto": "DAYTIME?",
+        "x": 0.75,
+        "y": 0.2,
+        "tam": 0.1,
+        "color": "naranja",
+        "cuando": "still daytime"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Normally, when it gets dark, your brain releases melatonin, the hormone that says: time to sleep.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.25
+      },
+      "cosas": [
+       {
+        "que": "luna",
+        "x": 0.62,
+        "tam": 0.2,
+        "y": 0.35,
+        "cuando": "gets dark"
+       },
+       {
+        "que": "cerebro",
+        "x": 0.82,
+        "tam": 0.22,
+        "y": 0.5,
+        "cuando": "melatonin"
+       }
+      ],
+      "flechas": [
+       {
+        "de": [
+         0.68,
+         0.38
+        ],
+        "a": [
+         0.78,
+         0.45
+        ],
+        "color": "rojo",
+        "cuando": "releases"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Bright screens push melatonin down, so the sleepy signal arrives late, or barely arrives at all.",
+     "visual": {
+      "sigue": true,
+      "cosas": [
+       {
+        "que": "movil",
+        "x": 0.42,
+        "tam": 0.16,
+        "y": 0.35,
+        "cuando": "Bright screens"
+       }
+      ],
+      "flechas": [
+       {
+        "de": [
+         0.82,
+         0.2
+        ],
+        "a": [
+         0.82,
+         0.32
+        ],
+        "color": "rojo",
+        "recta": true,
+        "cuando": "push melatonin down"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Midnight. One in the morning. Two. His eyes feel heavy, but he keeps scrolling.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "movil"
+       }
+      },
+      "textos": [
+       {
+        "texto": "2:00 AM",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "Two"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Your body runs on a twenty four hour clock, called the circadian rhythm, and it's set mostly by light and dark.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "sol",
+        "x": 0.62,
+        "tam": 0.18,
+        "y": 0.35,
+        "cuando": "light"
+       },
+       {
+        "que": "luna",
+        "x": 0.85,
+        "tam": 0.16,
+        "y": 0.35,
+        "cuando": "dark"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "24 H CLOCK",
+        "x": 0.72,
+        "y": 0.12,
+        "tam": 0.09,
+        "color": "azul",
+        "cuando": "twenty four hour"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "At night, your temperature drops a little and your heart slows down, getting you ready for sleep.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "termometro",
+        "x": 0.65,
+        "tam": 0.22,
+        "y": 0.45,
+        "cuando": "temperature"
+       },
+       {
+        "que": "corazon",
+        "x": 0.85,
+        "tam": 0.18,
+        "y": 0.45,
+        "cuando": "heart"
+       }
+      ],
+      "flechas": [
+       {
+        "de": [
+         0.65,
+         0.2
+        ],
+        "a": [
+         0.65,
+         0.3
+        ],
+        "color": "azul",
+        "recta": true,
+        "cuando": "drops"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Mokordo ignores all of it. Another video, another scroll, another just five more minutes.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "movil",
+        "cuando": "Another video"
+       }
+      },
+      "textos": [
+       {
+        "texto": "5 MORE MIN",
+        "x": 0.78,
+        "y": 0.2,
+        "tam": 0.09,
+        "color": "naranja",
+        "cuando": "five more"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Inside his head, a chemical called adenosine is piling up, a little more for every hour he stays awake.",
+     "visual": {
+      "mascota": {
+       "accion": "piensa",
+       "x": 0.25
+      },
+      "cosas": [
+       {
+        "que": "cerebro",
+        "x": 0.62,
+        "tam": 0.32,
+        "y": 0.45,
+        "cuando": "Inside his head"
+       },
+       {
+        "que": "reloj_arena",
+        "x": 0.85,
+        "tam": 0.22,
+        "y": 0.45,
+        "cuando": "every hour"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Adenosine is sleep pressure. The more of it you have, the harder your body pushes you toward bed.",
+     "visual": {
+      "mascota": {
+       "accion": "encoge",
+       "x": 0.3
+      },
+      "textos": [
+       {
+        "texto": "SLEEP PRESSURE",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.1,
+        "color": "rojo",
+        "cuando": "sleep pressure"
+       }
+      ],
+      "cosas": [
+       {
+        "que": "cama",
+        "x": 0.78,
+        "tam": 0.25,
+        "cuando": "toward bed"
+       }
+      ],
+      "flechas": [
+       {
+        "de": [
+         0.45,
+         0.6
+        ],
+        "a": [
+         0.65,
+         0.6
+        ],
+        "color": "rojo",
+        "recta": true,
+        "cuando": "pushes"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Most adults need seven to nine hours of it. Tonight, Mokordo gets zero.",
+     "visual": {
+      "cifra": {
+       "valor": "7-9 H",
+       "pie": "what most adults need",
+       "color": "azul"
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Six in the morning. The alarm goes off, and he hasn't closed his eyes once.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "despierta",
+        "cuando": "alarm goes off"
+       }
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Around four in the morning is usually the hardest moment. That's when your body clock pushes hardest for sleep.",
+     "visual": {
+      "mascota": {
+       "accion": "mareo",
+       "x": 0.45
+      },
+      "cosas": [
+       {
+        "que": "despertador",
+        "x": 0.78,
+        "tam": 0.2,
+        "y": 0.45,
+        "cuando": "four in the morning"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "4:00 AM",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "four"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Honestly? He feels almost okay. A bit foggy, a bit grumpy, but okay.",
+     "visual": {
+      "mascota": {
+       "accion": "encoge",
+       "x": 0.45
+      },
+      "textos": [
+       {
+        "texto": "ALMOST OKAY",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.1,
+        "color": "verde",
+        "cuando": "almost okay"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "That's the trap. After one night, your body is already struggling, but your brain is bad at noticing it.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "bateria_baja",
+        "x": 0.72,
+        "tam": 0.25,
+        "y": 0.42,
+        "cuando": "struggling"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "THE TRAP",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "trap"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "He splashes cold water on his face and brushes his teeth, as if that could fix everything.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "lava",
+        "cuando": "splashes",
+        "con": "jabon"
+       }
+      },
+      "ambiente": "bano"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "It doesn't. It just wakes him up for about ten minutes.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "cepilla",
+        "cuando": "doesn't"
+       }
+      },
+      "ambiente": "bano",
+      "textos": [
+       {
+        "texto": "10 MIN",
+        "x": 0.78,
+        "y": 0.22,
+        "tam": 0.1,
+        "color": "rojo",
+        "cuando": "ten minutes"
+       }
+      ]
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "dormitorio",
+   "cuerpo": {
+    "ojeras": 0.25
+   },
+   "dia": "DAY 1",
+   "complemento": "gorro_dormir",
+   "medidores": {
+    "ENERGY": 0.7,
+    "FOCUS": 0.7,
+    "MOOD": 0.7
+   }
+  },
+  {
+   "titulo": "24 hours awake",
+   "planos": [
+    {
+     "narracion": "Day two. At work, Mokordo stares at his screen, reading the same email for the fourth time.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "teclea",
+        "cuando": "At work"
+       }
+      },
+      "textos": [
+       {
+        "texto": "x4",
+        "x": 0.78,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "fourth time"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "After twenty four hours without sleep, your reactions are as slow as someone over the legal alcohol limit.",
+     "visual": {
+      "cifra": {
+       "valor": "24 H",
+       "pie": "as slow as being drunk",
+       "color": "rojo"
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "His focus comes in short bursts. Thirty seconds of work, then his mind drifts somewhere else.",
+     "visual": {
+      "mascota": {
+       "accion": "piensa",
+       "x": 0.4
+      },
+      "cosas": [
+       {
+        "que": "nube",
+        "x": 0.75,
+        "tam": 0.2,
+        "y": 0.3,
+        "cuando": "drifts"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Researchers call these attention lapses, and they get longer and more frequent the longer you stay awake.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.25
+      },
+      "cosas": [
+       {
+        "que": "grafico_sube",
+        "x": 0.68,
+        "tam": 0.3,
+        "y": 0.45,
+        "cuando": "longer and more frequent"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "LAPSES",
+        "x": 0.68,
+        "y": 0.12,
+        "tam": 0.1,
+        "color": "rojo",
+        "cuando": "attention lapses"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "He makes a typo. Then another. Then he sends the email to the wrong person.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "teclea",
+        "cuando": "typo"
+       }
+      },
+      "textos": [
+       {
+        "texto": "OOPS",
+        "x": 0.78,
+        "y": 0.22,
+        "tam": 0.11,
+        "color": "rojo",
+        "cuando": "wrong person"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "His boss walks by, and Mokordo tries very hard to look busy.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.35,
+       "hace": {
+        "verbo": "teclea",
+        "cuando": "tries"
+       }
+      },
+      "figuras": [
+       {
+        "quien": "persona",
+        "x": 0.8,
+        "espejo": true,
+        "pose": "andando"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Same slow reflexes, same bad decisions, but without a single drink.",
+     "visual": {
+      "mascota": {
+       "accion": "borracho",
+       "x": 0.45
+      },
+      "cosas": [
+       {
+        "que": "cerveza",
+        "x": 0.78,
+        "tam": 0.2,
+        "y": 0.45,
+        "cuando": "single drink",
+        "tachado": true
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "His colleague notices right away. You look terrible, she says. He laughs. It isn't funny.",
+     "visual": {
+      "mascota": {
+       "accion": "rie",
+       "x": 0.3
+      },
+      "figuras": [
+       {
+        "quien": "persona_b",
+        "x": 0.75,
+        "espejo": true,
+        "gesto": "sorpresa",
+        "pose": "señala"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "So he does what everyone does. Coffee.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "bebe",
+        "cuando": "Coffee",
+        "con": "taza"
+       }
+      },
+      "textos": [
+       {
+        "texto": "COFFEE",
+        "x": 0.78,
+        "y": 0.22,
+        "tam": 0.1,
+        "color": "naranja",
+        "cuando": "Coffee"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And then another coffee. And then a third one, just to be safe.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "bebe",
+        "con": "taza"
+       }
+      },
+      "cosas": [
+       {
+        "que": "taza",
+        "x": 0.78,
+        "tam": 0.12,
+        "cuando": "another"
+       },
+       {
+        "que": "taza",
+        "x": 0.88,
+        "tam": 0.12,
+        "cuando": "third"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Here's the secret: caffeine doesn't give you any energy at all.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "taza",
+        "x": 0.68,
+        "tam": 0.25,
+        "y": 0.45,
+        "cuando": "caffeine"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "NO ENERGY",
+        "x": 0.68,
+        "y": 0.15,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "any energy"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "It sneaks into the same spots in your brain where adenosine should land, and blocks them like a shield.",
+     "visual": {
+      "cosas": [
+       {
+        "que": "taza",
+        "x": 0.22,
+        "tam": 0.22,
+        "y": 0.5,
+        "cuando": "sneaks"
+       },
+       {
+        "que": "escudo",
+        "x": 0.5,
+        "tam": 0.24,
+        "y": 0.5,
+        "cuando": "like a shield"
+       },
+       {
+        "que": "cerebro",
+        "x": 0.8,
+        "tam": 0.28,
+        "y": 0.5,
+        "cuando": "your brain"
+       }
+      ],
+      "flechas": [
+       {
+        "de": [
+         0.3,
+         0.5
+        ],
+        "a": [
+         0.4,
+         0.5
+        ],
+        "color": "rojo",
+        "recta": true,
+        "cuando": "blocks"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "The tiredness is still there. Your brain just can't hear it for a few hours.",
+     "visual": {
+      "mascota": {
+       "accion": "piensa",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "bateria_baja",
+        "x": 0.7,
+        "tam": 0.25,
+        "y": 0.45,
+        "cuando": "still there"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And when the coffee wears off, all that waiting adenosine hits at once. The famous crash.",
+     "visual": {
+      "mascota": {
+       "accion": "mareo",
+       "x": 0.45
+      },
+      "textos": [
+       {
+        "texto": "CRASH!",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "crash"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "By the afternoon, his memory is starting to slip. He forgets why he walked into the kitchen.",
+     "visual": {
+      "mascota": {
+       "accion": "piensa",
+       "x": 0.45
+      },
+      "ambiente": "cocina",
+      "textos": [
+       {
+        "texto": "WHY AM I HERE?",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.09,
+        "color": "morado",
+        "cuando": "walked into"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "That's because sleep is when your brain saves the day's memories. No sleep, no saving.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.25
+      },
+      "ambiente": "cocina",
+      "cosas": [
+       {
+        "que": "cerebro",
+        "x": 0.65,
+        "tam": 0.32,
+        "y": 0.42,
+        "cuando": "saves"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "SAVE?",
+        "x": 0.65,
+        "y": 0.12,
+        "tam": 0.1,
+        "color": "azul",
+        "cuando": "no saving"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Studies show that after a night without sleep, people remember up to forty percent less new information.",
+     "visual": {
+      "cifra": {
+       "valor": "-40%",
+       "pie": "new memories",
+       "color": "morado"
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Night two. He tries a cold shower to stay awake. It works for exactly as long as the shower lasts.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "ducha",
+        "cuando": "cold shower"
+       }
+      },
+      "ambiente": "bano"
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "oficina",
+   "cuerpo": {
+    "ojeras": 0.5,
+    "palido": 0.2
+   },
+   "dia": "DAY 2",
+   "complemento": "",
+   "medidores": {
+    "ENERGY": 0.45,
+    "FOCUS": 0.35,
+    "MOOD": 0.45
+   }
+  },
+  {
+   "titulo": "Microsleeps and cravings",
+   "planos": [
+    {
+     "narracion": "Day three. Something strange starts happening. Mokordo's brain begins switching off without asking him.",
+     "visual": {
+      "mascota": {
+       "accion": "duerme",
+       "x": 0.45
+      },
+      "textos": [
+       {
+        "texto": "SWITCHING OFF",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.1,
+        "color": "rojo",
+        "cuando": "switching off"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "These are microsleeps: tiny naps of a few seconds, with your eyes sometimes still open.",
+     "visual": {
+      "mascota": {
+       "accion": "duerme",
+       "x": 0.45
+      },
+      "textos": [
+       {
+        "texto": "MICROSLEEP",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "microsleeps"
+       }
+      ],
+      "cosas": [
+       {
+        "que": "ojo",
+        "x": 0.8,
+        "tam": 0.2,
+        "y": 0.42,
+        "cuando": "eyes"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "He doesn't even notice them. One second he's reading, the next he's lost a whole paragraph.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.4
+      },
+      "cosas": [
+       {
+        "que": "libro",
+        "x": 0.75,
+        "tam": 0.22,
+        "y": 0.45,
+        "cuando": "reading"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "That's exactly what makes tired driving so dangerous. A few seconds is enough to drift off the road.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.3
+      },
+      "ambiente": "carretera",
+      "cosas": [
+       {
+        "que": "coche",
+        "x": 0.72,
+        "tam": 0.3,
+        "cuando": "driving"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "DANGER",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "dangerous"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Drowsy driving causes thousands of crashes every year, and many drivers never realize they nodded off.",
+     "visual": {
+      "mascota": {
+       "accion": "triste",
+       "x": 0.3
+      },
+      "ambiente": "carretera",
+      "cosas": [
+       {
+        "que": "coche",
+        "x": 0.72,
+        "tam": 0.3,
+        "cuando": "crashes",
+        "tachado": true
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Mokordo is smart enough to stay home. But now there's a new problem. He is starving.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45
+      },
+      "textos": [
+       {
+        "texto": "STARVING",
+        "x": 0.75,
+        "y": 0.2,
+        "tam": 0.1,
+        "color": "rojo",
+        "cuando": "starving"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Without sleep, your hunger hormone, ghrelin, goes up, and the I'm full hormone, leptin, goes down.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.25
+      },
+      "flechas": [
+       {
+        "de": [
+         0.55,
+         0.65
+        ],
+        "a": [
+         0.55,
+         0.3
+        ],
+        "color": "rojo",
+        "recta": true,
+        "cuando": "goes up"
+       },
+       {
+        "de": [
+         0.8,
+         0.3
+        ],
+        "a": [
+         0.8,
+         0.65
+        ],
+        "color": "azul",
+        "recta": true,
+        "cuando": "goes down"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "HUNGRY",
+        "x": 0.55,
+        "y": 0.18,
+        "tam": 0.08,
+        "color": "rojo",
+        "cuando": "ghrelin"
+       },
+       {
+        "texto": "FULL",
+        "x": 0.8,
+        "y": 0.18,
+        "tam": 0.08,
+        "color": "azul",
+        "cuando": "leptin"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "So he eats. And eats. And somehow, he only wants pizza, chocolate and burgers.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "atraca",
+        "cuando": "eats",
+        "con": "pizza"
+       }
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Tired brains crave sugar and fat, because they're desperate for quick energy.",
+     "visual": {
+      "cosas": [
+       {
+        "que": "pizza",
+        "x": 0.25,
+        "tam": 0.22,
+        "y": 0.45,
+        "cuando": "fat"
+       },
+       {
+        "que": "chocolate",
+        "x": 0.5,
+        "tam": 0.2,
+        "y": 0.45,
+        "cuando": "sugar"
+       },
+       {
+        "que": "hamburguesa",
+        "x": 0.75,
+        "tam": 0.22,
+        "y": 0.45,
+        "cuando": "quick energy"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Even his skin is starting to show it: dull color, puffy eyes and dark circles.",
+     "visual": {
+      "mascota": {
+       "accion": "triste",
+       "x": 0.35
+      },
+      "ambiente": "bano",
+      "cosas": [
+       {
+        "que": "espejo",
+        "x": 0.75,
+        "tam": 0.4,
+        "y": 0.45,
+        "cuando": "dark circles"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Dark circles appear because tired skin looks paler, so the blood vessels underneath show through more.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.3
+      },
+      "ambiente": "bano",
+      "cosas": [
+       {
+        "que": "ojo",
+        "x": 0.7,
+        "tam": 0.25,
+        "y": 0.42,
+        "cuando": "Dark circles"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "PALER SKIN",
+        "x": 0.7,
+        "y": 0.12,
+        "tam": 0.09,
+        "color": "morado",
+        "cuando": "paler"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "He sits on the sofa for one second, closes his eyes, and wakes up an hour later, totally confused.",
+     "visual": {
+      "mascota": {
+       "accion": "duerme",
+       "x": 0.45
+      },
+      "cosas": [
+       {
+        "que": "sofa",
+        "x": 0.75,
+        "tam": 0.25,
+        "cuando": "sofa"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "1 HOUR LATER",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.09,
+        "color": "rojo",
+        "cuando": "an hour later"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "That's how strong the pressure is now. His body grabs sleep whenever it can.",
+     "visual": {
+      "mascota": {
+       "accion": "mareo",
+       "x": 0.45
+      },
+      "textos": [
+       {
+        "texto": "SLEEP PRESSURE",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.09,
+        "color": "rojo",
+        "cuando": "pressure"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Short sleepers eat hundreds of extra calories a day, and it shows up on the scale fast.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "pesa_se",
+        "cuando": "scale"
+       }
+      },
+      "ambiente": "bano"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "His mood is getting worse too. Tiny things make him furious, then sad, then furious again.",
+     "visual": {
+      "mascota": {
+       "accion": "triste",
+       "x": 0.45
+      },
+      "figuras": [
+       {
+        "quien": "nino",
+        "x": 0.78,
+        "espejo": true,
+        "gesto": "sorpresa"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Brain scans show that after a night without sleep, the brain's alarm center reacts about sixty percent more.",
+     "visual": {
+      "cifra": {
+       "valor": "+60%",
+       "pie": "emotional overreaction",
+       "color": "naranja"
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "It's like a smoke detector that goes off every time you make toast.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "campana",
+        "x": 0.7,
+        "tam": 0.2,
+        "y": 0.3,
+        "cuando": "smoke detector"
+       },
+       {
+        "que": "pan",
+        "x": 0.72,
+        "tam": 0.16,
+        "y": 0.68,
+        "cuando": "toast"
+       }
+      ]
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "salon",
+   "cuerpo": {
+    "ojeras": 0.7,
+    "palido": 0.4,
+    "gordo": 0.15
+   },
+   "dia": "DAY 3",
+   "complemento": "",
+   "medidores": {
+    "ENERGY": 0.25,
+    "FOCUS": 0.2,
+    "MOOD": 0.2
+   }
+  },
+  {
+   "titulo": "The body breaks down",
+   "planos": [
+    {
+     "narracion": "Day four. Mokordo feels cold all the time, even with a scarf on.",
+     "visual": {
+      "mascota": {
+       "accion": "tose",
+       "x": 0.45
+      },
+      "textos": [
+       {
+        "texto": "SO COLD",
+        "x": 0.75,
+        "y": 0.22,
+        "tam": 0.1,
+        "color": "azul",
+        "cuando": "cold"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Sleep loss messes with the way your body controls its temperature, so your hands and feet can feel freezing.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "termometro",
+        "cuando": "temperature"
+       }
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "His hands shake when he holds his cup, and his eyes keep closing on their own.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "bebe",
+        "cuando": "holds his cup",
+        "con": "taza"
+       }
+      },
+      "textos": [
+       {
+        "texto": "SHAKY",
+        "x": 0.78,
+        "y": 0.22,
+        "tam": 0.1,
+        "color": "rojo",
+        "cuando": "shake"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And then, achoo. His immune system is running on empty.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "estornuda",
+        "cuando": "achoo"
+       }
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "While you sleep, your body makes more of the cells and proteins that fight infections.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.25
+      },
+      "cosas": [
+       {
+        "que": "escudo",
+        "x": 0.6,
+        "tam": 0.24,
+        "y": 0.45,
+        "cuando": "fight"
+       },
+       {
+        "que": "virus",
+        "x": 0.82,
+        "tam": 0.2,
+        "y": 0.45,
+        "cuando": "infections"
+       }
+      ],
+      "flechas": [
+       {
+        "de": [
+         0.68,
+         0.45
+        ],
+        "a": [
+         0.75,
+         0.45
+        ],
+        "color": "rojo",
+        "recta": true,
+        "cuando": "fight"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "In one study, people who slept less than six hours were about four times more likely to catch a cold.",
+     "visual": {
+      "cifra": {
+       "valor": "4x",
+       "pie": "more likely to catch a cold",
+       "color": "naranja"
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "The doctor takes one look at him and asks the obvious question: when did you last sleep?",
+     "visual": {
+      "mascota": {
+       "accion": "encoge",
+       "x": 0.3
+      },
+      "figuras": [
+       {
+        "quien": "abuelo",
+        "x": 0.75,
+        "espejo": true,
+        "pose": "señala"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "WHEN?",
+        "x": 0.75,
+        "y": 0.15,
+        "tam": 0.1,
+        "color": "rojo",
+        "cuando": "when did you"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "His heart is beating faster, and his blood pressure is higher than it should be.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "corazon",
+        "x": 0.72,
+        "tam": 0.28,
+        "y": 0.42,
+        "cuando": "His heart"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "FASTER",
+        "x": 0.72,
+        "y": 0.12,
+        "tam": 0.1,
+        "color": "rojo",
+        "cuando": "faster"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "His blood sugar control gets worse too. After just a few short nights, healthy young people can look closer to pre diabetic on some tests.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "chocolate",
+        "x": 0.65,
+        "tam": 0.18,
+        "y": 0.45,
+        "cuando": "blood sugar"
+       },
+       {
+        "que": "grafico_sube",
+        "x": 0.85,
+        "tam": 0.22,
+        "y": 0.45,
+        "cuando": "worse"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Every part of his body is affected, because every part of the body needs sleep.",
+     "visual": {
+      "mascota": {
+       "accion": "triste",
+       "x": 0.45
+      },
+      "cosas": [
+       {
+        "que": "cerebro",
+        "x": 0.2,
+        "tam": 0.14,
+        "y": 0.3
+       },
+       {
+        "que": "corazon",
+        "x": 0.82,
+        "tam": 0.14,
+        "y": 0.3
+       },
+       {
+        "que": "estomago",
+        "x": 0.2,
+        "tam": 0.14,
+        "y": 0.62
+       },
+       {
+        "que": "pulmones",
+        "x": 0.82,
+        "tam": 0.14,
+        "y": 0.62
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Stress hormones like cortisol stay high, because to your body, no sleep feels like danger.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.45
+      },
+      "textos": [
+       {
+        "texto": "DANGER!",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "danger"
+       }
+      ],
+      "cosas": [
+       {
+        "que": "grafico_sube",
+        "x": 0.8,
+        "tam": 0.22,
+        "y": 0.45,
+        "cuando": "stay high"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Day five. And now, Mokordo starts seeing things that aren't there.",
+     "visual": {
+      "mascota": {
+       "accion": "mareo",
+       "x": 0.4
+      },
+      "textos": [
+       {
+        "texto": "???",
+        "x": 0.78,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "morado",
+        "cuando": "seeing things"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "A shadow moves in the corner. The floor seems to wobble. Was that a voice?",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.35
+      },
+      "textos": [
+       {
+        "texto": "WHAT WAS THAT?",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.09,
+        "color": "morado",
+        "cuando": "voice"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "After around three days awake, many people get hallucinations. The brain starts dreaming while you're still awake.",
+     "visual": {
+      "mascota": {
+       "accion": "mareo",
+       "x": 0.45
+      },
+      "cosas": [
+       {
+        "que": "nube",
+        "x": 0.75,
+        "tam": 0.22,
+        "y": 0.3,
+        "cuando": "dreaming"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "AWAKE DREAMS",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.09,
+        "color": "rojo",
+        "cuando": "dreaming"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "His thoughts are slow, his words come out wrong, and simple math feels impossible.",
+     "visual": {
+      "mascota": {
+       "accion": "piensa",
+       "x": 0.3
+      },
+      "textos": [
+       {
+        "texto": "2 + 2 = ?",
+        "x": 0.72,
+        "y": 0.3,
+        "tam": 0.12,
+        "color": "morado",
+        "cuando": "simple math"
+       }
+      ]
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "consulta",
+   "cuerpo": {
+    "ojeras": 1.0,
+    "palido": 0.75,
+    "gordo": 0.2,
+    "granos": 0.35
+   },
+   "dia": "DAY 5",
+   "complemento": "bufanda",
+   "medidores": {
+    "ENERGY": 0.07,
+    "FOCUS": 0.06,
+    "MOOD": 0.08
+   }
+  },
+  {
+   "titulo": "The record and the brain's trash",
+   "planos": [
+    {
+     "narracion": "So how long can a human really go without sleep?",
+     "visual": {
+      "mascota": {
+       "accion": "piensa",
+       "x": 0.45
+      },
+      "textos": [
+       {
+        "texto": "HOW LONG?",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "how long"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "In nineteen sixty four, a seventeen year old student named Randy Gardner stayed awake for about eleven days.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "calendario",
+        "x": 0.72,
+        "tam": 0.3,
+        "y": 0.42,
+        "cuando": "eleven days",
+        "etiqueta": "11 DAYS"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Two hundred and sixty four hours, for a school science fair. By the end, he could barely talk.",
+     "visual": {
+      "cifra": {
+       "valor": "264 H",
+       "pie": "awake, for a science fair",
+       "color": "rojo"
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Today, record books won't even accept new attempts, because doctors consider it too dangerous.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "trofeo",
+        "x": 0.72,
+        "tam": 0.25,
+        "y": 0.45,
+        "cuando": "record books",
+        "tachado": true
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "In lab experiments, rats that were kept from sleeping for two or three weeks didn't survive.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.3
+      },
+      "figuras": [
+       {
+        "quien": "abuelo",
+        "x": 0.75,
+        "espejo": true,
+        "pose": "señala"
+       }
+      ],
+      "cosas": [
+       {
+        "que": "calendario",
+        "x": 0.5,
+        "tam": 0.16,
+        "y": 0.3,
+        "cuando": "two or three weeks"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Sleep isn't wasted time. It's when your body repairs muscles, balances hormones and stores memories.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "musculo",
+        "x": 0.58,
+        "tam": 0.18,
+        "y": 0.45,
+        "cuando": "muscles"
+       },
+       {
+        "que": "balanza",
+        "x": 0.75,
+        "tam": 0.18,
+        "y": 0.45,
+        "cuando": "hormones"
+       },
+       {
+        "que": "cerebro",
+        "x": 0.9,
+        "tam": 0.16,
+        "y": 0.45,
+        "cuando": "memories"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Even fruit flies, fish and worms sleep. Almost every animal on the planet does it.",
+     "visual": {
+      "mascota": {
+       "accion": "rie",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "mosquito",
+        "x": 0.55,
+        "tam": 0.14,
+        "y": 0.35,
+        "cuando": "fruit flies"
+       },
+       {
+        "que": "pez",
+        "x": 0.72,
+        "tam": 0.18,
+        "y": 0.5,
+        "cuando": "fish"
+       },
+       {
+        "que": "tierra",
+        "x": 0.88,
+        "tam": 0.16,
+        "y": 0.35,
+        "cuando": "every animal"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And evolution kept it, even though a sleeping animal is an easy snack for predators. That's how important it is.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "leon",
+        "x": 0.75,
+        "tam": 0.3,
+        "cuando": "predators"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And scientists have found a big reason why sleep matters so much. Your brain needs to take out the trash.",
+     "visual": {
+      "figuras": [
+       {
+        "quien": "abuelo",
+        "x": 0.3,
+        "hace": {
+         "verbo": "mira",
+         "cuando": "scientists",
+         "a": "cerebro",
+         "con": "lupa"
+        }
+       }
+      ],
+      "cosas": [
+       {
+        "que": "cerebro",
+        "x": 0.72,
+        "tam": 0.3,
+        "y": 0.45,
+        "cuando": "your brain"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "All day, your brain cells produce waste. During deep sleep, the space between them grows by about sixty percent.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.25
+      },
+      "cosas": [
+       {
+        "que": "cerebro",
+        "x": 0.65,
+        "tam": 0.34,
+        "y": 0.42,
+        "cuando": "brain cells"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "+60% SPACE",
+        "x": 0.65,
+        "y": 0.12,
+        "tam": 0.09,
+        "color": "azul",
+        "cuando": "sixty percent"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Fluid rushes through those gaps and washes the waste away, like a cleaning crew working the night shift.",
+     "visual": {
+      "mascota": {
+       "accion": "rie",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "cerebro",
+        "x": 0.7,
+        "tam": 0.3,
+        "y": 0.45
+       },
+       {
+        "que": "gota",
+        "x": 0.86,
+        "tam": 0.14,
+        "y": 0.3,
+        "cuando": "fluid"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "NIGHT SHIFT",
+        "x": 0.7,
+        "y": 0.12,
+        "tam": 0.09,
+        "color": "azul",
+        "cuando": "night shift"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Skip sleep, and the trash piles up. Even one sleepless night leaves more of a protein linked to Alzheimer's.",
+     "visual": {
+      "mascota": {
+       "accion": "triste",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "cerebro",
+        "x": 0.7,
+        "tam": 0.3,
+        "y": 0.45,
+        "cuando": "trash piles up"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "WASTE",
+        "x": 0.7,
+        "y": 0.12,
+        "tam": 0.1,
+        "color": "rojo",
+        "cuando": "trash"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "That's why one bad night makes you foggy. Your brain is literally still dirty.",
+     "visual": {
+      "mascota": {
+       "accion": "mareo",
+       "x": 0.45
+      },
+      "textos": [
+       {
+        "texto": "FOGGY",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.12,
+        "color": "gris",
+        "cuando": "foggy"
+       }
+      ]
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "laboratorio",
+   "cuerpo": {
+    "ojeras": 1.0,
+    "palido": 0.8,
+    "gordo": 0.2,
+    "granos": 0.4
+   },
+   "dia": "DAY 6",
+   "complemento": "bufanda",
+   "medidores": {
+    "ENERGY": 0.05,
+    "FOCUS": 0.05,
+    "MOOD": 0.06
+   }
+  },
+  {
+   "titulo": "Sleep at last",
+   "planos": [
+    {
+     "narracion": "Day seven. Mokordo gives up, and finally, he goes to bed.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.5,
+       "hace": {
+        "verbo": "acuesta",
+        "cuando": "goes to bed"
+       }
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "He doesn't need to sleep seven days to pay it back. Your body doesn't repay sleep hour for hour.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.5,
+       "hace": {
+        "verbo": "acuesta"
+       }
+      },
+      "textos": [
+       {
+        "texto": "NO NEED TO REPAY",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.09,
+        "color": "azul",
+        "cuando": "pay it back"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Instead, the first nights of recovery are deeper. More deep sleep, more dreaming, to catch up on what matters most.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.5,
+       "hace": {
+        "verbo": "acuesta"
+       }
+      },
+      "cosas": [
+       {
+        "que": "luna",
+        "x": 0.85,
+        "tam": 0.16,
+        "y": 0.25
+       }
+      ],
+      "textos": [
+       {
+        "texto": "DEEP SLEEP",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.1,
+        "color": "morado",
+        "cuando": "deeper"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "After his record, Randy Gardner slept for about fourteen hours, and then went back to a normal schedule.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.5,
+       "hace": {
+        "verbo": "acuesta"
+       }
+      },
+      "textos": [
+       {
+        "texto": "14 H",
+        "x": 0.8,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "fourteen hours"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "The next morning, Mokordo wakes up and looks in the mirror.",
+     "visual": {
+      "mascota": {
+       "accion": "piensa",
+       "x": 0.35
+      },
+      "ambiente": "bano",
+      "cosas": [
+       {
+        "que": "espejo",
+        "x": 0.75,
+        "tam": 0.4,
+        "y": 0.45,
+        "cuando": "mirror"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "The dark circles are fading. His color is coming back. His brain feels clean again.",
+     "visual": {
+      "mascota": {
+       "accion": "rie",
+       "x": 0.45
+      },
+      "ambiente": "bano",
+      "textos": [
+       {
+        "texto": "BACK!",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.12,
+        "color": "verde",
+        "cuando": "coming back"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "After a few good nights, most of the short term damage from a week like this goes away.",
+     "visual": {
+      "mascota": {
+       "accion": "salta",
+       "x": 0.45
+      },
+      "cosas": [
+       {
+        "que": "bateria",
+        "x": 0.78,
+        "tam": 0.24,
+        "y": 0.4,
+        "cuando": "goes away"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Recovery isn't instant. His focus and his mood come back first, his skin and energy a little later.",
+     "visual": {
+      "mascota": {
+       "accion": "salta",
+       "x": 0.4
+      },
+      "cosas": [
+       {
+        "que": "grafico_sube",
+        "x": 0.78,
+        "tam": 0.25,
+        "y": 0.45,
+        "cuando": "come back"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "But years of sleeping too little are different. They're linked to heart disease, diabetes and memory problems.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "corazon",
+        "x": 0.6,
+        "tam": 0.18,
+        "y": 0.45,
+        "cuando": "heart disease"
+       },
+       {
+        "que": "cerebro",
+        "x": 0.82,
+        "tam": 0.2,
+        "y": 0.45,
+        "cuando": "memory problems"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "So tonight, put the phone down an hour before bed, keep the room dark and cool, and give yourself seven hours or more.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.5,
+       "hace": {
+        "verbo": "acuesta"
+       }
+      },
+      "cosas": [
+       {
+        "que": "movil",
+        "x": 0.85,
+        "tam": 0.16,
+        "y": 0.45,
+        "cuando": "phone down",
+        "tachado": true
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Your brain has a cleaning crew waiting. Let it do its job.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.5,
+       "hace": {
+        "verbo": "acuesta"
+       }
+      },
+      "textos": [
+       {
+        "texto": "SLEEP WELL",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.12,
+        "color": "azul",
+        "cuando": "Let it"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Try to wake up at the same time every day, even on weekends. Your body clock loves routine.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "despierta",
+        "cuando": "wake up"
+       }
+      },
+      "textos": [
+       {
+        "texto": "SAME TIME",
+        "x": 0.75,
+        "y": 0.18,
+        "tam": 0.1,
+        "color": "azul",
+        "cuando": "same time"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And if you really can't sleep, night after night, talk to a doctor. Insomnia is common, and it can be treated.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.35
+      },
+      "figuras": [
+       {
+        "quien": "abuelo",
+        "x": 0.78,
+        "espejo": true,
+        "pose": "de_pie",
+        "gesto": "contento"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "ASK A DOCTOR",
+        "x": 0.5,
+        "y": 0.12,
+        "tam": 0.09,
+        "color": "verde",
+        "cuando": "talk to a doctor"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "So tell me in the comments: how many hours did you sleep last night?",
+     "visual": {
+      "mascota": {
+       "accion": "saluda",
+       "x": 0.5
+      },
+      "textos": [
+       {
+        "texto": "HOW MANY HOURS?",
+        "x": 0.5,
+        "y": 0.15,
+        "tam": 0.1,
+        "color": "rojo",
+        "cuando": "how many hours"
+       }
+      ]
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "dormitorio",
+   "cuerpo": {
+    "ojeras": 0.15,
+    "palido": 0.05
+   },
+   "dia": "DAY 7",
+   "complemento": "gorro_dormir",
+   "medidores": {
+    "ENERGY": 0.85,
+    "FOCUS": 0.85,
+    "MOOD": 0.9
+   }
+  }
+ ]
+}

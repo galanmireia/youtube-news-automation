@@ -56,6 +56,7 @@ VERBOS = {
     "cocina": "cooks: stirs a pan in front of him, steam rising",
     "atraca": "stuffs his face: eats fast, bite after bite, crumbs flying",
     "despierta": "an alarm clock rings next to him: he jolts awake",
+    "acuesta": "sleeps IN a bed: lying down under the blanket, zzz (sleep, night, rest, recovering)",
 }
 # Con que lo hace si el guion no lo dice.
 _CON = {"cosquillas": "pluma", "mira": "lupa", "bebe": "vaso", "come": "manzana", "lanza": "pelota",
@@ -70,7 +71,7 @@ _A_SOLO = {"come": "boca", "bebe": "boca", "huele": "boca", "fuma": "boca", "ras
            "toca": "barriga"}
 # Los de la vida diaria se hacen solos, a si mismo: sin acercarse a nadie.
 _SOLO = ("lava", "crema", "mascarilla", "cepilla", "ducha", "seca", "pesas", "comba", "movil", "teclea", "juega",
-         "pastilla", "pesa_se", "termometro", "estornuda", "cocina", "atraca", "despierta")
+         "pastilla", "pesa_se", "termometro", "estornuda", "cocina", "atraca", "despierta", "acuesta")
 PARTES = ("pie", "barriga", "cabeza", "boca", "mano")
 _DE_CERCA = ("cosquillas", "toca", "golpea", "rasca", "da", "empuja", "abraza")
 ARRANCA = 1.0          # si no hay "cuando": cuando ya ha entrado
@@ -93,7 +94,7 @@ def objeto_de(fig: dict) -> str | None:
         return None
     if verbo in ("toca", "golpea") and not h.get("con"):
         return None
-    if verbo in ("mascarilla", "ducha", "comba", "teclea", "pesa_se", "estornuda", "cocina", "despierta"):
+    if verbo in ("mascarilla", "ducha", "comba", "teclea", "pesa_se", "estornuda", "cocina", "despierta", "acuesta"):
         return h.get("con")
     return con
 
@@ -622,6 +623,19 @@ def _vida_diaria(e: dict, verbo: str, v: float, con, s: int) -> list:
             u = (v*1.8 + k/5) % 1.0
             vu.append({"que": "miga", "pos": (boca[0] + s*u*h*0.25 + (k - 2)*h*0.02, boca[1] + u*u*h*0.35),
                        "tam": r*0.13})
+    elif verbo == "acuesta":
+        # En la cama, de frente como en los dibujos animados: el cabecero y la
+        # almohada detras, la manta por delante hasta el pecho, los ojos
+        # cerrados y las zetas. Respira despacio.
+        p["inclina"] = 0.0
+        p["levanta"] = 0.0
+        p["estira"] = 1.0 + 0.025*math.sin(v*2.2)
+        e["gesto"] = "contento"
+        e["alcanza"] = {}
+        e["debajo"] = [{"que": "cabecero", "pos": (e["cx"], e["suelo"]), "tam": h}]
+        vu.append({"que": "manta", "pos": (e["cx"], e["suelo"]), "tam": h})
+        vu.append({"que": "zzz", "pos": (e["cx"] + h*0.35, e["suelo"] - h*0.85 - 0.04*h*math.sin(v*2)),
+                   "tam": h*0.14, "alfa": 1.0})
     elif verbo == "despierta":
         reloj = (e["cx"] + s*h*0.55, e["suelo"] - h*0.05)
         tiembla = math.sin(v*40)*h*0.01 if v < 2.5 else 0.0
