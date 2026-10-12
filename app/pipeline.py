@@ -727,11 +727,22 @@ def run_literal(
 
     try:
         _stage(variant, 1, "Traduciendo tu guion al formato del video...")
+        # Si el guion trae su seccion REPASO al final, no se narra como una
+        # escena mas: es la ficha para el examen (repaso.py).
+        from . import repaso
+        raw_text, repaso_suyo = repaso.separa(raw_text)
         script = translate_literal_script(raw_text, variant=variant, parar=_stop_requested.is_set)
         # Y el titulo del video (miniatura y YouTube) tambien es el suyo: la
         # traduccion se inventaba uno ("no has puesto bien el titulo").
         if forced_topic:
             script["title"] = forced_topic
+        # LA FICHA PARA EL EXAMEN, al final (antes del cierre de Anselmo):
+        # quien nos ve son estudiantes que lo estan estudiando.
+        ficha = repaso.escena(repaso_suyo or script.get("repaso") or [])
+        if ficha is not None:
+            ficha["repaso_tema"] = script.get("title") or titulo
+            script["scenes"] = list(script["scenes"]) + [ficha]
+            logger.info("Ficha de repaso: %s", " | ".join(p_["texto"] for p_ in ficha["repaso"]))
 
         raw_sens = script.get("is_sensitive", False)
         is_sensitive = (raw_sens.strip().lower() == "true"

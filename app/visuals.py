@@ -434,6 +434,17 @@ def fetch_clips_for_scenes(
     for i, scene in enumerate(scenes):
         duration = scene_durations[i] if i < len(scene_durations) else 0.0
 
+        if scene.get("is_repaso"):
+            # LA FICHA PARA EL EXAMEN (ver repaso.py): hoja de cuaderno con lo
+            # que hay que saberse. Si no sale, esa escena cae a lo de siempre.
+            from . import repaso
+            ancho_r, alto_r = _TARGET_DIMENSIONS.get(aspect_ratio, (1080, 1920))
+            clip = repaso.render(scene.get("repaso") or [], out_dir / f"repaso_{i:02d}.mp4", ancho_r, alto_r,
+                                 max(2.0, duration), scene.get("repaso_tema") or "")
+            if clip is not None:
+                clip_entries.append([(clip, None)])
+                continue
+
         if scene.get("is_intro"):
             width, height = _TARGET_DIMENSIONS.get(aspect_ratio, (1920, 1080))
             # La careta en movimiento. Antes era una tarjeta quieta con el logo

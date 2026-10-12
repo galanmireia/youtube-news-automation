@@ -2097,6 +2097,14 @@ sucesos.
 - "tags": entre 10 y 15 palabras clave de busqueda en {language}, sin duplicados.
 - "lo_gracioso": EN UNA FRASE, que es lo que hace gracia de esta historia - tiene que ser algo que
   de verdad este en el guion original, no una idea nueva tuya.
+- "repaso": LA FICHA PARA EL EXAMEN que sale al final (quien nos ve son estudiantes de ESO y
+  Bachillerato que lo estan estudiando). De 3 a 4 puntos, cada uno con "texto" (lo que se lee en
+  pantalla, maximo 7 palabras, empezando por la fecha si la hay: "1843-1868 · Reinado de Isabel II")
+  y "voz" (como lo dice el narrador, en una frase corta: "De 1843 a 1868, el reinado de Isabel II").
+  Lo que se pregunta en un examen: CUANDO, QUIEN, QUE paso y POR QUE IMPORTA (su consecuencia).
+  SOLO datos que esten en el guion original o que sean historia segura y conocida; si dudas de una
+  fecha, ese punto sin fecha. Nada de chistes aqui: es la chuleta. Si el guion trae una seccion
+  REPASO, usa esos puntos tal cual.
 
 Si conoces el hecho historico real detras de esta historia y tienes una fecha, un año o una cifra
 que de verdad aplique, puedes mencionarla en el pegamento de narracion de alguna escena (nunca
@@ -2117,6 +2125,7 @@ caracter de tu respuesta tiene que ser una llave de apertura.
   "is_sensitive": "false",
   "tags": ["tag1", "tag2", "... entre 10 y 15 tags"],
   "lo_gracioso": "una frase con lo que hace gracia de esta historia",
+  "repaso": [{{"texto": "1843-1868 · Reinado de Isabel II", "voz": "De 1843 a 1868, el reinado de Isabel II"}}],
   "scenes": [
     {{
       "narration": "EN {language}, el pegamento de esta escena Y las citas literales entre «»",
