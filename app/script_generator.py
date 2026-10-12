@@ -2180,7 +2180,30 @@ def _lineas_de_narrador(raw_text: str) -> list[str]:
             en_narrador = False
             continue
         if en_narrador:
-            citas += _CITA_SUELTA.findall(limpio)
+            citas += _citas_de_la_linea(limpio)
+    return citas
+
+
+# Con «» las comillas de dentro son del narrador. "En 1981 se alargo a
+# “Fiesta Nacional de España y Dia de la Hispanidad”. Pero en 1987 la ley lo
+# dejo en “Fiesta Nacional de España”": con la regex suelta, “Fiesta Nacional
+# de España” salia como una frase aparte, Anselmo dice luego «Oficialmente,
+# Fiesta Nacional de España» y el Dia de la Hispanidad se tiro tres veces.
+_CITA_ANGULAR = re.compile(r'«([^»]{2,})»')
+
+
+def _citas_de_la_linea(linea: str) -> list[str]:
+    return _CITA_ANGULAR.findall(linea) if "«" in linea else _CITA_SUELTA.findall(linea)
+
+
+def _lineas_de_personaje(raw_text: str) -> list[str]:
+    """Lo que dicen los personajes en el original: "Anselmo: «...»"."""
+    citas = []
+    for linea in raw_text.split("\n"):
+        limpio = linea.strip()
+        if (limpio and not _ETIQUETA_NARRADOR.match(limpio)
+                and (_ETIQUETA_PERSONAJE.match(limpio) or _empieza_con_simbolo(limpio))):
+            citas += _citas_de_la_linea(limpio)
     return citas
 
 
@@ -2204,9 +2227,12 @@ def _narrador_no_se_cuela_en_citas(raw_text: str, script: dict) -> str | None:
              for c in bocadillos.todas_las_comillas(e.get("narration", ""))]
     if not citas:
         return None
+    # Si un personaje del original TAMBIEN dice esas palabras, el globo que
+    # las lleva es suyo y no del narrador.
+    de_personajes = [palabras(c) for c in _lineas_de_personaje(raw_text)]
     for linea in lineas_narrador:
         clave = palabras(linea)
-        if len(clave) < 2:
+        if len(clave) < 2 or any(dentro(clave, c) for c in de_personajes):
             continue
         # Un trozo cuenta si es grande: en la oreja, el mensajero dice «Por una
         # oreja.» y esas tres palabras tambien estan en la frase del narrador.
