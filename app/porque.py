@@ -839,7 +839,9 @@ def _con_cuerpo(visual: dict, cuerpo: dict, dia, complemento=None, medidores=Non
 def _antes_despues(guion: dict) -> dict | None:
     """El antes (el primer capitulo) y el despues (el capitulo donde mas ha
     cambiado Mokordo), si el video lo cambia de verdad."""
-    caps = guion.get("capitulos") or []
+    # El avance (el dia 6 al principio) no cuenta: el antes es como empieza
+    # la historia de verdad ("DAY 6 -> DAY 7" no decia nada).
+    caps = [c for c in guion.get("capitulos") or [] if not c.get("avance")]
     cuerpos = [_rasgos_de(c.get("cuerpo")) for c in caps]
     if len(caps) < 2 or not any(cuerpos):
         return None

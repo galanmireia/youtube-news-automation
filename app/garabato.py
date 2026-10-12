@@ -1915,9 +1915,18 @@ def _fotos_antes_despues(visual, segundos, fps, tam):
         img = fondo.copy()
         d = ImageDraw.Draw(img)
         d.line([(w//2, 0), (w//2, h)], fill=(40, 40, 46), width=8)
+        # ¿Mejora o empeora? (en "7 dias sin dormir" el antes es el feliz: salia
+        # triste el dia 1 y contento el destrozado)
+        def _nota(c):
+            c = c or {}
+            return sum(float(c.get(k, 0)) for k in ("brillo", "musculo")) - \
+                sum(float(c.get(k, 0)) for k in ("ojeras", "palido", "granos", "gordo", "quemado", "desgaste"))
+        empeora = _nota(spec.get("despues")) < _nota(spec.get("antes"))
         for lado, cuerpo, etiqueta, accion, comp in (
-                (-1, spec.get("antes") or {}, spec.get("etq_antes") or "BEFORE", "triste", spec.get("comp_antes")),
-                (1, spec.get("despues") or {}, spec.get("etq_despues") or "AFTER", "rie", spec.get("comp_despues"))):
+                (-1, spec.get("antes") or {}, spec.get("etq_antes") or "BEFORE", "rie" if empeora else "triste",
+                 spec.get("comp_antes")),
+                (1, spec.get("despues") or {}, spec.get("etq_despues") or "AFTER", "triste" if empeora else "rie",
+                 spec.get("comp_despues"))):
             x = 0.25 if lado < 0 else 0.75
             entra = min(1.0, max(0.0, (t - (0.0 if lado < 0 else 0.5))/0.4))
             if entra <= 0:
