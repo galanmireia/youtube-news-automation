@@ -657,7 +657,9 @@ def _rasgos_de(cuerpo) -> dict:
 
 
 def _interpola(a: dict, b: dict, t: float) -> dict:
-    return {k: round(a.get(k, 0.0) + (b.get(k, 0.0) - a.get(k, 0.0))*t, 3) for k in set(a) | set(b)}
+    # En el orden en que vienen (las barras no pueden cambiar de sitio).
+    claves = list(b) + [k for k in a if k not in b]
+    return {k: round(a.get(k, 0.0) + (b.get(k, 0.0) - a.get(k, 0.0))*t, 3) for k in claves}
 
 
 def _sitio_valido(nombre) -> str:
@@ -959,8 +961,9 @@ def _trozos_del_plano(visual: dict, fotogramas: int) -> list:
     return [(visual if j == 0 else _variante(visual, j), cortes[j + 1] - cortes[j]) for j in range(n)]
 
 
-def _cartel_titulo(titulo: str) -> dict:
-    """El titulo en grande, en una o dos lineas, y WHY THOUGH debajo."""
+def _cartel_titulo(titulo: str, sitio: str = "") -> dict:
+    """El titulo en grande, en una o dos lineas, y WHY THOUGH debajo; encima
+    del sitio del primer capitulo (era el unico plano en folio blanco)."""
     palabras = titulo.upper().split()
     if len(" ".join(palabras)) > 22 and len(palabras) > 1:
         corte = max(1, len(palabras)//2)
@@ -970,7 +973,10 @@ def _cartel_titulo(titulo: str) -> dict:
     textos = [{"texto": l, "x": 0.5, "y": 0.36 + k*0.18 - (0.09 if len(lineas) == 1 else 0),
                "tam": 0.16, "color": "rojo", "giro": -2} for k, l in enumerate(lineas)]
     textos.append({"texto": CHANNEL_NAME.upper(), "x": 0.5, "y": 0.8, "tam": 0.07, "color": "negro"})
-    return {"textos": textos, "_careta": True}
+    careta = {"textos": textos, "_careta": True}
+    if _sitio_valido(sitio):
+        careta["ambiente"] = _sitio_valido(sitio)
+    return careta
 
 
 def _minuto(segundos: float) -> str:
@@ -1025,7 +1031,8 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             # EL TITULO, DETRAS DEL GANCHO, como la careta de España Contada:
             # "¿has puesto la intro?". Tres segundos en silencio (solo la
             # campana): el titulo a rotulador y el nombre del canal debajo.
-            planos.append(("", _cartel_titulo(guion.get("titulo") or ""), _CARETA, n))
+            planos.append(("", _cartel_titulo(guion.get("titulo") or "", guion["capitulos"][0].get("escenario") or sitio),
+                           _CARETA, n))
 
     antes_despues = _antes_despues(guion)
     if antes_despues and len(planos) > 3:
