@@ -1870,7 +1870,8 @@ LLEVABLES_EXPLICADOS = {
     "pan":       "una hogaza de pan",
     "cesta":     "una cesta",
     "bandera_espana": "una bandera en la mano (vale cualquier bandera_ de las cosas)",
-    "pancarta":  "una pancarta de manifestacion: protestas, la vivienda, las huelgas",
+    "pancarta":  "una pancarta de manifestacion EN ALTO que dice ¡VIVIENDA!: SOLO protestas y huelgas. Para cualquier otro cartel, letrero o aviso es 'cartel'",
+    "cartel":    "un cartel o letrero en la mano, a la altura del pecho: el que cambia los carteles, avisos, anuncios, nombres",
     "movil":     "un movil en la mano: el Bizum, la foto, el que lo graba todo",
     "periodico": "un periodico: ultima hora, la noticia, el que lo lee en alto",
     "pelota":    "una pelota en la mano: el juego de pelota, el partido",
@@ -1881,7 +1882,7 @@ LLEVABLES_EXPLICADOS = {
 }
 _TAM_LLEVADO = {"pelota": 0.14, "vaso": 0.17, "maletin": 0.22, "calendario": 0.32, "espada": 0.40, "antorcha": 0.30, "bandera": 0.50, "pergamino": 0.20,
                 "carta": 0.16, "dinero": 0.18, "libro": 0.16, "cesta": 0.20,
-                "pancarta": 0.60, "movil": 0.16, "periodico": 0.26}
+                "pancarta": 0.60, "cartel": 0.40, "movil": 0.16, "periodico": 0.26}
 
 
 def _llevable(que) -> str | None:
@@ -3412,6 +3413,24 @@ def _pancarta(d, x, y, t, rnd, g, tinta=TINTA):
     d.text((x - d.textlength(texto, font=f)/2, y0 + alto*0.26), texto, font=f, fill=ROJO_ESPAÑA)
 
 
+def _cartel_mano(d, x, y, t, rnd, g, tinta=TINTA):
+    """Un cartel en la mano, a la altura del pecho: tablero blanco con un
+    titulo rojo y renglones a mano. El que cambia los carteles, el aviso, el
+    anuncio. La pancarta dice «¡VIVIENDA!» y es de manifestacion: en el Dia de
+    la Hispanidad el funcionario salia con ella, tapandose la cara."""
+    ancho, alto = t*1.0, t*0.66
+    x0, y0 = x - ancho/2, y - alto
+    d.rectangle([x0, y0, x0 + ancho, y], fill=(250, 248, 240))
+    _linea(d, [(x0, y0), (x0 + ancho, y0), (x0 + ancho, y), (x0, y), (x0, y0)],
+           g, rnd, color=tinta, temblor=1.0)
+    for k, (izq, der, color, grueso) in enumerate(((.16, .84, ROJO_ESPAÑA, 1.5), (.14, .86, tinta, 0.8),
+                                                   (.14, .70, tinta, 0.8))):
+        yy = y0 + alto*(0.26 + 0.25*k)
+        pts = [(x0 + ancho*(izq + (der - izq)*i/10), yy + alto*0.035*math.sin(i*1.9 + k))
+               for i in range(11)]
+        _linea(d, pts, max(2, int(g*grueso)), rnd, color=color, temblor=0.6)
+
+
 def _movil(d, x, y, t, rnd, g, tinta=TINTA):
     """Un movil con la pantalla encendida y un Bizum entrando."""
     ancho, alto = t*0.50, t*0.90
@@ -3610,7 +3629,7 @@ COSAS = {
     "cofre": _cofre, "barril": _barril, "antorcha": _antorcha, "catalejo": _catalejo,
     "carta": _carta, "cadenas": _cadenas,
     "campana": lambda d, x, y, t, rnd, g, tinta=TINTA: _campana(d, x, y, t, rnd, g),
-    "pancarta": _pancarta, "movil": _movil, "periodico": _periodico, "camara_tv": _camara_tv,
+    "pancarta": _pancarta, "cartel": _cartel_mano, "movil": _movil, "periodico": _periodico, "camara_tv": _camara_tv,
     "tienda": _tienda, "ambulancia": _ambulancia, "ataud": _ataud, "calendario": _calendario,
     "pelota": _pelota, "vaso": _vaso, "maletin": _maletin,
     "nube": _nube, "sol": _sol,
