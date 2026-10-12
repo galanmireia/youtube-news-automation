@@ -75,6 +75,10 @@ FONDOS = {
     "liso":   [(0.00, 1.00, (243, 229, 213))],
 }
 
+# Monigotes con cuerpo y cosas con sombra (ver volumen.py). Encendido en
+# España Contada; Why Though lo apaga mientras dibuja, como el pulso.
+VOLUMEN = True
+
 # El pulso del trazo y su grosor. 1 en España Contada; Why Though los baja
 # mientras dibuja (garabato.fotos): el trazo de Whymentary es liso y limpio.
 PULSO = 1.0
@@ -902,11 +906,21 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
             _nota(d, x + s*alto*dx, suelo - alto*dy - sube, alto*tam, max(2, int(g*0.8)), rnd,
                   doble=(k == 1))
     dibuja_objeto = OBJETOS.get(objeto)
-    if dibuja_objeto and objeto not in OBJETOS_ENCIMA:
-        dibuja_objeto(d, x, cuello, cadera, alto, g, rnd, tinta=tinta)
-    _linea(d, [cuello, cadera], g, rnd, color=tinta)
-    for m in p["brazos"] + p["piernas"]:
-        _linea(d, [P(t) for t in m], g, rnd, color=tinta)
+    if VOLUMEN and hasattr(d, "_image"):
+        from . import volumen
+        if dibuja_objeto and objeto in volumen.DETRAS_DEL_CUERPO:
+            dibuja_objeto(d, x, cuello, cadera, alto, g, rnd, tinta=tinta)
+        encima = None
+        if dibuja_objeto and objeto not in OBJETOS_ENCIMA and objeto not in volumen.DETRAS_DEL_CUERPO:
+            encima = lambda dd: dibuja_objeto(dd, x, cuello, cadera, alto, g, rnd, tinta=tinta)
+        volumen.cuerpo(d, P, p, cuello, cadera, alto, g, rasgos, x, suelo, s, encima=encima)
+        d = ImageDraw.Draw(d._image)
+    else:
+        if dibuja_objeto and objeto not in OBJETOS_ENCIMA:
+            dibuja_objeto(d, x, cuello, cadera, alto, g, rnd, tinta=tinta)
+        _linea(d, [cuello, cadera], g, rnd, color=tinta)
+        for m in p["brazos"] + p["piernas"]:
+            _linea(d, [P(t) for t in m], g, rnd, color=tinta)
     if objeto == "mano_vendada":
         # La otra mano, la que no coge las cosas: la izquierda.
         _venda_en_la_mano(d, P(p["brazos"][0][-1]), alto, g, rnd, tinta=tinta)
@@ -922,7 +936,13 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
     # Anselmo, blanca y por delante, es la de España Contada.
     if rasgos.get("barba_gris"):
         _barba(d, (cab[0], cab[1] + rc*0.35), rc*1.05, g, rnd, tinta=tinta, relleno=(196, 196, 200))
-    _circulo(d, cab, rc, g, rnd, relleno=relleno, color=tinta)
+    if VOLUMEN and hasattr(d, "_image") and relleno == (255, 255, 255):
+        from . import volumen
+        _circulo(d, cab, rc, g, rnd, relleno=volumen.PIEL, color=tinta)
+        volumen.mejillas(d, cab, rc)
+        d = ImageDraw.Draw(d._image)
+    else:
+        _circulo(d, cab, rc, g, rnd, relleno=relleno, color=tinta)
     _cara(d, cab, rc, g, rnd, gesto, tinta=tinta)
     if rasgos.get("gafas"):
         o = rc*0.30
@@ -1048,6 +1068,17 @@ _EMBOZO = (246, 240, 226)
 
 
 def _camas(d, spec, h, w, pies_de, rnd, g, parte):
+    """Las camas y camillas, con relieve si VOLUMEN (ver volumen.py)."""
+    if not any({f.get("pose"), f.get("pose_fin")} & set(_ACOSTADAS) for f in spec.get("figuras", [])):
+        return
+    if VOLUMEN and hasattr(d, "_image") and d._image.mode == "RGB":
+        from . import volumen
+        volumen.pieza(d._image, lambda dd: _camas_planas(dd, spec, h, w, pies_de, rnd, g, parte), h*0.10)
+    else:
+        _camas_planas(d, spec, h, w, pies_de, rnd, g, parte)
+
+
+def _camas_planas(d, spec, h, w, pies_de, rnd, g, parte):
     for f in spec.get("figuras", []):
         if not {f.get("pose"), f.get("pose_fin")} & set(_ACOSTADAS):
             continue
@@ -1057,7 +1088,7 @@ def _camas(d, spec, h, w, pies_de, rnd, g, parte):
         if "en_camilla" in (f.get("pose"), f.get("pose_fin")):
             _camilla(d, x, pies, A, s, rnd, g, parte)
             continue
-        cab, pie = x - s*A*0.13, x + s*A*0.46
+        cab, pie = x - s*A*0.16, x + s*A*0.62
         izq, der = min(cab, pie), max(cab, pie)
         if parte == "detras":
             # Somier y patas.
@@ -1089,7 +1120,14 @@ def _camas(d, spec, h, w, pies_de, rnd, g, parte):
             pts = [(x0, arriba), (x + s*A*0.30, arriba + A*0.01),
                    (x1 - s*A*0.06, arriba - A*0.04), (x1, arriba + A*0.02),
                    (x1, pies - A*0.12), (x0, pies - A*0.12)]
+            # el colchon blanco asomando por debajo de la colcha
+            d.rectangle([min(x0, x1), pies - A*0.15, max(x0, x1), pies - A*0.12], fill=_EMBOZO)
             d.polygon(pts, fill=_COLCHA)
+            # cenefa dorada abajo y un rombo bordado en medio
+            d.line([(x0, pies - A*0.15), (x1, pies - A*0.15)], fill=ORO_ESPAÑA, width=max(3, int(A*0.02)))
+            mx, my = (x0 + x1)/2, (arriba + pies - A*0.12)/2
+            r = A*0.04
+            d.polygon([(mx - r, my), (mx, my - r), (mx + r, my), (mx, my + r)], fill=ORO_ESPAÑA)
             _linea(d, pts + [pts[0]], g, rnd, temblor=1.2)
             d.rectangle([min(x0, x0 + s*A*0.16), arriba + A*0.005,
                          max(x0, x0 + s*A*0.16), pies - A*0.125], fill=_EMBOZO)
@@ -1163,8 +1201,13 @@ def escena(spec, w=1080, h=1920, semilla=0):
             # y por defecto: apoyada en el suelo. El sol y las nubes van donde
             # se les diga, que es arriba.
             py = h*float(c["y"]) if c.get("y") is not None else suelo
-            f(d, w*float(c.get("x", 0.5)), py, tam, rnd,
-              max(4, int(w*0.006)), TINTA_CLARA if oscuro else TINTA)
+            if VOLUMEN and not oscuro:
+                from . import volumen
+                volumen.cosa(img, f, w*float(c.get("x", 0.5)), py, tam, rnd,
+                             max(4, int(w*0.006)), TINTA, apoyada=c.get("y") is None)
+            else:
+                f(d, w*float(c.get("x", 0.5)), py, tam, rnd,
+                  max(4, int(w*0.006)), TINTA_CLARA if oscuro else TINTA)
 
     oscuro = spec.get("fondo") in _FONDOS_OSCUROS
     tinta = TINTA_CLARA if oscuro else TINTA
@@ -2844,26 +2887,50 @@ def _perro(d, x, y, t, rnd, g, tinta=TINTA):
 
 
 def _caballo(d, x, y, t, rnd, g, tinta=TINTA):
-    """La cabeza era un bloque cuadrado flotando. Ahora es una cuña pegada al
-    cuello, que es lo que hace que se lea como un caballo."""
-    lomo = [(x-t*.50, y-t*.56), (x-t*.10, y-t*.62), (x+t*.36, y-t*.58)]
-    d.polygon(lomo + [(x+t*.30, y-t*.30), (x-t*.44, y-t*.30)], fill=CASTAÑO)
-    for px in (-.42, -.24, .10, .28):
-        d.line([(x+t*px, y-t*.31), (x+t*px+t*.04, y)], fill=CASTAÑO, width=max(3, g+2))
-    _linea(d, lomo, g, rnd, color=tinta)
-    _linea(d, [(x-t*.50, y-t*.56), (x-t*.44, y-t*.30), (x+t*.30, y-t*.30),
-               (x+t*.36, y-t*.58)], g, rnd, color=tinta)
-    for px in (-.42, -.24, .10, .28):
-        _linea(d, [(x+t*px, y-t*.31), (x+t*px+t*.04, y)], g, rnd, color=tinta)
-    cuello = [(x+t*.30, y-t*.58), (x+t*.50, y-t*1.02), (x+t*.66, y-t*1.00),
-              (x+t*.50, y-t*.56)]
-    d.polygon(cuello, fill=CASTAÑO); _linea(d, cuello, g, rnd, color=tinta)
-    cabeza = [(x+t*.50, y-t*1.02), (x+t*.86, y-t*1.06), (x+t*.90, y-t*.90),
-              (x+t*.62, y-t*.92), (x+t*.50, y-t*1.02)]
-    d.polygon(cabeza, fill=CASTAÑO); _linea(d, cabeza, g, rnd, color=tinta)
-    d.ellipse([x+t*.80, y-t*1.02, x+t*.86, y-t*.96], fill=tinta)
-    _linea(d, [(x+t*.34, y-t*.62), (x+t*.52, y-t*1.04)], max(2, g), rnd, color=tinta, temblor=3.0)
-    _linea(d, [(x-t*.50, y-t*.56), (x-t*.66, y-t*.20)], g, rnd, color=tinta, temblor=3.0)
+    """Un caballo de verdad: cuerpo redondo, patas con cascos, cuello largo,
+    cabeza con hocico y oreja, crin y cola oscuras y la silla roja. El de
+    antes eran cuatro palos debajo de una caja."""
+    pelo, oscuro, casco = CASTAÑO, (70, 44, 28), (40, 32, 28)
+    gl = max(2, g//2)
+    # patas: dos detras (mas oscuras) y dos delante
+    for px, delante in ((-.36, False), (.20, False), (-.26, True), (.30, True)):
+        col = pelo if delante else _mezcla_color(pelo, (0, 0, 0), 0.25)
+        x0 = x + t*px
+        d.line([(x0, y - t*.40), (x0 + t*.02, y - t*.05)], fill=tinta, width=int(t*.085 + 2*gl))
+        d.line([(x0, y - t*.40), (x0 + t*.02, y - t*.05)], fill=col, width=int(t*.085))
+        d.rounded_rectangle([x0 - t*.045, y - t*.07, x0 + t*.07, y], radius=int(t*.02), fill=casco,
+                            outline=tinta, width=gl)
+    # cola
+    cola = [(x - t*.50, y - t*.62), (x - t*.70, y - t*.50), (x - t*.66, y - t*.22), (x - t*.56, y - t*.30),
+            (x - t*.58, y - t*.48)]
+    d.polygon(cola, fill=oscuro, outline=tinta)
+    # cuerpo
+    d.ellipse([x - t*.56, y - t*.74, x + t*.44, y - t*.34], fill=pelo, outline=tinta, width=g)
+    # cuello y cabeza
+    cuello = [(x + t*.18, y - t*.70), (x + t*.42, y - t*1.06), (x + t*.60, y - t*1.02),
+              (x + t*.46, y - t*.52)]
+    d.polygon(cuello, fill=pelo)
+    _linea(d, [cuello[0], cuello[1]], g, rnd, color=tinta)
+    _linea(d, [cuello[2], cuello[3]], g, rnd, color=tinta)
+    cab = [(x + t*.40, y - t*1.08), (x + t*.62, y - t*1.12), (x + t*.88, y - t*.92),
+           (x + t*.86, y - t*.82), (x + t*.70, y - t*.82), (x + t*.54, y - t*.92)]
+    d.polygon(cab, fill=pelo)
+    _linea(d, cab + [cab[0]], g, rnd, color=tinta)
+    d.ellipse([x + t*.80, y - t*.90, x + t*.84, y - t*.86], fill=tinta)          # ollar
+    d.ellipse([x + t*.62, y - t*1.04, x + t*.68, y - t*.98], fill=tinta)         # ojo
+    d.ellipse([x + t*.63, y - t*1.035, x + t*.65, y - t*1.015], fill=(255, 255, 255))
+    oreja = [(x + t*.48, y - t*1.10), (x + t*.50, y - t*1.22), (x + t*.57, y - t*1.11)]
+    d.polygon(oreja, fill=pelo, outline=tinta)
+    # crin
+    for k in range(6):
+        a = k/5
+        cx, cy = x + t*(.40 + .02 - .22*a), y - t*(1.08 - .38*a)
+        d.ellipse([cx - t*.05, cy - t*.04, cx + t*.03, cy + t*.05], fill=oscuro)
+    # silla roja con cincha y borde dorado
+    silla = [(x - t*.24, y - t*.73), (x + t*.10, y - t*.74), (x + t*.14, y - t*.58), (x - t*.28, y - t*.58)]
+    d.polygon(silla, fill=(170, 40, 44), outline=tinta)
+    d.line([silla[3], silla[2]], fill=ORO_ESPAÑA, width=max(3, g//2))
+    d.line([(x - t*.06, y - t*.58), (x - t*.06, y - t*.36)], fill=(80, 56, 36), width=max(3, int(t*.025)))
 
 
 def _barco(d, x, y, t, rnd, g, tinta=TINTA):
@@ -2876,22 +2943,70 @@ def _barco(d, x, y, t, rnd, g, tinta=TINTA):
     d.polygon(vela2, fill=(255, 255, 255)); _linea(d, vela2, g, rnd, color=tinta)
 
 
+_PAREDES_CASA = ((246, 240, 226), (236, 214, 170), (240, 200, 170), (226, 228, 214),
+                 (244, 226, 196))
+_POSTIGOS = ((60, 120, 90), (70, 104, 150), (150, 70, 60), (110, 86, 60))
+
+
 def _casa(d, x, y, t, rnd, g, tinta=TINTA):
-    """Con las paredes RELLENAS. Las dibujaba a linea suelta, asi que en una
-    calle se veia el cielo a traves de las casas."""
-    d.polygon([(x-t*.42, y), (x-t*.42, y-t*.60), (x+t*.42, y-t*.60), (x+t*.42, y)],
-              fill=(232, 222, 202))
-    d.polygon([(x-t*.52, y-t*.58), (x, y-t*1.00), (x+t*.52, y-t*.58)], fill=(168, 96, 72))
-    _linea(d, [(x-t*.42, y), (x-t*.42, y-t*.60), (x+t*.42, y-t*.60), (x+t*.42, y)],
-           g, rnd, color=tinta)
-    _linea(d, [(x-t*.52, y-t*.58), (x, y-t*1.00), (x+t*.52, y-t*.58), (x-t*.52, y-t*.58)],
-           g, rnd, color=tinta)
-    d.polygon([(x-t*.12, y), (x-t*.12, y-t*.34), (x+t*.12, y-t*.34), (x+t*.12, y)],
-              fill=(120, 82, 54))
-    _linea(d, [(x-t*.12, y), (x-t*.12, y-t*.34), (x+t*.12, y-t*.34), (x+t*.12, y)],
-           g, rnd, color=tinta)
-    d.rectangle([x+t*.18, y-t*.52, x+t*.32, y-t*.38], fill=(150, 190, 214),
+    """Una casa de pueblo de dos plantas: pared encalada o de color, tejado
+    de tejas con alero, chimenea, puerta de arco, ventanas con postigos y un
+    balcon de hierro con macetas. Ella: "mejora tambien las casas". El color
+    sale de donde esta, asi que una calle no tiene dos iguales seguidas pero
+    la misma casa no cambia de un fotograma a otro."""
+    k = int(abs(x)/max(1.0, t)*7 + t) % 5
+    pared, postigo = _PAREDES_CASA[k], _POSTIGOS[k % len(_POSTIGOS)]
+    teja, teja_osc = (186, 92, 62), (140, 64, 44)
+    izq, der, alto = x - t*.42, x + t*.42, t*.66
+    techo = y - alto
+    # la pared, con zocalo
+    d.rectangle([izq, techo, der, y], fill=pared)
+    d.rectangle([izq, y - t*.07, der, y], fill=_mezcla_color(pared, (120, 110, 100), 0.35))
+    _linea(d, [(izq, y), (izq, techo), (der, techo), (der, y)], g, rnd, color=tinta)
+    # chimenea, detras del tejado
+    cx = x + t*.22
+    d.rectangle([cx - t*.05, techo - t*.36, cx + t*.05, techo - t*.12], fill=(170, 120, 96),
                 outline=tinta, width=max(2, g//2))
+    # tejado de tejas con alero
+    tej = [(izq - t*.08, techo + t*.02), (x, techo - t*.36), (der + t*.08, techo + t*.02)]
+    d.polygon(tej, fill=teja)
+    for f in range(1, 4):
+        yy = techo + t*.02 - t*.36*f/4
+        ancho = (t*.50)*(1 - f/4)
+        _linea(d, [(x - ancho, yy), (x + ancho, yy)], max(2, g//3), rnd, color=teja_osc, temblor=0.5)
+    _linea(d, tej + [tej[0]], g, rnd, color=tinta)
+    # puerta de arco
+    pw, ph = t*.13, t*.30
+    d.rounded_rectangle([x - t*.20 - pw, y - ph, x - t*.20 + pw, y], radius=int(pw*0.9),
+                        fill=(122, 80, 50), outline=tinta, width=max(2, g//2))
+    d.line([(x - t*.20, y - ph*0.82), (x - t*.20, y)], fill=(90, 58, 36), width=max(2, g//3))
+    d.ellipse([x - t*.20 + pw*0.45, y - ph*0.45, x - t*.20 + pw*0.65, y - ph*0.35], fill=ORO_ESPAÑA)
+    # ventana de abajo con postigos
+    vx, vy, vw, vh = x + t*.20, y - t*.24, t*.08, t*.10
+    d.rectangle([vx - vw, vy - vh, vx + vw, vy + vh], fill=(150, 196, 226), outline=tinta, width=max(2, g//2))
+    d.line([(vx, vy - vh), (vx, vy + vh)], fill=tinta, width=max(1, g//3))
+    for l in (-1, 1):
+        d.rectangle([min(vx + l*vw*1.05, vx + l*vw*1.85), vy - vh,
+                     max(vx + l*vw*1.05, vx + l*vw*1.85), vy + vh], fill=postigo,
+                    outline=tinta, width=max(1, g//3))
+    # balcon arriba: ventana alta, barandilla de hierro y macetas
+    bx, by = x, techo + t*.20
+    d.rectangle([bx - t*.07, by - t*.12, bx + t*.07, by + t*.06], fill=(150, 196, 226),
+                outline=tinta, width=max(2, g//2))
+    d.rectangle([bx - t*.17, by + t*.05, bx + t*.17, by + t*.075], fill=(90, 90, 96))
+    for k2 in range(7):
+        px = bx - t*.16 + t*.32*k2/6
+        d.line([(px, by - t*.02), (px, by + t*.05)], fill=(60, 60, 66), width=max(1, g//3))
+    d.line([(bx - t*.17, by - t*.02), (bx + t*.17, by - t*.02)], fill=(60, 60, 66), width=max(2, g//2))
+    for px in (bx - t*.12, bx + t*.12):
+        d.rectangle([px - t*.025, by - t*.05, px + t*.025, by - t*.02], fill=(176, 96, 60))
+        for dx in (-1, 0, 1):
+            d.ellipse([px + dx*t*.018 - t*.014, by - t*.075, px + dx*t*.018 + t*.014, by - t*.047],
+                      fill=(220, 60, 70) if dx else (60, 140, 70))
+
+
+def _mezcla_color(a, b, k):
+    return tuple(int(a[i]*(1 - k) + b[i]*k) for i in range(3))
 
 
 def _iglesia(d, x, y, t, rnd, g, tinta=TINTA):
@@ -4450,6 +4565,33 @@ _DECORADOS = {
                      "cuelga": [], "velas": []},
 }
 DECORADOS_VALIDOS = tuple(_DECORADOS)
+# Las piezas del decorado que son UN objeto y llevan relieve (volumen.py). Las
+# que ocupan el fondo entero (las casas, la selva, la muralla) no: el relieve
+# es para lo que se ve como cosa.
+# Ella: "mejora tambien los objetos, las casas, la cama..." - todas, menos la
+# batalla, que es humo y fogonazos y con borde parecia recortada.
+_PIEZAS_CON_RELIEVE = tuple(sorted({"trono", "chimenea", "estandarte", "estandarte_otomano",
+                                    "cruz_grande", "mastil", "reja", "ventana_arco", "ventana_mar",
+                                    "ventana_piso", "cuadro", "reloj", "puesto", "casas", "muralla",
+                                    "tiendas", "naranjos", "cortinas", "selva", "playa", "costa",
+                                    "palacio_ducal", "san_pedro", "mezquitas", "arcos_otomanos",
+                                    "puntales", "banderines"}))
+_MUEBLES_SIN_RELIEVE = ()
+
+
+def _muebles_con_relieve(img, d, lista, w, h, suelo, rnd, g):
+    """Los muebles de una receta: con VOLUMEN, todos juntos en una capa con
+    relieve; sin el, como siempre."""
+    juntos = []
+    for que, x, y, tam in lista:
+        if VOLUMEN and que not in _MUEBLES_SIN_RELIEVE:
+            juntos.append((que, x, y, tam))
+        else:
+            _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g)
+    if juntos:
+        from . import volumen
+        volumen.pieza(img, lambda dd: [_pieza_mueble(dd, w, h, suelo, que, x, y, tam, rnd, g)
+                                       for que, x, y, tam in juntos], h*0.10)
 
 # Lo que ve el guion de cada sitio. Va aqui, al lado de las recetas, y no
 # escrito a mano en el prompt: la lista del prompt estaba tecleada y cada
@@ -4914,7 +5056,8 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "casas":
         for k in range(5):
             px = w*(0.08 + 0.21*k)
-            _casa(d, px, suelo + h*0.005, h*rnd.uniform(0.17, 0.25), rnd, g, TINTA)
+            # La altura fija por casa: con rnd cambiaba cada tres fotogramas.
+            _casa(d, px, suelo + h*0.005, h*(0.19 + 0.05*((k*7) % 5)/4), rnd, g, TINTA)
     elif que == "puesto":
         toldo = [(X-T*.6, suelo-h*.20), (X+T*.6, suelo-h*.20),
                  (X+T*.5, suelo-h*.13), (X-T*.5, suelo-h*.13)]
@@ -4998,18 +5141,30 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
     else:
         _pared(d, w, 0, suelo, clase, rnd, g)
 
+    # Con relieve, las piezas que son un objeto van TODAS en una capa: una
+    # capa a pantalla entera por pieza doblaba lo que tarda cada fotograma.
+    con_relieve = []
     for que, x, y, tam in receta["fondo"]:
-        _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g)
+        if VOLUMEN and que in _PIEZAS_CON_RELIEVE:
+            con_relieve.append((que, x, y, tam))
+        else:
+            _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g)
+    if con_relieve:
+        from . import volumen
+        volumen.pieza(img, lambda dd: [_pieza_fondo(dd, w, h, suelo, *q[:1], *q[1:], rnd, g)
+                                       for q in con_relieve], h*0.12)
     # Lo colgado de la pared, DETRAS de todo lo demas: es pared. Lo tenia al
     # final, despues incluso de los muebles de delante, y las espadas del
     # salon del trono salian clavadas en la cabeza de los monigotes.
     for que, x, y, tam in receta["cuelga"]:
         f = COSAS.get(que)
-        if f:
+        if f and VOLUMEN:
+            from . import volumen
+            volumen.cosa(img, f, w*x, h*y, h*tam, rnd, max(2, g//2), TINTA, apoyada=False)
+        elif f:
             f(d, w*x, h*y, h*tam, rnd, max(2, g//2), TINTA)
     _piso(d, w, h, suelo, receta["piso"], rnd, g)
-    for que, x, y, tam in receta["muebles"]:
-        _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g)
+    _muebles_con_relieve(img, d, receta["muebles"], w, h, suelo, rnd, g)
 
     # DONDE PISA LA GENTE. Tenia un +0.24 fijo, puesto para la taberna: ahi
     # hay una mesa por delante que les tapa medio cuerpo, asi que hundirlos es
@@ -5052,9 +5207,15 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
             # puerto, la batalla) una galera "en el suelo" salia gigante
             # encima de las tablas de la cubierta, como varada en el barco.
             # Se mandan al agua, lejos y del tamaño de lejos.
-            if c.get("que") in _NAVEGAN and receta["pared"] == "cielo_mar" and c.get("y") is None:
+            navega = c.get("que") in _NAVEGAN and receta["pared"] == "cielo_mar" and c.get("y") is None
+            if navega:
                 py, tam = suelo - h*0.012, min(tam, h*0.10)
-            dibuja(d, w*float(c.get("x", 0.5)), py, tam, rnd, max(4, int(w*0.006)))
+            if VOLUMEN:
+                from . import volumen
+                volumen.cosa(img, dibuja, w*float(c.get("x", 0.5)), py, tam, rnd,
+                             max(4, int(w*0.006)), apoyada=c.get("y") is None and not navega)
+            else:
+                dibuja(d, w*float(c.get("x", 0.5)), py, tam, rnd, max(4, int(w*0.006)))
 
     _pinta_cosas(delante=False)
     _camas(d, spec, h, w, lambda f: pies, rnd, max(4, int(w*0.006)), "detras")
@@ -5086,8 +5247,7 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
                                 alto_f*0.78, rnd, max(2, g//2),
                                 papeles=1, jarras=0, alto=alto_f*0.34)
 
-    for que, x, y, tam in receta["delante"]:
-        _pieza_mueble(d, w, h, suelo, que, x, y, tam, rnd, g)
+    _muebles_con_relieve(img, d, receta["delante"], w, h, suelo, rnd, g)
     _pinta_cosas(delante=True)
     _pinta_adornos(d, adornos, rnd)
     spec["_cabezas"] = [(fx, fy - fa*0.86, fa) for _, fx, fy, fa in adornos]

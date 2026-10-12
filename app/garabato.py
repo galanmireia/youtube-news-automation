@@ -1832,6 +1832,7 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
         # El trazo de Whymentary: liso, sin el pulso de España Contada, y
         # algo mas fino. Solo mientras se dibuja este fotograma.
         m.figura, m.PULSO, m.GROSOR, m._cara = espia, _PULSO, _GROSOR, _cara_expresiva
+        m.VOLUMEN = False
         try:
             img = next(animacion).convert("RGB")
             if fondo is not None:
@@ -1907,6 +1908,7 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
             break
         finally:
             m.figura, m.PULSO, m.GROSOR, m._cara = original, 1.0, 1.0, _CARA_ORIGINAL
+            m.VOLUMEN = True
         yield _hierve(img, n//paso_hervor*_HERVOR) if hervor else img
         n += 1
 
