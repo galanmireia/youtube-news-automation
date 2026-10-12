@@ -1215,6 +1215,7 @@ def escena(spec, w=1080, h=1920, semilla=0):
     _pinta_cosas(delante=False)
     g_cama = max(4, int(w*0.006))
     _camas(d, spec, h, w, lambda f: suelo, rnd, g_cama, "detras")
+    _sillas(d, spec, h, w, lambda f: suelo, rnd, g_cama)
     adornos = []
     for f in spec.get("figuras", []):
         alto_f = h*f.get("alto", 0.30)
@@ -3331,42 +3332,79 @@ _ADORNOS = {
 
 
 def _paño(d, x, y, t, rnd, g, tinta, franjas, horizontal, hacia=1):
-    """El trapo de una bandera, ondeando, con sus franjas dentro.
-
-    Se dibuja como cuatro esquinas y se reparte por dentro en trozos rectos:
-    una franja curvada seria mas bonita y a este tamaño no se notaria, y las
-    franjas rectas se leen mejor en un movil.
-    """
+    """El trapo de una bandera, ONDEANDO: los bordes de arriba y abajo hacen
+    olas que crecen al alejarse del mastil, y cada tramo lleva su luz o su
+    sombra segun la ola, que es lo que hace que parezca tela. Ella: "las
+    banderas y todo tambien". Devuelve las cuatro esquinas, que es lo que
+    usan los escudos de dentro (_centro_paño)."""
     x0, x1 = x, x + hacia*t*.56
     arriba_i, arriba_d = y - t*1.06, y - t*.92
     abajo_i,  abajo_d  = y - t*.66,  y - t*.62
     borde = [(x0, arriba_i), (x1, arriba_d), (x1, abajo_d), (x0, abajo_i)]
+    amp, n = t*0.035, 14
+
+    def ola(u):
+        return amp*u*math.sin(2*math.pi*u*1.25 + 0.6)
+
+    def luz(u):
+        return 1.0 + 0.17*math.cos(2*math.pi*u*1.25 + 0.6)*min(1.0, u*3)
+
+    def punto(u, v):
+        xx = x0 + (x1 - x0)*u
+        arr = arriba_i + (arriba_d - arriba_i)*u
+        aba = abajo_i + (abajo_d - abajo_i)*u
+        return (xx, arr + (aba - arr)*v + ola(u))
+
+    def tono(c, k):
+        return tuple(max(0, min(255, int(v*k))) for v in c)
 
     corrido = 0.0
     for color, parte in franjas:
         a, b = corrido, corrido + parte
         corrido = b
-        if horizontal:
-            trozo = [(x0, arriba_i + (abajo_i-arriba_i)*a), (x1, arriba_d + (abajo_d-arriba_d)*a),
-                     (x1, arriba_d + (abajo_d-arriba_d)*b), (x0, arriba_i + (abajo_i-arriba_i)*b)]
-        else:
-            # OJO con el max() aqui: con la bandera al reves x1-x0 es NEGATIVO,
-            # y max(negativo, 1e-6) da 1e-6. Eso reventaba la interpolacion y
-            # la bandera espejada salia con el contorno y sin franjas.
-            vuelo = (x1 - x0) or 1e-6
-            xa, xb = x0 + vuelo*a, x0 + vuelo*b
-            arr = lambda xx: arriba_i + (arriba_d-arriba_i)*((xx-x0)/vuelo)
-            aba = lambda xx: abajo_i + (abajo_d-abajo_i)*((xx-x0)/vuelo)
-            trozo = [(xa, arr(xa)), (xb, arr(xb)), (xb, aba(xb)), (xa, aba(xa))]
-        d.polygon(trozo, fill=color)
+        for k in range(n):
+            u0, u1 = k/n, (k + 1)/n
+            if horizontal:
+                trozo = [punto(u0, a), punto(u1, a), punto(u1, b), punto(u0, b)]
+                d.polygon(trozo, fill=tono(color, luz((u0 + u1)/2)))
+            else:
+                ua, ub = max(u0, a), min(u1, b)
+                if ub <= ua:
+                    continue
+                trozo = [punto(ua, 0), punto(ub, 0), punto(ub, 1), punto(ua, 1)]
+                d.polygon(trozo, fill=tono(color, luz((ua + ub)/2)))
+    contorno = ([punto(k/n, 0) for k in range(n + 1)] + [punto(1, 1)] +
+                [punto(k/n, 1) for k in range(n, -1, -1)])
+    d.line(contorno + [contorno[0]], fill=tinta, width=max(2, g), joint="curve")
     return borde
+
+
+def _adorno_espana(d, borde, t, g, rnd):
+    """El escudo, sencillo, en la franja amarilla cerca del mastil: un
+    blason partido en rojo y oro con su corona encima."""
+    cx, cy = _centro_paño(borde, .32, .52)
+    r = t*.075
+    escudo = [(cx - r, cy - r), (cx + r, cy - r), (cx + r, cy + r*0.3), (cx, cy + r*1.2),
+              (cx - r, cy + r*0.3)]
+    d.polygon(escudo, fill=(200, 40, 40))
+    d.polygon([(cx, cy - r), (cx + r, cy - r), (cx + r, cy + r*0.3), (cx, cy + r*1.2)],
+              fill=(236, 186, 40))
+    d.line(escudo + [escudo[0]], fill=(110, 30, 30), width=max(1, g//3))
+    d.polygon([(cx - r*0.8, cy - r), (cx - r*0.8, cy - r*1.6), (cx - r*0.4, cy - r*1.3), (cx, cy - r*1.8),
+               (cx + r*0.4, cy - r*1.3), (cx + r*0.8, cy - r*1.6), (cx + r*0.8, cy - r)],
+              fill=(214, 160, 30))
 
 
 def _bandera_de(nombre):
     franjas, horizontal = _BANDERAS[nombre]
 
     def dibuja(d, x, y, t, rnd, g, tinta=TINTA):
-        _linea(d, [(x, y), (x, y-t*1.10)], g, rnd, color=tinta)
+        # El mastil: palo de madera con su borde y la bola dorada arriba.
+        d.line([(x, y), (x, y - t*1.10)], fill=tinta, width=max(3, int(g*2.2)))
+        d.line([(x, y), (x, y - t*1.10)], fill=MADERA_OSCURA, width=max(1, int(g*1.0)))
+        r = max(3, t*0.035)
+        d.ellipse([x - r, y - t*1.10 - r*1.6, x + r, y - t*1.10 + r*0.4], fill=(236, 186, 40),
+                  outline=tinta, width=max(1, g//3))
         # El trapo ondea hacia donde HAY SITIO. Puesta en el lado derecho del
         # plano, la bandera se salia por el borde y se veia media Francia.
         ancho = getattr(getattr(d, "_image", None), "width", 0)
@@ -3377,10 +3415,9 @@ def _bandera_de(nombre):
             d.rectangle([cx-t*.04, cy-t*.16, cx+t*.04, cy+t*.16], fill=ROJO_ESPAÑA)
             d.rectangle([min(cx-t*.24, cx+t*.24), cy-t*.04,
                          max(cx-t*.24, cx+t*.24), cy+t*.04], fill=ROJO_ESPAÑA)
-        adorno = _ADORNOS.get(nombre)
+        adorno = _ADORNOS.get(nombre) or (_adorno_espana if nombre == "bandera_espana" else None)
         if adorno:
             adorno(d, borde, t, g, rnd)
-        _linea(d, borde, g, rnd, color=tinta)
     return dibuja
 
 
@@ -3967,13 +4004,44 @@ def _adoquines(d, x0, y0, x1, y1, rnd, g):
 
 
 def _mesa_con_cosas(d, x, y, ancho, rnd, g, papeles=2, jarras=2, alto=None):
+    """Una mesa de madera de verdad: tablero visto desde un poco arriba (el
+    borde de atras mas corto que el de delante), canto grueso, faldon y
+    cuatro patas torneadas, las de atras mas cortas y oscuras. La de antes
+    era una tabla fina con dos palos. Lo de encima, igual que siempre."""
     alto = alto if alto else ancho*0.30
-    tablero = [(x-ancho/2, y-alto), (x+ancho/2, y-alto),
-               (x+ancho*0.42, y-alto*0.72), (x-ancho*0.42, y-alto*0.72)]
-    d.polygon(tablero, fill=MADERA_CLARA); _linea(d, tablero+[tablero[0]], g, rnd, color=TINTA)
+    gl = max(2, g//2)
+    claro, medio, oscuro = MADERA_CLARA, MADERA, MADERA_OSCURA
+    fondo_y, frente_y = y - alto, y - alto*0.78
+    canto_y, faldon_y = y - alto*0.70, y - alto*0.58
+    pata = max(4, ancho*0.045)
+    # patas de atras
     for lado in (-1, 1):
-        px = x + lado*ancho*0.36
-        _linea(d, [(px, y-alto*0.74), (px, y)], int(g*1.8), rnd, color=MADERA_OSCURA)
+        px = x + lado*ancho*0.38
+        d.rectangle([px - pata*0.4, canto_y, px + pata*0.4, y - alto*0.14],
+                    fill=_mezcla_color(oscuro, (0, 0, 0), 0.2), outline=TINTA, width=gl)
+    # faldon entre las patas
+    d.rectangle([x - ancho*0.45, canto_y, x + ancho*0.45, faldon_y], fill=oscuro, outline=TINTA, width=gl)
+    # patas de delante, torneadas: mas anchas arriba, un anillo y el pie
+    for lado in (-1, 1):
+        px = x + lado*ancho*0.44
+        pts = [(px - pata*0.55, canto_y), (px + pata*0.55, canto_y), (px + pata*0.40, y - alto*0.10),
+               (px + pata*0.50, y), (px - pata*0.50, y), (px - pata*0.40, y - alto*0.10)]
+        d.polygon(pts, fill=medio, outline=TINTA)
+        d.line(pts + [pts[0]], fill=TINTA, width=gl)
+        d.ellipse([px - pata*0.65, y - alto*0.42, px + pata*0.65, y - alto*0.34], fill=oscuro,
+                  outline=TINTA, width=gl)
+    # el canto del tablero
+    d.rectangle([x - ancho/2, frente_y, x + ancho/2, canto_y], fill=medio, outline=TINTA, width=gl)
+    # el tablero, con sus vetas
+    tablero = [(x - ancho*0.44, fondo_y), (x + ancho*0.44, fondo_y),
+               (x + ancho/2, frente_y), (x - ancho/2, frente_y)]
+    d.polygon(tablero, fill=claro)
+    for k in (0.3, 0.62):
+        yy = fondo_y + (frente_y - fondo_y)*k
+        mitad = ancho*(0.44 + 0.06*k)
+        _linea(d, [(x - mitad*0.9, yy), (x - mitad*0.2, yy + alto*0.01), (x + mitad*0.6, yy)],
+               max(1, g//3), rnd, color=_mezcla_color(claro, oscuro, 0.45), temblor=0.6)
+    _linea(d, tablero + [tablero[0]], g, rnd, color=TINTA, temblor=0.8)
     for k in range(papeles):
         px = x - ancho*0.22 + ancho*0.34*k
         hoja = [(px-ancho*.13, y-alto*1.02), (px+ancho*.13, y-alto*1.04),
@@ -3985,6 +4053,38 @@ def _mesa_con_cosas(d, x, y, ancho, rnd, g, papeles=2, jarras=2, alto=None):
     for k in range(jarras):
         px = x + ancho*(0.30 - 0.52*k)
         _jarra(d, px, y-alto*0.92, ancho*0.075, rnd, max(2, g//2))
+
+
+def _silla(d, x, pies, A, s, rnd, g, asiento):
+    """La silla del que se sienta, DETRAS de el: el asiento a la altura de su
+    cadera y el respaldo a su espalda. Se sentaban en el aire."""
+    gl = max(2, g//2)
+    sy = pies - A*asiento                    # el asiento
+    atras = x - s*A*0.10                     # el respaldo, a la espalda
+    ancho = A*0.24
+    x0, x1 = x - s*A*0.14 - ancho/2, x - s*A*0.14 + ancho/2
+    izq, der = min(x0, x1), max(x0, x1)
+    for px in (izq + A*0.02, der - A*0.02):
+        d.rectangle([px - A*0.015, sy, px + A*0.015, pies], fill=MADERA_OSCURA, outline=TINTA, width=gl)
+    if asiento > 0.15:
+        d.rectangle([atras - A*0.02, sy - A*0.34, atras + A*0.02, sy], fill=MADERA_OSCURA,
+                    outline=TINTA, width=gl)
+        d.rounded_rectangle([atras - A*0.05, sy - A*0.36, atras + A*0.05, sy - A*0.30],
+                            radius=int(A*0.02), fill=MADERA, outline=TINTA, width=gl)
+    d.rounded_rectangle([izq, sy - A*0.035, der, sy + A*0.01], radius=int(A*0.015),
+                        fill=(170, 40, 44) if asiento > 0.15 else MADERA, outline=TINTA, width=gl)
+
+
+_SENTADOS = {"sentado": 0.09, "en_mesa": 0.25, "firmando": 0.25}
+
+
+def _sillas(d, spec, h, w, pies_de, rnd, g):
+    for f in spec.get("figuras", []):
+        asiento = _SENTADOS.get(f.get("pose"))
+        if asiento is None or f.get("_giro"):
+            continue
+        A = h*f.get("alto", 0.30)
+        _silla(d, w*f["x"], pies_de(f), A, -1 if f.get("espejo") else 1, rnd, g, asiento)
 
 
 def _taburete(d, x, y, t, rnd, g):
@@ -4317,26 +4417,87 @@ def _estante(d, x, y, ancho, rnd, g, ollas=2):
 
 
 def _estandarte(d, x, y, ancho, alto, rnd, g, color=(170, 44, 44), franja=None, aspa=None):
+    """El estandarte colgado: paño con la mitad derecha en sombra (la tela
+    hace un pliegue), ribete y flecos dorados en las puntas, y la barra con
+    sus remates de oro y el cordon."""
+    oro = (236, 186, 40)
     paño = [(x-ancho/2, y), (x+ancho/2, y), (x+ancho/2, y+alto),
             (x, y+alto*0.86), (x-ancho/2, y+alto)]
-    d.polygon(paño, fill=color); _linea(d, paño+[paño[0]], g, rnd, color=TINTA)
+    d.polygon(paño, fill=color)
     if franja:
         d.rectangle([x-ancho/2, y+alto*0.34, x+ancho/2, y+alto*0.54], fill=franja)
     if aspa:
         for a, b in (((-.40, .08), (.40, .78)), ((.40, .08), (-.40, .78))):
             _linea(d, [(x + ancho*a[0], y + alto*a[1]), (x + ancho*b[0], y + alto*b[1])],
                    int(g*1.6), rnd, color=aspa, temblor=2.0)
-    _linea(d, [(x-ancho*0.62, y), (x+ancho*0.62, y)], int(g*1.4), rnd, color=MADERA_OSCURA)
+    # el pliegue: una franja de sombra vertical y otra de luz
+    for (px0, px1), k in (((0.10, 0.30), 0.80), ((-0.30, -0.18), 1.12)):
+        for yy0, yy1 in ((0.0, 0.34), (0.54, 0.9)) if franja else ((0.0, 0.9),):
+            sub = (tuple(max(0, min(255, int(v*k))) for v in color))
+            d.rectangle([x + ancho*px0, y + alto*yy0 + 2, x + ancho*px1, y + alto*min(yy1, 0.86)], fill=sub)
+    _linea(d, paño+[paño[0]], g, rnd, color=TINTA)
+    # ribete y flecos dorados
+    d.line([(x-ancho/2 + g, y + alto*0.05), (x+ancho/2 - g, y + alto*0.05)], fill=oro, width=max(2, g//2))
+    for px, py in ((x-ancho/2, y+alto), (x+ancho/2, y+alto), (x, y+alto*0.86)):
+        for k in (-1, 0, 1):
+            d.line([(px + k*ancho*0.04, py), (px + k*ancho*0.04, py + alto*0.07)], fill=oro, width=max(2, g//2))
+    # la barra, los remates y el cordon
+    d.line([(x-ancho*0.62, y), (x+ancho*0.62, y)], fill=TINTA, width=int(g*2.2))
+    d.line([(x-ancho*0.62, y), (x+ancho*0.62, y)], fill=MADERA_OSCURA, width=max(1, int(g*1.2)))
+    for lado in (-1, 1):
+        r = ancho*0.07
+        d.ellipse([x + lado*ancho*0.66 - r, y - r, x + lado*ancho*0.66 + r, y + r], fill=oro, outline=TINTA)
+    d.line([(x-ancho*0.55, y), (x, y - alto*0.14), (x+ancho*0.55, y)], fill=oro, width=max(2, g//2))
 
 
 def _trono(d, x, y, ancho, rnd, g):
+    """El trono: respaldo alto de terciopelo rojo con marco dorado y remate
+    de corona, brazos con bola dorada, cojin y patas de leon. El de antes era
+    una tabla marron con una franja roja."""
     alto = ancho*1.5
-    respaldo = [(x-ancho/2, y), (x-ancho/2, y-alto), (x-ancho*0.28, y-alto*1.14),
-                (x, y-alto*1.0), (x+ancho*0.28, y-alto*1.14), (x+ancho/2, y-alto),
-                (x+ancho/2, y)]
-    d.polygon(respaldo, fill=MADERA_CLARA); _linea(d, respaldo+[respaldo[0]], g, rnd, color=TINTA)
-    d.rectangle([x-ancho*0.6, y-alto*0.36, x+ancho*0.6, y-alto*0.24], fill=(170, 44, 44))
-    _linea(d, [(x-ancho*0.6, y-alto*0.36), (x+ancho*0.6, y-alto*0.36)], g, rnd, color=TINTA)
+    oro, oro_osc = ORO_ESPAÑA, (176, 128, 30)
+    rojo, rojo_osc = (168, 34, 44), (120, 22, 32)
+    gl = max(2, g//2)
+    asiento = y - alto*0.34
+    # patas
+    for lado in (-1, 1):
+        px = x + lado*ancho*0.44
+        d.rectangle([px - ancho*0.05, asiento, px + ancho*0.05, y - ancho*0.04], fill=oro_osc, outline=TINTA, width=gl)
+        d.ellipse([px - ancho*0.08, y - ancho*0.09, px + ancho*0.08, y], fill=oro, outline=TINTA, width=gl)
+    # respaldo: marco dorado y terciopelo dentro
+    marco = [(x - ancho*0.46, asiento), (x - ancho*0.46, y - alto*0.98), (x - ancho*0.24, y - alto*1.10),
+             (x, y - alto*1.16), (x + ancho*0.24, y - alto*1.10), (x + ancho*0.46, y - alto*0.98),
+             (x + ancho*0.46, asiento)]
+    d.polygon(marco, fill=oro)
+    _linea(d, marco + [marco[0]], g, rnd, color=TINTA)
+    terciopelo = [(x - ancho*0.36, asiento), (x - ancho*0.36, y - alto*0.94), (x, y - alto*1.05),
+                  (x + ancho*0.36, y - alto*0.94), (x + ancho*0.36, asiento)]
+    d.polygon(terciopelo, fill=rojo)
+    d.polygon([(x + ancho*0.08, asiento), (x + ancho*0.08, y - alto*1.02), (x + ancho*0.36, y - alto*0.94),
+               (x + ancho*0.36, asiento)], fill=rojo_osc)
+    _linea(d, terciopelo, gl, rnd, color=TINTA)
+    # botones del capitone
+    for fila in range(3):
+        for col in (-1, 0, 1):
+            bx, by = x + col*ancho*0.17, y - alto*(0.56 + 0.14*fila)
+            d.ellipse([bx - ancho*0.02, by - ancho*0.02, bx + ancho*0.02, by + ancho*0.02], fill=oro_osc)
+    # remate: una coronita
+    cy = y - alto*1.16
+    d.polygon([(x - ancho*0.12, cy), (x - ancho*0.12, cy - ancho*0.14), (x - ancho*0.06, cy - ancho*0.07),
+               (x, cy - ancho*0.18), (x + ancho*0.06, cy - ancho*0.07), (x + ancho*0.12, cy - ancho*0.14),
+               (x + ancho*0.12, cy)], fill=oro, outline=TINTA)
+    # cojin del asiento y brazos
+    d.rounded_rectangle([x - ancho*0.48, asiento - ancho*0.07, x + ancho*0.48, asiento + ancho*0.06],
+                        radius=int(ancho*0.05), fill=rojo, outline=TINTA, width=gl)
+    for lado in (-1, 1):
+        bx = x + lado*ancho*0.55
+        d.rounded_rectangle([min(bx, x + lado*ancho*0.40), asiento - ancho*0.30,
+                             max(bx, x + lado*ancho*0.40), asiento - ancho*0.20],
+                            radius=int(ancho*0.04), fill=oro_osc, outline=TINTA, width=gl)
+        d.rectangle([bx - ancho*0.035, asiento - ancho*0.22, bx + ancho*0.035, asiento], fill=oro_osc,
+                    outline=TINTA, width=gl)
+        d.ellipse([bx - ancho*0.07, asiento - ancho*0.38, bx + ancho*0.07, asiento - ancho*0.24], fill=oro,
+                  outline=TINTA, width=gl)
 
 
 def _mastil(d, x, suelo, h, rnd, g):
@@ -4425,16 +4586,21 @@ def _naranjos(d, w, h, suelo, rnd, g):
 #   delante       : lo que tapa a la gente por abajo (la mesa, una barandilla)
 #   cuelga        : lo colgado de la pared
 #   velas         : donde hay lumbre, para el resplandor
+# SIN MESA GIGANTE DELANTE. Ella: "las mesas las odio". La taberna, el
+# monasterio, la cocina y el mercado llevaban una mesa "delante" al borde de
+# abajo del plano, debajo de los pies de la gente: una tabla flotando que no
+# tapaba nada. Ahora la mesa va al fondo, y el que se sienta a la mesa o
+# firma lleva la suya, a la altura de sus manos.
 _DECORADOS = {
     "taberna":      {"pared": "entramado", "piso": "tablas",
                      "fondo": [("ventana_mar", .26, .34, .34), ("chimenea", .78, 1.0, .30)],
                      "muebles": [("mesa_fondo", .49, .03, .24), ("taburete", .90, .10, .09)],
-                     "delante": [("mesa", .46, .34, .92)],
+                     "delante": [],
                      "cuelga": [("espada", .13, .40, .10)], "velas": [(.78, -.10)]},
     "monasterio":   {"pared": "piedra", "piso": "losas",
                      "fondo": [("ventana_arco", .50, .36, .20)],
-                     "muebles": [("estante", .18, .06, .22)],
-                     "delante": [("mesa", .50, .30, .94)],
+                     "muebles": [("estante", .18, .06, .22), ("mesa_fondo", .64, .03, .26)],
+                     "delante": [],
                      "cuelga": [("cruz", .84, .38, .09)], "velas": [(.12, -.30), (.88, -.30)]},
     "salon_trono":  {"pared": "piedra", "piso": "losas",
                      "fondo": [("trono", .50, 1.0, .22), ("estandarte", .16, .22, .13),
@@ -4444,8 +4610,8 @@ _DECORADOS = {
                      "velas": [(.08, -.34), (.92, -.34)]},
     "cocina":       {"pared": "encalada", "piso": "losas",
                      "fondo": [("chimenea", .74, 1.0, .34), ("ventana_arco", .22, .34, .16)],
-                     "muebles": [("estante", .30, .30, .30)],
-                     "delante": [("mesa", .44, .32, .90)],
+                     "muebles": [("estante", .30, .30, .30), ("mesa_fondo", .52, .03, .24)],
+                     "delante": [],
                      "cuelga": [("olla", .50, .30, .06)], "velas": [(.74, -.12)]},
     "iglesia":      {"pared": "piedra", "piso": "losas",
                      "fondo": [("ventana_arco", .28, .30, .17), ("ventana_arco", .72, .30, .17),
@@ -4460,7 +4626,7 @@ _DECORADOS = {
                      "fondo": [("casas", .5, 1.0, 1.0), ("puesto", .20, 1.0, .28),
                                ("puesto", .80, 1.0, .28)],
                      "muebles": [("olla_suelo", .50, .06, .07)],
-                     "delante": [("mesa", .50, .34, .84)], "cuelga": [], "velas": []},
+                     "delante": [], "cuelga": [], "velas": []},
     "cubierta":     {"pared": "cielo_mar", "piso": "tablas",
                      "fondo": [("mastil", .50, 1.0, 1.0)],
                      "muebles": [("olla_suelo", .84, .08, .06)],
@@ -5219,6 +5385,7 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
 
     _pinta_cosas(delante=False)
     _camas(d, spec, h, w, lambda f: pies, rnd, max(4, int(w*0.006)), "detras")
+    _sillas(d, spec, h, w, lambda f: pies, rnd, max(4, int(w*0.006)))
     adornos = []
     for f in spec.get("figuras", []):
         alto_f = h*f.get("alto", 0.30)
@@ -5243,7 +5410,8 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
                 # A la altura de las MANOS, que en estas posturas estan a un
                 # tercio de la figura. Estaba al 10% - una mesita a ras de
                 # suelo -, y Godoy firmaba el tratado en el aire.
-                _mesa_con_cosas(d, w*f["x"] + alto_f*0.10, pies + alto_f*0.06,
+                _mesa_con_cosas(d, w*f["x"] + (-1 if f.get("espejo") else 1)*alto_f*0.14,
+                                pies + alto_f*0.06,
                                 alto_f*0.78, rnd, max(2, g//2),
                                 papeles=1, jarras=0, alto=alto_f*0.34)
 
