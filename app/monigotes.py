@@ -1964,15 +1964,19 @@ def _pinta_llevado(d, f, x, y, alto, rnd, rasgos):
         cy = y + p["cuello"][1]*alto + alto*0.03
         _ataud(d, cx - s*alto*0.12, cy, alto*0.42, rnd, max(3, int(alto*0.012)))
         return
+    # EL CARTEL Y EL PERGAMINO, DELANTE DEL PECHO. Iban en la mano de
+    # delante, y esa es la que señala: en el Dia de la Hispanidad el brazo
+    # estirado llevaba el cartel encima del otro personaje y a Remedios no se
+    # la veia. Se sujetan como se sujeta un cartel, contra el pecho.
+    pecho_x = x + (p["cuello"][0]*0.5 + p["cadera"][0]*0.5)*alto*s*anc + s*alto*0.03
+    pecho_y = y + (p["cuello"][1]*0.45 + p["cadera"][1]*0.55)*alto
     if que == "pergamino_largo":
-        # De la mano al suelo: el rollo arriba, la tira que cae y el final
-        # enroscado en el suelo, delante de los pies.
-        mx, my = p["brazos"][1][-1]
-        hx, hy = x + mx*alto*s*anc, y + my*alto
+        # Del pecho al suelo: el rollo arriba, la tira que cae y el final
+        # enroscado en el suelo, a sus pies.
+        hx, hy = pecho_x, pecho_y - alto*0.10
         papel = (240, 226, 186)
-        ancho = alto*0.22
-        hy -= alto*0.12                       # lo coge por arriba, cerca del rollo
-        pie = (x + s*alto*0.48, y + alto*0.02)
+        ancho = alto*0.20
+        pie = (x - s*alto*0.02, y + alto*0.04)
         tira = [(hx - ancho/2, hy), (hx + ancho/2, hy),
                 (pie[0] + ancho/2, pie[1]), (pie[0] - ancho/2, pie[1])]
         d.polygon(tira, fill=papel)
@@ -2001,7 +2005,7 @@ def _pinta_llevado(d, f, x, y, alto, rnd, rasgos):
     clase = "bandera" if que.startswith("bandera") else que
     tam = alto*_TAM_LLEVADO.get(clase, 0.18)
     if que == "cartel":
-        _cartel_mano(d, hx, hy + tam*0.45, tam, rnd, max(3, g), texto=f.get("letrero"))
+        _cartel_mano(d, pecho_x, pecho_y + tam*0.33, tam, rnd, max(3, g), texto=f.get("letrero"))
         return
     dibuja = COSAS.get(que)
     if dibuja:
@@ -2058,7 +2062,7 @@ def _pinta_adornos(d, pendientes, rnd):
 
 
 def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=None, tam=None,
-           calma=1.0, una_vez=False):
+           calma=1.0, una_vez=False, una_vez_desde=0.0):
     """Los fotogramas de una escena donde cada figura va de 'pose' a 'pose_fin'.
 
     El temblor de la linea cambia cada tres fotogramas y no cada uno: cada uno
@@ -2095,7 +2099,7 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
                 # Why Though: "no me gusta que se mueva el brazo todo el
                 # rato". Va a la postura que pide el guion UNA vez, al
                 # empezar, y se queda; los verbos con ciclo siguen andando.
-                tk = min(1.0, reloj/0.6)
+                tk = min(1.0, max(0.0, reloj - una_vez_desde - (0.25*k if una_vez_desde else 0))/0.6)
                 tk = tk*tk*(3 - 2*tk)
             if fin and fin != f.get("pose"):
                 if f.get("pose") == "en_cama" and fin != "de_pie":
@@ -2332,6 +2336,19 @@ def limpia(spec: dict) -> dict:
     # rebotaba: el perro iba del cañon al soldado y vuelta, doce veces, y se
     # quedaba encima del cañon igual. Buscar en vez de empujar no puede
     # oscilar.
+    # QUE NO SE PISEN. Ella: "se solapan cosas". Con el cuerpo nuevo (hombros,
+    # brazos gruesos) dos personajes a 0.32 y 0.70 se tocaban: el que señala
+    # le metia la mano en la cara al otro. Si estan de pie y demasiado
+    # juntos, se separan desde su centro. No en el folio de Why Though, ni con
+    # alguien en la cama (la cama ya los coloca).
+    if dentro != "blanco" and not any({f["pose"], f["pose_fin"]} & set(_ACOSTADAS) for f in figuras):
+        orden = sorted(figuras, key=lambda f: f["x"])
+        if len(orden) == 2 and orden[1]["x"] - orden[0]["x"] < 0.46:
+            centro = min(0.57, max(0.43, (orden[0]["x"] + orden[1]["x"])/2))
+            orden[0]["x"], orden[1]["x"] = round(centro - 0.23, 3), round(centro + 0.23, 3)
+        elif len(orden) == 3 and min(orden[1]["x"] - orden[0]["x"], orden[2]["x"] - orden[1]["x"]) < 0.27:
+            for f, px in zip(orden, (0.2, 0.5, 0.8)):
+                f["x"] = px
     ocupadas = [f["x"] for f in figuras]
     for c in cosas:
         if c["y"] is not None:          # lo del cielo no estorba a nadie
@@ -2535,8 +2552,14 @@ def render(spec: dict, out_path: Path, ancho: int, alto: int,
         carpeta = Path(out_path).with_suffix("")
         carpeta.mkdir(parents=True, exist_ok=True)
         medio = None
+        # UNA VEZ, como en Why Though. Ella, en el Dia de la Hispanidad: "los
+        # brazos todo el rato en movimiento". Con el cuerpo nuevo el vaiven
+        # de una postura a otra (señala, baja, señala, baja...) se ve mucho
+        # mas: ahora va a su postura una vez, despues de entrar, y se queda;
+        # los verbos con ciclo (andar, remar, cavar) siguen andando.
         for i, img in enumerate(animar(limpio, segundos=segundos, fps=_FPS,
-                                       bocadillo=bocadillo, bocadillos=bocadillos)):
+                                       bocadillo=bocadillo, bocadillos=bocadillos,
+                                       una_vez=True, una_vez_desde=0.8)):
             cuadro = _camara(img, i/max(1, total-1)).resize((ancho, alto), Image.LANCZOS)
             cuadro.save(carpeta / f"{i:04d}.png")
             if i == total//2:
