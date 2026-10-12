@@ -1801,12 +1801,70 @@ def _medidores(img, medidores: dict):
         _letrero(img, nombre, (x0 + ancho*0.5, y0 + alto*0.52), alto*0.62, (40, 40, 46), 0)
 
 
-def _transicion(img, tipo, s):
-    """El plano entrando (s de 0 a 1): de lado, de arriba o abajo, de un
-    zoom con rebote o girando."""
+# El ultimo fotograma pintado: el plano nuevo entra POR ENCIMA del anterior.
+# Entraba sobre un folio en blanco y, con los escenarios de color, cada cambio
+# de plano era un fogonazo de papel vacio.
+_ULTIMO = [None]
+
+
+def _fotos_antes_despues(visual, segundos, fps, tam):
+    """EL ANTES Y EL DESPUES: Mokordo como empezo a la izquierda y como acabo a
+    la derecha, en su sitio, con la flecha en medio. El momento que esperan
+    los que ven un "que pasa si"; sale casi al final y es la miniatura."""
+    spec = visual["_antes_despues"]
+    w, h = tam
+    pies = h*0.84
+    sitio = garabato_ambiente._ALIAS.get(spec.get("sitio") or "salon", spec.get("sitio") or "salon")
+    base = garabato_ambiente._escenarios.pinta(sitio, tam, pies)
+    if base is None:
+        base = np.full((h, w, 3), garabato_ambiente.PAPEL, np.uint8)
+    fondo = Image.fromarray(base)
+    # la mitad de la izquierda mas apagada: es el pasado
+    izq = fondo.crop((0, 0, w//2, h))
+    izq = Image.blend(izq, Image.new("RGB", izq.size, (200, 200, 205)), 0.35)
+    fondo.paste(izq, (0, 0))
+    previo = _ULTIMO[0]
+    total = max(1, int(segundos*fps))
+    for n in range(total):
+        t = n/fps
+        img = fondo.copy()
+        d = ImageDraw.Draw(img)
+        d.line([(w//2, 0), (w//2, h)], fill=(40, 40, 46), width=8)
+        for lado, cuerpo, etiqueta, accion, comp in (
+                (-1, spec.get("antes") or {}, spec.get("etq_antes") or "BEFORE", "triste", spec.get("comp_antes")),
+                (1, spec.get("despues") or {}, spec.get("etq_despues") or "AFTER", "rie", spec.get("comp_despues"))):
+            x = 0.25 if lado < 0 else 0.75
+            entra = min(1.0, max(0.0, (t - (0.0 if lado < 0 else 0.5))/0.4))
+            if entra <= 0:
+                continue
+            m_ = {"accion": accion, "x": x, "_ya": True, "tam": 0.52, "cuerpo": cuerpo, "complemento": comp}
+            _mascota.pinta(img, m_, t, segundos, pies)
+            _letrero(img, str(etiqueta).upper()[:12], (w*x, h*0.12), h*0.11*_escala_rebote(entra), (226, 60, 60),
+                     -4*lado)
+        if t > 1.0:
+            # la flecha del cambio
+            k = min(1.0, (t - 1.0)/0.3)
+            d = ImageDraw.Draw(img)
+            y = h*0.5
+            d.line([(w*0.44, y), (w*(0.44 + 0.12*k), y)], fill=(226, 60, 60), width=16)
+            if k >= 1:
+                d.polygon([(w*0.58, y - h*0.05), (w*0.62, y), (w*0.58, y + h*0.05)], fill=(226, 60, 60))
+        if t < _DURA_TRANSICION:
+            img = _transicion(img, "zoom", t/_DURA_TRANSICION, previo)
+        _ULTIMO[0] = img
+        yield img
+
+
+def _transicion(img, tipo, s, previo=None):
+    """El plano entrando (s de 0 a 1) por encima del anterior: de lado, de
+    arriba o abajo, de un zoom con rebote o girando."""
     w, h = img.size
     e = 1 - (1 - s)**3
-    lienzo = Image.new("RGB", (w, h), garabato_ambiente.PAPEL)
+    if previo is not None and previo.size == (w, h):
+        lienzo = previo.convert("RGB").copy()
+    else:
+        lienzo = Image.new("RGB", (w, h), garabato_ambiente.PAPEL)
+    fondo_previo = lienzo.copy()
     if tipo in ("derecha", "izquierda", "arriba", "abajo"):
         dx = {"derecha": w, "izquierda": -w}.get(tipo, 0)*(1 - e)
         dy = {"abajo": h, "arriba": -h}.get(tipo, 0)*(1 - e)
@@ -1814,7 +1872,7 @@ def _transicion(img, tipo, s):
         if s < 0.8:
             # la estela del barrido (como un desenfoque de movimiento)
             for k, alfa in ((1, 0.35), (2, 0.18)):
-                atras = Image.new("RGB", (w, h), garabato_ambiente.PAPEL)
+                atras = fondo_previo.copy()
                 atras.paste(img, (int(dx + (dx and math.copysign(w*0.06*k*(1 - e), dx))),
                                   int(dy + (dy and math.copysign(h*0.06*k*(1 - e), dy)))))
                 lienzo = Image.blend(lienzo, atras, alfa*(1 - s))
@@ -1860,7 +1918,11 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
     """Los dibujos del plano: los monigotes animados (respiran, cambian de
     postura) en el folio en blanco; encima las cosas apareciendo, los efectos
     de garabato, los letreros, la cifra y las flechas; y todo hirviendo."""
+    if (visual or {}).get("_antes_despues"):
+        yield from _fotos_antes_despues(visual, segundos, fps, tam)
+        return
     e = _spec(visual or {})
+    previo = _ULTIMO[0]
     cabezas = []
     original = m.figura
 
@@ -2034,13 +2096,15 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
             if (visual or {}).get("_medidores"):
                 _medidores(img, visual["_medidores"])
             if (visual or {}).get("_transicion") and reloj < _DURA_TRANSICION:
-                img = _transicion(img, visual["_transicion"], reloj/_DURA_TRANSICION)
+                img = _transicion(img, visual["_transicion"], reloj/_DURA_TRANSICION, previo)
         except StopIteration:
             break
         finally:
             m.figura, m.PULSO, m.GROSOR, m._cara = original, 1.0, 1.0, _CARA_ORIGINAL
             m.VOLUMEN = True
-        yield _hierve(img, n//paso_hervor*_HERVOR) if hervor else img
+        img = _hierve(img, n//paso_hervor*_HERVOR) if hervor else img
+        _ULTIMO[0] = img
+        yield img
         n += 1
 
 

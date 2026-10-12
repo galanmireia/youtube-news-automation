@@ -705,6 +705,28 @@ def _con_cuerpo(visual: dict, cuerpo: dict, dia, complemento=None, medidores=Non
     return v
 
 
+def _antes_despues(guion: dict) -> dict | None:
+    """El antes (el primer capitulo) y el despues (el capitulo donde mas ha
+    cambiado Mokordo), si el video lo cambia de verdad."""
+    caps = guion.get("capitulos") or []
+    cuerpos = [_rasgos_de(c.get("cuerpo")) for c in caps]
+    if len(caps) < 2 or not any(cuerpos):
+        return None
+    k = max(range(len(caps)), key=lambda i: sum(cuerpos[i].values()))
+    if k == 0 or sum(cuerpos[k].values()) - sum(cuerpos[0].values()) < 0.3:
+        # lo que mas cambia es que se recupera: el antes es el peor y el despues el final
+        k0 = max(range(len(caps)), key=lambda i: sum(cuerpos[i].values()))
+        if k0 == len(caps) - 1:
+            return None
+        k, inicio = len(caps) - 1, k0
+    else:
+        inicio = 0
+    return {"antes": cuerpos[inicio], "despues": cuerpos[k],
+            "etq_antes": caps[inicio].get("dia") or "BEFORE", "etq_despues": caps[k].get("dia") or "AFTER",
+            "comp_antes": caps[inicio].get("complemento") or None, "comp_despues": caps[k].get("complemento") or None,
+            "sitio": caps[k].get("escenario") or caps[inicio].get("escenario") or "salon"}
+
+
 def _con_mascota(visual: dict, texto: str, primero: bool) -> dict:
     """Mokordo en un plano que no lo trae (los guiones de antes de que
     existiera): la accion sale de lo que dice la frase y se pone donde no
@@ -1005,6 +1027,11 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
             # campana): el titulo a rotulador y el nombre del canal debajo.
             planos.append(("", _cartel_titulo(guion.get("titulo") or ""), _CARETA, n))
 
+    antes_despues = _antes_despues(guion)
+    if antes_despues and len(planos) > 3:
+        # Justo antes del ultimo plano: el payoff visual del video.
+        ultimo_cap = planos[-1][3]
+        planos.insert(len(planos) - 1, ("", {"_antes_despues": antes_despues}, 3.4, ultimo_cap))
     _encuadra([v for _t, v, _p, _c in planos])
     voz = AudioSegment.empty()
     duraciones, inicios_cap = [], {}
@@ -1104,8 +1131,19 @@ def monta(guion: dict, carpeta: Path, parar=None) -> tuple[Path, Path, str]:
     mini = guion.get("miniatura") if isinstance(guion.get("miniatura"), dict) else {"textos": [
         {"texto": str(guion.get("titulo", ""))[:24].upper(), "x": 0.5, "y": 0.5, "tam": 0.14}]}
     ultima = None
-    for img in garabato.fotos(mini, 1.2, _FPS_DIBUJO):
-        ultima = img
+    if antes_despues:
+        # LA MINIATURA ES EL ANTES Y EL DESPUES: en los "que pasa si" es lo
+        # que hace pulsar. Con las palabras grandes que pidio el guion encima.
+        for img in garabato.fotos({"_antes_despues": antes_despues}, 2.2, _FPS_DIBUJO):
+            ultima = img
+        palabras = [t_.get("texto") for t_ in (mini.get("textos") or []) if isinstance(t_, dict) and t_.get("texto")]
+        texto = (palabras[0] if palabras else str(guion.get("titulo") or ""))[:22].upper()
+        if texto:
+            garabato._letrero(ultima, texto, (ultima.width*0.5, ultima.height*0.9), ultima.height*0.11,
+                              (255, 214, 50), -2)
+    else:
+        for img in garabato.fotos(mini, 1.2, _FPS_DIBUJO):
+            ultima = img
     ultima.resize((1280, 720)).save(jpg, quality=92)
 
     # Los capitulos, con su minuto: el primero tiene que empezar en 0:00 o
