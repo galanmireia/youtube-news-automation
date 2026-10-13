@@ -99,10 +99,9 @@ VOCES_ES = [
     ("davefx", "España, hombre", f"{_HF}/es_ES/davefx/medium/es_ES-davefx-medium.onnx"),
     ("sharvard", "España", f"{_HF}/es_ES/sharvard/medium/es_ES-sharvard-medium.onnx"),
     ("carlfm", "España, hombre (ligera)", f"{_HF}/es_ES/carlfm/x_low/es_ES-carlfm-x_low.onnx"),
-    ("claude", "México, hombre", f"{_HF}/es_MX/claude/high/es_MX-claude-high.onnx"),
-    ("ald", "México, hombre", f"{_HF}/es_MX/ald/medium/es_MX-ald-medium.onnx"),
-    ("daniela", "Argentina, mujer", f"{_HF}/es_AR/daniela/high/es_AR-daniela-high.onnx"),
 ]
+# (solo voces de España: "que sea español nativo", nada de acento
+# latinoamericano)
 _CARPETA_ES = Path(DATA_DIR) / "piper_es"
 
 
