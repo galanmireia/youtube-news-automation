@@ -953,7 +953,7 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
                fill=tinta, width=max(2, g//2))
     # Y estos DELANTE de la cara, que es donde estan.
     if rasgos.get("barba"):
-        _barba(d, cab, rc, g, rnd, tinta=tinta, relleno=relleno)
+        _barba(d, cab, rc, g, rnd, tinta=tinta, relleno=rasgos.get("barba_color") or relleno)
     if rasgos.get("parche"):
         _parche(d, cab, rc, g, rnd, tinta=tinta)
     if gorro and gorro not in GORROS_DETRAS:
@@ -1222,7 +1222,7 @@ def escena(spec, w=1080, h=1920, semilla=0):
         adornos.append(_dibuja_figura(
             img, d, f, w*f["x"], suelo + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
             alto_f, rnd, tinta=tinta, relleno=relleno,
-            rasgos=REPARTO.get(f.get("quien") or ""), objeto=f.get("objeto")))
+            rasgos=_rasgos(f), objeto=f.get("objeto")))
     _camas(d, spec, h, w, lambda f: suelo, rnd, g_cama, "delante")
     _pinta_cosas(delante=True)
     _pinta_adornos(d, adornos, rnd)
@@ -2236,6 +2236,8 @@ def limpia(spec: dict) -> dict:
             "pose_fin": _destino(f),
             "gesto": _una_de(f.get("gesto"), GESTOS_VALIDOS, "neutro"),
             "gorro": gorro if gorro in GORROS_VALIDOS else None,
+            "barba": (str(f.get("barba") or "").strip().lower() if str(f.get("barba") or "").strip().lower()
+                      in BARBAS else None),
             "objeto": _una_de(f.get("objeto"), OBJETOS_VALIDOS, "") or None,
             "espejo": bool(f.get("espejo")),
             "papel": (str(f.get("papel") or "").strip()[:_LARGO_PAPEL] or None),
@@ -2739,7 +2741,7 @@ def interior(spec: dict, w: int, h: int, semilla: int = 0):
                alto_f, rnd,
                f.get("pose", "en_mesa"), f.get("gesto", "neutro"),
                f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
-               rasgos=REPARTO.get(f.get("quien") or ""))
+               rasgos=_rasgos(f))
 
     _mesa(d, linea_mesa, w, rnd, g)                      # DELANTE de la gente
     _cuenco(d, w*0.50, linea_mesa, w*0.11, rnd, g)
@@ -2842,6 +2844,22 @@ def _pelo(d, cab, rc, g, rnd, cual, tinta=TINTA):
             _linea(d, [(x+lado*rc*0.82, y-rc*0.52),
                        (x+lado*rc*1.22, y-rc*0.06),
                        (x+lado*rc*1.10, y+rc*0.52)], g, rnd, color=tinta, temblor=1.8)
+
+
+# EL COLOR DE LA BARBA ("¿no tiene la barba roja?"): Abderramán III la tenia
+# rojiza y se la teñia de negro. El guion lo pide por figura ("barba": "roja");
+# sin eso, la del reparto, blanca como siempre.
+BARBAS = {"roja": (196, 84, 44), "pelirroja": (196, 84, 44), "negra": (48, 42, 42), "rubia": (226, 186, 92),
+          "castaña": (120, 78, 48), "gris": (176, 176, 182), "blanca": (246, 246, 246)}
+
+
+def _rasgos(f: dict) -> dict | None:
+    """Los rasgos del personaje del reparto, con la barba que pida el guion."""
+    r = REPARTO.get(f.get("quien") or "")
+    color = BARBAS.get(str(f.get("barba") or "").strip().lower())
+    if color:
+        r = dict(r or {}, barba=True, barba_color=color)
+    return r
 
 
 def _barba(d, cab, rc, g, rnd, tinta=TINTA, relleno=(255, 255, 255)):
@@ -4191,7 +4209,7 @@ def taberna(spec: dict, w: int, h: int, semilla: int = 0):
         figura(d, w*f["x"], suelo + h*0.27 + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
                alto_f, rnd, f.get("pose", "en_mesa"), f.get("gesto", "neutro"),
                f.get("gorro"), f.get("espejo", False), f.get("pose_mezclada"),
-               rasgos=REPARTO.get(f.get("quien") or ""))
+               rasgos=_rasgos(f))
 
     _mesa_con_cosas(d, w*0.46, suelo + h*0.34, w*0.92, rnd, g, papeles=2, jarras=2,
                     alto=h*0.075)
@@ -4658,6 +4676,9 @@ _DECORADOS = {
                      "fondo": [("batalla_naval", .5, 1.0, 1.0), ("mastil", .50, 1.0, 1.0)],
                      "muebles": [],
                      "delante": [("barandilla", .5, .30, 1.0)], "cuelga": [], "velas": []},
+    "palacio_andalusi": {"pared": "encalada", "piso": "losas",
+                         "fondo": [("arcos_califales", .5, 1.0, 1.0)],
+                         "muebles": [], "delante": [], "cuelga": [], "velas": []},
     "palacio_otomano": {"pared": "azulejos", "piso": "losas",
                      "fondo": [("arcos_otomanos", .5, 1.0, 1.0), ("estandarte_otomano", .10, .20, .12),
                                ("estandarte_otomano", .90, .20, .12)],
@@ -4763,7 +4784,7 @@ _PIEZAS_CON_RELIEVE = tuple(sorted({"trono", "chimenea", "estandarte", "estandar
                                     "cruz_grande", "mastil", "reja", "ventana_arco", "ventana_mar",
                                     "ventana_piso", "cuadro", "reloj", "puesto", "casas", "muralla",
                                     "tiendas", "naranjos", "cortinas", "selva", "playa", "costa",
-                                    "palacio_ducal", "san_pedro", "mezquitas", "arcos_otomanos",
+                                    "palacio_ducal", "san_pedro", "mezquitas", "arcos_otomanos", "arcos_califales",
                                     "puntales", "banderines"}))
 _MUEBLES_SIN_RELIEVE = ()
 
@@ -4801,7 +4822,8 @@ DECORADOS_EXPLICADOS = {
     "mercado":     "puestos con toldo, casas, adoquines",
     "cubierta":    "cubierta de barco, mastil, el mar detras",
     "batalla_naval": "LA CUBIERTA DE UNA GALERA EN PLENA BATALLA: galeras en el mar con humo de cañonazos, fogonazos y una ardiendo. Lepanto, la Armada Invencible, Trafalgar, cualquier combate en el mar",
-    "palacio_otomano": "EL PALACIO DEL SULTAN: azulejos azules, arcos apuntados, divan rojo con cojines y estandartes con la media luna. Selim segundo, Soliman, la corte otomana, cualquier corte de Oriente o de Al-Andalus por dentro",
+    "palacio_otomano": "EL PALACIO DEL SULTAN: azulejos azules, arcos apuntados, divan rojo con cojines y estandartes con la media luna. Selim segundo, Soliman, la corte otomana (SOLO el Imperio otomano, del siglo XIV en adelante)",
+    "palacio_andalusi": "AL-ANDALUS: los arcos de herradura rojos y blancos de la Mezquita de Cordoba. Abderraman, el Califato de Cordoba, Medina Azahara, los reinos de taifas, Boabdil y la Alhambra: CUALQUIER escena de Al-Andalus por dentro (nunca el palacio otomano, que tiene banderas turcas)",
     "constantinopla": "CONSTANTINOPLA desde el puerto: cupulas y minaretes al otro lado del agua y galeras. La capital otomana, el Bosforo; vale tambien para cualquier ciudad de Oriente vista desde el mar",
     "mina":        "puntales de madera, tierra, oscuridad",
     "despacho":    "el despacho de un ministro: mesa con papeles, mapa en la pared",
@@ -5065,6 +5087,43 @@ def _arco_apuntado(d, cx, base, ancho, alto, rnd, g, relleno):
     _linea(d, pts, g, rnd, color=TINTA)
 
 
+def _arcos_califales(d, w, suelo, h, rnd, g):
+    """LOS ARCOS DE LA MEZQUITA DE CORDOBA: de herradura, con las dovelas
+    rojas y blancas, sobre columnas. Al-Andalus sin banderas turcas (el
+    palacio otomano tenia la media luna, y en la Cordoba del siglo X eso es
+    quinientos años antes de que existiera el Imperio otomano)."""
+    rojo, crema, sombra = (178, 52, 42), (240, 226, 194), (196, 178, 146)
+    col = (226, 222, 212)
+    n = 3 if w < h else 4
+    paso = w/n
+    alto_col = h*(0.36 if w < h else 0.30)
+    for k in range(n):
+        cx = paso*(k + 0.5)
+        R = min(paso*0.47, h*0.17)
+        cy = suelo - alto_col
+        # el hueco del arco, en sombra (dentro hay mas arcos)
+        d.ellipse([cx - R*0.78, cy - R*0.78, cx + R*0.78, cy + R*0.78], fill=sombra)
+        d.rectangle([cx - R*0.62, cy, cx + R*0.62, suelo], fill=sombra)
+        # las dovelas: de -30 a 210 grados (la herradura pasa de media vuelta)
+        dovelas = 14
+        for j in range(dovelas):
+            a0 = 150 + j*240/dovelas
+            a1 = 150 + (j + 1)*240/dovelas
+            d.pieslice([cx - R, cy - R, cx + R, cy + R], a0, a1, fill=rojo if j % 2 else crema,
+                       outline=TINTA, width=max(1, g//3))
+        d.ellipse([cx - R*0.66, cy - R*0.66, cx + R*0.66, cy + R*0.66], fill=sombra)
+        d.rectangle([cx - R*0.58, cy, cx + R*0.58, suelo], fill=sombra)
+        d.arc([cx - R, cy - R, cx + R, cy + R], 150, 390, fill=TINTA, width=max(2, g//2))
+    # las columnas, entre arco y arco
+    for k in range(n + 1):
+        cx = paso*k
+        ancho = max(w*0.022, h*0.012)
+        d.rectangle([cx - ancho/2, suelo - alto_col, cx + ancho/2, suelo], fill=col, outline=TINTA,
+                    width=max(1, g//2))
+        d.rectangle([cx - ancho, suelo - alto_col - h*0.015, cx + ancho, suelo - alto_col + h*0.005], fill=col,
+                    outline=TINTA, width=max(1, g//2))
+
+
 def _mezquitas(d, w, base, alto, rnd, g, color=(214, 200, 176)):
     """La silueta de Constantinopla: cupulas con sus minaretes. La misma
     sirve para la Alhambra de lejos o cualquier ciudad de Oriente."""
@@ -5231,6 +5290,7 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "arcos_otomanos":
         for px in (0.30, 0.70):
             _arco_apuntado(d, w*px, suelo, w*0.16, h*0.42, rnd, g, (24, 40, 74))
+    elif que == "arcos_califales": _arcos_califales(d, w, suelo, h, rnd, g)
     elif que == "estandarte_otomano":
         _estandarte(d, X, h*y, T, h*tam*1.9, rnd, g, color=(196, 30, 40))
         cx, cy, r = X, h*y + h*tam*0.75, T*0.20
@@ -5414,7 +5474,7 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
         alto_f = h*f.get("alto", 0.30)
         adornos.append(_dibuja_figura(
             img, d, f, w*f["x"], pies + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
-            alto_f, rnd, rasgos=REPARTO.get(f.get("quien") or ""), objeto=f.get("objeto")))
+            alto_f, rnd, rasgos=_rasgos(f), objeto=f.get("objeto")))
 
     _camas(d, spec, h, w, lambda f: pies, rnd, max(4, int(w*0.006)), "delante")
 

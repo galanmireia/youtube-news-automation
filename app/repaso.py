@@ -29,6 +29,8 @@ _TINTA = (34, 38, 70)
 _ROJO = (214, 52, 52)
 _FPS = 25
 MAX_PUNTOS = 5
+# Mas palabras que esto y el narrador no lee la ficha entera, solo las fechas.
+_MAX_PALABRAS_VOZ = 32
 
 # "REPASO:", "REPASO FINAL", "RESUMEN PARA EL EXAMEN"... (ella escribio
 # "REPASO FINAL" y con la cabecera solo de "REPASO" se habria narrado como
@@ -100,8 +102,21 @@ def escena(puntos: list[dict]) -> dict | None:
     if not puntos:
         return None
     voz = "Para el examen. " + " ".join(p["voz"].rstrip(".") + "." for p in puntos)
+    compacto = False
+    if len(voz.split()) > _MAX_PALABRAS_VOZ:
+        # LA FICHA LARGA NO SE LEE ENTERA: la de Abderramán duraba 25 s y el
+        # Short se fue a casi 3 minutos. Se dicen solo las fechas y la ficha
+        # se va rellenando en pantalla (se hace captura, no hace falta oirla).
+        fechas = [m.group(1) for m in (re.match(r"^\s*(\d{3,4})", p_["texto"]) for p_ in puntos) if m]
+        if len(fechas) >= 2:
+            lista = ", ".join(fechas[:-1]) + " y " + fechas[-1]
+            voz = f"Para el examen, apúntate estas fechas: {lista}."
+        else:
+            voz = "Para el examen, haz captura de esto: es lo que tienes que saberte."
+        compacto = True
     return {"narration": voz, "visual_keywords": "", "photo_subject": "", "photo_subject_role": "",
-            "ai_image_prompt": "", "on_screen_highlight": "", "is_repaso": True, "repaso": puntos}
+            "ai_image_prompt": "", "on_screen_highlight": "", "is_repaso": True, "repaso": puntos,
+            "repaso_compacto": compacto}
 
 
 def _fuente(px: int, mano: bool = True):
@@ -132,9 +147,13 @@ def _parte(texto: str, fuente, ancho: float) -> list[str]:
     return lineas
 
 
-def _momentos(puntos: list[dict], segundos: float) -> list[float]:
+def _momentos(puntos: list[dict], segundos: float, compacto: bool = False) -> list[float]:
     """Cuando sale cada punto: cuando el narrador empieza a decirlo (la voz
-    va a ritmo parejo, asi que se reparte por letras)."""
+    va a ritmo parejo, asi que se reparte por letras). En la ficha compacta
+    (solo se dicen las fechas), repartidos y todos fuera antes del final."""
+    if compacto:
+        hueco = max(0.3, (segundos*0.8 - 0.6)/max(1, len(puntos)))
+        return [0.6 + k*hueco for k in range(len(puntos))]
     cab = len("Para el examen. ")
     largos = [len(p["voz"]) + 1 for p in puntos]
     total = cab + sum(largos)
@@ -231,14 +250,14 @@ def _fotograma(puntos, tema, t, momentos, w, h):
 
 
 def render(puntos: list[dict], out_path: Path, ancho: int, alto: int, segundos: float,
-           tema: str = "") -> Path | None:
+           tema: str = "", compacto: bool = False) -> Path | None:
     """El clip de la ficha. None si algo falla (el Short sale sin ella)."""
     try:
         puntos = limpia(puntos)
         if not puntos:
             return None
         segundos = max(2.0, min(30.0, float(segundos)))
-        momentos = _momentos(puntos, segundos)
+        momentos = _momentos(puntos, segundos, compacto)
         total = int(segundos*_FPS)
         proc = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
                                  "-s", f"{ancho}x{alto}", "-r", str(_FPS), "-i", "-", "-c:v", "libx264",

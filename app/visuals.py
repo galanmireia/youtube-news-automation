@@ -440,7 +440,8 @@ def fetch_clips_for_scenes(
             from . import repaso
             ancho_r, alto_r = _TARGET_DIMENSIONS.get(aspect_ratio, (1080, 1920))
             clip = repaso.render(scene.get("repaso") or [], out_dir / f"repaso_{i:02d}.mp4", ancho_r, alto_r,
-                                 max(2.0, duration), scene.get("repaso_tema") or "")
+                                 max(2.0, duration), scene.get("repaso_tema") or "",
+                                 bool(scene.get("repaso_compacto")))
             if clip is not None:
                 clip_entries.append([(clip, None)])
                 continue
