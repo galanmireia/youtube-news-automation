@@ -1,0 +1,2273 @@
+{
+ "titulo": "I Ate Only Fast Food for 30 Days (Cartoon Experiment)",
+ "descripcion": "Mokordo bet his friend Bob he could eat nothing but fast food for a whole month. What happens to the body, week by week: calories, salt and sugar, constant cravings, the after-lunch crash, skin, mood, the liver and the scale... and how you bounce back.\n\nBased on real research: a 2008 study in Sweden where volunteers ate fast food for four weeks, a 2019 US National Institutes of Health study on ultra-processed food, and the documentary Super Size Me (2004).\n\nThis is a cartoon for education only, not medical advice.\n\n🔔 Subscribe to Why Though for the why behind everyday things.",
+ "tags": [
+  "fast food",
+  "what happens if you eat fast food",
+  "30 days fast food",
+  "fast food for a month",
+  "super size me",
+  "ultra processed food",
+  "junk food",
+  "fast food experiment",
+  "health facts",
+  "body facts",
+  "nutrition",
+  "liver",
+  "cholesterol",
+  "weight gain",
+  "animated explainer",
+  "cartoon",
+  "why though",
+  "mokordo"
+ ],
+ "miniatura": {
+  "textos": [
+   {
+    "texto": "30 DAYS FAST FOOD"
+   }
+  ]
+ },
+ "capitulos": [
+  {
+   "titulo": "Day thirty",
+   "planos": [
+    {
+     "narracion": "This is Mokordo on day thirty of eating nothing but fast food.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "gag": {
+        "tipo": "infla",
+        "cuando": "day thirty"
+       },
+       "dice": {
+        "texto": "I CAN'T SEE MY FEET",
+        "cuando": "nothing but"
+       }
+      },
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Thirty days ago, he was fine. So what happened? Let's go back to day one.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "gag": {
+        "tipo": "ojos_fuera",
+        "cuando": "what happened"
+       }
+      },
+      "textos": [
+       {
+        "texto": "WHAT HAPPENED?",
+        "x": 0.5,
+        "y": 0.3,
+        "tam": 0.1,
+        "color": "rojo",
+        "cuando": "what happened"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "salon",
+   "avance": true,
+   "cuerpo": {
+    "gordo": 0.9,
+    "granos": 0.5,
+    "palido": 0.3,
+    "ojeras": 0.4
+   },
+   "dia": "DAY 30",
+   "complemento": "",
+   "medidores": {
+    "ENERGY": 0.15,
+    "HEALTH": 0.15,
+    "MOOD": 0.3
+   }
+  },
+  {
+   "titulo": "The bet",
+   "planos": [
+    {
+     "narracion": "It all started with a bet. Bob said nobody could eat only fast food for a whole month.",
+     "visual": {
+      "mascota": {
+       "accion": "piensa",
+       "x": 0.32
+      },
+      "figuras": [
+       {
+        "quien": "persona",
+        "x": 0.75,
+        "pose": "señala",
+        "espejo": true,
+        "gesto": "riendo",
+        "dice": {
+         "texto": "YOU WON'T LAST A WEEK",
+         "cuando": "Bob said"
+        }
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Mokordo said: easy. Burgers, fries and soda for thirty days? That's not a challenge. That's a holiday.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.32,
+       "gag": {
+        "tipo": "crece",
+        "cuando": "easy"
+       },
+       "dice": {
+        "texto": "EASY!",
+        "cuando": "easy"
+       }
+      },
+      "figuras": [
+       {
+        "quien": "persona",
+        "x": 0.78,
+        "pose": "de_pie",
+        "espejo": true,
+        "gesto": "confuso"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Bob even writes the rules on a napkin. Rule number one: no vegetables. Rule number two: see rule number one.",
+     "visual": {
+      "mascota": {
+       "accion": "rie",
+       "x": 0.32
+      },
+      "figuras": [
+       {
+        "quien": "persona",
+        "x": 0.75,
+        "pose": "firmando",
+        "espejo": true,
+        "gesto": "riendo"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "NO VEGGIES",
+        "x": 0.5,
+        "y": 0.22,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "no vegetables"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Someone actually tried this in a famous 2004 documentary called Super Size Me.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "tele",
+        "x": 0.72,
+        "tam": 0.3,
+        "y": 0.45,
+        "cuando": "documentary"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "2004",
+        "x": 0.72,
+        "y": 0.2,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "2004"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And in 2008, scientists in Sweden tested it properly, with eighteen young volunteers, for four weeks.",
+     "visual": {
+      "ambiente": "laboratorio",
+      "mascota": {
+       "accion": "salta",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "microscopio",
+        "x": 0.7,
+        "tam": 0.22,
+        "y": 0.5,
+        "cuando": "scientists"
+       },
+       {
+        "que": "calendario",
+        "x": 0.86,
+        "tam": 0.16,
+        "y": 0.4,
+        "cuando": "four weeks",
+        "etiqueta": "4 WEEKS"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Their rules: at least two fast food meals a day, about double the normal calories, and as little exercise as possible.",
+     "visual": {
+      "ambiente": "laboratorio",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "atraca",
+        "cuando": "two fast food meals",
+        "con": "hamburguesa"
+       }
+      },
+      "textos": [
+       {
+        "texto": "x2",
+        "x": 0.75,
+        "y": 0.3,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "double"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "The night before, Mokordo eats one last salad and says goodbye to it like an old friend.",
+     "visual": {
+      "ambiente": "cocina",
+      "mascota": {
+       "accion": "saluda",
+       "x": 0.4
+      },
+      "cosas": [
+       {
+        "que": "zanahoria",
+        "x": 0.72,
+        "tam": 0.16,
+        "y": 0.5,
+        "cuando": "salad"
+       },
+       {
+        "que": "manzana",
+        "x": 0.85,
+        "tam": 0.14,
+        "y": 0.5
+       }
+      ],
+      "textos": [
+       {
+        "texto": "BYE!",
+        "x": 0.75,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "verde",
+        "cuando": "goodbye"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "So Mokordo copies their rules. What could possibly go wrong?",
+     "visual": {
+      "mascota": {
+       "accion": "baila",
+       "x": 0.45
+      },
+      "textos": [
+       {
+        "texto": "WHAT COULD GO WRONG?",
+        "x": 0.5,
+        "y": 0.28,
+        "tam": 0.09,
+        "color": "naranja",
+        "cuando": "go wrong"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "salon",
+   "cuerpo": {},
+   "dia": "",
+   "complemento": "",
+   "medidores": {
+    "ENERGY": 0.9,
+    "HEALTH": 0.9,
+    "MOOD": 0.95
+   }
+  },
+  {
+   "titulo": "Day one",
+   "planos": [
+    {
+     "narracion": "Day one. Mokordo walks in like he owns the place.",
+     "visual": {
+      "mascota": {
+       "accion": "anda",
+       "x": 0.3
+      },
+      "figuras": [
+       {
+        "quien": "persona_b",
+        "x": 0.78,
+        "pose": "de_pie",
+        "espejo": true,
+        "gesto": "contento",
+        "dice": {
+         "texto": "WHAT CAN I GET YOU?",
+         "cuando": "walks in"
+        }
+       }
+      ],
+      "ambiente": "restaurante"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "A double burger, large fries, and the biggest soda they have.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.3,
+       "hace": {
+        "verbo": "muestra",
+        "cuando": "double burger",
+        "con": "hamburguesa"
+       }
+      },
+      "cosas": [
+       {
+        "que": "patatas",
+        "x": 0.62,
+        "tam": 0.16,
+        "y": 0.5,
+        "cuando": "fries"
+       },
+       {
+        "que": "vaso",
+        "x": 0.78,
+        "tam": 0.18,
+        "y": 0.5,
+        "cuando": "soda"
+       }
+      ],
+      "ambiente": "restaurante"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "A meal like that can easily top a thousand calories. Most adults need around two thousand to two and a half thousand for the whole day.",
+     "visual": {
+      "cifra": {
+       "valor": "1,000+",
+       "pie": "calories in one meal",
+       "color": "rojo"
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "A large order of fries alone can have around five hundred calories.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "patatas",
+        "x": 0.72,
+        "tam": 0.24,
+        "y": 0.5,
+        "cuando": "fries"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "~500 kcal",
+        "x": 0.72,
+        "y": 0.22,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "five hundred"
+       }
+      ],
+      "ambiente": "restaurante"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Then there's the salt. Health experts say adults should eat less than five grams a day. A big fast food meal can use up a good chunk of that by itself.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "sal",
+        "x": 0.72,
+        "tam": 0.22,
+        "y": 0.5,
+        "cuando": "salt"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "< 5 g / DAY",
+        "x": 0.72,
+        "y": 0.22,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "five grams"
+       }
+      ],
+      "ambiente": "restaurante"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And a large soda can have more sugar than the limit the World Health Organization recommends for an entire day.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.3,
+       "gag": {
+        "tipo": "ojos_fuera",
+        "cuando": "more sugar"
+       }
+      },
+      "cosas": [
+       {
+        "que": "vaso",
+        "x": 0.72,
+        "tam": 0.26,
+        "y": 0.5,
+        "cuando": "large soda"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "SUGAR!",
+        "x": 0.72,
+        "y": 0.2,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "sugar"
+       }
+      ],
+      "ambiente": "restaurante"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "By the afternoon, he's hungry again. Lots of calories, but very little fiber or anything that keeps you full for long.",
+     "visual": {
+      "mascota": {
+       "accion": "piensa",
+       "x": 0.35
+      },
+      "cosas": [
+       {
+        "que": "estomago",
+        "x": 0.72,
+        "tam": 0.22,
+        "y": 0.45,
+        "cuando": "hungry again"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "EMPTY?!",
+        "x": 0.72,
+        "y": 0.22,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "hungry again"
+       }
+      ],
+      "ambiente": "restaurante"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Dinner: a whole pizza. Day one, complete.",
+     "visual": {
+      "ambiente": "salon",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "atraca",
+        "cuando": "a whole pizza",
+        "con": "pizza"
+       }
+      },
+      "textos": [
+       {
+        "texto": "DAY 1 DONE",
+        "x": 0.75,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "verde",
+        "cuando": "complete"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Bob texts him: still alive? Mokordo sends back a photo of his third milkshake.",
+     "visual": {
+      "ambiente": "salon",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "movil",
+        "cuando": "texts him"
+       }
+      },
+      "cosas": [
+       {
+        "que": "vaso",
+        "x": 0.75,
+        "tam": 0.18,
+        "y": 0.5,
+        "cuando": "milkshake"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "x3",
+        "x": 0.78,
+        "y": 0.28,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "third"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Mokordo's tongue is having the best day of its life.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "atraca",
+        "cuando": "best day",
+        "con": "patatas"
+       }
+      },
+      "ambiente": "restaurante"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "His stomach is less sure about it.",
+     "visual": {
+      "mascota": {
+       "accion": "triste",
+       "x": 0.35
+      },
+      "cosas": [
+       {
+        "que": "estomago",
+        "x": 0.72,
+        "tam": 0.24,
+        "y": 0.45,
+        "cuando": "stomach"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "?!",
+        "x": 0.72,
+        "y": 0.22,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "less sure"
+       }
+      ],
+      "ambiente": "restaurante"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "That night he's so thirsty he drinks half the fridge. All that salt makes your body hold on to water.",
+     "visual": {
+      "ambiente": "cocina",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.35,
+       "hace": {
+        "verbo": "bebe",
+        "cuando": "thirsty",
+        "con": "vaso"
+       }
+      },
+      "cosas": [
+       {
+        "que": "nevera",
+        "x": 0.75,
+        "tam": 0.36
+       }
+      ],
+      "textos": [
+       {
+        "texto": "SO THIRSTY",
+        "x": 0.5,
+        "y": 0.22,
+        "tam": 0.12,
+        "color": "azul",
+        "cuando": "thirsty"
+       }
+      ]
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "restaurante",
+   "cuerpo": {
+    "gordo": 0.05
+   },
+   "dia": "DAY 1",
+   "complemento": "",
+   "medidores": {
+    "ENERGY": 0.85,
+    "HEALTH": 0.8,
+    "MOOD": 1.0
+   }
+  },
+  {
+   "titulo": "Week one: always hungry",
+   "planos": [
+    {
+     "narracion": "Week one. Something strange happens. Mokordo is eating more than ever... and he's hungry all the time.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "atraca",
+        "cuando": "hungry all the time",
+        "con": "pizza"
+       }
+      },
+      "textos": [
+       {
+        "texto": "STILL HUNGRY",
+        "x": 0.72,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "hungry"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Day six. He finds a fry in his pocket. He eats it. He has no idea how long it's been there.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "come",
+        "cuando": "eats it",
+        "con": "patatas"
+       }
+      },
+      "textos": [
+       {
+        "texto": "???",
+        "x": 0.75,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "morado",
+        "cuando": "no idea"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Why is it so hard to stop? A lot of these foods are designed to hit a sweet spot: salty, sweet, fatty and soft, all at once.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "sal",
+        "x": 0.58,
+        "tam": 0.13,
+        "y": 0.45,
+        "cuando": "salty"
+       },
+       {
+        "que": "chocolate",
+        "x": 0.72,
+        "tam": 0.13,
+        "y": 0.45,
+        "cuando": "sweet"
+       },
+       {
+        "que": "hamburguesa",
+        "x": 0.86,
+        "tam": 0.14,
+        "y": 0.45,
+        "cuando": "fatty"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "In 2019, a study at the US National Institutes of Health found something wild about ultra processed food.",
+     "visual": {
+      "ambiente": "laboratorio",
+      "mascota": {
+       "accion": "piensa",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "lupa",
+        "x": 0.72,
+        "tam": 0.22,
+        "y": 0.45,
+        "cuando": "study"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "When people could eat as much as they wanted, they ate about five hundred extra calories a day on ultra processed food, and gained weight in just two weeks.",
+     "visual": {
+      "cifra": {
+       "valor": "+500",
+       "pie": "calories a day, without noticing",
+       "color": "naranja"
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "They also ate faster. Soft, salty, sweet food goes down before your brain gets the message that you're full.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "gag": {
+        "tipo": "tiembla",
+        "cuando": "ate faster"
+       }
+      },
+      "cosas": [
+       {
+        "que": "cerebro",
+        "x": 0.78,
+        "tam": 0.18,
+        "y": 0.3,
+        "cuando": "your brain"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "FULL?",
+        "x": 0.78,
+        "y": 0.12,
+        "tam": 0.09,
+        "color": "azul",
+        "cuando": "full"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Day three. He tries to go for a run to balance it out. The run lasts eleven seconds.",
+     "visual": {
+      "ambiente": "parque",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "gag": {
+        "tipo": "de_cara",
+        "cuando": "eleven seconds"
+       }
+      },
+      "textos": [
+       {
+        "texto": "11 SEC",
+        "x": 0.75,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "eleven seconds"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "To burn off one big fast food meal, you'd have to walk for something like three to four hours.",
+     "visual": {
+      "cifra": {
+       "valor": "3-4 H",
+       "pie": "of walking to burn one big meal",
+       "color": "naranja"
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Sugary drinks also make blood sugar rise fast. Mokordo bounces off the walls, then crashes on the floor.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "gag": {
+        "tipo": "gira",
+        "cuando": "bounces off the walls"
+       }
+      },
+      "cosas": [
+       {
+        "que": "vaso",
+        "x": 0.78,
+        "tam": 0.16,
+        "y": 0.5,
+        "cuando": "Sugary drinks"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And after each giant lunch, Mokordo needs a nap. A huge, heavy meal can leave you sleepy.",
+     "visual": {
+      "ambiente": "oficina",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "gag": {
+        "tipo": "cabezada",
+        "cuando": "needs a nap"
+       }
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "His boss is not impressed.",
+     "visual": {
+      "ambiente": "oficina",
+      "mascota": {
+       "accion": "encoge",
+       "x": 0.35
+      },
+      "figuras": [
+       {
+        "quien": "persona_b",
+        "x": 0.75,
+        "pose": "señala",
+        "espejo": true,
+        "gesto": "enfadado",
+        "dice": {
+         "texto": "ARE YOU ASLEEP?!",
+         "cuando": "not impressed"
+        }
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "There's almost no fiber in his new diet. No fruit, no vegetables, no beans.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "manzana",
+        "x": 0.6,
+        "tam": 0.16,
+        "y": 0.5,
+        "cuando": "fruit",
+        "tachado": true
+       },
+       {
+        "que": "zanahoria",
+        "x": 0.75,
+        "tam": 0.16,
+        "y": 0.5,
+        "cuando": "vegetables",
+        "tachado": true
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And without fiber, his trips to the bathroom become... a long story. Let's just say, he brings a book.",
+     "visual": {
+      "ambiente": "bano",
+      "mascota": {
+       "accion": "triste",
+       "x": 0.4
+      },
+      "cosas": [
+       {
+        "que": "libro",
+        "x": 0.72,
+        "tam": 0.18,
+        "y": 0.5,
+        "cuando": "a book"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "...",
+        "x": 0.72,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "gris",
+        "cuando": "long story"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Bob checks in. Mokordo is fine. Totally fine. Absolutely fine.",
+     "visual": {
+      "mascota": {
+       "accion": "rie",
+       "x": 0.32,
+       "dice": {
+        "texto": "TOTALLY FINE",
+        "cuando": "Totally"
+       }
+      },
+      "figuras": [
+       {
+        "quien": "persona",
+        "x": 0.75,
+        "pose": "de_pie",
+        "espejo": true,
+        "gesto": "confuso"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "salon",
+   "cuerpo": {
+    "gordo": 0.3,
+    "ojeras": 0.15
+   },
+   "dia": "DAY 7",
+   "complemento": "",
+   "medidores": {
+    "ENERGY": 0.6,
+    "HEALTH": 0.6,
+    "MOOD": 0.7
+   }
+  },
+  {
+   "titulo": "Week two: the couch",
+   "planos": [
+    {
+     "narracion": "Week two. Mokordo's favorite jeans have stopped speaking to him.",
+     "visual": {
+      "ambiente": "dormitorio",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "gag": {
+        "tipo": "infla",
+        "cuando": "stopped speaking"
+       }
+      },
+      "textos": [
+       {
+        "texto": "RIP JEANS",
+        "x": 0.75,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "jeans"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "The stairs to his apartment have somehow become a mountain.",
+     "visual": {
+      "ambiente": "calle",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "gag": {
+        "tipo": "tiembla",
+        "cuando": "a mountain"
+       }
+      },
+      "textos": [
+       {
+        "texto": "PANT PANT",
+        "x": 0.75,
+        "y": 0.3,
+        "tam": 0.12,
+        "color": "azul",
+        "cuando": "mountain"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Day ten. Halfway through tying his shoes, his soul quietly leaves his body.",
+     "visual": {
+      "ambiente": "dormitorio",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "gag": {
+        "tipo": "alma",
+        "cuando": "his soul"
+       }
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "With all those calories you'd think he'd be full of energy. But too much heavy food and too little movement leave you sluggish.",
+     "visual": {
+      "mascota": {
+       "accion": "mareo",
+       "x": 0.4
+      },
+      "textos": [
+       {
+        "texto": "SLUGGISH",
+        "x": 0.72,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "gris",
+        "cuando": "sluggish"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Eating double the calories without moving much: there's only one place that energy can go.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "hamburguesa",
+        "x": 0.6,
+        "tam": 0.16,
+        "y": 0.45
+       },
+       {
+        "que": "igual",
+        "x": 0.72,
+        "tam": 0.1,
+        "y": 0.45
+       },
+       {
+        "que": "bascula",
+        "x": 0.86,
+        "tam": 0.18,
+        "y": 0.6,
+        "cuando": "one place"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Bob hides the delivery app on Mokordo's phone. Mokordo finds it in four seconds.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.35,
+       "hace": {
+        "verbo": "movil",
+        "cuando": "finds it"
+       }
+      },
+      "figuras": [
+       {
+        "quien": "persona",
+        "x": 0.78,
+        "pose": "manos_cabeza",
+        "espejo": true,
+        "gesto": "asustado"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "4 SEC",
+        "x": 0.55,
+        "y": 0.22,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "four seconds"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "The delivery driver now knows his name, his dog's name, and his favorite sauce.",
+     "visual": {
+      "ambiente": "calle",
+      "mascota": {
+       "accion": "saluda",
+       "x": 0.35
+      },
+      "figuras": [
+       {
+        "quien": "persona_b",
+        "x": 0.75,
+        "pose": "dando",
+        "espejo": true,
+        "gesto": "contento",
+        "dice": {
+         "texto": "THE USUAL?",
+         "cuando": "knows his name"
+        }
+       }
+      ],
+      "cosas": [
+       {
+        "que": "paquete",
+        "x": 0.58,
+        "tam": 0.14,
+        "y": 0.55
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "His skin is acting up too. Some studies link high sugar diets to more breakouts, especially in young people.",
+     "visual": {
+      "ambiente": "bano",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.3,
+       "gag": {
+        "tipo": "llora",
+        "cuando": "acting up"
+       }
+      },
+      "cosas": [
+       {
+        "que": "espejo",
+        "x": 0.75,
+        "tam": 0.38,
+        "y": 0.45,
+        "cuando": "skin"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "His mood swings between happy and grumpy every few hours, mostly around mealtimes.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "gag": {
+        "tipo": "vapor",
+        "cuando": "grumpy"
+       }
+      },
+      "textos": [
+       {
+        "texto": "HANGRY",
+        "x": 0.75,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "grumpy"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Bob suggests a salad. Mokordo reacts like he's been insulted.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.32,
+       "gag": {
+        "tipo": "rayo",
+        "cuando": "insulted"
+       }
+      },
+      "figuras": [
+       {
+        "quien": "persona",
+        "x": 0.75,
+        "pose": "dando",
+        "espejo": true,
+        "gesto": "contento",
+        "dice": {
+         "texto": "SALAD?",
+         "cuando": "salad"
+        }
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "By now, the couch has a Mokordo shaped dent in it.",
+     "visual": {
+      "ambiente": "salon",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "gag": {
+        "tipo": "derrite",
+        "cuando": "couch"
+       }
+      },
+      "cosas": [
+       {
+        "que": "sofa",
+        "x": 0.75,
+        "tam": 0.32
+       },
+       {
+        "que": "mando",
+        "x": 0.62,
+        "tam": 0.1,
+        "y": 0.7
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "At night, his chest burns. That's heartburn: stomach acid creeping up, and big fatty meals are a classic trigger.",
+     "visual": {
+      "ambiente": "dormitorio",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "gag": {
+        "tipo": "vapor",
+        "cuando": "his chest burns"
+       }
+      },
+      "cosas": [
+       {
+        "que": "fuego",
+        "x": 0.75,
+        "tam": 0.14,
+        "y": 0.4,
+        "cuando": "heartburn"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And he sleeps badly. Big, heavy meals late at night can make it harder to sleep well.",
+     "visual": {
+      "ambiente": "dormitorio",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.5,
+       "hace": {
+        "verbo": "acuesta",
+        "cuando": "sleeps badly"
+       }
+      },
+      "textos": [
+       {
+        "texto": "2:00 AM",
+        "x": 0.75,
+        "y": 0.22,
+        "tam": 0.12,
+        "color": "azul",
+        "cuando": "late at night"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And the cravings never stop. Pizza at midnight. Ice cream for breakfast.",
+     "visual": {
+      "ambiente": "cocina",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "come",
+        "cuando": "Ice cream",
+        "con": "helado"
+       }
+      },
+      "cosas": [
+       {
+        "que": "pizza",
+        "x": 0.75,
+        "tam": 0.18,
+        "y": 0.5,
+        "cuando": "Pizza at midnight"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "12:00 AM",
+        "x": 0.75,
+        "y": 0.22,
+        "tam": 0.12,
+        "color": "azul",
+        "cuando": "midnight"
+       }
+      ]
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "salon",
+   "cuerpo": {
+    "gordo": 0.55,
+    "granos": 0.35,
+    "ojeras": 0.25
+   },
+   "dia": "DAY 14",
+   "complemento": "",
+   "medidores": {
+    "ENERGY": 0.4,
+    "HEALTH": 0.4,
+    "MOOD": 0.45
+   }
+  },
+  {
+   "titulo": "Week three: the doctor",
+   "planos": [
+    {
+     "narracion": "Week three. Bob drags Mokordo to the doctor. Just a check up, he says.",
+     "visual": {
+      "mascota": {
+       "accion": "anda",
+       "x": 0.3
+      },
+      "figuras": [
+       {
+        "quien": "abuelo",
+        "x": 0.78,
+        "pose": "de_pie",
+        "espejo": true,
+        "gesto": "contento",
+        "dice": {
+         "texto": "HELLO!",
+         "cuando": "the doctor"
+        }
+       }
+      ],
+      "ambiente": "consulta"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "The doctor takes one look at the blood test, and his glasses almost fall off.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.3
+      },
+      "figuras": [
+       {
+        "quien": "abuelo",
+        "x": 0.75,
+        "pose": "manos_cabeza",
+        "espejo": true,
+        "gesto": "asustado",
+        "dice": {
+         "texto": "OH NO.",
+         "cuando": "glasses"
+        }
+       }
+      ],
+      "ambiente": "consulta"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "In the Swedish study, some volunteers' liver enzymes, a warning sign of stress on the liver, shot up in just the first week.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "higado",
+        "x": 0.72,
+        "tam": 0.26,
+        "y": 0.45,
+        "cuando": "liver"
+       },
+       {
+        "que": "grafico_sube",
+        "x": 0.88,
+        "tam": 0.16,
+        "y": 0.3,
+        "cuando": "shot up"
+       }
+      ],
+      "ambiente": "consulta"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "On average they ended up several times higher than at the start. One volunteer even developed a fatty liver.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.3,
+       "gag": {
+        "tipo": "corazon",
+        "cuando": "several times higher"
+       }
+      },
+      "cosas": [
+       {
+        "que": "higado_graso",
+        "x": 0.72,
+        "tam": 0.28,
+        "y": 0.45,
+        "cuando": "fatty liver"
+       }
+      ],
+      "ambiente": "consulta"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "In Super Size Me, the doctors said the filmmaker's liver looked like a heavy drinker's.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "higado",
+        "x": 0.72,
+        "tam": 0.24,
+        "y": 0.45,
+        "cuando": "liver"
+       }
+      ],
+      "ambiente": "consulta"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "But years later, he admitted he'd also been drinking alcohol during that time, so not all of that was the burgers.",
+     "visual": {
+      "mascota": {
+       "accion": "encoge",
+       "x": 0.35
+      },
+      "cosas": [
+       {
+        "que": "cerveza",
+        "x": 0.72,
+        "tam": 0.18,
+        "y": 0.5,
+        "cuando": "alcohol"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "PLOT TWIST",
+        "x": 0.72,
+        "y": 0.22,
+        "tam": 0.12,
+        "color": "morado",
+        "cuando": "admitted"
+       }
+      ],
+      "ambiente": "consulta"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "His cholesterol went up too, by about seventy points in a few weeks.",
+     "visual": {
+      "cifra": {
+       "valor": "+70",
+       "pie": "cholesterol points (Super Size Me)",
+       "color": "rojo"
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Mokordo's heart is beating like a drum after every meal.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "gag": {
+        "tipo": "corazon",
+        "cuando": "beating like a drum"
+       }
+      },
+      "ambiente": "consulta"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "The doctor also checks his blood pressure. Too much salt, day after day, can push it up.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.35,
+       "hace": {
+        "verbo": "termometro",
+        "cuando": "blood pressure"
+       }
+      },
+      "figuras": [
+       {
+        "quien": "abuelo",
+        "x": 0.78,
+        "pose": "mirando",
+        "espejo": true
+       }
+      ],
+      "cosas": [
+       {
+        "que": "sal",
+        "x": 0.6,
+        "tam": 0.14,
+        "y": 0.3,
+        "cuando": "salt"
+       }
+      ],
+      "ambiente": "consulta"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Doctor: how do you feel? Mokordo: round. I feel round.",
+     "visual": {
+      "mascota": {
+       "accion": "encoge",
+       "x": 0.35,
+       "dice": {
+        "texto": "ROUND.",
+        "cuando": "round"
+       }
+      },
+      "figuras": [
+       {
+        "quien": "abuelo",
+        "x": 0.75,
+        "pose": "de_pie",
+        "espejo": true,
+        "gesto": "confuso",
+        "dice": {
+         "texto": "HOW DO YOU FEEL?",
+         "cuando": "how do you feel"
+        }
+       }
+      ],
+      "ambiente": "consulta"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "That's when Mokordo realizes the bet was never really against Bob. It was against his own body.",
+     "visual": {
+      "mascota": {
+       "accion": "triste",
+       "x": 0.4
+      },
+      "cosas": [
+       {
+        "que": "corazon",
+        "x": 0.75,
+        "tam": 0.16,
+        "y": 0.4,
+        "cuando": "his own body"
+       }
+      ],
+      "ambiente": "consulta"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "The doctor's advice: you can stop any time. Your body is waiting for you to.",
+     "visual": {
+      "mascota": {
+       "accion": "triste",
+       "x": 0.35
+      },
+      "figuras": [
+       {
+        "quien": "abuelo",
+        "x": 0.75,
+        "pose": "señala",
+        "espejo": true,
+        "gesto": "neutro",
+        "dice": {
+         "texto": "PLEASE STOP",
+         "cuando": "advice"
+        }
+       }
+      ],
+      "ambiente": "consulta"
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "consulta",
+   "cuerpo": {
+    "gordo": 0.75,
+    "granos": 0.45,
+    "palido": 0.2,
+    "ojeras": 0.35
+   },
+   "dia": "DAY 21",
+   "complemento": "",
+   "medidores": {
+    "ENERGY": 0.25,
+    "HEALTH": 0.2,
+    "MOOD": 0.35
+   }
+  },
+  {
+   "titulo": "Day thirty: the scale",
+   "planos": [
+    {
+     "narracion": "Day thirty. The moment of truth. Mokordo steps on the scale.",
+     "visual": {
+      "ambiente": "bano",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "hace": {
+        "verbo": "pesa_se",
+        "cuando": "steps on the scale"
+       }
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Thirty days. Around sixty fast food meals. And honestly, he's lost count of the fries.",
+     "visual": {
+      "cifra": {
+       "valor": "60+",
+       "pie": "fast food meals in 30 days",
+       "color": "naranja"
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "In the Swedish study, volunteers gained about six and a half kilos on average in four weeks.",
+     "visual": {
+      "cifra": {
+       "valor": "+6.4 kg",
+       "pie": "average, in 4 weeks",
+       "color": "naranja"
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "The filmmaker of Super Size Me gained eleven kilos, about twenty four pounds, in thirty days.",
+     "visual": {
+      "cifra": {
+       "valor": "+11 kg",
+       "pie": "in 30 days (Super Size Me)",
+       "color": "rojo"
+      }
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Mokordo is somewhere in between. And the scale would like a word.",
+     "visual": {
+      "ambiente": "bano",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.45,
+       "gag": {
+        "tipo": "aplasta",
+        "cuando": "would like a word",
+        "texto": "KG"
+       }
+      },
+      "textos": [
+       {
+        "texto": "+8 KG",
+        "x": 0.75,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "rojo",
+        "cuando": "in between"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "He did it. He won the bet. Bob pays up.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.32,
+       "gag": {
+        "tipo": "crece",
+        "cuando": "won the bet"
+       }
+      },
+      "figuras": [
+       {
+        "quien": "persona",
+        "x": 0.75,
+        "pose": "dando",
+        "espejo": true,
+        "gesto": "triste",
+        "dice": {
+         "texto": "YOU WIN...",
+         "cuando": "pays up"
+        }
+       }
+      ],
+      "cosas": [
+       {
+        "que": "billete",
+        "x": 0.58,
+        "tam": 0.14,
+        "y": 0.35,
+        "cuando": "pays up"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Bob takes a before and after photo. Mokordo asks him to delete it. Immediately.",
+     "visual": {
+      "mascota": {
+       "accion": "asusta",
+       "x": 0.32,
+       "dice": {
+        "texto": "DELETE IT!",
+        "cuando": "delete"
+       }
+      },
+      "figuras": [
+       {
+        "quien": "persona",
+        "x": 0.75,
+        "pose": "de_pie",
+        "espejo": true,
+        "gesto": "riendo",
+        "lleva": "movil"
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Mokordo spends the money on... a salad. He actually misses vegetables.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "gag": {
+        "tipo": "gira",
+        "cuando": "misses vegetables"
+       }
+      },
+      "cosas": [
+       {
+        "que": "zanahoria",
+        "x": 0.72,
+        "tam": 0.16,
+        "y": 0.5,
+        "cuando": "salad"
+       },
+       {
+        "que": "manzana",
+        "x": 0.85,
+        "tam": 0.14,
+        "y": 0.5
+       }
+      ],
+      "ambiente": "salon"
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "salon",
+   "cuerpo": {
+    "gordo": 0.9,
+    "granos": 0.5,
+    "palido": 0.3,
+    "ojeras": 0.4
+   },
+   "dia": "DAY 30",
+   "complemento": "",
+   "medidores": {
+    "ENERGY": 0.15,
+    "HEALTH": 0.15,
+    "MOOD": 0.3
+   }
+  },
+  {
+   "titulo": "Bouncing back",
+   "planos": [
+    {
+     "narracion": "Good news: the body bounces back. In the Swedish study, everyone's liver enzymes went back to normal within a few weeks of stopping.",
+     "visual": {
+      "ambiente": "parque",
+      "mascota": {
+       "accion": "salta",
+       "x": 0.4
+      },
+      "cosas": [
+       {
+        "que": "higado",
+        "x": 0.75,
+        "tam": 0.24,
+        "y": 0.45,
+        "cuando": "liver"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "BACK TO NORMAL",
+        "x": 0.6,
+        "y": 0.22,
+        "tam": 0.09,
+        "color": "verde",
+        "cuando": "normal"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "The weight is slower. The Super Size Me filmmaker said it took him over a year to lose it all.",
+     "visual": {
+      "ambiente": "parque",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "comba",
+        "cuando": "slower"
+       }
+      },
+      "cosas": [
+       {
+        "que": "calendario",
+        "x": 0.8,
+        "tam": 0.18,
+        "y": 0.4,
+        "cuando": "over a year",
+        "etiqueta": "14 MONTHS"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "He swaps soda for water, and the constant thirst disappears.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "bebe",
+        "cuando": "water",
+        "con": "vaso"
+       }
+      },
+      "textos": [
+       {
+        "texto": "WATER",
+        "x": 0.75,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "azul",
+        "cuando": "water"
+       }
+      ],
+      "ambiente": "parque"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "He walks thirty minutes a day. Slowly, the stairs stop being a mountain.",
+     "visual": {
+      "ambiente": "calle",
+      "mascota": {
+       "accion": "anda",
+       "x": 0.35
+      },
+      "textos": [
+       {
+        "texto": "30 MIN",
+        "x": 0.75,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "verde",
+        "cuando": "thirty minutes"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Two months later, his favorite jeans are talking to him again.",
+     "visual": {
+      "ambiente": "dormitorio",
+      "mascota": {
+       "accion": "baila",
+       "x": 0.45
+      },
+      "textos": [
+       {
+        "texto": "JEANS FIT!",
+        "x": 0.75,
+        "y": 0.25,
+        "tam": 0.12,
+        "color": "morado",
+        "cuando": "jeans"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Slowly, his energy comes back. His skin calms down. The couch dent starts to fade.",
+     "visual": {
+      "ambiente": "salon",
+      "mascota": {
+       "accion": "salta",
+       "x": 0.4
+      },
+      "cosas": [
+       {
+        "que": "sofa",
+        "x": 0.75,
+        "tam": 0.3
+       }
+      ],
+      "textos": [
+       {
+        "texto": "ENERGY UP",
+        "x": 0.5,
+        "y": 0.22,
+        "tam": 0.12,
+        "color": "verde",
+        "cuando": "energy comes back"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "He still has a burger sometimes. With friends. On a Saturday. And it tastes better than ever.",
+     "visual": {
+      "ambiente": "restaurante",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.35,
+       "hace": {
+        "verbo": "come",
+        "cuando": "a burger",
+        "con": "hamburguesa"
+       }
+      },
+      "figuras": [
+       {
+        "quien": "persona",
+        "x": 0.75,
+        "pose": "de_pie",
+        "espejo": true,
+        "gesto": "contento"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Mokordo starts cooking for himself. Mostly by setting things on fire, but he's learning.",
+     "visual": {
+      "ambiente": "cocina",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "cocina",
+        "cuando": "cooking"
+       }
+      },
+      "cosas": [
+       {
+        "que": "fuego",
+        "x": 0.75,
+        "tam": 0.16,
+        "y": 0.55,
+        "cuando": "on fire"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "So does this mean you can never eat a burger again? No.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.35
+      },
+      "cosas": [
+       {
+        "que": "hamburguesa",
+        "x": 0.72,
+        "tam": 0.22,
+        "y": 0.45,
+        "cuando": "burger"
+       }
+      ],
+      "textos": [
+       {
+        "texto": "NO!",
+        "x": 0.72,
+        "y": 0.22,
+        "tam": 0.12,
+        "color": "verde",
+        "cuando": "No"
+       }
+      ],
+      "ambiente": "parque"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "The problem isn't one burger. It's eating like this every single day.",
+     "visual": {
+      "mascota": {
+       "accion": "senala",
+       "x": 0.3
+      },
+      "cosas": [
+       {
+        "que": "calendario",
+        "x": 0.72,
+        "tam": 0.22,
+        "y": 0.4,
+        "cuando": "every single day",
+        "etiqueta": "EVERY DAY"
+       }
+      ],
+      "ambiente": "parque"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "A few easy swaps: water instead of soda, add some fruit or vegetables to every meal, and walk a little after eating.",
+     "visual": {
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "hace": {
+        "verbo": "bebe",
+        "cuando": "water",
+        "con": "vaso"
+       }
+      },
+      "cosas": [
+       {
+        "que": "manzana",
+        "x": 0.7,
+        "tam": 0.14,
+        "y": 0.5,
+        "cuando": "fruit"
+       },
+       {
+        "que": "zanahoria",
+        "x": 0.84,
+        "tam": 0.14,
+        "y": 0.5,
+        "cuando": "vegetables"
+       }
+      ],
+      "ambiente": "parque"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "And cook at home when you can. Even simple food. Even if, like Mokordo, you set off the smoke alarm.",
+     "visual": {
+      "ambiente": "cocina",
+      "mascota": {
+       "accion": "explica",
+       "x": 0.4,
+       "gag": {
+        "tipo": "rayo",
+        "cuando": "smoke alarm"
+       }
+      },
+      "cosas": [
+       {
+        "que": "sarten",
+        "x": 0.72,
+        "tam": 0.16,
+        "y": 0.55,
+        "cuando": "cook"
+       }
+      ]
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "Mokordo and Bob are already planning the next bet.",
+     "visual": {
+      "mascota": {
+       "accion": "rie",
+       "x": 0.32
+      },
+      "figuras": [
+       {
+        "quien": "persona",
+        "x": 0.75,
+        "pose": "de_pie",
+        "espejo": true,
+        "gesto": "riendo",
+        "dice": {
+         "texto": "NEXT BET?",
+         "cuando": "next bet"
+        }
+       }
+      ],
+      "ambiente": "parque"
+     },
+     "falta": ""
+    },
+    {
+     "narracion": "So tell me in the comments: what should Mokordo try for thirty days next?",
+     "visual": {
+      "mascota": {
+       "accion": "saluda",
+       "x": 0.5
+      },
+      "textos": [
+       {
+        "texto": "WHAT NEXT?",
+        "x": 0.5,
+        "y": 0.25,
+        "tam": 0.1,
+        "color": "rojo",
+        "cuando": "what should"
+       }
+      ],
+      "ambiente": "parque"
+     },
+     "falta": ""
+    }
+   ],
+   "escenario": "parque",
+   "cuerpo": {
+    "gordo": 0.45,
+    "granos": 0.1
+   },
+   "dia": "AFTER",
+   "complemento": "cinta",
+   "medidores": {
+    "ENERGY": 0.75,
+    "HEALTH": 0.7,
+    "MOOD": 0.9
+   }
+  }
+ ]
+}
