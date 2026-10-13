@@ -86,3 +86,65 @@ def sintetiza(texto: str, destino: Path):
     with wave.open(str(wav), "wb") as w:
         voz.synthesize_wav(texto, w, syn_config=SynthesisConfig(length_scale=RITMO))
     return AudioSegment.from_wav(wav)
+
+
+# ---------------------------------------------------------------------------
+# LAS VOCES GRATIS EN ESPAÑOL, para elegir de oido ("vamos a intentar otra
+# gratuita... mandame las pruebas al Telegram y te digo cual"). La de la
+# release vieja de GitHub suena fatal; las buenas estan en el repositorio de
+# voces de Piper en Hugging Face. Se bajan solo cuando se piden las muestras.
+# ---------------------------------------------------------------------------
+_HF = "https://huggingface.co/rhasspy/piper-voices/resolve/main/es"
+VOCES_ES = [
+    ("davefx", "España, hombre", f"{_HF}/es_ES/davefx/medium/es_ES-davefx-medium.onnx"),
+    ("sharvard", "España", f"{_HF}/es_ES/sharvard/medium/es_ES-sharvard-medium.onnx"),
+    ("carlfm", "España, hombre (ligera)", f"{_HF}/es_ES/carlfm/x_low/es_ES-carlfm-x_low.onnx"),
+    ("claude", "México, hombre", f"{_HF}/es_MX/claude/high/es_MX-claude-high.onnx"),
+    ("ald", "México, hombre", f"{_HF}/es_MX/ald/medium/es_MX-ald-medium.onnx"),
+    ("daniela", "Argentina, mujer", f"{_HF}/es_AR/daniela/high/es_AR-daniela-high.onnx"),
+]
+_CARPETA_ES = Path(DATA_DIR) / "piper_es"
+
+
+def _baja(url: str, destino: Path) -> None:
+    import requests
+    if destino.exists() and destino.stat().st_size > 1000:
+        return
+    tmp = destino.with_suffix(destino.suffix + ".part")
+    with requests.get(url, stream=True, timeout=60) as r:
+        r.raise_for_status()
+        with open(tmp, "wb") as f:
+            for trozo in r.iter_content(1 << 20):
+                f.write(trozo)
+    tmp.rename(destino)
+
+
+def muestras_es(texto: str, carpeta: Path) -> list[tuple[str, Path | None, str]]:
+    """Una muestra en mp3 de cada voz gratis en español (y de cada hablante
+    si el modelo tiene varios). Devuelve (nombre, mp3 o None, error)."""
+    import json
+    from piper import PiperVoice, SynthesisConfig
+    from pydub import AudioSegment
+    _CARPETA_ES.mkdir(parents=True, exist_ok=True)
+    carpeta.mkdir(parents=True, exist_ok=True)
+    salida = []
+    for nombre, desc, url in VOCES_ES:
+        onnx = _CARPETA_ES / url.rsplit("/", 1)[1]
+        try:
+            _baja(url, onnx)
+            _baja(url + ".json", onnx.with_suffix(".onnx.json"))
+            conf = json.loads(onnx.with_suffix(".onnx.json").read_text())
+            hablantes = conf.get("speaker_id_map") or {"": None}
+            voz = PiperVoice.load(onnx, config_path=onnx.with_suffix(".onnx.json"))
+            for etiqueta, sid in hablantes.items():
+                wav = carpeta / f"{nombre}{etiqueta}.wav"
+                with wave.open(str(wav), "wb") as w:
+                    voz.synthesize_wav(texto, w, syn_config=SynthesisConfig(speaker_id=sid, length_scale=1.0))
+                mp3 = wav.with_suffix(".mp3")
+                AudioSegment.from_wav(wav).export(mp3, format="mp3", bitrate="128k")
+                titulo = f"{nombre}{' ' + etiqueta if etiqueta else ''} · {desc}"
+                salida.append((titulo, mp3, ""))
+        except Exception as exc:
+            logger.warning("piper: no sale la voz %s", nombre, exc_info=True)
+            salida.append((f"{nombre} · {desc}", None, str(exc)[:200]))
+    return salida

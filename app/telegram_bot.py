@@ -663,6 +663,36 @@ async def handle_vozgratis_command(update: Update, context: ContextTypes.DEFAULT
         else "Voz de Why Though: Google (de pago). Para la gratis: /vozgratis si")
 
 
+
+async def handle_muestras_voz_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/muestrasvoz: un audio de cada voz GRATIS en español (Piper), con la
+    misma frase, para elegir de oido la de los videos largos."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    from . import voz_piper
+    texto = ("En el año 711, un ejército cruza el estrecho de Gibraltar. Y en el 929, Abderramán tercero "
+             "se proclama califa. ¿Te acuerdas del truco? Novecientos veintinueve es capicúa: se lee igual "
+             "al derecho y al revés.")
+    await update.message.reply_text(
+        "Bajo las voces gratis en español y te mando una muestra de cada una, con la misma frase. "
+        "La primera vez tarda unos minutos (son modelos de 60-110 MB).")
+    try:
+        muestras = await asyncio.get_running_loop().run_in_executor(
+            None, voz_piper.muestras_es, texto, Path(DATA_DIR) / "muestras_voz")
+    except Exception as exc:
+        await update.message.reply_text(f"No he podido hacer las muestras: {str(exc)[:300]}")
+        return
+    hechas = 0
+    for n, (titulo, mp3, error) in enumerate(muestras, start=1):
+        if mp3 is None:
+            await update.message.reply_text(f"{n}. {titulo}: no ha salido ({error})")
+            continue
+        with mp3.open("rb") as handle:
+            await update.message.reply_audio(audio=handle, title=titulo, caption=f"{n}. {titulo}")
+        hechas += 1
+    await update.message.reply_text(f"Listo: {hechas} muestras. Dime el número de la que más te guste.")
+
+
 async def handle_alargar_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/alargar: el guion en ingles que espera se ha quedado corto - se le
     añaden planos a los capitulos cortos, sin reescribirlo."""
@@ -2502,6 +2532,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("alargar", handle_alargar_command))
     application.add_handler(CommandHandler("guion", handle_guion_command))
     application.add_handler(CommandHandler("vozgratis", handle_vozgratis_command))
+    application.add_handler(CommandHandler("muestrasvoz", handle_muestras_voz_command))
     application.add_handler(CommandHandler("cortos", handle_cortos_command))
     application.add_handler(CommandHandler("reset", handle_reset_command))
     application.add_handler(CommandHandler("parar", handle_stop_command))
