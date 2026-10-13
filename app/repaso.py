@@ -28,9 +28,12 @@ _MARGEN = (230, 120, 120)
 _TINTA = (34, 38, 70)
 _ROJO = (214, 52, 52)
 _FPS = 25
-MAX_PUNTOS = 4
+MAX_PUNTOS = 5
 
-_CABECERA = re.compile(r"^\s*(?:REPASO|PARA EL EXAMEN|FICHA)\s*:?\s*$", re.I)
+# "REPASO:", "REPASO FINAL", "RESUMEN PARA EL EXAMEN"... (ella escribio
+# "REPASO FINAL" y con la cabecera solo de "REPASO" se habria narrado como
+# una escena mas)
+_CABECERA = re.compile(r"^\s*[*#-]*\s*(?:REPASO|RESUMEN|PARA EL EXAMEN|FICHA)\b[^\n«»:]{0,25}:?\s*$", re.I)
 
 
 def separa(texto: str) -> tuple[str, list[dict]]:
@@ -48,11 +51,26 @@ def separa(texto: str) -> tuple[str, list[dict]]:
     return texto, []
 
 
+_CORRIENTES = {"se", "comienza", "empieza", "muere", "nace", "desaparece", "reinado", "llega", "termina", "acaba",
+               "fin", "inicio", "la", "el", "los", "las", "un", "una", "primer", "primera", "nueva", "nuevo",
+               "guerra", "batalla", "proclamación", "expulsión", "boda", "regencia", "golpe", "abdica", "firma",
+               "gana", "pierde", "conquista", "funda", "crea", "aprueba", "vuelve", "sube", "cae"}
+
+
 def _a_voz(texto: str) -> str:
     """Como se lee: "1843-1868 · Reinado de Isabel II" -> "De 1843 a 1868,
     reinado de Isabel II"."""
-    t = re.sub(r"^(\d{3,4})\s*[-–]\s*(\d{2,4})\b", r"De \1 a \2", texto.strip())
-    t = re.sub(r"\s*[·|:]\s*", ", ", t, count=1)
+    t = texto.strip()
+    m = re.match(r"^(\d{3,4})(?:\s*[-–]\s*(\d{2,4}))?\s*[·|:,.-]\s*(.+)$", t)
+    if m:
+        resto = m.group(3)
+        # "En 912, se proclama..." pero "En 912, Abderramán III...": solo se
+        # pasa a minuscula si empieza por una palabra corriente, no un nombre
+        if resto.split(" ", 1)[0].lower() in _CORRIENTES:
+            resto = resto[:1].lower() + resto[1:]
+        t = (f"De {m.group(1)} a {m.group(2)}, " if m.group(2) else f"En {m.group(1)}, ") + resto
+    else:
+        t = re.sub(r"\s*[·|:]\s*", ", ", t, count=1)
     return t.rstrip(".") + "."
 
 
@@ -65,7 +83,9 @@ def limpia(puntos) -> list[dict]:
             p = {"texto": p}
         if not isinstance(p, dict):
             continue
-        texto = " ".join(str(p.get("texto") or "").split())[:64]
+        texto = " ".join(str(p.get("texto") or "").split()).rstrip(".")
+        if len(texto) > 90:
+            texto = texto[:90].rsplit(" ", 1)[0]
         if not texto:
             continue
         voz = " ".join(str(p.get("voz") or "").split()) or _a_voz(texto)
@@ -150,16 +170,30 @@ def _fotograma(puntos, tema, t, momentos, w, h):
     x0 = w*0.16
     d.text((x0, h*0.05), titulo, font=f_tit, fill=_ROJO)
     d.line([(x0, h*0.05 + h*0.075), (x0 + tw*entra, h*0.05 + h*0.075 + 4)], fill=_ROJO, width=8)
+    arriba = h*0.25
     if tema:
-        f_tema = _fuente(int(h*0.03))
-        for k, linea in enumerate(_parte(tema.upper(), f_tema, w*0.8)[:3]):
-            d.text((x0, h*0.14 + k*h*0.036), linea, font=f_tema, fill=(90, 90, 110))
+        f_tema = _fuente(int(h*0.028))
+        lineas_tema = _parte(tema.upper(), f_tema, w*0.8)
+        if len(lineas_tema) > 2:
+            lineas_tema = lineas_tema[:2]
+            lineas_tema[1] = lineas_tema[1].rstrip(" .,:") + "…"
+        for k, linea in enumerate(lineas_tema):
+            d.text((x0, h*0.14 + k*h*0.034), linea, font=f_tema, fill=(90, 90, 110))
+        arriba = max(arriba, h*0.14 + len(lineas_tema)*h*0.034 + h*0.03)
     # los puntos, de uno en uno, con su "check"
-    f_p = _fuente(int(h*0.033))
-    y = h*0.25
+    px = int(h*0.033)
+    while px > int(h*0.022):
+        f_p = _fuente(px)
+        lineas_total = sum(len(_parte(p["texto"], f_p, w*0.72)) for p in puntos)
+        if arriba + lineas_total*px*1.24 + len(puntos)*h*0.02 <= h*0.635:
+            break
+        px -= 2
+    f_p = _fuente(px)
+    salto = px*1.24
+    y = arriba
     for p, desde in zip(puntos, momentos):
         lineas = _parte(p["texto"], f_p, w*0.72)
-        alto_p = len(lineas)*h*0.041 + h*0.02
+        alto_p = len(lineas)*salto + h*0.02
         if t >= desde:
             k = min(1.0, (t - desde)/0.25)
             # la marca de check que se dibuja
@@ -169,13 +203,19 @@ def _fotograma(puntos, tema, t, momentos, w, h):
             if k > 0.5:
                 d.line([(cx - s*0.3, cy + s*0.7), (cx - s*0.3 + (s*1.6)*(k - 0.5)*2, cy + s*0.7 - s*1.9*(k - 0.5)*2)],
                        fill=(40, 160, 80), width=7)
+            fecha = re.match(r"^\s*(\d{3,4}(?:\s*[-–]\s*\d{2,4})?\s*[·|:]?)", p["texto"])
+            fecha = fecha.group(1) if fecha else ""
             for j, linea in enumerate(lineas):
-                # se escribe de izquierda a derecha
+                # se escribe de izquierda a derecha; la fecha, en rojo
                 visible = linea[:max(1, int(len(linea)*min(1.0, (t - desde)/0.45)))]
-                d.text((w*0.25, y + j*h*0.041), visible, font=f_p, fill=_TINTA)
+                x = w*0.25
+                if j == 0 and fecha and visible.startswith(fecha.strip()[:1]):
+                    roja = visible[:len(fecha)]
+                    d.text((x, y), roja, font=f_p, fill=_ROJO)
+                    x += f_p.getlength(roja)
+                    visible = visible[len(fecha):]
+                d.text((x, y + j*salto), visible, font=f_p, fill=_TINTA)
         y += alto_p
-        if y > h*0.62:
-            break
     # el aviso de captura, cuando ya estan todos
     if momentos and t > momentos[-1] + 0.6:
         f_ok = _fuente(int(h*0.028), mano=False)
