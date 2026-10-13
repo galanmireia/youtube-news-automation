@@ -476,7 +476,8 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
                        top[1] - h*0.06], fill=(110, 190, 90), outline=TINTA, width=max(2, g//2))
     centro = T((h*0.02, -alto*(0.7 if forma == "judia" else 0.58)))
     r = h*0.27      # la cara mas grande: en el movil no se leian los gestos
-    garabato._cara_expresiva(d, centro, r, g, random.Random(1), gesto, tinta=TINTA, mira=mira, habla=habla)
+    garabato._cara_expresiva(d, centro, r, g, random.Random(1), gesto, tinta=TINTA, mira=mira, habla=habla,
+                             piel=color)
     if dg:
         _desgaste(img, d, T, centro, r, g, h, ancho, alto, dg)
     _detalles_cara(img, d, centro, r, g, h, cu, color, parpadeo)
@@ -492,7 +493,7 @@ def dibuja(img, cx, suelo, h, gesto="neutro", estira=1.0, inclina=0.0, brazos=((
         for lado in (-1, 1):
             d.chord([centro[0] + (lado - 1)*r*0.22, centro[1] + r*0.12, centro[0] + (lado + 1)*r*0.22,
                      centro[1] + r*0.4], 180, 360, fill=(245, 245, 245), outline=TINTA, width=max(2, g//2))
-    if parpadeo and gesto not in ("contento", "riendo", "bostezo"):
+    if parpadeo and gesto not in garabato.SIN_PARPADEO:
         for lado in (-1, 1):
             ex, ey = centro[0] + lado*r*0.33, centro[1] - r*0.12
             d.ellipse([ex - r*0.19, ey - r*0.22, ex + r*0.19, ey + r*0.2], fill=color)

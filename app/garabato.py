@@ -567,11 +567,56 @@ def _joystick(d, x, y, t, rnd, g, tinta=TINTA):
     _ovalo(d, [x - t*0.2, y - t*0.95, x + t*0.04, y - t*0.7], (226, 38, 38), g)
     d.ellipse([x + t*0.12, y - t*0.17, x + t*0.24, y - t*0.07], fill=(250, 206, 20), outline=TINTA)
 
+def _calendario_mes(d, x, y, t, rnd, g, tinta=TINTA):
+    """El calendario de Why Though, sin palabras (el de España Contada pone
+    OCTUBRE en un video en ingles): la hoja del mes con los dias tachados."""
+    ancho, alto = t*0.86, t*0.92
+    x0, y0 = x - ancho/2, y - alto
+    d.rectangle([x0, y0, x0 + ancho, y], fill=(252, 250, 244), outline=tinta, width=max(2, g//2))
+    d.rectangle([x0, y0, x0 + ancho, y0 + alto*0.2], fill=(226, 70, 64), outline=tinta, width=max(2, g//2))
+    for k in range(4):
+        ax = x0 + ancho*(0.2 + 0.2*k)
+        d.line([(ax, y0 - alto*0.06), (ax, y0 + alto*0.06)], fill=tinta, width=max(2, g//2))
+    filas, cols = 5, 7
+    cw, ch = ancho*0.9/cols, alto*0.72/filas
+    for i in range(filas*cols - 3):
+        cx = x0 + ancho*0.05 + (i % cols + 0.5)*cw
+        cy = y0 + alto*0.24 + (i // cols + 0.5)*ch
+        d.rectangle([cx - cw*0.38, cy - ch*0.36, cx + cw*0.38, cy + ch*0.36], outline=(200, 196, 188),
+                    width=max(1, g//3))
+        if i < 24:
+            # los dias que ya pasaron, tachados a rotulador
+            d.line([(cx - cw*0.3, cy - ch*0.3), (cx + cw*0.3, cy + ch*0.3)], fill=(226, 38, 38), width=max(2, g//2))
+            d.line([(cx - cw*0.3, cy + ch*0.3), (cx + cw*0.3, cy - ch*0.3)], fill=(226, 38, 38), width=max(2, g//2))
+
+
+def _llamas(d, x, y, t, rnd, g, tinta=TINTA):
+    """El fuego de Why Though: tres lenguas de llama, roja, naranja y
+    amarilla (el de monigotes, pequeño, parecia una casita)."""
+    def borde(v, W, fase):
+        # media anchura a la altura v (0 = la punta, 1 = la base redonda)
+        if v > 0.68:
+            hw = W*math.sqrt(max(0.0, 1 - ((v - 0.68)/0.32)**2))
+        else:
+            hw = W*(v/0.68)**1.1
+        return hw*(1 + 0.16*math.sin(v*11 + fase))
+    for esc, color in ((1.0, (230, 60, 40)), (0.7, (250, 140, 30)), (0.42, (252, 220, 70))):
+        H, W = t*0.95*esc, t*0.36*esc
+        top = y - H
+        vs = [k/30 for k in range(31)]
+        izq = [(x - borde(v, W, 0.0), top + H*v) for v in vs]
+        der = [(x + borde(v, W, 2.1), top + H*v) for v in reversed(vs)]
+        pts = izq + der
+        d.polygon(pts, fill=color)
+        if esc == 1.0:
+            d.line(pts + [pts[0]], fill=tinta, width=max(2, g//2))
+
 OBJETOS = {
     "cerebro": _cerebro, "ojo": _ojo, "corazon": _corazon, "pulmones": _pulmones,
     "estomago": _estomago, "bacteria": _bacteria, "virus": _virus, "cebolla": _cebolla,
     "termometro": _termometro, "ventilador": _ventilador, "cama": _cama, "despertador": _reloj,
     "movil": _telefono, "gota": _gota, "calavera": _calavera, "taza": _taza, "pastilla": _pastilla,
+    "calendario_mes": _calendario_mes, "llamas": _llamas,
     "luna": _luna, "hielo": _hielo, "planta": _planta, "hamburguesa": _hamburguesa,
     "bombilla": _bombilla, "peligro": _peligro, "bien": _bien, "mal": _mal, "igual": _igual,
     "interrogacion": _interrogacion, "calor": _calor, "frio": _frio, "billete": _dinero,
@@ -612,7 +657,10 @@ _ALIAS_OBJETOS = {"gear": "engranaje", "rueda_dentada": "engranaje", "engranajes
                   "lungs": "pulmones", "liver": "higado", "pack": "paquete", "cigarette_pack": "paquete",
                   "piggy_bank": "hucha", "butts": "colillas", "ashtray": "cenicero",
                   "bell": "campana", "alarm": "campana", "foam": "esponja", "foam_pad": "esponja",
-                  "sponge": "esponja", "espuma": "esponja"}
+                  "sponge": "esponja", "espuma": "esponja",
+                  # (los de España Contada que en ingles no pegan)
+                  "calendario": "calendario_mes", "calendar": "calendario_mes", "fuego": "llamas",
+                  "fire": "llamas"}
 
 
 def nombre_objeto(que) -> str:
@@ -656,7 +704,14 @@ m._POSES["manos_cabeza"] = {
     "brazos": [[(0, -.66), (-.36, -.78), (-.25, -.96)], [(0, -.66), (.36, -.78), (.25, -.96)]],
     "piernas": [[(0, -.38), (-.10, -.19), (-.14, 0)], [(0, -.38), (.10, -.19), (.14, 0)]]}
 POSES_EXTRA = ("manos_cabeza", "tumbado")
-GESTOS_EXTRA = ("muerto", "agotado", "dormido")
+CARAS_NUEVAS = ("hambre", "chulo", "avergonzado", "dolor", "estrellas", "nervioso", "sospecha", "lleno",
+                "malvado", "flipado", "picante", "harto", "nauseas", "orgulloso", "llorando")
+# La boca ES el gesto: hablando se sigue viendo esa boca, no la de hablar.
+_BOCA_FIJA = ("dolor", "flipado", "hambre", "picante", "nauseas", "lleno", "llorando")
+# Ojos que no son ojos (corazones, estrellas, cerrados): no parpadean.
+SIN_PARPADEO = ("contento", "riendo", "bostezo", "enamorado", "estrellas", "dolor", "lleno", "nauseas",
+                "orgulloso", "dormido", "llorando")
+GESTOS_EXTRA = ("muerto", "agotado", "dormido") + CARAS_NUEVAS
 EFECTOS_EXTRA = ("calor", "frio")
 
 
@@ -1270,7 +1325,243 @@ def _ceja(d, cx, cy, r, g, tinta, lado, inclina=0.0, alto=0.0):
     d.line([(fuera, y - inclina*r*0.04), (dentro, y + inclina*r*0.08)], fill=tinta, width=max(3, int(g*1.1)))
 
 
-def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA, mira=None, habla=None):
+# ---------------------------------------------------------------------------
+# CARAS NUEVAS ("intenta añadir tambien expresiones diferentes"; "añade mas,
+# no solo esa"): cada una con su ojo y su boca propios, para que no se repita
+# siempre la misma media docena de caras.
+# ---------------------------------------------------------------------------
+_AMARILLO_ESTRELLA = (250, 205, 40)
+_ROJO_CORAZON = (226, 38, 38)
+_AZUL_BABA = (120, 190, 240)
+_VERDE_NAUSEA = (150, 200, 110)
+_ROJO_PICA = (240, 90, 60)
+
+
+def _corazon_ojo(d, cx, cy, s, g, tinta):
+    pts = []
+    for i in range(32):
+        a = i/32*2*math.pi
+        px = 16*math.sin(a)**3
+        py = 13*math.cos(a) - 5*math.cos(2*a) - 2*math.cos(3*a) - math.cos(4*a)
+        pts.append((cx + px*s/17, cy - py*s/17))
+    d.polygon(pts, fill=_ROJO_CORAZON, outline=tinta)
+    d.line(pts + [pts[0]], fill=tinta, width=max(2, g//2))
+    d.ellipse([cx - s*0.55, cy - s*0.55, cx - s*0.25, cy - s*0.25], fill=(255, 255, 255))
+
+
+def _estrella_ojo(d, cx, cy, s, g, tinta):
+    pts = []
+    for k in range(10):
+        a = -math.pi/2 + k*math.pi/5
+        rr = s if k % 2 == 0 else s*0.45
+        pts.append((cx + rr*math.cos(a), cy + rr*math.sin(a)))
+    d.polygon(pts, fill=_AMARILLO_ESTRELLA, outline=tinta)
+    d.line(pts + [pts[0]], fill=tinta, width=max(2, g//2))
+
+
+def _parpado(d, cx, cy, r, g, tinta, baja=0.45, arriba=True, piel=None, grande=1.0):
+    """El parpado: tapa la parte de arriba (o de abajo) del ojo abierto, del
+    color de la piel un poco mas oscuro. Ojos entornados de chulo, de harto,
+    de sospecha."""
+    ro = r*0.15*grande
+    ry = ro*1.15
+    y = cy - ry + 2*ry*baja if arriba else cy + ry - 2*ry*baja
+    a = math.degrees(math.asin(max(-1.0, min(1.0, (y - cy)/ry))))
+    caja = [cx - ro - 1, cy - ry - 1, cx + ro + 1, cy + ry + 1]
+    color = tuple(int(c*0.82) for c in (piel or (235, 235, 235)))
+    if arriba:
+        d.chord(caja, 180 - a, 360 + a, fill=color, outline=tinta, width=max(2, g//2))
+    else:
+        d.chord(caja, a, 180 - a, fill=color, outline=tinta, width=max(2, g//2))
+    medio = ro*math.cos(math.radians(a))
+    d.line([(cx - medio, y), (cx + medio, y)], fill=tinta, width=max(3, g))
+
+
+def _ojo_cara_nueva(d, cx, ey, r, g, tinta, lado, gesto, mira, piel):
+    ro = r*0.15
+    if gesto == "enamorado":
+        _corazon_ojo(d, cx, ey, r*0.19, g, tinta)
+    elif gesto == "estrellas":
+        _estrella_ojo(d, cx, ey, r*0.2, g, tinta)
+        _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.4, alto=0.14)
+    elif gesto == "hambre":
+        # ojazos brillantes de "lo quiero": pupila enorme con dos brillos
+        d.ellipse([cx - ro*1.3, ey - ro*1.45, cx + ro*1.3, ey + ro*1.45], fill=(255, 255, 255), outline=tinta,
+                  width=max(2, g//2))
+        rp = ro*1.0
+        d.ellipse([cx - rp, ey - rp*1.1, cx + rp, ey + rp*1.1], fill=tinta)
+        d.ellipse([cx - rp*0.6, ey - rp*0.8, cx - rp*0.05, ey - rp*0.25], fill=(255, 255, 255))
+        d.ellipse([cx + rp*0.2, ey + rp*0.2, cx + rp*0.5, ey + rp*0.5], fill=(255, 255, 255))
+        _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.7, alto=0.18)
+    elif gesto == "chulo":
+        _ojo_abierto(d, cx, ey, r, g, tinta, mira=mira or (0.3, 0))
+        _parpado(d, cx, ey, r, g, tinta, baja=0.45, piel=piel)
+        _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.9 if lado > 0 else 0.5, alto=0.2 if lado > 0 else 0.02)
+    elif gesto == "avergonzado":
+        _ojo_abierto(d, cx, ey, r, g, tinta, mira=(-0.7, 0.8), grande=0.85)
+        _ceja(d, cx, ey, r, g, tinta, lado, inclina=-1.2, alto=0.08)
+    elif gesto == "dolor":
+        # > <
+        k = r*0.12
+        d.line([(cx - lado*k, ey - k*0.8), (cx + lado*k, ey), (cx - lado*k, ey + k*0.8)], fill=tinta,
+               width=max(3, g), joint="curve")
+        _ceja(d, cx, ey, r, g, tinta, lado, inclina=1.4, alto=0.02)
+    elif gesto == "nervioso":
+        _ojo_abierto(d, cx, ey, r, g, tinta, mira=(lado*0.9, 0), grande=1.1, pupila=0.45)
+        _ceja(d, cx, ey, r, g, tinta, lado, inclina=-1.0, alto=0.16)
+    elif gesto == "sospecha":
+        _ojo_abierto(d, cx, ey, r, g, tinta, mira=(-0.9, 0.1), grande=0.95)
+        _parpado(d, cx, ey, r, g, tinta, baja=0.38, piel=piel, grande=0.95)
+        _parpado(d, cx, ey, r, g, tinta, baja=0.18, arriba=False, piel=piel, grande=0.95)
+        _ceja(d, cx, ey, r, g, tinta, lado, inclina=1.0 if lado < 0 else 0.3, alto=0.0)
+    elif gesto == "harto":
+        _ojo_abierto(d, cx, ey, r, g, tinta, mira=(0, 0.25))
+        _parpado(d, cx, ey, r, g, tinta, baja=0.55, piel=piel)
+        d.line([(cx - r*0.16, ey - r*0.3), (cx + r*0.16, ey - r*0.3)], fill=tinta, width=max(3, int(g*1.1)))
+    elif gesto == "malvado":
+        _ojo_abierto(d, cx, ey, r, g, tinta, mira=(-lado*0.4, 0.2), grande=0.95, pupila=0.7)
+        _parpado(d, cx, ey, r, g, tinta, baja=0.35, piel=piel, grande=0.95)
+        _ceja(d, cx, ey, r, g, tinta, lado, inclina=2.0, alto=-0.02)
+    elif gesto == "flipado":
+        # ojos como platos y pupilas como cabezas de alfiler
+        d.ellipse([cx - ro*1.55, ey - ro*1.8, cx + ro*1.55, ey + ro*1.8], fill=(255, 255, 255), outline=tinta,
+                  width=max(2, g//2))
+        d.ellipse([cx - ro*0.22, ey - ro*0.22, cx + ro*0.22, ey + ro*0.22], fill=tinta)
+        _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.3, alto=0.3)
+    elif gesto == "picante":
+        _ojo_abierto(d, cx, ey, r, g, tinta, mira=(0, -0.2), grande=1.2, pupila=0.7)
+        # los ojos se le aguan
+        d.chord([cx - ro*1.1, ey + ro*0.2, cx + ro*1.1, ey + ro*1.3], 0, 180, fill=_AZUL_BABA)
+        _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.8, alto=0.16)
+    elif gesto in ("lleno", "orgulloso"):
+        d.arc([cx - r*0.13, ey - r*0.08, cx + r*0.13, ey + r*0.14], 200, 340, fill=tinta, width=max(3, g))
+        _ceja(d, cx, ey, r, g, tinta, lado, inclina=-0.3, alto=0.1)
+    elif gesto == "nauseas":
+        d.arc([cx - r*0.13, ey - r*0.1, cx + r*0.13, ey + r*0.1], 20, 160, fill=tinta, width=max(3, g))
+        _ceja(d, cx, ey, r, g, tinta, lado, inclina=-1.3, alto=0.06)
+    elif gesto == "llorando":
+        # ojos apretados y dos rios de lagrimas
+        d.arc([cx - r*0.13, ey - r*0.12, cx + r*0.13, ey + r*0.08], 200, 340, fill=tinta, width=max(3, g))
+        pts = [(cx - r*0.05, ey + r*0.03), (cx + r*0.05, ey + r*0.03)]
+        pts += [(cx + r*(0.06 + 0.06*k/8) + r*0.025*math.sin(k*1.3), ey + r*(0.03 + 0.08*k)) for k in range(1, 9)]
+        pts += [(cx - r*(0.06 + 0.06*k/8) + r*0.025*math.sin(k*1.3), ey + r*(0.03 + 0.08*k)) for k in range(8, 0, -1)]
+        d.polygon(pts, fill=_AZUL_BABA)
+        for k, dx in enumerate((-0.1, 0.12)):
+            gy = ey + r*(0.78 + 0.08*k)
+            d.ellipse([cx + dx*r - r*0.04, gy, cx + dx*r + r*0.04, gy + r*0.08], fill=_AZUL_BABA)
+        _ceja(d, cx, ey, r, g, tinta, lado, inclina=-1.6, alto=0.05)
+
+
+def _resto_cara_nueva(d, c, b, r, g, tinta, gesto, habla, piel=None):
+    """Mofletes, gotas y boca de las caras nuevas."""
+    w3 = max(3, g)
+    if gesto in ("enamorado", "avergonzado", "estrellas", "orgulloso"):
+        for lado in (-1, 1):
+            mx = c[0] + lado*r*0.52
+            d.ellipse([mx - r*0.14, b[1] - r*0.22, mx + r*0.14, b[1] - r*0.04], fill=_ROSA_MOFLETE)
+            if gesto == "avergonzado":
+                # las rayitas del sonrojo
+                for k in (-1, 0, 1):
+                    x0 = mx + k*r*0.07
+                    d.line([(x0 - r*0.03, b[1] - r*0.07), (x0 + r*0.03, b[1] - r*0.19)], fill=(220, 90, 110),
+                           width=max(2, g//2))
+    if gesto == "nauseas":
+        # la cara se le pone verde y los mofletes llenos
+        for lado in (-1, 1):
+            mx = c[0] + lado*r*0.42
+            d.ellipse([mx - r*0.2, b[1] - r*0.2, mx + r*0.2, b[1] + r*0.16], fill=_VERDE_NAUSEA, outline=tinta,
+                      width=max(2, g//2))
+    if gesto == "picante":
+        for lado in (-1, 1):
+            mx = c[0] + lado*r*0.55
+            d.ellipse([mx - r*0.16, b[1] - r*0.24, mx + r*0.16, b[1] - r*0.02], fill=_ROJO_PICA)
+    if gesto in ("nervioso", "nauseas", "picante"):
+        # la gota de sudor en la frente
+        gx, gy = c[0] + r*0.72, c[1] - r*0.5
+        d.polygon([(gx, gy - r*0.16), (gx - r*0.08, gy + r*0.02), (gx + r*0.08, gy + r*0.02)], fill=_AZUL_BABA)
+        d.ellipse([gx - r*0.08, gy - r*0.06, gx + r*0.08, gy + r*0.1], fill=_AZUL_BABA, outline=tinta,
+                  width=max(2, g//3))
+    habla_ = habla is not None and habla >= 0.12 and gesto not in _BOCA_FIJA
+    if habla_:
+        return False       # la boca de hablar la pone _cara_expresiva
+    if gesto == "hambre":
+        d.chord([b[0] - r*0.3, b[1] - r*0.14, b[0] + r*0.3, b[1] + r*0.36], 0, 180, fill=tinta)
+        d.chord([b[0] - r*0.16, b[1] + r*0.1, b[0] + r*0.16, b[1] + r*0.34], 0, 180, fill=_LENGUA)
+        # la baba
+        bx = b[0] + r*0.22
+        d.line([(bx, b[1] + r*0.12), (bx, b[1] + r*0.42)], fill=_AZUL_BABA, width=max(3, g))
+        d.ellipse([bx - r*0.06, b[1] + r*0.38, bx + r*0.06, b[1] + r*0.52], fill=_AZUL_BABA, outline=tinta,
+                  width=max(2, g//3))
+    elif gesto == "chulo":
+        # media sonrisa torcida
+        d.arc([b[0] - r*0.1, b[1] - r*0.3, b[0] + r*0.34, b[1] + r*0.08], 10, 120, fill=tinta, width=w3)
+    elif gesto == "avergonzado":
+        pts = [(b[0] - r*0.16 + k*r*0.04, b[1] + r*0.05 + r*0.025*math.sin(k*1.8)) for k in range(9)]
+        d.line(pts, fill=tinta, width=w3, joint="curve")
+    elif gesto in ("dolor", "nervioso", "malvado"):
+        # los dientes apretados (dolor), la sonrisa forzada (nervioso) o la
+        # sonrisa de villano (malvado)
+        ancho = r*(0.3 if gesto != "malvado" else 0.36)
+        arriba, abajo = (b[1] - r*0.06, b[1] + r*0.14) if gesto != "malvado" else (b[1] - r*0.1, b[1] + r*0.16)
+        if gesto == "malvado":
+            d.chord([b[0] - ancho, arriba - r*0.16, b[0] + ancho, abajo], 0, 180, fill=(255, 255, 255), outline=tinta,
+                    width=max(2, g//2))
+            for k in range(1, 6):
+                x = b[0] - ancho + k*ancho*2/6
+                d.line([(x, arriba + r*0.03), (x, abajo - r*0.01)], fill=tinta, width=max(2, g//3))
+            d.line([(b[0] - ancho, arriba + r*0.04), (b[0] + ancho, arriba + r*0.04)], fill=tinta, width=max(2, g//3))
+        else:
+            ola = 0.04 if gesto == "nervioso" else 0.0
+            d.rounded_rectangle([b[0] - ancho, arriba, b[0] + ancho, abajo], radius=r*0.06, fill=(255, 255, 255),
+                                outline=tinta, width=max(2, g//2))
+            d.line([(b[0] - ancho, (arriba + abajo)/2), (b[0] + ancho, (arriba + abajo)/2 + ola*r)], fill=tinta,
+                   width=max(2, g//3))
+            for k in range(1, 5):
+                x = b[0] - ancho + k*ancho*2/5
+                d.line([(x, arriba), (x, abajo)], fill=tinta, width=max(2, g//3))
+    elif gesto == "estrellas":
+        d.chord([b[0] - r*0.34, b[1] - r*0.14, b[0] + r*0.34, b[1] + r*0.42], 0, 180, fill=tinta)
+        d.chord([b[0] - r*0.18, b[1] + r*0.14, b[0] + r*0.18, b[1] + r*0.4], 0, 180, fill=_LENGUA)
+    elif gesto == "enamorado":
+        d.arc([b[0] - r*0.32, b[1] - r*0.3, b[0] + r*0.32, b[1] + r*0.18], 20, 160, fill=tinta, width=w3)
+    elif gesto == "sospecha":
+        d.line([(b[0] - r*0.22, b[1] + r*0.06), (b[0] + r*0.06, b[1] + r*0.02)], fill=tinta, width=w3)
+    elif gesto == "harto":
+        d.line([(b[0] - r*0.2, b[1] + r*0.06), (b[0] + r*0.2, b[1] + r*0.06)], fill=tinta, width=w3)
+    elif gesto == "lleno":
+        # los carrillos hinchados como un hamster y la boca apretada
+        for lado in (-1, 1):
+            mx = b[0] + lado*r*0.3
+            caja = [mx - r*0.24, b[1] - r*0.2, mx + r*0.24, b[1] + r*0.24]
+            d.ellipse(caja, fill=piel or (255, 255, 255))
+            # solo la curva de fuera: los carrillos abultan, no son gafas
+            d.arc(caja, -70 if lado > 0 else 110, 70 if lado > 0 else 250, fill=tinta, width=max(3, g))
+            d.ellipse([mx - r*0.12 + lado*r*0.04, b[1] - r*0.06, mx + r*0.12 + lado*r*0.04, b[1] + r*0.08],
+                      fill=_ROSA_MOFLETE)
+        d.ellipse([b[0] - r*0.07, b[1] + r*0.04, b[0] + r*0.07, b[1] + r*0.15], fill=tinta)
+    elif gesto == "nauseas":
+        pts = [(b[0] - r*0.18 + k*r*0.045, b[1] + r*0.08 + r*0.03*math.sin(k*2.2)) for k in range(9)]
+        d.line(pts, fill=tinta, width=w3, joint="curve")
+    elif gesto == "flipado":
+        # la mandibula por los suelos
+        d.ellipse([b[0] - r*0.2, b[1] - r*0.06, b[0] + r*0.2, b[1] + r*0.62], fill=tinta)
+        d.ellipse([b[0] - r*0.12, b[1] + r*0.36, b[0] + r*0.12, b[1] + r*0.58], fill=_LENGUA)
+    elif gesto == "picante":
+        # lengua fuera y fuego
+        d.chord([b[0] - r*0.3, b[1] - r*0.12, b[0] + r*0.3, b[1] + r*0.3], 0, 180, fill=tinta)
+        d.rounded_rectangle([b[0] - r*0.13, b[1] + r*0.05, b[0] + r*0.13, b[1] + r*0.44], radius=r*0.12,
+                            fill=_LENGUA, outline=tinta, width=max(2, g//2))
+    elif gesto == "orgulloso":
+        d.chord([b[0] - r*0.32, b[1] - r*0.12, b[0] + r*0.32, b[1] + r*0.3], 0, 180, fill=(255, 255, 255),
+                outline=tinta, width=max(2, g//2))
+        d.line([(b[0] - r*0.3, b[1] - r*0.02), (b[0] + r*0.3, b[1] - r*0.02)], fill=tinta, width=max(2, g//3))
+    elif gesto == "llorando":
+        d.chord([b[0] - r*0.3, b[1] - r*0.04, b[0] + r*0.3, b[1] + r*0.4], 180, 360, fill=tinta)
+        d.chord([b[0] - r*0.16, b[1] + r*0.08, b[0] + r*0.16, b[1] + r*0.36], 180, 360, fill=_LENGUA)
+    return True
+
+
+def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA, mira=None, habla=None, piel=None):
     """La cara. mira: (dx, dy) de -1 a 1, adonde miran las pupilas; habla:
     0-1, lo abierta que tiene la boca al hablar (None = no habla)."""
     o = r*0.33
@@ -1278,6 +1569,13 @@ def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA, mira=None, habla=None):
     b = (c[0], c[1] + r*0.38)
     if gesto == "muerto":
         return _CARA_ORIGINAL(d, c, r, g, rnd, gesto, tinta)
+    if gesto in CARAS_NUEVAS or gesto == "enamorado":
+        for lado in (-1, 1):
+            _ojo_cara_nueva(d, c[0] + lado*o, ey, r, g, tinta, lado, gesto, mira, piel)
+        if _resto_cara_nueva(d, c, b, r, g, tinta, gesto, habla, piel):
+            return
+        gesto = "neutro"     # habla: la boca de hablar de siempre
+        return _boca_hablando(d, b, r, habla, gesto, tinta)
     for lado in (-1, 1):
         cx = c[0] + lado*o
         if gesto in ("contento", "riendo", "enamorado"):
@@ -1328,21 +1626,12 @@ def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA, mira=None, habla=None):
             _ojo_abierto(d, cx, ey, r, g, tinta, mira=mira or (0.15, 0))
             # al hablar, las cejas acompañan un poco
             _ceja(d, cx, ey, r, g, tinta, lado, inclina=0.0, alto=0.06 + 0.05*(habla or 0))
-    if gesto in ("contento", "riendo", "enamorado"):
+    if gesto in ("contento", "riendo"):
         for lado in (-1, 1):
             mx = c[0] + lado*r*0.52
             d.ellipse([mx - r*0.13, b[1] - r*0.2, mx + r*0.13, b[1] - r*0.06], fill=_ROSA_MOFLETE)
     if habla is not None and habla >= 0.12 and gesto not in ("riendo", "asustado", "grito", "bostezo", "mareado"):
-        # HABLANDO: la boca se abre con la voz (y se ve la lengua si abre mucho)
-        ancho_b, alto_b = r*(0.24 + 0.12*habla), r*(0.1 + 0.42*habla)
-        sube = r*0.06 if gesto in ("contento", "enamorado") else 0
-        d.chord([b[0] - ancho_b, b[1] - alto_b*0.35 - sube, b[0] + ancho_b, b[1] + alto_b - sube], 0, 180, fill=tinta)
-        d.chord([b[0] - ancho_b, b[1] - alto_b*0.5 - sube, b[0] + ancho_b, b[1] + alto_b*0.1 - sube], 0, 180,
-                fill=tinta)
-        if habla > 0.5:
-            d.chord([b[0] - ancho_b*0.55, b[1] + alto_b*0.3 - sube, b[0] + ancho_b*0.55, b[1] + alto_b*0.95 - sube],
-                    180, 360, fill=_LENGUA)
-        return
+        return _boca_hablando(d, b, r, habla, gesto, tinta)
     if gesto == "riendo":
         d.chord([b[0] - r*0.36, b[1] - r*0.16, b[0] + r*0.36, b[1] + r*0.46], 0, 180, fill=tinta)
         d.chord([b[0] - r*0.2, b[1] + r*0.14, b[0] + r*0.2, b[1] + r*0.44], 0, 180, fill=_LENGUA)
@@ -1380,6 +1669,18 @@ def _cara_expresiva(d, c, r, g, rnd, gesto, tinta=TINTA, mira=None, habla=None):
         d.ellipse([b[0] - r*0.1, b[1] + r*0.14, b[0] + r*0.1, b[1] + r*0.32], fill=_LENGUA)
     else:
         d.arc([b[0] - r*0.18, b[1] - r*0.12, b[0] + r*0.18, b[1] + r*0.1], 20, 160, fill=tinta, width=max(3, g))
+
+
+def _boca_hablando(d, b, r, habla, gesto, tinta):
+    """HABLANDO: la boca se abre con la voz (y se ve la lengua si abre mucho)."""
+    ancho_b, alto_b = r*(0.24 + 0.12*habla), r*(0.1 + 0.42*habla)
+    sube = r*0.06 if gesto in ("contento", "enamorado") else 0
+    d.chord([b[0] - ancho_b, b[1] - alto_b*0.35 - sube, b[0] + ancho_b, b[1] + alto_b - sube], 0, 180, fill=tinta)
+    d.chord([b[0] - ancho_b, b[1] - alto_b*0.5 - sube, b[0] + ancho_b, b[1] + alto_b*0.1 - sube], 0, 180,
+            fill=tinta)
+    if habla > 0.5:
+        d.chord([b[0] - ancho_b*0.55, b[1] + alto_b*0.3 - sube, b[0] + ancho_b*0.55, b[1] + alto_b*0.95 - sube],
+                180, 360, fill=_LENGUA)
 
 
 _CARA_ORIGINAL = m._cara
@@ -1490,7 +1791,9 @@ def _plan_de_camara(visual, e, segundos, apariciones, foco, ancho, alto, pies):
             or segundos < 3.2:
         return []
     ma = visual.get("mascota") if isinstance(visual.get("mascota"), dict) else None
-    figs = [f for f in e.get("figuras", []) if isinstance(f, dict)]
+    # (las del guion: en "e" Bob y el medico aun no estaban y de cerca se
+    # quedaban fuera de cuadro mientras hablaban)
+    figs = [f for f in (e.get("figuras") or visual.get("figuras") or []) if isinstance(f, dict)]
     hay_hace = any(isinstance(x, dict) and x.get("hace") for x in [ma] + list(visual.get("figuras") or []))
     gente = []
     if ma:
@@ -1498,8 +1801,11 @@ def _plan_de_camara(visual, e, segundos, apariciones, foco, ancho, alto, pies):
     for f in figs:
         gente.append((ancho*float(f.get("x", 0.5)), alto*0.45))
     salta = ma and str(ma.get("accion") or "") in ("salta", "corre", "anda", "baila", "entra", "mareo")
+    grande = ma and gags.tipo_de(ma.get("gag")) in gags.CUERPO_ENTERO
     def cerca():
-        if not gente or hay_hace or salta:      # (al saltar, de cerca se le cortaba la cabeza)
+        # (con alguien mas en el plano, de cerca solo salia Mokordo y el otro
+        # - Bob, el medico - hablaba fuera de cuadro: entonces, los dos)
+        if not gente or hay_hace or salta or len(gente) > 1 or grande:
             return medio()
         gx, gh = gente[0]
         return (gx, pies - gh*0.6, 1.6)
@@ -1587,7 +1893,10 @@ def _reacciona(estados, apariciones, t):
             continue
         est["lado"] = 1 if sx > est["cx"] else -1
         est["alcanza"] = {est["lado"]: (sx, sy)}
-        est["gesto"] = "sorpresa" if u < 0.5 else "contento"
+        if not est["fig"].get("gesto"):
+            # (la cara que pide el guion manda: si no, al salir la ensalada
+            # los ojos de corazon se volvian la cara contenta de siempre)
+            est["gesto"] = "sorpresa" if u < 0.5 else "contento"
         est["p"]["levanta"] = est["p"].get("levanta", 0.0) + max(0.0, math.sin(min(1.0, u/0.35)*math.pi))*0.12
         est["p"]["inclina"] = est["p"]["inclina"]*0.3 + 8
 
@@ -1781,7 +2090,10 @@ def _bocadillo(img, dice, cab, h, t):
     ancho = min(w*0.36, max(hh*0.2, len(texto)*px*0.62 + hh*0.06))*e
     alto = (px*1.7)*e
     cx = min(w - ancho/2 - w*0.02, max(ancho/2 + w*0.02, cab[0] + (w*0.5 - cab[0])*0.25))
-    cy = max(alto/2 + hh*0.05, cab[1] - h*0.42 - alto/2)
+    # (por debajo del "DAY 7" de la izquierda y de los marcadores de la
+    # derecha si cae en esas esquinas)
+    esquina = cx - ancho/2 < w*0.24 or cx + ancho/2 > w*0.74
+    cy = max(alto/2 + hh*(0.2 if esquina else 0.04), cab[1] - h*0.42 - alto/2)
     d = ImageDraw.Draw(img)
     g = max(3, int(hh*0.004))
     # el piquito, hacia la cabeza
@@ -1795,7 +2107,7 @@ def _bocadillo(img, dice, cab, h, t):
     _letrero(img, texto, (cx, cy), px, TINTA, 0, e)
 
 
-def _camara_viva(img, t, dur, mueve, golpes, foco=None, fuertes=()):
+def _camara_viva(img, t, dur, mueve, golpes, foco=None, fuertes=(), caja=None):
     """LA CAMARA QUE NUNCA ESTA QUIETA ("mas movimiento, mucho mas"): en cada
     plano se acerca o se aleja y se desliza hacia un lado (cada plano a su
     manera), con un vaiven de mano; y da un golpecito de zoom cada vez que
@@ -1830,6 +2142,8 @@ def _camara_viva(img, t, dur, mueve, golpes, foco=None, fuertes=()):
         oy = foco[1] - ch/2 + alto*0.01*math.sin(t*1.4) + sacude*alto*0.006
     ox = min(max(0.0, ox), ancho - cw)
     oy = min(max(0.0, oy), alto - ch)
+    if caja is not None:
+        caja[:] = [int(ox), int(oy), cw, ch]      # para pintar luego encima, en su sitio
     return img.crop((int(ox), int(oy), int(ox + cw), int(oy + ch))).resize((ancho, alto), Image.BILINEAR)
 
 
@@ -2110,8 +2424,8 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
     n = 0
     bocadillos = []
     gag_golpes, gag_cerca = gags.camara(visual or {})
-    if (visual or {}).get("cifra"):
-        gag_cerca = None            # la cifra tiene que verse entera
+    if (visual or {}).get("cifra") or (visual or {}).get("figuras"):
+        gag_cerca = None            # la cifra entera; y si hay alguien mas, que se le vea
     cara_mokordo = None
     while True:
         cabezas.clear()
@@ -2188,8 +2502,6 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                     continue
                 pieza, pcx, pbase = _pieza_cosa(nombre_objeto(o["que"]), int(o["tam"]), max(3, int(ancho*0.0045)))
                 _pega_girada(img, pieza, pieza.width/2, pieza.height/2, o["giro"], o["pos"][0], o["pos"][1])
-            for dice_, cab_, h_ in bocadillos:
-                _bocadillo(img, dice_, cab_, h_, reloj)
             foco_ahora = foco
             for t0_, f_ in cortes:
                 if reloj >= t0_:
@@ -2203,8 +2515,17 @@ def fotos(visual: dict, segundos: float, fps: float, tam=(1920, 1080), calma: fl
                 img = _inserto(foco_ahora[1], reloj - foco_ahora[2], tam, mueve)
                 img = encima(img, {k_: v_ for k_, v_ in (visual or {}).items() if k_ != "flechas"}, reloj, segundos)
             else:
+                caja = []
                 img = _camara_viva(img, reloj, segundos, mueve,
-                                   golpes + [t0_ for t0_, _f in cortes if t0_ > 0.2], foco_ahora, gag_golpes)
+                                   golpes + [t0_ for t0_, _f in cortes if t0_ > 0.2], foco_ahora, gag_golpes,
+                                   caja=caja)
+                # LOS BOCADILLOS, YA CON LA CAMARA PUESTA: pintados antes, al
+                # acercarse se salian por arriba o por un lado ("TOTALLY FIN")
+                ox_, oy_, cw_, ch_ = caja
+                zx, zy = ancho/cw_, alto/ch_
+                for dice_, cab_, h_ in bocadillos:
+                    _bocadillo(img, dice_, ((cab_[0] - ox_)*zx, (cab_[1] - oy_)*zy) + tuple(cab_[2:]), h_*zy,
+                               reloj)
             if camara:
                 img = img.crop(camara).resize(tam, Image.BILINEAR)
             if not (foco_ahora and foco_ahora[0] == "inserto"):

@@ -111,7 +111,11 @@ it is not in the lists, it cannot be drawn. A visual has any of:
              one of {ambientes}. The full sets: "bano" (bathroom, skincare), "dormitorio"
              (bedroom), "cocina" (kitchen), "salon" (living room), "gimnasio" (gym), "oficina"
              (office), "calle" (street), "parque" (park), "supermercado", "consulta" (doctor),
-             "laboratorio" (lab), "playa" (beach), "colegio" (classroom), "fiesta" (party/bar);
+             "laboratorio" (lab), "playa" (beach), "colegio" (classroom), "fiesta" (party/bar),
+             "restaurante" (fast food), "piscina", "montana", "carretera", "avion", "hospital",
+             "autoservicio" (drive-thru), "cine", "farmacia", "cocina_noche" (midnight fridge),
+             "vestuario" (gym locker room with a scale), "metro" (subway car). Use NEW places:
+             a place already used in the channel's last video is a weaker choice;
              light ones for nature and space: "campo", "desierto", "noche", "espacio", "cielo".
              EVERY fresh drawing has one - the chapter's place unless the sentence takes Mokordo
              somewhere else. Never a blank page (only a giant "cifra" gets its own page).
@@ -171,6 +175,15 @@ page fills up while the sentence goes (start the shot with little on it).
 Special: pose "manos_cabeza" = hands on the head (panic, stress); pose "tumbado" = lying on the
 floor; gesto "muerto" = X eyes and tongue out (comic fainted/dead); efecto "calor" / "frio" =
 heat waves / cold shivers all around the person.
+MOKORDO'S FACES ("gesto" on the mascota overrides the action's face - VARY THEM, never the same
+face shot after shot): hambre = shiny eyes and drool (food he wants), chulo = half-closed eyes and
+a smirk (overconfident), avergonzado = blush, looking away (caught, embarrassed), dolor = > < eyes
+and clenched teeth (pain), estrellas = star eyes (amazed, excited), nervioso = sweat drop and
+forced grin, sospecha = squinting sideways (suspicious), lleno = puffed hamster cheeks (stuffed),
+malvado = evil grin (a sneaky plan), flipado = plate eyes and jaw on the floor (shocked), picante =
+tongue out and red cheeks (spicy, burning), harto = flat eyelids, flat mouth (fed up, unamused),
+nauseas = green cheeks (about to be sick), orgulloso = proud toothy grin, llorando = rivers of
+tears, enamorado = heart eyes.
 THE STYLE: Mokordo's world - every shot is a real place (the "ambiente" set), with clean simple
 drawings on top and big red handwritten words. Mokordo is the protagonist of EVERY shot: the
 viewer follows him through the whole video, and his body changes as the story goes (the
@@ -446,6 +459,9 @@ def revisa(guion: dict) -> tuple[str, list[str]]:
                     faltan[f"gag {ma.get('gag')}"] += 1
                 hace_ = (ma.get("hace") or {}).get("verbo") if isinstance(ma.get("hace"), dict) else None
                 que_hace = f"gag {g}" if g else (f"hace {hace_}" if hace_ else str(ma.get("accion") or "explica"))
+                if not g and not hace_ and ma.get("gesto"):
+                    # con su cara propia ya no es "otra vez explicando"
+                    que_hace += f" ({ma['gesto']})"
                 if g:
                     chistes[g] += 1
                 else:
@@ -977,7 +993,9 @@ def _encuadre_que_pide(v: dict) -> str:
     hace = any(isinstance(x, dict) and x.get("hace") for x in [ma] + figs)
     if len(figs) == 2 and not ma and not hace and figs[0].get("gesto") != figs[1].get("gesto"):
         return "partido"
-    if ma and not figs and not cosas and not hace and \
+    # (con un gag de cuerpo entero - hincharse, crecer, aplastarse - de cerca
+    # solo se veia la cara y el bocadillo se salia por arriba)
+    if ma and not figs and not cosas and not hace and not gags.tipo_de(ma.get("gag")) in gags.CUERPO_ENTERO and \
             str(ma.get("accion") or "") not in ("corre", "anda", "entra", "baila"):
         return "cerca"                      # una reaccion: Mokordo de cerca
     if len(cosas) == 1 and not figs and not ma and cosas[0].get("cuando"):
@@ -1022,7 +1040,9 @@ def _arregla(visual: dict) -> dict:
     if isinstance(ma, dict):
         ma = dict(ma)
         accion = str(ma.get("accion") or "explica").lower().replace("ñ", "n")
-        if gags.tipo_de(accion) and not ma.get("gag"):
+        # (solo si no es tambien una accion: "encoge" es encogerse de hombros
+        # Y el gag de hacerse diminuto, y salia diminuto en "PLOT TWIST")
+        if gags.tipo_de(accion) and accion not in mascota.ACCIONES and not ma.get("gag"):
             ma["gag"] = {"tipo": gags.tipo_de(accion)}     # el gag puesto como accion
             accion = "explica"
         if ma.get("gag") and not gags.tipo_de(ma.get("gag")):

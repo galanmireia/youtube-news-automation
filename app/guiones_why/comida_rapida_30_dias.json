@@ -35,19 +35,25 @@
     {
      "narracion": "This is Mokordo on day thirty of eating nothing but fast food.",
      "visual": {
+      "ambiente": "vestuario",
       "mascota": {
        "accion": "explica",
        "x": 0.45,
        "gag": {
         "tipo": "infla",
         "cuando": "day thirty"
-       },
-       "dice": {
-        "texto": "I CAN'T SEE MY FEET",
-        "cuando": "nothing but"
        }
       },
-      "ambiente": "salon"
+      "textos": [
+       {
+        "texto": "I CAN'T SEE MY FEET",
+        "x": 0.5,
+        "y": 0.9,
+        "tam": 0.08,
+        "color": "rojo",
+        "cuando": "nothing but"
+       }
+      ]
      },
      "falta": ""
     },
@@ -66,18 +72,18 @@
        {
         "texto": "WHAT HAPPENED?",
         "x": 0.5,
-        "y": 0.3,
-        "tam": 0.1,
+        "y": 0.9,
+        "tam": 0.09,
         "color": "rojo",
         "cuando": "what happened"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "vestuario"
      },
      "falta": ""
     }
    ],
-   "escenario": "salon",
+   "escenario": "vestuario",
    "avance": true,
    "cuerpo": {
     "gordo": 0.9,
@@ -101,7 +107,8 @@
      "visual": {
       "mascota": {
        "accion": "piensa",
-       "x": 0.32
+       "x": 0.32,
+       "gesto": "chulo"
       },
       "figuras": [
        {
@@ -116,7 +123,7 @@
         }
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "fiesta"
      },
      "falta": ""
     },
@@ -144,7 +151,7 @@
         "gesto": "confuso"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "fiesta"
      },
      "falta": ""
     },
@@ -153,7 +160,8 @@
      "visual": {
       "mascota": {
        "accion": "rie",
-       "x": 0.32
+       "x": 0.32,
+       "gesto": "malvado"
       },
       "figuras": [
        {
@@ -174,7 +182,7 @@
         "cuando": "no vegetables"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "fiesta"
      },
      "falta": ""
     },
@@ -183,7 +191,8 @@
      "visual": {
       "mascota": {
        "accion": "senala",
-       "x": 0.3
+       "x": 0.3,
+       "gesto": "estrellas"
       },
       "cosas": [
        {
@@ -204,14 +213,14 @@
         "cuando": "2004"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "cine"
      },
      "falta": ""
     },
     {
      "narracion": "And in 2008, scientists in Sweden tested it properly, with eighteen young volunteers, for four weeks.",
      "visual": {
-      "ambiente": "laboratorio",
+      "ambiente": "hospital",
       "mascota": {
        "accion": "salta",
        "x": 0.3
@@ -239,7 +248,7 @@
     {
      "narracion": "Their rules: at least two fast food meals a day, about double the normal calories, and as little exercise as possible.",
      "visual": {
-      "ambiente": "laboratorio",
+      "ambiente": "hospital",
       "mascota": {
        "accion": "explica",
        "x": 0.4,
@@ -247,7 +256,8 @@
         "verbo": "atraca",
         "cuando": "two fast food meals",
         "con": "hamburguesa"
-       }
+       },
+       "gesto": "hambre"
       },
       "textos": [
        {
@@ -263,12 +273,13 @@
      "falta": ""
     },
     {
-     "narracion": "The night before, Mokordo eats one last salad and says goodbye to it like an old friend.",
+     "narracion": "The night before, Mokordo visits the vegetable aisle one last time, and says goodbye like it's an old friend.",
      "visual": {
-      "ambiente": "cocina",
+      "ambiente": "supermercado",
       "mascota": {
        "accion": "saluda",
-       "x": 0.4
+       "x": 0.4,
+       "gesto": "llorando"
       },
       "cosas": [
        {
@@ -303,7 +314,8 @@
      "visual": {
       "mascota": {
        "accion": "baila",
-       "x": 0.45
+       "x": 0.45,
+       "gesto": "estrellas"
       },
       "textos": [
        {
@@ -315,12 +327,12 @@
         "cuando": "go wrong"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "fiesta"
      },
      "falta": ""
     }
    ],
-   "escenario": "salon",
+   "escenario": "fiesta",
    "cuerpo": {},
    "dia": "",
    "complemento": "",
@@ -367,7 +379,8 @@
         "verbo": "muestra",
         "cuando": "double burger",
         "con": "hamburguesa"
-       }
+       },
+       "gesto": "hambre"
       },
       "cosas": [
        {
@@ -405,7 +418,8 @@
      "visual": {
       "mascota": {
        "accion": "asusta",
-       "x": 0.3
+       "x": 0.3,
+       "gesto": "flipado"
       },
       "cosas": [
        {
@@ -435,7 +449,8 @@
      "visual": {
       "mascota": {
        "accion": "asusta",
-       "x": 0.3
+       "x": 0.3,
+       "gesto": "nervioso"
       },
       "cosas": [
        {
@@ -499,7 +514,8 @@
      "visual": {
       "mascota": {
        "accion": "piensa",
-       "x": 0.35
+       "x": 0.35,
+       "gesto": "hambre"
       },
       "cosas": [
        {
@@ -525,9 +541,9 @@
      "falta": ""
     },
     {
-     "narracion": "Dinner: a whole pizza. Day one, complete.",
+     "narracion": "Dinner: a whole pizza, at the movies. Day one, complete.",
      "visual": {
-      "ambiente": "salon",
+      "ambiente": "cine",
       "mascota": {
        "accion": "explica",
        "x": 0.4,
@@ -535,7 +551,8 @@
         "verbo": "atraca",
         "cuando": "a whole pizza",
         "con": "pizza"
-       }
+       },
+       "gesto": "lleno"
       },
       "textos": [
        {
@@ -553,14 +570,15 @@
     {
      "narracion": "Bob texts him: still alive? Mokordo sends back a photo of his third milkshake.",
      "visual": {
-      "ambiente": "salon",
+      "ambiente": "cine",
       "mascota": {
        "accion": "explica",
        "x": 0.4,
        "hace": {
         "verbo": "movil",
         "cuando": "texts him"
-       }
+       },
+       "gesto": "chulo"
       },
       "cosas": [
        {
@@ -605,7 +623,8 @@
      "visual": {
       "mascota": {
        "accion": "triste",
-       "x": 0.35
+       "x": 0.35,
+       "gesto": "nauseas"
       },
       "cosas": [
        {
@@ -633,7 +652,7 @@
     {
      "narracion": "That night he's so thirsty he drinks half the fridge. All that salt makes your body hold on to water.",
      "visual": {
-      "ambiente": "cocina",
+      "ambiente": "cocina_noche",
       "mascota": {
        "accion": "explica",
        "x": 0.35,
@@ -701,7 +720,7 @@
         "cuando": "hungry"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "autoservicio"
      },
      "falta": ""
     },
@@ -715,7 +734,8 @@
         "verbo": "come",
         "cuando": "eats it",
         "con": "patatas"
-       }
+       },
+       "gesto": "sospecha"
       },
       "textos": [
        {
@@ -727,7 +747,7 @@
         "cuando": "no idea"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "autoservicio"
      },
      "falta": ""
     },
@@ -736,7 +756,8 @@
      "visual": {
       "mascota": {
        "accion": "senala",
-       "x": 0.3
+       "x": 0.3,
+       "gesto": "pensativo"
       },
       "cosas": [
        {
@@ -761,17 +782,18 @@
         "cuando": "fatty"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "autoservicio"
      },
      "falta": ""
     },
     {
      "narracion": "In 2019, a study at the US National Institutes of Health found something wild about ultra processed food.",
      "visual": {
-      "ambiente": "laboratorio",
+      "ambiente": "hospital",
       "mascota": {
        "accion": "piensa",
-       "x": 0.3
+       "x": 0.3,
+       "gesto": "sospecha"
       },
       "cosas": [
        {
@@ -826,14 +848,14 @@
         "cuando": "full"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "autoservicio"
      },
      "falta": ""
     },
     {
-     "narracion": "Day three. He tries to go for a run to balance it out. The run lasts eleven seconds.",
+     "narracion": "Day three. He tries the treadmill to balance it out. The run lasts eleven seconds.",
      "visual": {
-      "ambiente": "parque",
+      "ambiente": "gimnasio",
       "mascota": {
        "accion": "explica",
        "x": 0.4,
@@ -886,14 +908,14 @@
         "cuando": "Sugary drinks"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "autoservicio"
      },
      "falta": ""
     },
     {
      "narracion": "And after each giant lunch, Mokordo needs a nap. A huge, heavy meal can leave you sleepy.",
      "visual": {
-      "ambiente": "oficina",
+      "ambiente": "metro",
       "mascota": {
        "accion": "explica",
        "x": 0.45,
@@ -906,24 +928,23 @@
      "falta": ""
     },
     {
-     "narracion": "His boss is not impressed.",
+     "narracion": "He falls asleep on the subway and misses his stop. Twice.",
      "visual": {
-      "ambiente": "oficina",
+      "ambiente": "metro",
       "mascota": {
        "accion": "encoge",
-       "x": 0.35
+       "x": 0.35,
+       "gesto": "avergonzado"
       },
-      "figuras": [
+      "figuras": [],
+      "textos": [
        {
-        "quien": "persona_b",
-        "x": 0.75,
-        "pose": "señala",
-        "espejo": true,
-        "gesto": "enfadado",
-        "dice": {
-         "texto": "ARE YOU ASLEEP?!",
-         "cuando": "not impressed"
-        }
+        "texto": "MISSED STOP x2",
+        "x": 0.72,
+        "y": 0.22,
+        "tam": 0.09,
+        "color": "rojo",
+        "cuando": "misses his stop"
        }
       ]
      },
@@ -934,7 +955,8 @@
      "visual": {
       "mascota": {
        "accion": "senala",
-       "x": 0.3
+       "x": 0.3,
+       "gesto": "harto"
       },
       "cosas": [
        {
@@ -954,27 +976,20 @@
         "tachado": true
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "autoservicio"
      },
      "falta": ""
     },
     {
-     "narracion": "And without fiber, his trips to the bathroom become... a long story. Let's just say, he brings a book.",
+     "narracion": "And without fiber, his trips to the bathroom become... a long story. The pharmacist already knows why he's there.",
      "visual": {
-      "ambiente": "bano",
+      "ambiente": "farmacia",
       "mascota": {
        "accion": "triste",
-       "x": 0.4
+       "x": 0.4,
+       "gesto": "avergonzado"
       },
-      "cosas": [
-       {
-        "que": "libro",
-        "x": 0.72,
-        "tam": 0.18,
-        "y": 0.5,
-        "cuando": "a book"
-       }
-      ],
+      "cosas": [],
       "textos": [
        {
         "texto": "...",
@@ -983,6 +998,19 @@
         "tam": 0.12,
         "color": "gris",
         "cuando": "long story"
+       }
+      ],
+      "figuras": [
+       {
+        "quien": "persona_b",
+        "x": 0.78,
+        "pose": "de_pie",
+        "espejo": true,
+        "gesto": "sospecha",
+        "dice": {
+         "texto": "FIBER AGAIN?",
+         "cuando": "pharmacist"
+        }
        }
       ]
      },
@@ -997,7 +1025,8 @@
        "dice": {
         "texto": "TOTALLY FINE",
         "cuando": "Totally"
-       }
+       },
+       "gesto": "nervioso"
       },
       "figuras": [
        {
@@ -1008,12 +1037,12 @@
         "gesto": "confuso"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "autoservicio"
      },
      "falta": ""
     }
    ],
-   "escenario": "salon",
+   "escenario": "autoservicio",
    "cuerpo": {
     "gordo": 0.3,
     "ojeras": 0.15
@@ -1027,12 +1056,12 @@
    }
   },
   {
-   "titulo": "Week two: the couch",
+   "titulo": "Week two: the cravings",
    "planos": [
     {
-     "narracion": "Week two. Mokordo's favorite jeans have stopped speaking to him.",
+     "narracion": "Week two. Mokordo's favorite swimsuit has stopped speaking to him.",
      "visual": {
-      "ambiente": "dormitorio",
+      "ambiente": "piscina",
       "mascota": {
        "accion": "explica",
        "x": 0.45,
@@ -1043,12 +1072,12 @@
       },
       "textos": [
        {
-        "texto": "RIP JEANS",
-        "x": 0.75,
-        "y": 0.25,
-        "tam": 0.12,
+        "texto": "RIP SWIMSUIT",
+        "x": 0.5,
+        "y": 0.9,
+        "tam": 0.09,
         "color": "rojo",
-        "cuando": "jeans"
+        "cuando": "swimsuit"
        }
       ]
      },
@@ -1057,7 +1086,7 @@
     {
      "narracion": "The stairs to his apartment have somehow become a mountain.",
      "visual": {
-      "ambiente": "calle",
+      "ambiente": "montana",
       "mascota": {
        "accion": "explica",
        "x": 0.4,
@@ -1069,8 +1098,8 @@
       "textos": [
        {
         "texto": "PANT PANT",
-        "x": 0.75,
-        "y": 0.3,
+        "x": 0.8,
+        "y": 0.88,
         "tam": 0.12,
         "color": "azul",
         "cuando": "mountain"
@@ -1082,7 +1111,7 @@
     {
      "narracion": "Day ten. Halfway through tying his shoes, his soul quietly leaves his body.",
      "visual": {
-      "ambiente": "dormitorio",
+      "ambiente": "vestuario",
       "mascota": {
        "accion": "explica",
        "x": 0.45,
@@ -1098,8 +1127,12 @@
      "narracion": "With all those calories you'd think he'd be full of energy. But too much heavy food and too little movement leave you sluggish.",
      "visual": {
       "mascota": {
-       "accion": "mareo",
-       "x": 0.4
+       "accion": "explica",
+       "x": 0.4,
+       "gag": {
+        "tipo": "zombi",
+        "cuando": "sluggish"
+       }
       },
       "textos": [
        {
@@ -1111,7 +1144,7 @@
         "cuando": "sluggish"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "supermercado"
      },
      "falta": ""
     },
@@ -1143,7 +1176,7 @@
         "cuando": "one place"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "supermercado"
      },
      "falta": ""
     },
@@ -1156,7 +1189,8 @@
        "hace": {
         "verbo": "movil",
         "cuando": "finds it"
-       }
+       },
+       "gesto": "malvado"
       },
       "figuras": [
        {
@@ -1177,17 +1211,18 @@
         "cuando": "four seconds"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "supermercado"
      },
      "falta": ""
     },
     {
      "narracion": "The delivery driver now knows his name, his dog's name, and his favorite sauce.",
      "visual": {
-      "ambiente": "calle",
+      "ambiente": "carretera",
       "mascota": {
        "accion": "saluda",
-       "x": 0.35
+       "x": 0.35,
+       "gesto": "orgulloso"
       },
       "figuras": [
        {
@@ -1204,7 +1239,7 @@
       ],
       "cosas": [
        {
-        "que": "paquete",
+        "que": "pizza",
         "x": 0.58,
         "tam": 0.14,
         "y": 0.55
@@ -1216,7 +1251,7 @@
     {
      "narracion": "His skin is acting up too. Some studies link high sugar diets to more breakouts, especially in young people.",
      "visual": {
-      "ambiente": "bano",
+      "ambiente": "metro",
       "mascota": {
        "accion": "explica",
        "x": 0.3,
@@ -1225,13 +1260,15 @@
         "cuando": "acting up"
        }
       },
-      "cosas": [
+      "cosas": [],
+      "textos": [
        {
-        "que": "espejo",
-        "x": 0.75,
-        "tam": 0.38,
-        "y": 0.45,
-        "cuando": "skin"
+        "texto": "BREAKOUTS",
+        "x": 0.78,
+        "y": 0.16,
+        "tam": 0.09,
+        "color": "rojo",
+        "cuando": "acting up"
        }
       ]
      },
@@ -1258,7 +1295,7 @@
         "cuando": "grumpy"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "supermercado"
      },
      "falta": ""
     },
@@ -1286,14 +1323,14 @@
         }
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "restaurante"
      },
      "falta": ""
     },
     {
-     "narracion": "By now, the couch has a Mokordo shaped dent in it.",
+     "narracion": "By now, his seat at the movie theater has a Mokordo shaped dent in it.",
      "visual": {
-      "ambiente": "salon",
+      "ambiente": "cine",
       "mascota": {
        "accion": "explica",
        "x": 0.4,
@@ -1302,33 +1339,18 @@
         "cuando": "couch"
        }
       },
-      "cosas": [
-       {
-        "que": "sofa",
-        "x": 0.75,
-        "tam": 0.32
-       },
-       {
-        "que": "mando",
-        "x": 0.62,
-        "tam": 0.1,
-        "y": 0.7
-       }
-      ]
+      "cosas": []
      },
      "falta": ""
     },
     {
      "narracion": "At night, his chest burns. That's heartburn: stomach acid creeping up, and big fatty meals are a classic trigger.",
      "visual": {
-      "ambiente": "dormitorio",
+      "ambiente": "cocina_noche",
       "mascota": {
        "accion": "explica",
-       "x": 0.45,
-       "gag": {
-        "tipo": "vapor",
-        "cuando": "his chest burns"
-       }
+       "x": 0.4,
+       "gesto": "dolor"
       },
       "cosas": [
        {
@@ -1370,7 +1392,7 @@
     {
      "narracion": "And the cravings never stop. Pizza at midnight. Ice cream for breakfast.",
      "visual": {
-      "ambiente": "cocina",
+      "ambiente": "cocina_noche",
       "mascota": {
        "accion": "explica",
        "x": 0.4,
@@ -1378,7 +1400,8 @@
         "verbo": "come",
         "cuando": "Ice cream",
         "con": "helado"
-       }
+       },
+       "gesto": "hambre"
       },
       "cosas": [
        {
@@ -1403,7 +1426,7 @@
      "falta": ""
     }
    ],
-   "escenario": "salon",
+   "escenario": "supermercado",
    "cuerpo": {
     "gordo": 0.55,
     "granos": 0.35,
@@ -1425,7 +1448,8 @@
      "visual": {
       "mascota": {
        "accion": "anda",
-       "x": 0.3
+       "x": 0.3,
+       "gesto": "harto"
       },
       "figuras": [
        {
@@ -1440,7 +1464,7 @@
         }
        }
       ],
-      "ambiente": "consulta"
+      "ambiente": "hospital"
      },
      "falta": ""
     },
@@ -1449,7 +1473,8 @@
      "visual": {
       "mascota": {
        "accion": "asusta",
-       "x": 0.3
+       "x": 0.3,
+       "gesto": "flipado"
       },
       "figuras": [
        {
@@ -1464,7 +1489,7 @@
         }
        }
       ],
-      "ambiente": "consulta"
+      "ambiente": "hospital"
      },
      "falta": ""
     },
@@ -1473,7 +1498,8 @@
      "visual": {
       "mascota": {
        "accion": "senala",
-       "x": 0.3
+       "x": 0.3,
+       "gesto": "nervioso"
       },
       "cosas": [
        {
@@ -1491,7 +1517,7 @@
         "cuando": "shot up"
        }
       ],
-      "ambiente": "consulta"
+      "ambiente": "hospital"
      },
      "falta": ""
     },
@@ -1515,7 +1541,7 @@
         "cuando": "fatty liver"
        }
       ],
-      "ambiente": "consulta"
+      "ambiente": "hospital"
      },
      "falta": ""
     },
@@ -1535,7 +1561,7 @@
         "cuando": "liver"
        }
       ],
-      "ambiente": "consulta"
+      "ambiente": "hospital"
      },
      "falta": ""
     },
@@ -1544,7 +1570,8 @@
      "visual": {
       "mascota": {
        "accion": "encoge",
-       "x": 0.35
+       "x": 0.35,
+       "gesto": "sospecha"
       },
       "cosas": [
        {
@@ -1565,7 +1592,7 @@
         "cuando": "admitted"
        }
       ],
-      "ambiente": "consulta"
+      "ambiente": "hospital"
      },
      "falta": ""
     },
@@ -1591,7 +1618,7 @@
         "cuando": "beating like a drum"
        }
       },
-      "ambiente": "consulta"
+      "ambiente": "hospital"
      },
      "falta": ""
     },
@@ -1604,7 +1631,8 @@
        "hace": {
         "verbo": "termometro",
         "cuando": "blood pressure"
-       }
+       },
+       "gesto": "nervioso"
       },
       "figuras": [
        {
@@ -1623,7 +1651,7 @@
         "cuando": "salt"
        }
       ],
-      "ambiente": "consulta"
+      "ambiente": "hospital"
      },
      "falta": ""
     },
@@ -1636,7 +1664,8 @@
        "dice": {
         "texto": "ROUND.",
         "cuando": "round"
-       }
+       },
+       "gesto": "lleno"
       },
       "figuras": [
        {
@@ -1646,12 +1675,12 @@
         "espejo": true,
         "gesto": "confuso",
         "dice": {
-         "texto": "HOW DO YOU FEEL?",
+         "texto": "FEELING OK?",
          "cuando": "how do you feel"
         }
        }
       ],
-      "ambiente": "consulta"
+      "ambiente": "hospital"
      },
      "falta": ""
     },
@@ -1660,7 +1689,8 @@
      "visual": {
       "mascota": {
        "accion": "triste",
-       "x": 0.4
+       "x": 0.4,
+       "gesto": "llorando"
       },
       "cosas": [
        {
@@ -1671,7 +1701,7 @@
         "cuando": "his own body"
        }
       ],
-      "ambiente": "consulta"
+      "ambiente": "hospital"
      },
      "falta": ""
     },
@@ -1695,12 +1725,12 @@
         }
        }
       ],
-      "ambiente": "consulta"
+      "ambiente": "hospital"
      },
      "falta": ""
     }
    ],
-   "escenario": "consulta",
+   "escenario": "hospital",
    "cuerpo": {
     "gordo": 0.75,
     "granos": 0.45,
@@ -1721,14 +1751,15 @@
     {
      "narracion": "Day thirty. The moment of truth. Mokordo steps on the scale.",
      "visual": {
-      "ambiente": "bano",
+      "ambiente": "vestuario",
       "mascota": {
        "accion": "explica",
        "x": 0.45,
        "hace": {
         "verbo": "pesa_se",
         "cuando": "steps on the scale"
-       }
+       },
+       "gesto": "nervioso"
       }
      },
      "falta": ""
@@ -1769,7 +1800,7 @@
     {
      "narracion": "Mokordo is somewhere in between. And the scale would like a word.",
      "visual": {
-      "ambiente": "bano",
+      "ambiente": "vestuario",
       "mascota": {
        "accion": "explica",
        "x": 0.45,
@@ -1801,7 +1832,8 @@
        "gag": {
         "tipo": "crece",
         "cuando": "won the bet"
-       }
+       },
+       "gesto": "orgulloso"
       },
       "figuras": [
        {
@@ -1825,7 +1857,7 @@
         "cuando": "pays up"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "vestuario"
      },
      "falta": ""
     },
@@ -1838,7 +1870,8 @@
        "dice": {
         "texto": "DELETE IT!",
         "cuando": "delete"
-       }
+       },
+       "gesto": "avergonzado"
       },
       "figuras": [
        {
@@ -1850,7 +1883,7 @@
         "lleva": "movil"
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "vestuario"
      },
      "falta": ""
     },
@@ -1860,10 +1893,7 @@
       "mascota": {
        "accion": "explica",
        "x": 0.4,
-       "gag": {
-        "tipo": "gira",
-        "cuando": "misses vegetables"
-       }
+       "gesto": "enamorado"
       },
       "cosas": [
        {
@@ -1880,12 +1910,12 @@
         "y": 0.5
        }
       ],
-      "ambiente": "salon"
+      "ambiente": "restaurante"
      },
      "falta": ""
     }
    ],
-   "escenario": "salon",
+   "escenario": "vestuario",
    "cuerpo": {
     "gordo": 0.9,
     "granos": 0.5,
@@ -1906,10 +1936,11 @@
     {
      "narracion": "Good news: the body bounces back. In the Swedish study, everyone's liver enzymes went back to normal within a few weeks of stopping.",
      "visual": {
-      "ambiente": "parque",
+      "ambiente": "playa",
       "mascota": {
        "accion": "salta",
-       "x": 0.4
+       "x": 0.4,
+       "gesto": "estrellas"
       },
       "cosas": [
        {
@@ -1936,14 +1967,15 @@
     {
      "narracion": "The weight is slower. The Super Size Me filmmaker said it took him over a year to lose it all.",
      "visual": {
-      "ambiente": "parque",
+      "ambiente": "playa",
       "mascota": {
        "accion": "explica",
        "x": 0.4,
        "hace": {
         "verbo": "comba",
         "cuando": "slower"
-       }
+       },
+       "gesto": "harto"
       },
       "cosas": [
        {
@@ -1980,17 +2012,18 @@
         "cuando": "water"
        }
       ],
-      "ambiente": "parque"
+      "ambiente": "playa"
      },
      "falta": ""
     },
     {
      "narracion": "He walks thirty minutes a day. Slowly, the stairs stop being a mountain.",
      "visual": {
-      "ambiente": "calle",
+      "ambiente": "montana",
       "mascota": {
        "accion": "anda",
-       "x": 0.35
+       "x": 0.35,
+       "gesto": "orgulloso"
       },
       "textos": [
        {
@@ -2006,41 +2039,36 @@
      "falta": ""
     },
     {
-     "narracion": "Two months later, his favorite jeans are talking to him again.",
+     "narracion": "Two months later, his favorite swimsuit is talking to him again.",
      "visual": {
-      "ambiente": "dormitorio",
+      "ambiente": "piscina",
       "mascota": {
        "accion": "baila",
-       "x": 0.45
+       "x": 0.45,
+       "gesto": "chulo"
       },
       "textos": [
        {
-        "texto": "JEANS FIT!",
+        "texto": "IT FITS!",
         "x": 0.75,
         "y": 0.25,
         "tam": 0.12,
         "color": "morado",
-        "cuando": "jeans"
+        "cuando": "swimsuit"
        }
       ]
      },
      "falta": ""
     },
     {
-     "narracion": "Slowly, his energy comes back. His skin calms down. The couch dent starts to fade.",
+     "narracion": "Slowly, his energy comes back. His skin calms down. The dent in his movie seat starts to fade.",
      "visual": {
-      "ambiente": "salon",
+      "ambiente": "gimnasio",
       "mascota": {
        "accion": "salta",
        "x": 0.4
       },
-      "cosas": [
-       {
-        "que": "sofa",
-        "x": 0.75,
-        "tam": 0.3
-       }
-      ],
+      "cosas": [],
       "textos": [
        {
         "texto": "ENERGY UP",
@@ -2108,7 +2136,8 @@
      "visual": {
       "mascota": {
        "accion": "explica",
-       "x": 0.35
+       "x": 0.35,
+       "gesto": "chulo"
       },
       "cosas": [
        {
@@ -2129,7 +2158,7 @@
         "cuando": "No"
        }
       ],
-      "ambiente": "parque"
+      "ambiente": "playa"
      },
      "falta": ""
     },
@@ -2150,7 +2179,7 @@
         "etiqueta": "EVERY DAY"
        }
       ],
-      "ambiente": "parque"
+      "ambiente": "playa"
      },
      "falta": ""
     },
@@ -2182,7 +2211,7 @@
         "cuando": "vegetables"
        }
       ],
-      "ambiente": "parque"
+      "ambiente": "playa"
      },
      "falta": ""
     },
@@ -2215,7 +2244,8 @@
      "visual": {
       "mascota": {
        "accion": "rie",
-       "x": 0.32
+       "x": 0.32,
+       "gesto": "malvado"
       },
       "figuras": [
        {
@@ -2230,7 +2260,7 @@
         }
        }
       ],
-      "ambiente": "parque"
+      "ambiente": "playa"
      },
      "falta": ""
     },
@@ -2251,12 +2281,12 @@
         "cuando": "what should"
        }
       ],
-      "ambiente": "parque"
+      "ambiente": "playa"
      },
      "falta": ""
     }
    ],
-   "escenario": "parque",
+   "escenario": "playa",
    "cuerpo": {
     "gordo": 0.45,
     "granos": 0.1

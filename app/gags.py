@@ -549,7 +549,9 @@ _PLANES = {"aplasta": _aplasta, "de_cara": _de_cara, "derrite": _derrite, "infla
 # Gestos que el dibujo no tiene: el mas parecido.
 _GESTO = {"zombi": "agotado", "llora": "triste", "mareo": "mareado"}
 GESTOS = ("contento", "riendo", "enamorado", "sorpresa", "asustado", "grito", "enfadado", "triste", "asco",
-          "pensativo", "mareado", "confuso", "bostezo", "agotado", "dormido", "neutro")
+          "pensativo", "mareado", "confuso", "bostezo", "agotado", "dormido", "neutro", "hambre", "chulo",
+          "avergonzado", "dolor", "estrellas", "nervioso", "sospecha", "lleno", "malvado", "flipado", "picante",
+          "harto", "nauseas", "orgulloso", "llorando")
 
 
 def empieza(gag) -> float:
@@ -670,6 +672,8 @@ IMPACTOS = {
     "cabezada": [(1.8, 0.45), (4.4, 0.45)], "vapor": [(0.3, 0.3)], "crece": [(0.6, 0.35)], "alma": [(3.2, 0.4)],
     "corazon": [(0.0, 0.15), (0.45, 0.15), (0.9, 0.15)],
 }
+# los de cuerpo entero: nunca de cerca
+CUERPO_ENTERO = ("infla", "crece", "aplasta", "de_cara", "derrite", "sale_volando", "gira", "zombi", "alma", "encoge")
 # los de la cara: la camara se le acerca (los de cuerpo entero, no)
 CERCA = ("ojos_fuera", "vapor", "llora", "rayo", "corazon", "cabezada", "tiembla")
 

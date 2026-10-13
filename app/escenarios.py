@@ -44,6 +44,12 @@ ESCENARIOS = {
     "carretera":    "road with cars and traffic lights, city in the distance (driving, commuting, pollution)",
     "avion":        "inside a plane: rows of seats, round windows with clouds (flying, jet lag, travel)",
     "hospital":     "hospital room: bed with an IV drip, heart monitor, curtain (being ill, surgery, recovery)",
+    "autoservicio": "drive-thru: the order window, a menu board, the speaker post and a car waiting (fast food, ordering, lazy)",
+    "cine":         "cinema in the dark: glowing screen, red curtains, rows of red seats, popcorn (movies, snacks, screens)",
+    "farmacia":     "pharmacy: green cross sign, shelves of medicine boxes, counter (medicine, pills, remedies)",
+    "cocina_noche": "kitchen at midnight: dark, moon in the window, the open fridge glowing (midnight snacks, cravings)",
+    "vestuario":    "gym locker room: lockers, bench, mirror, towels, a bathroom scale (weighing in, before/after)",
+    "metro":        "inside a subway car: seats, poles, line map, dark tunnel windows (commuting, crowds, travel)",
 }
 
 
@@ -612,9 +618,177 @@ def _pinta(nombre, w, h, pies, rnd):
             x = w*(0.55 + 0.03*k)
             d.line([(x, h*0.05), (x + w*0.01, h*0.44)], fill=(160, 200, 220), width=18)
         d.line([P(0.53, 0.05), P(0.75, 0.05)], fill=(150, 156, 166), width=6)
+    elif nombre == "autoservicio":
+        # EL AUTOSERVICIO (drive-thru): la ventanilla, el panel del menu y el
+        # altavoz, con el coche esperando.
+        img = _degradado(w, h, (250, 200, 150), (252, 226, 190))
+        d = ImageDraw.Draw(img)
+        d.ellipse([w*0.06, h*0.05, w*0.06 + h*0.12, h*0.17], fill=(252, 236, 140))
+        d.rectangle([w*0.38, h*0.12, w*1.0, pies - h*0.06], fill=(226, 70, 64), outline=TINTA, width=5)   # edificio
+        d.rectangle([w*0.38, h*0.12, w*1.0, h*0.2], fill=(250, 210, 80), outline=TINTA, width=4)
+        _texto(d, (w*0.58, h*0.13), "DRIVE-THRU", h*0.055, (226, 70, 64))
+        d.rounded_rectangle([w*0.46, h*0.27, w*0.62, h*0.47], radius=10, fill=(190, 222, 245), outline=TINTA, width=5)
+        d.line([P(0.54, 0.27), P(0.54, 0.47)], fill=TINTA, width=4)                                      # ventanilla
+        d.rectangle([w*0.44, h*0.47, w*0.64, h*0.5], fill=(200, 204, 214), outline=TINTA, width=3)
+        d.rectangle([w*0.74, h*0.24, w*0.95, h*0.5], fill=(40, 44, 54), outline=TINTA, width=6)        # panel menu
+        for k, (txt, c) in enumerate((("MEGA MEAL", (250, 210, 80)), ("XL FRIES", (250, 250, 250)),
+                                      ("SHAKE", (250, 150, 200)))):
+            _texto(d, (w*0.76, h*(0.27 + 0.07*k)), txt, h*0.04, c)
+        d.line([P(0.845, 0.5), P(0.845, pies/h - 0.06)], fill=(90, 94, 104), width=12)
+        d.rounded_rectangle([w*0.68, h*0.52, w*0.72, h*0.6], radius=8, fill=(60, 64, 74), outline=TINTA, width=3)  # altavoz
+        for k in range(3):
+            d.line([P(0.685, 0.54 + k*0.02), P(0.715, 0.54 + k*0.02)], fill=(140, 146, 156), width=3)
+        d.line([P(0.70, 0.6), P(0.70, pies/h - 0.06)], fill=(90, 94, 104), width=8)
+        d.rectangle([0, pies - h*0.06, w, h], fill=(110, 114, 124))                                       # carril
+        for k in range(6):
+            d.polygon([(w*(0.1 + k*0.17), pies + h*0.06), (w*(0.05 + k*0.17), pies + h*0.04),
+                       (w*(0.05 + k*0.17), pies + h*0.08)], fill=(250, 240, 200))
+        cx, cy = w*0.14, pies - h*0.1                                                                     # el coche
+        d.rounded_rectangle([cx - w*0.12, cy - h*0.07, cx + w*0.12, cy + h*0.03], radius=18, fill=(90, 150, 230),
+                            outline=TINTA, width=4)
+        d.polygon([(cx - w*0.07, cy - h*0.07), (cx - w*0.045, cy - h*0.14), (cx + w*0.05, cy - h*0.14),
+                   (cx + w*0.08, cy - h*0.07)], fill=(190, 220, 245), outline=TINTA)
+        for dx in (-0.075, 0.075):
+            d.ellipse([cx + w*dx - h*0.03, cy - h*0.005, cx + w*dx + h*0.03, cy + h*0.055], fill=(40, 40, 46))
+    elif nombre == "cine":
+        # EL CINE: a oscuras, la pantalla que brilla y las butacas rojas
+        img = _degradado(w, h, (34, 30, 52), (52, 40, 66))
+        d = ImageDraw.Draw(img)
+        d.rectangle([w*0.18, h*0.06, w*0.82, h*0.4], fill=(170, 200, 236), outline=(20, 16, 30), width=6)   # pantalla
+        d.polygon([(w*0.3, h*0.34), (w*0.42, h*0.18), (w*0.5, h*0.28), (w*0.6, h*0.14), (w*0.74, h*0.34)],
+                  fill=(120, 160, 210))
+        for lado in (0.0, 0.84):                                                                          # telon
+            for k in range(4):
+                x = w*(lado + 0.04*k)
+                d.rectangle([x, 0, x + w*0.04, h*0.46], fill=((150, 30, 40), (180, 40, 50))[k % 2])
+        d.rectangle([0, 0, w, h*0.04], fill=(150, 30, 40))
+        _suelo(d, w, h, pies, (60, 40, 60), (44, 30, 46), "liso")
+        for fila, (y, esc) in enumerate(((0.5, 0.8), (0.6, 1.0))):                                         # butacas
+            n = 9 - fila
+            for k in range(n):
+                x = w*(k + 0.5)/n
+                a, b = h*0.05*esc, h*0.09*esc
+                d.rounded_rectangle([x - a, h*y, x + a, h*y + b], radius=14, fill=(190, 40, 50), outline=(20, 16, 30),
+                                    width=3)
+        cx, base = w*0.9, pies - h*0.04                                                                    # palomitas
+        d.polygon([(cx - h*0.05, base - h*0.14), (cx + h*0.05, base - h*0.14), (cx + h*0.035, base),
+                   (cx - h*0.035, base)], fill=(250, 250, 250), outline=(20, 16, 30))
+        for k in range(3):
+            d.line([(cx - h*0.03 + k*h*0.03, base - h*0.14), (cx - h*0.022 + k*h*0.022, base)], fill=(226, 60, 60), width=6)
+        for k in range(7):
+            x = cx - h*0.045 + k*h*0.015
+            d.ellipse([x - h*0.018, base - h*0.18 - (k % 2)*h*0.015, x + h*0.018, base - h*0.145], fill=(252, 236, 170))
+    elif nombre == "farmacia":
+        # LA FARMACIA: la cruz verde, estanterias de cajitas y el mostrador
+        img = _degradado(w, h, (236, 246, 240), (222, 238, 230))
+        d = ImageDraw.Draw(img)
+        _suelo(d, w, h, pies, (226, 232, 230), (206, 214, 212))
+        cx, cy, a = w*0.5, h*0.15, h*0.05                                                                 # la cruz
+        for x0, y0, x1, y1 in ((cx - a, cy - a*3, cx + a, cy + a*3), (cx - a*3, cy - a, cx + a*3, cy + a)):
+            d.rectangle([x0, y0, x1, y1], fill=(60, 190, 110), outline=TINTA, width=4)
+        for x0 in (0.02, 0.72):                                                                           # estanterias
+            d.rectangle([w*x0, h*0.12, w*(x0 + 0.26), pies - h*0.06], fill=(250, 250, 248), outline=TINTA, width=4)
+            for k in range(4):
+                y = h*(0.24 + 0.11*k)
+                d.line([(w*x0, y), (w*(x0 + 0.26), y)], fill=TINTA, width=4)
+                x = w*x0 + 8
+                while x < w*(x0 + 0.25) - 30:
+                    ancho = rnd.uniform(w*0.018, w*0.03)
+                    alto = rnd.uniform(h*0.04, h*0.07)
+                    d.rectangle([x, y - alto, x + ancho, y - 2], outline=TINTA, width=2,
+                                fill=rnd.choice(((250, 250, 252), (200, 230, 250), (250, 210, 210), (220, 246, 220),
+                                                 (252, 236, 180))))
+                    x += ancho + 6
+        d.rectangle([w*0.36, h*0.5, w*0.64, pies - h*0.06], fill=(250, 250, 248), outline=TINTA, width=5)  # mostrador
+        d.rectangle([w*0.34, h*0.48, w*0.66, h*0.51], fill=(60, 190, 110), outline=TINTA, width=3)
+    elif nombre == "cocina_noche":
+        # LA COCINA A MEDIANOCHE: a oscuras, la luna en la ventana y la nevera
+        # abierta que lo ilumina todo (los atracones de las 3 de la mañana)
+        img = _degradado(w, h, (40, 44, 76), (56, 58, 92))
+        d = ImageDraw.Draw(img)
+        _suelo(d, w, h, pies, (64, 66, 96), (50, 52, 80))
+        d.rectangle([w*0.08, h*0.1, w*0.28, h*0.36], fill=(24, 28, 60), outline=(20, 16, 30), width=6)      # ventana
+        d.ellipse([w*0.18, h*0.13, w*0.18 + h*0.08, h*0.21], fill=(250, 246, 210))
+        d.ellipse([w*0.19, h*0.12, w*0.19 + h*0.08, h*0.2], fill=(24, 28, 60))
+        for k in range(5):
+            x, y = w*(0.1 + 0.035*k), h*(0.16 + 0.04*(k % 3))
+            d.ellipse([x - 3, y - 3, x + 3, y + 3], fill=(250, 250, 230))
+        d.rectangle([w*0.0, h*0.5, w*0.42, pies - h*0.06], fill=(80, 76, 110), outline=(20, 16, 30), width=4)  # encimera
+        d.rectangle([w*0.0, h*0.48, w*0.44, h*0.51], fill=(110, 106, 140))
+        # la luz de la nevera: un cono amarillo en el suelo
+        d.polygon([(w*0.7, h*0.18), (w*0.45, pies + h*0.2), (w*1.0, pies + h*0.2), (w*0.92, h*0.18)],
+                  fill=(196, 180, 120))
+        d.rectangle([w*0.7, h*0.12, w*0.92, pies - h*0.06], fill=(250, 246, 220), outline=(20, 16, 30), width=5)
+        for k in range(3):                                                                                 # baldas
+            y = h*(0.24 + 0.12*k)
+            d.line([(w*0.71, y), (w*0.91, y)], fill=(200, 200, 196), width=5)
+        d.rounded_rectangle([w*0.73, h*0.17, w*0.79, h*0.24], radius=6, fill=(250, 210, 80), outline=TINTA, width=2)
+        d.rounded_rectangle([w*0.82, h*0.16, w*0.86, h*0.24], radius=6, fill=(230, 240, 250), outline=TINTA, width=2)
+        d.ellipse([w*0.74, h*0.3, w*0.84, h*0.36], fill=(240, 150, 80), outline=TINTA, width=2)
+        d.polygon([(w*0.92, h*0.12), (w*0.99, h*0.08), (w*0.99, pies - h*0.02), (w*0.92, pies - h*0.06)],
+                  fill=(230, 226, 210), outline=(20, 16, 30))                                                # puerta
+    elif nombre == "vestuario":
+        # EL VESTUARIO DEL GIMNASIO: taquillas, el banco y la bascula
+        img = _degradado(w, h, (222, 230, 238), (206, 216, 228))
+        d = ImageDraw.Draw(img)
+        _suelo(d, w, h, pies, (200, 210, 220), (180, 190, 204))
+        for k in range(7):                                                                                  # taquillas
+            x = w*(0.02 + 0.095*k)
+            if 0.36 < x/w < 0.62:
+                continue
+            c = ((90, 140, 210), (80, 128, 196))[k % 2]
+            d.rectangle([x, h*0.1, x + w*0.09, pies - h*0.1], fill=c, outline=TINTA, width=4)
+            for j in range(3):
+                d.line([(x + w*0.02, h*(0.15 + 0.025*j)), (x + w*0.07, h*(0.15 + 0.025*j))], fill=(40, 60, 100), width=3)
+            d.rectangle([x + w*0.065, h*0.36, x + w*0.075, h*0.42], fill=(220, 224, 232), outline=TINTA, width=2)
+        d.rectangle([w*0.08, h*0.6, w*0.34, h*0.63], fill=(190, 140, 90), outline=TINTA, width=3)            # banco
+        for xx in (0.1, 0.32):
+            d.line([P(xx, 0.63), P(xx, pies/h - 0.06)], fill=TINTA, width=6)
+        d.rounded_rectangle([w*0.4, h*0.12, w*0.58, h*0.36], radius=12, fill=(214, 236, 248), outline=(170, 176, 188),
+                            width=8)                                                                         # espejo
+        d.line([P(0.43, 0.16), P(0.47, 0.24)], fill=(255, 255, 255), width=6)
+        bx, by = w*0.86, pies - h*0.05                                                                       # bascula
+        d.rounded_rectangle([bx - w*0.06, by - h*0.04, bx + w*0.06, by], radius=10, fill=(240, 242, 246), outline=TINTA,
+                            width=4)
+        d.rectangle([bx - w*0.025, by - h*0.035, bx + w*0.025, by - h*0.015], fill=(60, 64, 74))
+        # (sin cartel: con letras se metia debajo de los marcadores y del titulo)
+        for k in range(2):                                                                                   # toallas
+            x = w*(0.72 + 0.1*k)
+            d.line([(x - w*0.04, h*0.36), (x + w*0.04, h*0.36)], fill=(170, 176, 188), width=8)
+            d.rounded_rectangle([x - w*0.035, h*0.36, x + w*0.035, h*0.52], radius=10,
+                                fill=((250, 170, 180), (250, 220, 120))[k], outline=TINTA, width=3)
+    elif nombre == "metro":
+        # DENTRO DEL METRO: asientos, barras, el plano de lineas y la ventana
+        # oscura del tunel
+        img = _degradado(w, h, (226, 230, 236), (210, 216, 226))
+        d = ImageDraw.Draw(img)
+        _suelo(d, w, h, pies, (150, 156, 170), (130, 136, 150), "liso")
+        for k in range(3):                                                                                  # ventanas
+            x = w*(0.06 + 0.32*k)
+            d.rounded_rectangle([x, h*0.12, x + w*0.24, h*0.34], radius=24, fill=(40, 44, 60), outline=(150, 156, 170),
+                                width=8)
+            for j in range(3):
+                d.line([(x + w*(0.03 + 0.07*j), h*0.2), (x + w*(0.06 + 0.07*j), h*0.2)], fill=(250, 220, 140), width=5)
+        d.rectangle([w*0.0, h*0.48, w*1.0, h*0.56], fill=(90, 150, 220), outline=TINTA, width=4)             # asientos
+        d.rectangle([w*0.0, h*0.38, w*1.0, h*0.48], fill=(70, 128, 200), outline=TINTA, width=4)
+        for x in (0.25, 0.75):                                                                               # barras
+            d.line([P(x, 0.0), P(x, pies/h - 0.06)], fill=(196, 200, 210), width=12)
+        d.line([P(0.0, 0.06), P(1.0, 0.06)], fill=(196, 200, 210), width=10)
+        d.rectangle([w*0.38, h*0.36, w*0.62, h*0.37], fill=(196, 200, 210))
+        d.rectangle([w*0.4, h*0.02, w*0.6, h*0.1], fill=(250, 250, 248), outline=TINTA, width=3)            # plano
+        for k, c in enumerate(((226, 70, 64), (60, 190, 110), (250, 200, 60))):
+            y = h*(0.04 + 0.02*k)
+            d.line([(w*0.42, y), (w*0.58, y)], fill=c, width=5)
+            for j in range(5):
+                x = w*(0.43 + 0.035*j)
+                d.ellipse([x - 4, y - 4, x + 4, y + 4], fill=(255, 255, 255), outline=c, width=2)
     else:
         return None
     return img
+
+
+# Los de noche: se apagan hacia oscuro, no hacia blanco.
+_OSCUROS = ("fiesta", "cine", "cocina_noche")
 
 
 @lru_cache(maxsize=24)
@@ -625,7 +799,7 @@ def _cache(nombre, w, h, pies):
     # Profundidad: el sitio un poco desenfocado y apagado, para que lo de
     # delante mande. Como la tienda: se lee "esto es el fondo".
     img = img.filter(ImageFilter.GaussianBlur(max(1.5, w/900)))
-    claro = Image.new("RGB", img.size, (246, 242, 236)) if nombre != "fiesta" else Image.new("RGB", img.size, (40, 32, 70))
+    claro = Image.new("RGB", img.size, (246, 242, 236)) if nombre not in _OSCUROS else Image.new("RGB", img.size, (40, 32, 70))
     img = Image.blend(img, claro, 0.16)
     return np.asarray(img)
 
