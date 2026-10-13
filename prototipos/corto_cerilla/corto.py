@@ -58,9 +58,19 @@ def recorte(im, cx, cy, zoom):
     return im.resize((CW, CH), Image.LANCZOS, box=(x0, y0, x0 + w, y0 + h))
 
 # ---------------------------------------------------------------- ojos
-def ojos(d, cx, cy, s, piel, cansancio=0.0, parpadeo=0.0, mira=(0, 0), ceja=0.0):
+def ojos(d, cx, cy, s, piel, cansancio=0.0, parpadeo=0.0, mira=(0, 0), ceja=0.0, dirx=0.0, feliz=0.0, sorpresa=0.0):
+    cx = cx + dirx*s*0.16           # mira hacia un lado: los ojos se van a ese lado de la cara
     for lado in (-1, 1):
         ex = cx + lado*s*0.32; rx, ry = s*0.16, s*0.2
+        if sorpresa:                 # cejas arriba, en arco
+            y = cy - ry*(1.5 + 0.5*sorpresa)
+            d.arc([ex - rx, y - ry*0.3, ex + rx, y + ry*0.5], 200, 340, fill=T, width=max(3, int(s*0.035)))
+        if feliz > 0.5:              # ojos sonrientes: dos arcos
+            d.arc([ex - rx, cy - ry*0.5, ex + rx, cy + ry*1.1], 200, 340, fill=T, width=max(4, int(s*0.045)))
+            if ceja:
+                y = cy - ry*1.2
+                d.line([(ex - lado*rx*0.9, y - ceja*ry*0.35), (ex + lado*rx*1.0, y + ceja*ry*0.35)], fill=T, width=max(3, int(s*0.035)))
+            continue
         d.ellipse([ex - rx, cy - ry, ex + rx, cy + ry], fill=(250, 250, 250), outline=T, width=max(3, int(s*0.025)))
         px, py = ex + mira[0]*s*0.06, cy + mira[1]*s*0.08
         d.ellipse([px - s*0.07, py - s*0.08, px + s*0.07, py + s*0.08], fill=T)
@@ -98,16 +108,40 @@ def humo(d, cx, base, s, t):
         w = s*(0.18 + 0.2*k)
         d.arc([x - w, y - w*0.6, x + w, y + w*0.6], 200, 340, fill=(190, 190, 196), width=max(3, int(s*0.05)))
 
-def piernas(d, cx, cad, suelo, h, sep=0.06):
+def piernas(d, cx, cad, suelo, h, sep=0.06, fase=None):
+    if fase is not None:            # andando: cada pierna adelante y atrás, levantando el pie
+        for lado in (-1, 1):
+            f = fase + (0 if lado < 0 else math.pi)
+            fx = cx + lado*h*sep*0.5 + math.sin(f)*h*0.07
+            lev = max(0.0, math.cos(f))*h*0.035
+            d.line([(cx + lado*h*sep*0.5, cad), (fx, suelo - h*0.01 - lev)], fill=T, width=max(4, int(h*0.018)))
+            d.ellipse([fx - h*0.045, suelo - h*0.03 - lev, fx + h*0.045, suelo + h*0.01 - lev], fill=T)
+        return
     for lado in (-1, 1):
         d.line([(cx + lado*h*sep, cad), (cx + lado*h*(sep + 0.01), suelo - h*0.01)], fill=T, width=max(4, int(h*0.018)))
         d.ellipse([cx + lado*h*(sep + 0.01) - h*0.045, suelo - h*0.03, cx + lado*h*(sep + 0.01) + h*0.045, suelo + h*0.01], fill=T)
 
-def brazos(d, hombros, h, pose, mano_obj=None, piel=(240, 236, 226)):
-    """hombros: ((x,y),(x,y)); pose: movil / caido / mesa. Devuelve el punto medio de las manos."""
+def brazos(d, hombros, h, pose, mano_obj=None, piel=(240, 236, 226), fase=None):
+    """hombros: ((x,y),(x,y)); pose: movil / caido / mesa / anda / taza / brindis / arriba.
+    Devuelve el punto medio de las manos."""
     manos = []
+    lado_b = 1
+    if pose == "brindis" and mano_obj is not None:     # brinda con el brazo del lado de la copa
+        lado_b = 1 if mano_obj[0] >= (hombros[0][0] + hombros[1][0])/2 else -1
     for lado, (hx, hy) in zip((-1, 1), hombros):
-        if pose == "taza" and lado == 1:
+        if pose == "brindis":
+            if lado == lado_b:
+                c = (hx + lado*h*0.09, hy + h*0.05); m = mano_obj
+            else:
+                c = (hx + lado*h*0.03, hy + h*0.14); m = (hx + lado*h*0.04, hy + h*0.28)
+        elif pose == "anda" or (pose == "taza" and lado == -1 and fase is not None):
+            f = (fase or 0) + (math.pi if lado < 0 else 0)
+            c = (hx + lado*h*0.02 + math.sin(f)*h*0.04, hy + h*0.14); m = (hx + lado*h*0.02 + math.sin(f)*h*0.09, hy + h*0.27)
+        elif pose == "brindis" and lado == 1:
+            c = (hx + h*0.09, hy + h*0.05); m = mano_obj
+        elif pose == "arriba":        # se estira por la mañana
+            c = (hx + lado*h*0.05, hy - h*0.12); m = (hx + lado*h*0.08, hy - h*0.25)
+        elif pose == "taza" and lado == 1:
             c = (hx + h*0.07, hy + h*0.15); m = mano_obj
         elif pose == "movil":
             c = (hx + lado*h*0.06, hy + h*0.13); m = (mano_obj[0] + lado*h*0.03, mano_obj[1])
@@ -132,11 +166,14 @@ def cerilla(img, cx, cadera, suelo, h, st, t):
     parpadeo, mira, ceja, pose, espalda, inclina, sin_piernas."""
     d = ImageDraw.Draw(img)
     resp = 1 + 0.012*math.sin(t*2*math.pi/3.2)
+    fase = st.get("fase")
+    if fase is not None:
+        cadera -= abs(math.sin(fase))*h*0.014
     largo = h*0.5*resp; r = h*0.13
     inc = st.get("inclina", 0.0)*h          # se encorva: la cabeza baja y se adelanta
     top = cadera - largo + abs(inc)*0.35
     if not st.get("sin_piernas"):
-        piernas(d, cx, cadera - h*0.02, suelo, h)
+        piernas(d, cx, cadera - h*0.02, suelo, h, fase=fase)
     a = h*0.05
     d.polygon([(cx - a, cadera), (cx + a, cadera), (cx + a + inc*0.3, top + r*0.3), (cx - a + inc*0.3, top + r*0.3)],
               fill=(236, 228, 210), outline=T)
@@ -150,20 +187,22 @@ def cerilla(img, cx, cadera, suelo, h, st, t):
     if st.get("humo"):
         humo(d, hx, hy - r*1.1, r, t)
     if not st.get("espalda"):
-        ojos(d, hx, hy - r*0.05, r*1.5, cab, st.get("cansancio", 0), st.get("parpadeo", 0), st.get("mira", (0, 0.6)), st.get("ceja", 0))
+        ojos(d, hx, hy - r*0.05, r*1.5, cab, st.get("cansancio", 0), st.get("parpadeo", 0), st.get("mira", (0, 0.6)), st.get("ceja", 0),
+             st.get("dir", 0.0), st.get("feliz", 0.0), st.get("sorpresa", 0.0))
     hombros = ((cx - a + inc*0.3, top + h*0.12), (cx + a + inc*0.3, top + h*0.12))
     pose = st.get("pose", "caido")
     obj = st.get("objeto") or (hx, top + h*0.16)
     if st.get("espalda"):
         return (hx, hy - r*1.3), None
-    mano = brazos(d, hombros, h, pose, obj)
+    mano = brazos(d, hombros, h, pose, obj, fase=fase)
     return (hx, hy - r*1.3), mano
 
 def nube(img, cx, suelo, h, st, t):
     d = ImageDraw.Draw(img)
     resp = 1 + 0.012*math.sin(t*2*math.pi/3.6 + 1)
-    r = h*0.11; cy = suelo - h*0.72*resp
-    piernas(d, cx, suelo - h*0.22, suelo, h)
+    fase = st.get("fase")
+    r = h*0.11; cy = suelo - h*0.72*resp - (abs(math.sin(fase))*h*0.014 if fase is not None else 0)
+    piernas(d, cx, suelo - h*0.22, suelo, h, fase=fase)
     cuerpo = (58, 58, 62) if not st.get("espalda") else (30, 30, 34)
     d.rounded_rectangle([cx - h*0.1, cy + r*0.9, cx + h*0.1, suelo - h*0.2], radius=int(h*0.05), fill=cuerpo, outline=T, width=max(3, int(h*0.01)))
     bolas = [(-1.1, 0.25, 0.85), (1.1, 0.25, 0.85), (-0.5, -0.4, 1.0), (0.5, -0.35, 1.05), (0, 0.3, 1.1)]
@@ -174,19 +213,22 @@ def nube(img, cx, suelo, h, st, t):
         b2 = br*r - max(3, h*0.009)
         d.ellipse([cx + bx*r - b2, cy + by*r - b2, cx + bx*r + b2, cy + by*r + b2], fill=col)
     if not st.get("espalda"):
-        ojos(d, cx, cy + r*0.15, r*1.7, col, st.get("cansancio", 0), st.get("parpadeo", 0), st.get("mira", (0, 0)), st.get("ceja", 0))
+        ojos(d, cx, cy + r*0.15, r*1.7, col, st.get("cansancio", 0), st.get("parpadeo", 0), st.get("mira", (0, 0)), st.get("ceja", 0),
+             st.get("dir", 0.0), st.get("feliz", 0.0), st.get("sorpresa", 0.0))
         hombros = ((cx - h*0.1, cy + r*1.4), (cx + h*0.1, cy + r*1.4))
         pose = st.get("pose", "caido")
-        if pose == "taza":
-            mx, my = cx + h*0.09, cy + r*2.9
-            brazos(d, hombros, h, pose, (mx, my), piel=col)
+        if pose in ("taza", "brindis"):
+            mx, my = (cx + h*0.09, cy + r*2.9) if pose == "taza" else (st.get("objeto") or (cx + h*0.2, cy - r*0.2))
+            brazos(d, hombros, h, pose, (mx, my), piel=col, fase=fase)
+            if st.get("vaso"):
+                return (cx, cy - r*1.5)
             d.rounded_rectangle([mx - h*0.035, my - h*0.075, mx + h*0.035, my + h*0.01], radius=6, fill=(250, 250, 248), outline=T, width=4)
             d.arc([mx + h*0.02, my - h*0.06, mx + h*0.065, my - h*0.015], 270, 90, fill=T, width=4)
             for i in range(2):     # el vapor del café
                 k = (t*0.7 + i*0.5) % 1.0
                 d.arc([mx - 14 + i*10, my - h*0.12 - k*40, mx + 6 + i*10, my - h*0.08 - k*40], 200, 340, fill=(170, 170, 176), width=3)
         else:
-            brazos(d, hombros, h, pose, piel=col)
+            brazos(d, hombros, h, pose, piel=col, fase=fase)
     return (cx, cy - r*1.5)
 
 def silla(img, cx, y0, y1, ancho):
