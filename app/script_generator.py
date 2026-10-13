@@ -938,6 +938,8 @@ catedral, sale un fondo liso.
        "gorro":    lo que lleva en la cabeza, que dice de que epoca es. Uno de:
 {bloque_gorros}
                    o quitalo si no lleva
+                   ("tunica" = la tunica larga de Al-Andalus y Oriente: califas, emires, visires,
+                   sabios; con "gorro":"turbante")
        "barba":    el color de su barba SI LA HISTORIA LO DICE (o si cambia: roja y luego teñida de
                    negro), uno de [roja, negra, rubia, castaña, gris, blanca]; si no, quitalo
        "objeto":   {bloque_objetos} - o quitalo si no lleva. SI LA NARRACION NOMBRA UNA PRENDA,

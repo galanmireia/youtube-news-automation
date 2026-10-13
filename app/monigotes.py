@@ -799,6 +799,25 @@ def _habito(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(122, 92, 62)
            fill=(236, 226, 200), width=max(2, g//2))
 
 
+def _tunica(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(240, 234, 218)):
+    """LA TUNICA LARGA de Al-Andalus y de Oriente: califas, visires, sabios.
+    Hasta los pies, clara, con la franja de bordado y el fajin. Abderraman
+    III salia con la chaqueta azul de botones de Don Severo, que en un califa
+    del siglo X no tiene sentido."""
+    abajo = cadera[1] + alto*0.37
+    pts = [(x - alto*0.075, cuello[1]), (x + alto*0.075, cuello[1]),
+           (x + alto*0.15, cadera[1]), (x + alto*0.22, abajo), (x - alto*0.22, abajo),
+           (x - alto*0.15, cadera[1])]
+    d.polygon(pts, fill=color)
+    _linea(d, pts + [pts[0]], g, rnd, color=tinta, temblor=1.4)
+    franja = (40, 92, 150)
+    d.line([(x, cuello[1] + alto*0.01), (x, abajo - alto*0.01)], fill=franja, width=max(4, int(g*1.4)))
+    d.line([(x - alto*0.21, abajo - alto*0.03), (x + alto*0.21, abajo - alto*0.03)], fill=franja,
+           width=max(3, g))
+    d.line([(x - alto*0.14, cadera[1] - alto*0.03), (x + alto*0.14, cadera[1] - alto*0.03)],
+           fill=(204, 160, 52), width=max(4, int(g*1.5)))
+
+
 def _vestido(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(150, 50, 70)):
     """Vestido largo de mujer, con la falda abierta hasta los pies. Remedios
     era la unica mujer del reparto: con esto cualquier figura es una mujer
@@ -846,6 +865,7 @@ OBJETOS = {
     "banda": _banda,
     "banda_espana": _banda_espana,
     "habito": _habito,
+    "tunica": _tunica,
     "vestido": _vestido,
     "luto": _luto,
     "mano_vendada": _mano_vendada,
@@ -4823,7 +4843,7 @@ DECORADOS_EXPLICADOS = {
     "cubierta":    "cubierta de barco, mastil, el mar detras",
     "batalla_naval": "LA CUBIERTA DE UNA GALERA EN PLENA BATALLA: galeras en el mar con humo de cañonazos, fogonazos y una ardiendo. Lepanto, la Armada Invencible, Trafalgar, cualquier combate en el mar",
     "palacio_otomano": "EL PALACIO DEL SULTAN: azulejos azules, arcos apuntados, divan rojo con cojines y estandartes con la media luna. Selim segundo, Soliman, la corte otomana (SOLO el Imperio otomano, del siglo XIV en adelante)",
-    "palacio_andalusi": "AL-ANDALUS: los arcos de herradura rojos y blancos de la Mezquita de Cordoba. Abderraman, el Califato de Cordoba, Medina Azahara, los reinos de taifas, Boabdil y la Alhambra: CUALQUIER escena de Al-Andalus por dentro (nunca el palacio otomano, que tiene banderas turcas)",
+    "palacio_andalusi": "AL-ANDALUS: los arcos de herradura rojos y blancos de la Mezquita de Cordoba. Abderraman, el Califato de Cordoba, Medina Azahara, los reinos de taifas, Boabdil y la Alhambra: CUALQUIER escena de Al-Andalus por dentro (nunca el palacio otomano, que tiene banderas turcas). Sus personajes, con 'gorro':'turbante' y 'objeto':'tunica'",
     "constantinopla": "CONSTANTINOPLA desde el puerto: cupulas y minaretes al otro lado del agua y galeras. La capital otomana, el Bosforo; vale tambien para cualquier ciudad de Oriente vista desde el mar",
     "mina":        "puntales de madera, tierra, oscuridad",
     "despacho":    "el despacho de un ministro: mesa con papeles, mapa en la pared",
