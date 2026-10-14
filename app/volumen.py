@@ -152,6 +152,8 @@ def cuerpo(d, P, p, cuello, cadera, alto, g, rasgos, x, suelo, s, papel=None,
         k = _lado(pts[1], cadera, n)
         pts[0] = _suma(cadera, n, k*hw*0.5)
         _tubo(d, pts, grosor, pantalon, g)
+        if (rasgos or {}).get("sin_pies"):
+            continue
         pie = pts[-1]
         hacia = 1 if pts[-1][0] >= pts[0][0] else -1
         d.ellipse([pie[0] - grosor*0.7 + hacia*grosor*0.35, pie[1] - grosor*0.62,
@@ -194,7 +196,7 @@ def cuerpo(d, P, p, cuello, cadera, alto, g, rasgos, x, suelo, s, papel=None,
         pts = [P(t) for t in brazo]
         k = _lado(pts[1], cuello, n)
         pts[0] = _suma(hombro, n, k*sw*0.82)
-        _tubo(d, pts, grosor*0.92, ropa, g)
+        _tubo(d, pts, grosor*0.92, (rasgos or {}).get("manga") or ropa, g)
         mano = pts[-1]
         r = grosor*0.68
         d.ellipse([mano[0] - r, mano[1] - r, mano[0] + r, mano[1] + r], fill=PIEL, outline=TINTA,

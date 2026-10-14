@@ -41,7 +41,7 @@
    "sonido": "mar",
    "on_screen_highlight": "",
    "escena": {
-    "interior": "costa",
+    "interior": "estrecho",
     "noche": true,
     "rotulo": "Estrecho de Gibraltar · 711",
     "hablan": [],
@@ -55,7 +55,6 @@
     ],
     "figuras": [
      {
-      "quien": "soldado",
       "papel": "Tariq",
       "x": 0.3,
       "pose": "andando",
@@ -63,7 +62,8 @@
       "gesto": "neutro",
       "gorro": "turbante",
       "objeto": "tunica",
-      "lleva": "espada"
+      "lleva": "espada",
+      "barba": "negra"
      }
     ]
    }
@@ -73,16 +73,11 @@
    "sonido": "mar",
    "on_screen_highlight": "",
    "escena": {
-    "interior": "costa",
+    "interior": "estrecho",
     "rotulo": "",
     "hablan": [],
     "a_quien": [],
     "cosas": [
-     {
-      "que": "montaña",
-      "x": 0.76,
-      "tam": 0.32
-     },
      {
       "que": "barco",
       "x": 0.2,
@@ -91,14 +86,14 @@
     ],
     "figuras": [
      {
-      "quien": "soldado",
       "papel": "Tariq",
       "x": 0.42,
       "pose": "de_pie",
       "pose_fin": "señala",
       "gesto": "contento",
       "gorro": "turbante",
-      "objeto": "tunica"
+      "objeto": "tunica",
+      "barba": "negra"
      }
     ]
    }
@@ -298,7 +293,6 @@
       "lleva": "espada"
      },
      {
-      "quien": "soldado",
       "papel": "Tariq",
       "x": 0.78,
       "pose": "peleando",
@@ -306,7 +300,8 @@
       "gorro": "turbante",
       "objeto": "tunica",
       "lleva": "espada",
-      "espejo": true
+      "espejo": true,
+      "barba": "negra"
      }
     ]
    }
@@ -367,7 +362,6 @@
     ],
     "figuras": [
      {
-      "quien": "soldado",
       "papel": "Tariq",
       "x": 0.25,
       "pose": "corriendo",
@@ -375,7 +369,8 @@
       "gesto": "contento",
       "gorro": "turbante",
       "objeto": "tunica",
-      "lleva": "espada"
+      "lleva": "espada",
+      "barba": "negra"
      }
     ]
    }
@@ -391,9 +386,9 @@
     "a_quien": [],
     "cosas": [
      {
-      "que": "mapa",
-      "x": 0.62,
-      "tam": 0.32
+      "que": "mapa_al_andalus",
+      "x": 0.66,
+      "tam": 0.26
      }
     ],
     "figuras": [
@@ -431,14 +426,14 @@
       "gesto": "contento"
      },
      {
-      "quien": "soldado",
       "papel": "Tariq",
       "x": 0.7,
       "pose": "de_pie",
       "gesto": "contento",
       "gorro": "turbante",
       "objeto": "tunica",
-      "espejo": true
+      "espejo": true,
+      "barba": "negra"
      }
     ]
    }

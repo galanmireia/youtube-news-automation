@@ -33,7 +33,7 @@ import random
 import subprocess
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 logger = logging.getLogger(__name__)
 
@@ -381,6 +381,10 @@ POSES_EXPLICADAS = {
 }
 
 
+# Las que en el Short se alcanzan y se mantienen (ver animar, una_vez).
+_SE_LLEGA = ("señala", "mirando", "rezando", "dando", "cargando")
+
+
 def _las_posturas_estan_explicadas() -> None:
     faltan = set(POSES_VALIDAS) - set(POSES_EXPLICADAS)
     sobran = set(POSES_EXPLICADAS) - set(POSES_VALIDAS)
@@ -441,7 +445,7 @@ def _los_ciclos_se_mueven() -> None:
 
 _los_ciclos_se_mueven()
 
-def _cara(d, c, r, g, rnd, gesto, tinta=TINTA):
+def _cara(d, c, r, g, rnd, gesto, tinta=TINTA, barba=False, boca_clara=False):
     o = r*0.30
     ojo = max(3, int(r*0.10))
     if gesto == "muerto":
@@ -461,7 +465,19 @@ def _cara(d, c, r, g, rnd, gesto, tinta=TINTA):
             _linea(d, [(cx-ojo*1.6, cy-ojo*1.8), (cx+ojo*1.6, cy-ojo*0.6)][::lado], g, rnd,
                    color=tinta, temblor=1)
         d.ellipse([cx-ojo, cy-ojo, cx+ojo, cy+ojo], fill=tinta)
-    b = (c[0], c[1]+r*0.34)
+        # LAS CEJAS. Sin ellas la cara solo cambiaba por la boca, y con barba
+        # la boca casi no se ve: cejas arriba es sorpresa, caidas hacia fuera
+        # es pena, en arco es contento. Las del enfadado ya estan arriba.
+        if gesto != "enfadado":
+            alza = {"sorpresa": 1.0, "grito": 0.7, "asustado": 0.8, "contento": 0.35}.get(gesto, 0.0)
+            yc = cy - ojo*(2.5 + 0.9*alza)
+            fuera, dentro = (yc + ojo*0.9, yc - ojo*0.5) if gesto in ("triste", "asustado") else (yc, yc)
+            medio = min(fuera, dentro) - ojo*(0.55 if gesto in ("contento", "sorpresa") else 0.25)
+            _linea(d, [(cx - lado*ojo*1.5, dentro), (cx, medio), (cx + lado*ojo*1.5, fuera)][::lado],
+                   max(2, int(g*0.75)), rnd, color=tinta, temblor=0.6)
+    b = (c[0], c[1]+r*(0.42 if barba else 0.34))
+    if boca_clara:
+        tinta = (238, 226, 214)
     if gesto in ("sorpresa", "grito"):
         rr = r*(0.20 if gesto=="sorpresa" else 0.28)
         _circulo(d, b, rr, g, rnd, relleno=tinta, color=tinta)
@@ -518,9 +534,30 @@ def _gorro(d, cab, rc, g, rnd, cual):
                        x + b*px + rc*.12, base - rc*.02 + inc*(-px) + rc*.12 + rc*.15],
                       fill=(ROJO, (40, 110, 200), ROJO)[k])
     elif cual == "corona":
-        b = rc*0.95
-        _linea(d, [(x-b, arriba), (x-b*.5, arriba-rc*.62), (x, arriba-rc*.05),
-                   (x+b*.5, arriba-rc*.62), (x+b, arriba)], g, rnd, color=oro)
+        # Maciza, de oro, con su aro, tres puntas con perla y piedras. La de
+        # antes era una raya en zigzag que flotaba encima de la calva.
+        b = rc*0.80
+        base, aro = arriba + rc*0.14, rc*0.26
+        puntas = [(x - b, base - aro)]
+        for k, px in enumerate((-1, -0.5, 0, 0.5, 1)):
+            alto_p = rc*(0.62 if k % 2 == 0 else 0.22)
+            if k: puntas.append((x + b*px, base - aro - alto_p))
+            else: puntas[0] = (x - b, base - aro - alto_p)
+        cuerpo = [(x - b, base)] + puntas + [(x + b, base)]
+        d.polygon(cuerpo, fill=oro)
+        _linea(d, cuerpo + [cuerpo[0]], max(2, int(g*0.8)), rnd, color=TINTA, temblor=0.6)
+        d.line([(x - b*0.96, base - aro), (x + b*0.96, base - aro)], fill=(160, 116, 24),
+               width=max(2, g//2))
+        for px in (-1, 0, 1):                           # las perlas de las puntas
+            cx_, cy_ = x + b*px, base - aro - rc*0.62
+            rp = rc*0.10
+            d.ellipse([cx_ - rp, cy_ - rp, cx_ + rp, cy_ + rp], fill=(250, 246, 232), outline=TINTA,
+                      width=max(1, g//3))
+        for px, color in ((-0.55, rojo), (0, azul), (0.55, rojo)):   # las piedras del aro
+            rp = rc*0.075
+            d.ellipse([x + b*px - rp, base - aro*0.5 - rp, x + b*px + rp, base - aro*0.5 + rp], fill=color)
+        d.line([(x - b*0.7, base - aro*0.82), (x - b*0.25, base - aro*0.82)], fill=(250, 220, 120),
+               width=max(2, g//3))
     elif cual == "corona_imperial":  # cerrada: arcos, terciopelo rojo y cruz. El emperador
         b = rc*1.0
         base = arriba + rc*0.05
@@ -551,11 +588,37 @@ def _gorro(d, cab, rc, g, rnd, cual):
                   fill=(255,255,255), outline=TINTA, width=g)
         _linea(d, [(x-rc*.62, arriba), (x-rc*.56, arriba-rc*.78),
                    (x+rc*.56, arriba-rc*.78), (x+rc*.62, arriba)], g, rnd)
-    elif cual == "casco":           # morrion de conquistador, con cresta
-        _linea(d, [(x-rc*1.15, arriba+rc*.10), (x-rc*.80, arriba-rc*.62),
-                   (x+rc*.80, arriba-rc*.62), (x+rc*1.15, arriba+rc*.10)], g, rnd)
-        _linea(d, [(x-rc*.55, arriba-rc*.60), (x, arriba-rc*1.15),
-                   (x+rc*.55, arriba-rc*.60)], g, rnd)
+    elif cual == "casco":
+        acero, sombra = (166, 168, 176), (128, 130, 140)
+        if EPOCA[0] and EPOCA[0] < 1450:
+            # El yelmo conico con nasal de la Alta Edad Media: visigodos,
+            # Covadonga, la Reconquista. El morrion es del siglo XVI.
+            base = y - rc*0.42
+            pts = [(x - rc*1.04, base), (x - rc*0.86, base - rc*0.62), (x - rc*0.38, base - rc*1.08),
+                   (x, base - rc*1.22), (x + rc*0.38, base - rc*1.08), (x + rc*0.86, base - rc*0.62),
+                   (x + rc*1.04, base)]
+            d.polygon(pts, fill=acero)
+            d.polygon([pts[3], pts[4], pts[5], pts[6], (x, base)], fill=sombra)
+            d.line([(x, base - rc*1.18), (x, base)], fill=(110, 112, 120), width=max(2, g//2))
+            _linea(d, pts + [pts[0]], g, rnd, temblor=0.6)
+            d.rounded_rectangle([x - rc*1.06, base - rc*0.16, x + rc*1.06, base + rc*0.06],
+                                radius=int(rc*0.06), fill=(176, 134, 64), outline=TINTA, width=max(2, g//2))
+            d.rectangle([x - rc*0.07, base, x + rc*0.07, base + rc*0.42], fill=acero, outline=TINTA,
+                        width=max(2, g//3))
+        else:
+            # morrion de conquistador, con cresta y ala
+            ala = [(x - rc*1.25, arriba + rc*0.10), (x - rc*0.80, arriba - rc*0.30),
+                   (x + rc*0.80, arriba - rc*0.30), (x + rc*1.25, arriba + rc*0.10),
+                   (x + rc*0.70, arriba - rc*0.05), (x - rc*0.70, arriba - rc*0.05)]
+            copa = [(x - rc*0.78, arriba - rc*0.20), (x - rc*0.62, arriba - rc*0.80), (x, arriba - rc*1.00),
+                    (x + rc*0.62, arriba - rc*0.80), (x + rc*0.78, arriba - rc*0.20)]
+            d.polygon(copa, fill=acero)
+            _linea(d, copa, g, rnd, temblor=0.6)
+            cresta = [(x - rc*0.45, arriba - rc*0.86), (x, arriba - rc*1.30), (x + rc*0.45, arriba - rc*0.86)]
+            d.polygon(cresta, fill=sombra)
+            _linea(d, cresta, max(2, int(g*0.8)), rnd, temblor=0.6)
+            d.polygon(ala, fill=acero)
+            _linea(d, ala + [ala[0]], g, rnd, temblor=0.6)
     elif cual == "mitra":           # obispo, Inquisicion
         _linea(d, [(x-rc*.78, arriba+rc*.08), (x-rc*.60, arriba-rc*.70),
                    (x, arriba-rc*1.45), (x+rc*.60, arriba-rc*.70),
@@ -626,17 +689,39 @@ def _gorro(d, cab, rc, g, rnd, cual):
     elif cual == "turbante":        # Al-Andalus, el sultan, el embajador
         # Grande y abombado, con las vueltas de tela y la joya delante: pequeño
         # parecia una gorra de marinero.
-        tela = (242, 238, 226)
-        d.ellipse([x-rc*1.30, arriba-rc*1.30, x+rc*1.30, arriba+rc*0.45],
-                  fill=tela, outline=TINTA, width=g)
-        for k in range(3):
-            y0 = arriba - rc*1.10 + rc*0.42*k
-            d.arc([x-rc*1.25, y0, x+rc*1.25, y0 + rc*0.9], 200, 340,
-                  fill=(170, 160, 140), width=max(2, g//2))
-        d.ellipse([x-rc*0.22, arriba-rc*0.62, x+rc*0.22, arriba-rc*0.18], fill=ROJO,
+        # ENVUELVE LA CABEZA: baja hasta la frente, justo encima de las cejas.
+        # El de antes era un platillo apoyado en la coronilla, con hueco
+        # entre la tela y la frente: parecia flotar.
+        tela, pliegue = (242, 238, 226), (176, 166, 146)
+        caja = [x - rc*1.12, y - rc*1.92, x + rc*1.12, y - rc*0.36]
+        # La tela y sus vueltas en una capa aparte, recortada a la forma del
+        # turbante: los pliegues se salian por los lados.
+        x0, y0 = int(caja[0]) - 2, int(caja[1]) - 2
+        W, H = int(caja[2] - caja[0]) + 5, int(caja[3] - caja[1]) + 5
+        capa = Image.new("RGBA", (W, H), tela + (255,))
+        dc = ImageDraw.Draw(capa)
+        loc = lambda bx: [bx[0] - x0, bx[1] - y0, bx[2] - x0, bx[3] - y0]
+        dc.ellipse(loc([x + rc*0.20, caja[1] - rc*0.2, x + rc*1.6, caja[3] + rc*0.2]), fill=(224, 218, 202))
+        for k in range(4):           # las vueltas, en diagonal y cruzadas
+            yk = y - rc*(1.95 - 0.38*k)
+            dc.arc(loc([x - rc*1.6, yk, x + rc*0.9, yk + rc*1.0]), 200, 340, fill=pliegue, width=max(2, g//2))
+            dc.arc(loc([x - rc*0.9, yk + rc*0.12, x + rc*1.6, yk + rc*1.12]), 200, 340, fill=pliegue,
+                   width=max(2, g//2))
+        forma = Image.new("L", (W, H), 0)
+        ImageDraw.Draw(forma).ellipse(loc(caja), fill=255)
+        capa.putalpha(forma)
+        destino = getattr(d, "_image", None)
+        if destino is not None:
+            destino.paste(capa, (x0, y0), capa)
+        else:
+            d.ellipse(caja, fill=tela)
+        d.ellipse(caja, outline=TINTA, width=g)
+        # la joya delante y una pluma corta
+        jy = y - rc*0.78
+        _linea(d, [(x, jy - rc*0.10), (x + rc*0.10, jy - rc*0.62), (x + rc*0.24, jy - rc*0.80)],
+               max(3, int(g*0.9)), rnd, color=(250, 250, 248), temblor=0.4)
+        d.ellipse([x - rc*0.17, jy - rc*0.17, x + rc*0.17, jy + rc*0.17], fill=ROJO,
                   outline=TINTA, width=max(2, g//2))
-        _linea(d, [(x, arriba-rc*0.62), (x+rc*0.25, arriba-rc*1.45)], max(2, g//2), rnd,
-               color=(40, 110, 90), temblor=0.6)
     elif cual == "chistera":        # el XIX: politicos, banqueros, Isabel II
         negro = (34, 32, 34)
         d.rectangle([x-rc*0.62, arriba-rc*1.30, x+rc*0.62, arriba], fill=negro)
@@ -797,6 +882,21 @@ def _habito(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(122, 92, 62)
            fill=(236, 226, 200), width=max(3, g))
     d.line([(x + alto*0.04, cadera[1] - alto*0.02), (x + alto*0.06, cadera[1] + alto*0.14)],
            fill=(236, 226, 200), width=max(2, g//2))
+    _calzado_bajo_la_ropa(d, x, abajo, alto, g, rnd, tinta)
+
+
+def _calzado_bajo_la_ropa(d, x, abajo, alto, g, rnd, tinta=TINTA, color=(70, 50, 40)):
+    """Las puntas de los pies asomando por debajo de la ropa larga, hacia
+    fuera. Sin esto, bajo la tunica de Tariq solo asomaban dos ovalos negros
+    pegados al borde, que parecian las ruedas de un carrito."""
+    for lado in (-1, 1):
+        talon = x + lado*alto*0.035
+        punta = x + lado*alto*0.150
+        pts = [(talon, abajo - alto*0.012), (punta - lado*alto*0.03, abajo - alto*0.008),
+               (punta, abajo + alto*0.020), (punta - lado*alto*0.02, abajo + alto*0.040),
+               (talon, abajo + alto*0.040)]
+        d.polygon(pts, fill=color)
+        _linea(d, pts + [pts[0]], max(2, int(g*0.7)), rnd, color=tinta, temblor=0.4)
 
 
 def _tunica(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(240, 234, 218)):
@@ -816,6 +916,7 @@ def _tunica(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(240, 234, 21
            width=max(3, g))
     d.line([(x - alto*0.14, cadera[1] - alto*0.03), (x + alto*0.14, cadera[1] - alto*0.03)],
            fill=(204, 160, 52), width=max(4, int(g*1.5)))
+    _calzado_bajo_la_ropa(d, x, abajo, alto, g, rnd, tinta)
 
 
 def _vestido(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(150, 50, 70)):
@@ -891,6 +992,9 @@ def _nota(d, x, y, tam, g, rnd, doble=False):
                temblor=0.6)
 
 
+_MANGAS = {"tunica": (228, 220, 202), "habito": (122, 92, 62)}
+
+
 def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, espejo=False,
            pose_mezclada=None, tinta=TINTA, relleno=(255, 255, 255), rasgos=None, objeto=None):
     p = pose_mezclada or _POSES[pose]
@@ -933,7 +1037,14 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
         encima = None
         if dibuja_objeto and objeto not in OBJETOS_ENCIMA and objeto not in volumen.DETRAS_DEL_CUERPO:
             encima = lambda dd: dibuja_objeto(dd, x, cuello, cadera, alto, g, rnd, tinta=tinta)
-        volumen.cuerpo(d, P, p, cuello, cadera, alto, g, rasgos, x, suelo, s, encima=encima)
+        # Con ropa larga, las mangas son de la misma tela: Tariq salia con
+        # la tunica blanca y los brazos azules de otra chaqueta.
+        # Y sin los zapatos de debajo: asomaban como dos ruedas; los pies los
+        # pone la ropa larga (_calzado_bajo_la_ropa).
+        manga = _MANGAS.get(objeto)
+        volumen.cuerpo(d, P, p, cuello, cadera, alto, g,
+                       dict(rasgos, manga=manga, sin_pies=True) if manga else rasgos,
+                       x, suelo, s, encima=encima)
         d = ImageDraw.Draw(d._image)
     else:
         if dibuja_objeto and objeto not in OBJETOS_ENCIMA:
@@ -963,7 +1074,18 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
         d = ImageDraw.Draw(d._image)
     else:
         _circulo(d, cab, rc, g, rnd, relleno=relleno, color=tinta)
-    _cara(d, cab, rc, g, rnd, gesto, tinta=tinta)
+    # LA BARBA, ANTES QUE LA CARA. Era un babero blanco pintado encima de
+    # todo: tapaba la boca y Don Severo no sonreia ni gritaba nunca. Ahora va
+    # debajo de la boca y de los ojos, y el bigote encima, sin taparla.
+    con_barba = bool(rasgos.get("barba"))
+    if con_barba:
+        color_barba = rasgos.get("barba_color") or (248, 248, 246)
+        _barba(d, cab, rc, g, rnd, tinta=tinta, relleno=color_barba)
+    # En una barba oscura la boca negra no se ve: va en claro.
+    _cara(d, cab, rc, g, rnd, gesto, tinta=tinta, barba=con_barba,
+          boca_clara=con_barba and sum(rasgos.get("barba_color") or (255, 255, 255)) < 420)
+    if con_barba:
+        _bigote(d, cab, rc, g, rnd, tinta=tinta, relleno=rasgos.get("barba_color") or (248, 248, 246))
     if rasgos.get("gafas"):
         o = rc*0.30
         for lado in (-1, 1):
@@ -972,8 +1094,6 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
         d.line([(cab[0] - o + rc*0.21, cab[1] - rc*0.14), (cab[0] + o - rc*0.21, cab[1] - rc*0.14)],
                fill=tinta, width=max(2, g//2))
     # Y estos DELANTE de la cara, que es donde estan.
-    if rasgos.get("barba"):
-        _barba(d, cab, rc, g, rnd, tinta=tinta, relleno=rasgos.get("barba_color") or relleno)
     if rasgos.get("parche"):
         _parche(d, cab, rc, g, rnd, tinta=tinta)
     if gorro and gorro not in GORROS_DETRAS:
@@ -1457,7 +1577,10 @@ def _carrera(f: dict, reloj: float, segundos: float, desfase: float) -> dict | N
                                              (p - (1 - _ARRANQUE))/_ARRANQUE)}
         x = x0 - (1 - p/(1 - _ARRANQUE))*recorrido
     else:
-        x = x0 + (p - 0.5)*recorrido
+        # CRUZA: el tramo entero dentro del plano. Centrado en su x, Tariq
+        # (x=0.30) empezaba con medio cuerpo fuera por la izquierda.
+        centro = min(0.86 - abs(recorrido)/2, max(0.14 + abs(recorrido)/2, x0))
+        x = centro + (p - 0.5)*recorrido
     corre["x"] = min(0.97, max(0.03, x))
     return corre
 
@@ -2108,6 +2231,7 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
         for k, f in enumerate(spec.get("figuras", [])):
             g = dict(f)
             fin = f.get("pose_fin")
+            origen = f.get("pose", "de_pie")
             # Cada figura con su propio desfase: si el movimiento de las tres
             # empieza en el mismo fotograma parecen marionetas de un hilo.
             desfase = k*0.37
@@ -2121,18 +2245,30 @@ def animar(spec, segundos=2.5, fps=15, vaiven=True, bocadillo=None, bocadillos=N
             # parecer elegante, porque lo que hay que pedir se olvida y en el
             # #90 siete de doce monigotes salieron congelados.
             if not fin:
-                fin = _CICLOS.get(f.get("pose"))
+                fin = _CICLOS.get(origen)
             elif una_vez:
+                # LA POSTURA DEL GUION ES LA DEL FINAL, no la del principio.
+                # Con la compañera de _destino, el que "señala" señalaba 0,8 s
+                # y se pasaba el resto del plano con los brazos caidos: en la
+                # conquista omeya los dos nobles que discuten, y Anselmo
+                # delante del mapa. Ella: "las posturas ... bastante mal". Se
+                # llega a la postura pedida desde de pie y se queda; y el que
+                # el guion puso de pie se queda de pie, sin señalar a nadie.
+                if f.get("fin_auto"):
+                    if origen in _SE_LLEGA:
+                        origen, fin = "de_pie", origen
+                    elif origen == "de_pie":
+                        fin = None
                 # Why Though: "no me gusta que se mueva el brazo todo el
                 # rato". Va a la postura que pide el guion UNA vez, al
                 # empezar, y se queda; los verbos con ciclo siguen andando.
                 tk = min(1.0, max(0.0, reloj - una_vez_desde - (0.25*k if una_vez_desde else 0))/0.6)
                 tk = tk*tk*(3 - 2*tk)
-            if fin and fin != f.get("pose"):
-                if f.get("pose") == "en_cama" and fin != "de_pie":
+            if fin and fin != origen:
+                if origen == "en_cama" and fin != "de_pie":
                     g["pose_mezclada"] = _mezcla(_POSES["en_cama"], _en_cama_con(fin), tk)
                 else:
-                    g["pose_mezclada"] = _mezcla(_POSES[f.get("pose","de_pie")], _POSES[fin], tk)
+                    g["pose_mezclada"] = _mezcla(_POSES[origen], _POSES[fin], tk)
             # RESPIRACION: sube y baja un poco aunque no cambie de pose.
             g["_bocanada"] = math.sin(2*math.pi*(reloj/_SEGUNDOS_RESPIRACION + desfase))
             carrera = _carrera(f, reloj, segundos, desfase)
@@ -2261,6 +2397,10 @@ def limpia(spec: dict) -> dict:
                 0.46, max(0.18, float(f.get("alto", 0.34) or 0.34))),
             "pose": _una_de(f.get("pose"), POSES_VALIDAS, "de_pie"),
             "pose_fin": _destino(f),
+            # La compañera la pone _destino, no el guion: en el Short (una
+            # vez) no se va a ella, se llega a la postura pedida. Ver animar().
+            "fin_auto": not (f.get("pose_fin") and _una_de(f.get("pose_fin"), POSES_VALIDAS, "")
+                             not in ("", _una_de(f.get("pose"), POSES_VALIDAS, "de_pie"))),
             "gesto": _una_de(f.get("gesto"), GESTOS_VALIDOS, "neutro"),
             "gorro": gorro if gorro in GORROS_VALIDOS else None,
             "barba": (str(f.get("barba") or "").strip().lower() if str(f.get("barba") or "").strip().lower()
@@ -2399,7 +2539,7 @@ def limpia(spec: dict) -> dict:
         # Si el guion dice QUIEN habla, manda eso y no la x: la x era una
         # forma indirecta de decir lo mismo y es la que se equivocaba.
         habla_x = next(f["x"] for f in figuras if nombre_de(f) == hablan[0])
-    return _montar_escena({"interior": dentro, "cosas": cosas,
+    return _encuadra(_montar_escena({"interior": dentro, "cosas": cosas,
             "fondo": _una_de(spec.get("fondo"), FONDOS_VALIDOS, "liso"),
             "suelo": min(0.86, max(0.58, float(spec.get("suelo", 0.70 if dentro else 0.74)
                                               or 0.74))),
@@ -2407,7 +2547,133 @@ def limpia(spec: dict) -> dict:
             "habla_x": habla_x, "hablan": hablan, "a_quien": a_quien_de(spec, figuras),
             "rotulo": (" ".join(str(spec.get("rotulo") or "").split())[:_LARGO_ROTULO] or None),
             "noche": bool(spec.get("noche")),
-            "arbol": spec.get("arbol") if isinstance(spec.get("arbol"), (int, float)) else None})
+            "arbol": spec.get("arbol") if isinstance(spec.get("arbol"), (int, float)) else None}))
+
+
+# ---- EL ENCUADRE --------------------------------------------------------
+# Ella: "encuadrar todo mas". La x de cada uno la pone el guion sin ver el
+# dibujo, y separar por el CENTRO (lo de arriba) no sabe lo que ocupa cada
+# uno: el que señala estira el brazo media pantalla, el rey lleva manto, el
+# que pelea abre las piernas. En la conquista omeya Rodrigo se salia por la
+# izquierda peleando, el mensajero por la otra, y los dos de la batalla se
+# montaban. Aqui se MIDE lo que ocupa cada figura de verdad - dibujandola
+# sola en una capa transparente - y con eso se coloca: dentro del plano y
+# sin pisarse.
+_MARGEN = 0.025          # del borde, en pantallas
+_HOLGURA_CUERPOS = 0.03  # entre dos cuerpos
+_POSES_QUE_SE_TOCAN = ("dando",)
+# Las que abren las piernas o se echan hacia delante: aqui el cuerpo es la
+# postura entera, no el de pie (los de la batalla se pisaban).
+_POSES_ANCHAS = ("peleando", "empujando", "cargando", "bailando", "cayendose")
+
+
+def _encuadra_cosas(limpio, w=540, h=960):
+    """Las cosas apoyadas en el suelo, dentro del plano: el mapa de la
+    conquista omeya se salia por la derecha y el castillo tambien."""
+    for c in limpio.get("cosas") or []:
+        dibuja = COSAS.get(c.get("que"))
+        if dibuja is None or c.get("y") is not None:
+            continue
+        capa = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        try:
+            dibuja(ImageDraw.Draw(capa), w/2, h*0.8, h*c["tam"], random.Random(0), 3)
+        except Exception:
+            continue
+        caja = capa.getchannel("A").getbbox()
+        if not caja:
+            continue
+        izq, der = (w/2 - caja[0])/w, (caja[2] - w/2)/w
+        if izq + der > 1 - 2*_MARGEN:          # mas ancha que el plano: mas pequeña
+            k = (1 - 2*_MARGEN)/(izq + der)
+            c["tam"] = round(c["tam"]*k, 3)
+            izq, der = izq*k, der*k
+        c["x"] = round(min(1 - _MARGEN - der, max(_MARGEN + izq, c["x"])), 3)
+
+
+def _ancho_de(f, alto_rel, poses=None, w=540, h=960):
+    """Cuanto ocupa a cada lado de su x (en pantallas), en su postura de
+    salida y en la de llegada: se queda con lo mas ancho de las dos."""
+    izq = der = 0.0
+    for pose in poses or {f.get("pose") or "de_pie", f.get("pose_fin") or f.get("pose") or "de_pie"}:
+        if pose not in _POSES:
+            continue
+        capa = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(capa)
+        cx, suelo = w/2, h*0.8
+        figura(d, cx, suelo, h*alto_rel, random.Random(0), pose=pose, gesto=f.get("gesto", "neutro"),
+               gorro=f.get("gorro"), espejo=f.get("espejo", False), rasgos=_rasgos(f),
+               objeto=f.get("objeto"))
+        caja = capa.getchannel("A").point(lambda v: 255 if v > 40 else 0).getbbox()
+        if caja:
+            izq, der = max(izq, (cx - caja[0])/w), max(der, (caja[2] - cx)/w)
+    return izq, der
+
+
+def _se_mueve(f):
+    return f.get("pose") in _DESPLAZAMIENTOS or f.get("pose_fin") in _DESPLAZAMIENTOS
+
+
+def _encuadra(limpio: dict) -> dict:
+    try:
+        _encuadra_cosas(limpio)
+    except Exception:
+        logger.warning("No se han podido encuadrar las cosas.", exc_info=True)
+    figs = limpio.get("figuras") or []
+    if limpio.get("interior") == "blanco" or any(
+            {f.get("pose"), f.get("pose_fin")} & set(_ACOSTADAS) for f in figs):
+        return limpio                      # el folio y la cama se colocan solos
+    quietos = [f for f in figs if not _se_mueve(f) and f.get("pose") not in _POSES_QUE_SE_TOCAN
+               and f.get("efecto") != "bofetada"]
+    if not quietos:
+        return limpio
+    hablante = next((f for f in figs if f.get("x") == limpio.get("habla_x")), None)
+    for f in quietos:
+        f["_alto0"] = f.get("alto", 0.34)
+    try:
+        # Dos medidas: el CUERPO (de pie, con su ropa) no se pisa con el de
+        # al lado; la figura ENTERA (el brazo que señala, la espada) no se
+        # sale del plano. Un brazo que señala a otro si puede pasarle por
+        # delante: es a quien señala.
+        def mide():
+            return ([_ancho_de(f, f.get("alto", 0.34),
+                               poses={f["pose"] if f.get("pose") in _POSES_ANCHAS else "de_pie"})
+                     for f in quietos],
+                    [_ancho_de(f, f.get("alto", 0.34)) for f in quietos])
+        for _ in range(3):
+            cuerpos, enteras = mide()
+            orden_x = sorted(range(len(quietos)), key=lambda k: quietos[k]["x"])
+            total = (sum(a + b for a, b in cuerpos) + _HOLGURA_CUERPOS*(len(quietos) - 1) + 2*_MARGEN
+                     + max(0.0, enteras[orden_x[0]][0] - cuerpos[orden_x[0]][0])
+                     + max(0.0, enteras[orden_x[-1]][1] - cuerpos[orden_x[-1]][1]))
+            if total <= 1.0:
+                break
+            # No caben: todos un poco mas pequeños (nunca menos del 75%).
+            for f in quietos:
+                f["alto"] = round(f.get("alto", 0.34)*max(0.85, 1.0/total), 4)
+            if min(f["alto"]/f.get("_alto0", f["alto"]) for f in quietos) < 0.76:
+                break
+        cuerpos, enteras = mide()
+        orden = sorted(zip(quietos, cuerpos, enteras), key=lambda t: t[0]["x"])
+        n = len(orden)
+        # De izquierda a derecha: cada uno, pasado el cuerpo del anterior, y
+        # el primero con la figura entera dentro.
+        borde = _MARGEN
+        for k, (f, (a, b), (ea, eb)) in enumerate(orden):
+            f["x"] = max(f["x"], borde + (ea if k == 0 else a))
+            borde = f["x"] + b + _HOLGURA_CUERPOS
+        # Y lo mismo de derecha a izquierda, por si el ultimo se sale.
+        borde = 1 - _MARGEN
+        for k, (f, (a, b), (ea, eb)) in reversed(list(enumerate(orden))):
+            f["x"] = min(f["x"], borde - (eb if k == n - 1 else b))
+            borde = f["x"] - a - _HOLGURA_CUERPOS
+        for f, _c, _e in orden:
+            f["x"] = round(min(0.97, max(0.03, f["x"])), 3)
+            f.pop("_alto0", None)
+        if hablante is not None:
+            limpio["habla_x"] = hablante["x"]
+    except Exception:
+        logger.warning("No se ha podido medir el encuadre; se queda como estaba.", exc_info=True)
+    return limpio
 
 
 def _reparte(figs, desde, lado, hueco=0.15):
@@ -2890,22 +3156,60 @@ def _rasgos(f: dict) -> dict | None:
 
 
 def _barba(d, cab, rc, g, rnd, tinta=TINTA, relleno=(255, 255, 255)):
-    """Una barba que CUELGA por debajo de la cabeza.
+    """Una barba de verdad: nace en las patillas, abraza la mandibula y
+    cuelga por debajo de la barbilla en mechones.
 
-    Empece con bigote y no cabe: en una cara de monigote, del tamaño de una
-    moneda en pantalla, un bigote se come la boca y se lee como un
-    manchurron. Probado dos veces - primero parecian sonreir, luego parecian
-    tristes. La barba va por FUERA del circulo de la cabeza, asi que no pisa
-    ni los ojos ni la boca, y se reconoce a un metro del movil.
+    La primera era media luna blanca pintada ENCIMA de la cara: un babero
+    que tapaba la boca (Don Severo no sonreia ni gritaba nunca) y que de
+    lejos se leia como una servilleta. Esta deja libre la boca - que se
+    pinta despues, encima - y lleva bigote aparte (_bigote).
     """
-    pts = []
-    for i in range(15):
-        a = i/14*math.pi                       # media vuelta por abajo
-        pts.append((cab[0] + math.cos(math.pi - a)*rc*0.92,
-                    cab[1] + math.sin(a)*rc*1.55 + rc*0.18))
-    contorno = [(cab[0]-rc*0.92, cab[1]+rc*0.18)] + pts + [(cab[0]+rc*0.92, cab[1]+rc*0.18)]
-    d.polygon(contorno, fill=relleno)
-    _linea(d, contorno, g, rnd, color=tinta, temblor=2.0)
+    x, y = cab
+    fuera = []
+    n = 40
+    for i in range(n + 1):
+        a = i/n*math.pi                       # de la patilla izquierda a la derecha, por abajo
+        caida = math.sin(a)                   # 0 en las patillas, 1 en la barbilla
+        rx = rc*(1.02 + 0.04*caida)
+        ry = rc*(1.0 + 0.62*caida**1.6)
+        # mechones: el borde de abajo ondula, los lados no
+        onda = rc*0.075*abs(math.sin(a*7))*caida**2
+        fuera.append((x + math.cos(math.pi - a)*(rx + onda*0.4),
+                      y - rc*0.10 + math.sin(a)*(ry + onda)))
+    # El hueco de la cara: mejillas y la boca, por encima del borde interior.
+    dentro = [(x + rc*0.86, y - rc*0.06), (x + rc*0.58, y + rc*0.22), (x + rc*0.30, y + rc*0.24),
+              (x, y + rc*0.22), (x - rc*0.30, y + rc*0.24), (x - rc*0.58, y + rc*0.22),
+              (x - rc*0.86, y - rc*0.06)]
+    contorno = fuera + dentro
+    oscuro = tuple(int(v*0.80) for v in relleno)
+    if VOLUMEN and hasattr(d, "_image"):
+        from . import volumen
+        volumen._sombreado(d._image, contorno, relleno, (rc*0.30, -rc*0.10))
+        d = ImageDraw.Draw(d._image)
+    else:
+        d.polygon(contorno, fill=relleno)
+    # Unos mechones por dentro, del tono oscuro, para que se lea como pelo.
+    for k, px in enumerate((-0.5, -0.17, 0.17, 0.5)):
+        y0 = y + rc*(0.70 + 0.12*(1 - abs(px)))
+        _linea(d, [(x + rc*px, y0), (x + rc*(px*1.06 + 0.04), y0 + rc*0.32*(1 - abs(px)*0.6))],
+               max(2, int(g*0.55)), rnd, color=oscuro, temblor=0.5)
+    _linea(d, contorno + [contorno[0]], g, rnd, color=tinta, temblor=1.2)
+
+
+def _bigote(d, cab, rc, g, rnd, tinta=TINTA, relleno=(255, 255, 255)):
+    """Dos mechones que salen del centro y caen hacia los lados, POR ENCIMA
+    de la boca: el gesto se sigue viendo."""
+    x, y = cab
+    for lado in (-1, 1):
+        pts = []
+        for i in range(13):
+            t = i/12*2*math.pi
+            ex, ey = math.cos(t)*rc*0.25, math.sin(t)*rc*0.10
+            giro = lado*0.32
+            pts.append((x + lado*rc*0.22 + ex*math.cos(giro) - ey*math.sin(giro),
+                        y + rc*0.28 + ex*math.sin(giro) + ey*math.cos(giro)))
+        d.polygon(pts, fill=relleno)
+        _linea(d, pts + [pts[0]], max(2, int(g*0.7)), rnd, color=tinta, temblor=0.5)
 
 
 def _parche(d, cab, rc, g, rnd, tinta=TINTA):
@@ -3165,19 +3469,74 @@ def _naranjas(d, x, y, t, rnd, g, tinta=TINTA):
     d.polygon(hoja, fill=(92, 148, 68))
 
 
-def _mapa(d, x, y, t, rnd, g, tinta=TINTA):
-    """Un mapa de pergamino con una costa y una X roja. Todo ministro que
-    declara una guerra lo hace delante de uno, y "Don Severo, con un mapa"
-    estaba en el guion sin nada que dibujar."""
-    x0, x1, y0, y1 = x - t*.46, x + t*.46, y - t*.62, y - t*.04
-    hoja = [(x0, y0), (x1, y0 + t*.03), (x1 - t*.02, y1), (x0 + t*.02, y1 - t*.02)]
-    d.polygon(hoja, fill=PAPEL_VIEJO)
-    _linea(d, hoja + [hoja[0]], g, rnd, color=tinta)
-    costa = [(x0 + t*(.10 + .08*k), y0 + t*(.12 + .10*(k % 2) + .05*k)) for k in range(9)]
-    _linea(d, costa, max(2, g//2), rnd, color=(92, 120, 160), temblor=1.8)
-    cx, cy = x + t*.18, y - t*.22
-    for sx in (-1, 1):
-        _linea(d, [(cx - t*.07, cy - sx*t*.07), (cx + t*.07, cy + sx*t*.07)], g, rnd, color=ROJO)
+# LA PENINSULA DE VERDAD. El mapa era un papel con una raya en zigzag y una X:
+# en la conquista omeya, "la conquista avanzo a toda velocidad" se contaba
+# delante de un folio casi en blanco. Las costas son las de mapas.py (Natural
+# Earth, dominio publico).
+_CAJA_PENINSULA = (-10.2, 4.6, 35.4, 44.2)          # lon0, lon1, lat0, lat1
+# Hasta donde llego la conquista hacia 720: todo menos la franja del norte
+# (Asturias, la cornisa cantabrica, el Pirineo). Aproximado a proposito: es
+# un dibujo, no un atlas, y lo que cuenta es "casi toda".
+_FRONTERA_720 = [(-10.5, 42.75), (-7.5, 42.65), (-5.0, 42.75), (-2.5, 42.70), (0.5, 42.45),
+                 (3.4, 42.25), (5.0, 42.25)]
+
+
+def _pinta_peninsula(img, caja_px, rnd, g, zona=None):
+    from . import mapas
+    x0, y0, x1, y1 = [int(v) for v in caja_px]
+    W, H = x1 - x0, y1 - y0
+    if W < 20 or H < 20:
+        return
+    lon0, lon1, lat0, lat1 = _CAJA_PENINSULA
+    k = math.cos(math.radians((lat0 + lat1)/2))
+    esc = min(W/((lon1 - lon0)*k), H/(lat1 - lat0))
+    ox = (W - (lon1 - lon0)*k*esc)/2
+    oy = (H - (lat1 - lat0)*esc)/2
+    pr = lambda lon, lat: (ox + (lon - lon0)*k*esc, oy + (lat1 - lat)*esc)
+    mar = Image.new("RGBA", (W, H), (178, 202, 206, 255))
+    dm = ImageDraw.Draw(mar)
+    tierra = Image.new("L", (W, H), 0)
+    dt = ImageDraw.Draw(tierra)
+    for poli in mapas._poligonos():
+        if not any(lon0 - 3 < lo < lon1 + 3 and lat0 - 3 < la < lat1 + 3 for lo, la in poli[::4] or poli):
+            continue
+        dt.polygon([pr(lo, la) for lo, la in poli], fill=255)
+    mar.paste((236, 220, 180, 255), (0, 0), tierra)
+    if zona == "al_andalus":
+        sur = Image.new("L", (W, H), 0)
+        borde = [pr(lo, la) for lo, la in _FRONTERA_720]
+        ImageDraw.Draw(sur).polygon(borde + [(W + 5, H + 5), (-5, H + 5)], fill=255)
+        # solo la peninsula, no Africa: por encima del Estrecho
+        ImageDraw.Draw(sur).rectangle([0, pr(0, 35.95)[1], W, H], fill=0)
+        mar.paste((72, 140, 92, 255), (0, 0), ImageChops.multiply(tierra, sur))
+        dm.line(borde, fill=(150, 30, 36, 255), width=max(3, g))
+    # la costa, con su trazo
+    for poli in mapas._poligonos():
+        if not any(lon0 - 3 < lo < lon1 + 3 and lat0 - 3 < la < lat1 + 3 for lo, la in poli[::4] or poli):
+            continue
+        dm.line([pr(lo, la) for lo, la in poli] + [pr(*poli[0])], fill=(96, 78, 58, 255),
+                width=max(2, g//2))
+    img.paste(mar, (x0, y0), mar)
+
+
+def _mapa_de(zona=None):
+    def _mapa(d, x, y, t, rnd, g, tinta=TINTA):
+        """Un mapa de pergamino de la peninsula, de pie en el suelo como un
+        cartel. Todo ministro que declara una guerra lo hace delante de uno."""
+        x0, x1, y0, y1 = x - t*.62, x + t*.62, y - t*.86, y - t*.04
+        hoja = [(x0, y0), (x1, y0 + t*.02), (x1 - t*.01, y1), (x0 + t*.01, y1 - t*.01)]
+        d.polygon(hoja, fill=PAPEL_VIEJO)
+        destino = getattr(d, "_image", None)
+        if destino is not None:
+            m = t*.06
+            _pinta_peninsula(destino, (x0 + m, y0 + m, x1 - m, y1 - m), rnd, g, zona)
+            d = ImageDraw.Draw(destino)
+        _linea(d, hoja + [hoja[0]], g, rnd, color=tinta)
+    return _mapa
+
+
+_mapa = _mapa_de()
+_mapa_al_andalus = _mapa_de("al_andalus")
 
 
 def _cesta(d, x, y, t, rnd, g, tinta=TINTA):
@@ -3506,8 +3865,16 @@ def _olla(d, x, y, t, rnd, g, tinta=TINTA):
 
 
 def _montaña(d, x, y, t, rnd, g, tinta=TINTA):
-    _linea(d, [(x-t*.80, y), (x-t*.24, y-t*.86), (x+t*.06, y-t*.46),
-               (x+t*.34, y-t*.72), (x+t*.86, y)], g, rnd, color=tinta)
+    """Un macizo de roca de verdad, relleno, con su ladera en sombra y nieve
+    o claro en la cumbre. La de antes era una raya en zigzag."""
+    pts = [(x-t*.86, y), (x-t*.50, y-t*.52), (x-t*.24, y-t*.90), (x-t*.04, y-t*.62),
+           (x+t*.18, y-t*.80), (x+t*.52, y-t*.40), (x+t*.86, y)]
+    d.polygon(pts, fill=(158, 150, 136))
+    d.polygon([pts[2], pts[3], pts[4], pts[5], pts[6], (x-t*.10, y)], fill=(130, 122, 110))
+    d.polygon([(x-t*.36, y-t*.72), pts[2], (x-t*.12, y-t*.74), (x-t*.20, y-t*.68)], fill=(240, 238, 232))
+    d.polygon([(x-t*.86, y), (x-t*.60, y-t*.12), (x-t*.20, y-t*.06), (x+t*.30, y-t*.14),
+               (x+t*.60, y-t*.08), (x+t*.86, y)], fill=(108, 132, 84))
+    _linea(d, pts, g, rnd, color=tinta)
 
 
 def _nube(d, x, y, t, rnd, g, tinta=TINTA):
@@ -3936,7 +4303,7 @@ COSAS = {
     "gondola": lambda d, x, y, t, rnd, g, tinta=TINTA: _gondola(d, x, y, t, rnd, g),
     "canion": _canion, "fuego": _fuego, "dinero": _dinero, "libro": _libro,
     "cruz": _cruz, "olla": _olla, "montaña": _montaña, "naranjas": _naranjas,
-    "naranjo": _naranjo, "pan": _pan, "escudo": _escudo, "mapa": _mapa,
+    "naranjo": _naranjo, "pan": _pan, "escudo": _escudo, "mapa": _mapa, "mapa_al_andalus": _mapa_al_andalus,
     "cesta": _cesta,
     "multitud": _multitud, "toro": _toro, "guitarra": _guitarra, "pergamino": _pergamino,
     "cofre": _cofre, "barril": _barril, "antorcha": _antorcha, "catalejo": _catalejo,
@@ -4317,7 +4684,9 @@ def _sembrar(d, w, h, suelo, fondo, rnd, g):
     # vacio, que es la mitad de arriba del plano en vertical.
     if plan["arboles"] and fondo != "noche":
         for _ in range(2):
-            _nube(d, w*rnd.uniform(0.08, 0.92), suelo*rnd.uniform(0.18, 0.55),
+            # Arriba del todo: a media altura caian detras de las cabezas y
+            # parecia que al rey le salia humo de la corona.
+            _nube(d, w*rnd.uniform(0.08, 0.92), suelo*rnd.uniform(0.12, 0.28),
                   h*rnd.uniform(0.035, 0.055), rnd, max(3, g//2))
     hondo = h - suelo
     # Los arboles van EN EL HORIZONTE, no repartidos por el prado: sembrados
@@ -4726,6 +5095,9 @@ _DECORADOS = {
     "costa":        {"pared": "cielo_mar", "piso": "tierra",
                      "fondo": [("costa", .5, 1.0, 1.0)], "muebles": [], "delante": [],
                      "cuelga": [("galera", .40, .66, .07), ("galera", .62, .66, .06)], "velas": []},
+    "estrecho":     {"pared": "cielo_mar", "piso": "arena",
+                     "fondo": [("estrecho", .5, 1.0, 1.0)], "muebles": [], "delante": [],
+                     "cuelga": [], "velas": []},
     "mina":         {"pared": "roca", "piso": "tierra",
                      "fondo": [("puntales", .5, 1.0, 1.0)],
                      "muebles": [], "delante": [], "cuelga": [], "velas": [(.30, -.30), (.70, -.24)]},
@@ -4810,7 +5182,7 @@ DECORADOS_VALIDOS = tuple(_DECORADOS)
 _PIEZAS_CON_RELIEVE = tuple(sorted({"trono", "chimenea", "estandarte", "estandarte_otomano",
                                     "cruz_grande", "mastil", "reja", "ventana_arco", "ventana_mar",
                                     "ventana_piso", "cuadro", "reloj", "puesto", "casas", "muralla",
-                                    "tiendas", "naranjos", "cortinas", "selva", "playa", "costa",
+                                    "tiendas", "naranjos", "cortinas", "selva", "playa", "costa", "estrecho",
                                     "palacio_ducal", "san_pedro", "mezquitas", "arcos_otomanos", "arcos_califales",
                                     "puntales", "banderines"}))
 _MUEBLES_SIN_RELIEVE = ()
@@ -4843,6 +5215,7 @@ DECORADOS_EXPLICADOS = {
     "vaticano":    "ROMA, EL VATICANO: la fachada de San Pedro con su cupula. El Papa, la Santa Sede, los cardenales",
     "hospital":    "UN HOSPITAL ANTIGUO: sala encalada con camastros en fila y una cruz. Heridos, enfermos, epidemias (Cervantes herido en Mesina)",
     "costa":       "UN PUEBLO DE LA COSTA con su torre vigia y galeras en el mar: ataques de corsarios y piratas berberiscos, desembarcos",
+    "estrecho":    "EL ESTRECHO DE GIBRALTAR: el mar, Africa al fondo y el Peñon. Tariq en 711, los almoravides, cruzar entre Africa y la peninsula",
     "cocina":      "fogon, estantes con ollas, mesa: la casa de la gente corriente de cualquier siglo antiguo",
     "iglesia":     "arcos, cruz, bancos",
     "calle":       "casas, adoquines",
@@ -5264,10 +5637,58 @@ def _camastros(d, w, suelo, h, rnd, g):
                   outline=TINTA, width=max(1, g//3))
 
 
+def _lomas_lejanas(d, w, base, h, rnd, desde=0.0, hasta=1.0, alto=0.035, color=(132, 150, 168)):
+    """Una costa al otro lado del agua: lomas bajas y azuladas, sin borde,
+    que es como se ve lo que esta lejos."""
+    pts = [(w*desde, base)]
+    n = 9
+    for k in range(n + 1):
+        px = w*(desde + (hasta - desde)*k/n)
+        pts.append((px, base - h*alto*(0.45 + 0.55*abs(math.sin(k*1.7 + 0.6)))))
+    pts.append((w*hasta, base))
+    d.polygon(pts, fill=color)
+
+
+def _peñon(d, w, base, h, rnd, g, x0=0.56, x1=1.04, alto=0.20):
+    """El Peñon de Gibraltar: la cara norte cortada a pico y la cresta larga
+    que baja hacia el sur. Caliza clara con matorral en la falda."""
+    pts = [(w*x0, base), (w*(x0 + 0.05), base - h*alto*0.55), (w*(x0 + 0.09), base - h*alto*0.92),
+           (w*(x0 + 0.12), base - h*alto), (w*(x0 + 0.20), base - h*alto*0.90),
+           (w*(x0 + 0.28), base - h*alto*0.78), (w*(x0 + 0.36), base - h*alto*0.52),
+           (w*x1, base - h*alto*0.30), (w*x1, base)]
+    d.polygon(pts, fill=(176, 166, 146))
+    # la sombra de la ladera de la derecha y el matorral de abajo
+    d.polygon([pts[3], pts[4], pts[5], pts[6], pts[7], (w*x1, base), (w*(x0 + 0.16), base)],
+              fill=(150, 140, 122))
+    falda = [(w*x0, base)] + [(w*(x0 + (x1 - x0)*k/8), base - h*0.03*(1 + 0.6*math.sin(k*2.1)))
+                              for k in range(9)] + [(w*x1, base)]
+    d.polygon(falda, fill=(104, 132, 82))
+    for k in range(4):                       # grietas de la pared de roca
+        px = w*(x0 + 0.06 + 0.035*k)
+        d.line([(px, base - h*alto*(0.80 - 0.1*k)), (px + w*0.01, base - h*alto*(0.45 - 0.05*k))],
+               fill=(120, 112, 98), width=max(2, g//2))
+    _linea(d, pts, g, rnd, temblor=1.2)
+
+
+def _estrecho(d, w, suelo, h, rnd, g):
+    """El Estrecho de Gibraltar: Africa al fondo, al otro lado del agua, y el
+    Peñon a la derecha. Para 711 la costa de antes no valia: casas blancas
+    con ventanas y una torre vigia de corsarios (siglo XVI) que en el dibujo
+    parecia la chimenea de una fabrica."""
+    base = suelo - h*0.06
+    _lomas_lejanas(d, w, base, h, rnd, 0.0, 0.62, alto=0.03)
+    _peñon(d, w, base, h, rnd, g)
+
+
 def _costa(d, w, suelo, h, rnd, g):
     """Un pueblo de la costa: casas blancas en lo alto y la torre de vigia,
     la que avisaba cuando venian los corsarios."""
     base = suelo - h*0.06
+    if EPOCA[0] and EPOCA[0] < 1400:
+        # Antes de los pueblos encalados y de las torres de vigia: monte.
+        _lomas_lejanas(d, w, base, h, rnd, 0.0, 0.45, alto=0.05, color=(116, 140, 104))
+        _lomas_lejanas(d, w, base, h, rnd, 0.62, 1.0, alto=0.07, color=(104, 128, 94))
+        return
     for k in range(6):
         px = w*(0.05 + 0.08*k)
         alto = h*rnd.uniform(0.07, 0.10)
@@ -5330,6 +5751,7 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "palacio_ducal":  _palacio_ducal(d, w, suelo, h, rnd, g)
     elif que == "san_pedro":      _san_pedro(d, w, suelo, h, rnd, g)
     elif que == "costa":          _costa(d, w, suelo, h, rnd, g)
+    elif que == "estrecho":       _estrecho(d, w, suelo, h, rnd, g)
     elif que == "mezquitas":
         _mezquitas(d, w, suelo - h*0.06, h*0.22, rnd, g)
     elif que == "banderines":     _banderines(d, w, h, suelo, rnd, g)
