@@ -107,10 +107,13 @@ def escena(puntos: list[dict]) -> dict | None:
         # LA FICHA LARGA NO SE LEE ENTERA: la de Abderramán duraba 25 s y el
         # Short se fue a casi 3 minutos. Se dicen solo las fechas y la ficha
         # se va rellenando en pantalla (se hace captura, no hace falta oirla).
-        fechas = [m.group(1) for m in (re.match(r"^\s*(\d{3,4})", p_["texto"]) for p_ in puntos) if m]
+        # sin repetir: con dos puntos del 711 decia "estas fechas: 711 y 711"
+        fechas = list(dict.fromkeys(m.group(1) for m in (re.match(r"^\s*(\d{3,4})", p_["texto"]) for p_ in puntos) if m))
         if len(fechas) >= 2:
             lista = ", ".join(fechas[:-1]) + " y " + fechas[-1]
             voz = f"Para el examen, apúntate estas fechas: {lista}."
+        elif fechas:
+            voz = f"Para el examen, quédate con el {fechas[0]} y haz captura de esto."
         else:
             voz = "Para el examen, haz captura de esto: es lo que tienes que saberte."
         compacto = True
