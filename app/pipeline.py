@@ -772,6 +772,68 @@ def run_literal(
     return video_id
 
 
+# LOS GUIONES HECHOS A MANO, ESCENA A ESCENA (app/guiones_espana/*.json).
+# El guion literal pasa por una traduccion de Claude que elige decorado y
+# postura, y en la conquista omeya eligio mal: la bandera turca junto a Tariq,
+# banderas de España con los visigodos, Rodrigo con los brazos arriba toda la
+# escena. Aqui el JSON ya viene hecho y revisado (con vista previa de cada
+# escena antes de gastar la voz): no se traduce nada, solo se comprueba que se
+# puede dibujar y se monta con su voz de siempre.
+GUIONES_HECHOS = Path(__file__).resolve().parent / "guiones_espana"
+
+
+def guiones_hechos() -> list[str]:
+    return sorted(p.stem for p in GUIONES_HECHOS.glob("*.json"))
+
+
+def run_hecho(on_variant_done: Callable[[int], None] | None, nombre: str) -> list[int]:
+    from .script_generator import (_SOLO_LO_ROTO, _arregla_bocadillos, _que_le_pasa_al_guion,
+                                   _quita_anacronismos)
+    from . import repaso
+    ruta = GUIONES_HECHOS / f"{Path(nombre).stem}.json"
+    if not ruta.is_file():
+        raise ValueError(f"no hay ningun guion hecho que se llame {nombre!r}")
+    script = json.loads(ruta.read_text(encoding="utf-8"))
+    arreglos = _arregla_bocadillos(script) + _quita_anacronismos(script)
+    if arreglos:
+        logger.info("run_hecho: %s", "; ".join(arreglos))
+    problema = _que_le_pasa_al_guion(script, "short", exigente=_SOLO_LO_ROTO)
+    if problema:
+        raise ValueError(f"el guion {ruta.name} no se puede dibujar: {problema}")
+
+    _stop_requested.clear()
+    cleanup_finished_video_files()
+    variant = "short"
+    titulo = script.get("title") or ruta.stem
+    news_item = {"title": titulo, "link": "", "summary": "", "source_name": ""}
+    work_dir = Path(DATA_DIR) / f"job_{int(time.time())}"
+    work_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        _stage(variant, 1, f"Guion hecho a mano: {ruta.name} ({len(script['scenes'])} escenas)")
+        ficha = repaso.escena(script.get("repaso") or [])
+        if ficha is not None:
+            ficha["repaso_tema"] = titulo
+            script["scenes"] = list(script["scenes"]) + [ficha]
+        _stage(variant, 2, "Extrayendo entidades del guion...")
+        entities = extract_entities(script["scenes"])
+        for i, scene in enumerate(script["scenes"]):
+            scene["detected_entities"] = entities.get(i, [])
+        video_id = _generate_variant(news_item, variant, work_dir, script=script, is_sensitive=False)
+    except GenerationStopped as exc:
+        logger.info("Generacion detenida a peticion: %s", exc)
+        shutil.rmtree(work_dir, ignore_errors=True)
+        return []
+    except Exception:
+        shutil.rmtree(work_dir, ignore_errors=True)
+        raise
+    resumen_coste = llm_usage.report_and_reset()
+    if resumen_coste:
+        logger.info("[%s] %s", variant, resumen_coste)
+    if on_variant_done is not None:
+        on_variant_done(video_id)
+    return [video_id]
+
+
 # How many cases go in one video, and how much dossier each one gets.
 #
 # Five is what the titles in the niche promise most often ("4 Most...", "The 8

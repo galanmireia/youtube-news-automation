@@ -495,7 +495,35 @@ async def handle_literal_command(update: Update, context: ContextTypes.DEFAULT_T
     context.application.create_task(_run_literal_and_notify(context.bot, guion_texto, forced_topic))
 
 
+async def handle_hecho_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/hecho nombre: monta un guion de España Contada ya hecho escena a escena
+    (app/guiones_espana/nombre.json), sin traducir nada. Sin nombre, la lista."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    from .pipeline import guiones_hechos, run_hecho
+    nombre = re.sub(r"^/\w+(@\w+)?\s*", "", update.message.text or "", count=1).strip()
+    if not nombre:
+        lista = guiones_hechos()
+        await update.message.reply_text(
+            ("Guiones hechos escena a escena:\n\n" + "\n".join(f"/hecho {n}" for n in lista)) if lista
+            else "Todavia no hay guiones hechos.")
+        return
+    if _pipeline_lock.locked():
+        await update.message.reply_text("Ya hay una generacion en curso, espera a que termine.")
+        return
+    if nombre not in guiones_hechos():
+        await update.message.reply_text(f"No hay ningun guion hecho que se llame {nombre}. Manda /hecho para ver la lista.")
+        return
+    await update.message.reply_text(
+        f"Monto el guion {nombre} tal cual esta hecho, con tu voz. Tardara unos minutos...")
+    context.application.create_task(_run_and_notify(context.bot, run_hecho, nombre))
+
+
 async def _run_literal_and_notify(bot, raw_text: str, forced_topic: str | None) -> None:
+    await _run_and_notify(bot, run_literal, raw_text, forced_topic)
+
+
+async def _run_and_notify(bot, funcion, *args) -> None:
     loop = asyncio.get_running_loop()
 
     def on_variant_done(video_id: int) -> None:
@@ -509,7 +537,7 @@ async def _run_literal_and_notify(bot, raw_text: str, forced_topic: str | None) 
         pulso = asyncio.create_task(_latido(bot))
         try:
             video_ids = await asyncio.wait_for(
-                loop.run_in_executor(None, run_literal, on_variant_done, raw_text, forced_topic),
+                loop.run_in_executor(None, funcion, on_variant_done, *args),
                 timeout=_PIPELINE_TIMEOUT_SECONDS,
             )
             if pipeline_stop_requested():
@@ -2526,6 +2554,7 @@ def build_application() -> Application:
     application.add_handler(CallbackQueryHandler(handle_decision))
     application.add_handler(CommandHandler("generar", handle_generate_command))
     application.add_handler(CommandHandler("literal", handle_literal_command))
+    application.add_handler(CommandHandler("hecho", handle_hecho_command))
     application.add_handler(CommandHandler("largo", handle_largo_command))
     application.add_handler(CommandHandler("montar", handle_montar_command))
     application.add_handler(CommandHandler("remontar", handle_remontar_command))

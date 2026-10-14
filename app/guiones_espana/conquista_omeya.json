@@ -1,0 +1,447 @@
+{
+ "title": "La conquista omeya de Hispania: el rey que perdió su reino",
+ "description": "Año 711: un ejército cruza el Estrecho y el reino visigodo se viene abajo en pocos años. Así empezó Al-Ándalus. #Shorts #Historia #HistoriaDeEspaña #AlAndalus #EspañaContada Suscríbete a España Contada.",
+ "is_sensitive": "false",
+ "tags": [
+  "conquista omeya",
+  "711",
+  "Al-Ándalus",
+  "Tariq",
+  "don Rodrigo",
+  "batalla de Guadalete",
+  "visigodos",
+  "historia de España",
+  "historia 2 ESO",
+  "Gibraltar",
+  "España Contada",
+  "resumen historia"
+ ],
+ "lo_gracioso": "Al rey Rodrigo le avisan de la invasión cuando ya está en el sur, y encima sus nobles no paran de discutir.",
+ "repaso": [
+  {
+   "texto": "711 · Tariq desembarca en Gibraltar",
+   "voz": "En el 711, Tariq desembarca en Gibraltar"
+  },
+  {
+   "texto": "El reino visigodo, dividido por luchas internas",
+   "voz": "El reino visigodo estaba dividido por luchas internas"
+  },
+  {
+   "texto": "711 · Derrota visigoda en Guadalete",
+   "voz": "En el 711, los visigodos son derrotados en Guadalete"
+  },
+  {
+   "texto": "Casi toda la península pasa a ser Al-Ándalus",
+   "voz": "En pocos años, casi toda la península pasa a ser Al-Ándalus"
+  }
+ ],
+ "scenes": [
+  {
+   "narration": "Año 711. Un ejército cruzó el mar desde el norte de África. Y el reino visigodo estaba a punto de venirse abajo.",
+   "sonido": "mar",
+   "on_screen_highlight": "",
+   "escena": {
+    "interior": "costa",
+    "noche": true,
+    "rotulo": "Estrecho de Gibraltar · 711",
+    "hablan": [],
+    "a_quien": [],
+    "cosas": [
+     {
+      "que": "barco",
+      "x": 0.78,
+      "tam": 0.22
+     }
+    ],
+    "figuras": [
+     {
+      "quien": "soldado",
+      "papel": "Tariq",
+      "x": 0.3,
+      "pose": "andando",
+      "pose_fin": "de_pie",
+      "gesto": "neutro",
+      "gorro": "turbante",
+      "objeto": "tunica",
+      "lleva": "espada"
+     }
+    ]
+   }
+  },
+  {
+   "narration": "Al frente estaba Tariq ibn Ziyad, un general bereber al servicio del califato omeya. La tradición relaciona esta roca con su nombre: Gibraltar, la montaña de Tariq.",
+   "sonido": "mar",
+   "on_screen_highlight": "",
+   "escena": {
+    "interior": "costa",
+    "rotulo": "",
+    "hablan": [],
+    "a_quien": [],
+    "cosas": [
+     {
+      "que": "montaña",
+      "x": 0.76,
+      "tam": 0.32
+     },
+     {
+      "que": "barco",
+      "x": 0.2,
+      "tam": 0.16
+     }
+    ],
+    "figuras": [
+     {
+      "quien": "soldado",
+      "papel": "Tariq",
+      "x": 0.42,
+      "pose": "de_pie",
+      "pose_fin": "señala",
+      "gesto": "contento",
+      "gorro": "turbante",
+      "objeto": "tunica"
+     }
+    ]
+   }
+  },
+  {
+   "narration": "«¡Majestad! ¡Un ejército ha desembarcado en el sur!» «¿¡En el sur!? ¡¿Y me lo dices ahora?!»",
+   "sonido": "pasos",
+   "on_screen_highlight": "",
+   "escena": {
+    "interior": "campamento",
+    "rotulo": "",
+    "hablan": [
+     "chaval",
+     "mandamas"
+    ],
+    "a_quien": [
+     "mandamas",
+     "chaval"
+    ],
+    "habla_x": 0.28,
+    "cosas": [],
+    "figuras": [
+     {
+      "quien": "chaval",
+      "papel": "Un mensajero",
+      "x": 0.28,
+      "pose": "corriendo",
+      "pose_fin": "de_pie",
+      "gesto": "grito",
+      "efecto": "sudor"
+     },
+     {
+      "quien": "mandamas",
+      "papel": "El rey Rodrigo",
+      "x": 0.68,
+      "pose": "de_pie",
+      "pose_fin": "señala",
+      "gesto": "sorpresa",
+      "gorro": "corona",
+      "objeto": "manto",
+      "espejo": true,
+      "efecto": "sorpresa"
+     }
+    ]
+   }
+  },
+  {
+   "narration": "Rodrigo tuvo que reunir a sus tropas y marchar hacia el sur para enfrentarse a los invasores.",
+   "sonido": "pasos",
+   "on_screen_highlight": "",
+   "escena": {
+    "fondo": "campo",
+    "rotulo": "",
+    "hablan": [],
+    "a_quien": [],
+    "cosas": [
+     {
+      "que": "bandera",
+      "x": 0.93,
+      "tam": 0.2
+     }
+    ],
+    "figuras": [
+     {
+      "quien": "mandamas",
+      "papel": "El rey Rodrigo",
+      "x": 0.26,
+      "pose": "de_pie",
+      "pose_fin": "señala",
+      "gesto": "enfadado",
+      "gorro": "corona",
+      "objeto": "manto"
+     },
+     {
+      "papel": "",
+      "x": 0.58,
+      "pose": "de_pie",
+      "gesto": "neutro",
+      "gorro": "casco",
+      "objeto": "armadura",
+      "lleva": "espada",
+      "espejo": true
+     },
+     {
+      "papel": "",
+      "x": 0.8,
+      "pose": "de_pie",
+      "gesto": "neutro",
+      "gorro": "casco",
+      "objeto": "armadura",
+      "lleva": "espada",
+      "espejo": true
+     }
+    ]
+   }
+  },
+  {
+   "narration": "Pero había un problema: el reino visigodo estaba dividido por luchas internas.",
+   "sonido": "gentio",
+   "on_screen_highlight": "",
+   "escena": {
+    "interior": "salon_trono",
+    "rotulo": "",
+    "hablan": [],
+    "a_quien": [],
+    "cosas": [],
+    "figuras": [
+     {
+      "papel": "Un noble",
+      "x": 0.26,
+      "pose": "señala",
+      "gesto": "enfadado",
+      "objeto": "capa"
+     },
+     {
+      "papel": "Otro noble",
+      "x": 0.74,
+      "pose": "señala",
+      "gesto": "enfadado",
+      "objeto": "capa",
+      "espejo": true,
+      "efecto": "humo"
+     }
+    ]
+   }
+  },
+  {
+   "narration": "«¡¿Podéis dejar de discutir y ayudarme a ganar una guerra?!» La unidad brillaba por su ausencia.",
+   "sonido": "gentio",
+   "on_screen_highlight": "",
+   "escena": {
+    "interior": "salon_trono",
+    "rotulo": "",
+    "hablan": [
+     "mandamas"
+    ],
+    "a_quien": [
+     ""
+    ],
+    "habla_x": 0.5,
+    "cosas": [],
+    "figuras": [
+     {
+      "papel": "Un noble",
+      "x": 0.2,
+      "pose": "señala",
+      "gesto": "enfadado",
+      "objeto": "capa"
+     },
+     {
+      "quien": "mandamas",
+      "papel": "El rey Rodrigo",
+      "x": 0.5,
+      "pose": "de_pie",
+      "pose_fin": "brazos_arriba",
+      "gesto": "grito",
+      "gorro": "corona",
+      "objeto": "manto",
+      "efecto": "humo"
+     },
+     {
+      "papel": "Otro noble",
+      "x": 0.8,
+      "pose": "señala",
+      "gesto": "enfadado",
+      "objeto": "capa",
+      "espejo": true
+     }
+    ]
+   }
+  },
+  {
+   "narration": "En el verano de 711, el ejército de Rodrigo fue derrotado en la batalla conocida tradicionalmente como Guadalete.",
+   "sonido": "espada",
+   "on_screen_highlight": "",
+   "escena": {
+    "fondo": "campo",
+    "rotulo": "Guadalete · Verano de 711",
+    "hablan": [],
+    "a_quien": [],
+    "cosas": [
+     {
+      "que": "fuego",
+      "x": 0.88,
+      "tam": 0.14
+     }
+    ],
+    "figuras": [
+     {
+      "quien": "mandamas",
+      "papel": "El rey Rodrigo",
+      "x": 0.22,
+      "pose": "peleando",
+      "gesto": "enfadado",
+      "gorro": "corona",
+      "objeto": "manto",
+      "lleva": "espada"
+     },
+     {
+      "quien": "soldado",
+      "papel": "Tariq",
+      "x": 0.78,
+      "pose": "peleando",
+      "gesto": "enfadado",
+      "gorro": "turbante",
+      "objeto": "tunica",
+      "lleva": "espada",
+      "espejo": true
+     }
+    ]
+   }
+  },
+  {
+   "narration": "Y el rey desapareció. Probablemente murió en aquella derrota, aunque no sabemos con certeza qué le ocurrió.",
+   "sonido": "",
+   "on_screen_highlight": "",
+   "escena": {
+    "fondo": "campo",
+    "rotulo": "",
+    "hablan": [],
+    "a_quien": [],
+    "cosas": [
+     {
+      "que": "escudo",
+      "x": 0.7,
+      "tam": 0.1
+     },
+     {
+      "que": "espada",
+      "x": 0.8,
+      "tam": 0.12
+     },
+     {
+      "que": "fuego",
+      "x": 0.15,
+      "tam": 0.12
+     }
+    ],
+    "figuras": [
+     {
+      "quien": "cronista",
+      "papel": "",
+      "x": 0.45,
+      "pose": "mirando",
+      "gesto": "neutro",
+      "efecto": "confuso"
+     }
+    ]
+   }
+  },
+  {
+   "narration": "Sin un reino visigodo capaz de organizar la defensa, la conquista avanzó a toda velocidad.",
+   "sonido": "caballo",
+   "on_screen_highlight": "",
+   "escena": {
+    "fondo": "campo",
+    "rotulo": "",
+    "hablan": [],
+    "a_quien": [],
+    "cosas": [
+     {
+      "que": "castillo",
+      "x": 0.86,
+      "tam": 0.26
+     }
+    ],
+    "figuras": [
+     {
+      "quien": "soldado",
+      "papel": "Tariq",
+      "x": 0.25,
+      "pose": "corriendo",
+      "pose_fin": "señala",
+      "gesto": "contento",
+      "gorro": "turbante",
+      "objeto": "tunica",
+      "lleva": "espada"
+     }
+    ]
+   }
+  },
+  {
+   "narration": "En apenas unos años, los conquistadores dominaron casi toda la península.",
+   "sonido": "",
+   "on_screen_highlight": "",
+   "escena": {
+    "fondo": "liso",
+    "rotulo": "",
+    "hablan": [],
+    "a_quien": [],
+    "cosas": [
+     {
+      "que": "mapa",
+      "x": 0.62,
+      "tam": 0.32
+     }
+    ],
+    "figuras": [
+     {
+      "quien": "cronista",
+      "papel": "",
+      "x": 0.24,
+      "pose": "señala",
+      "gesto": "sorpresa"
+     }
+    ]
+   }
+  },
+  {
+   "narration": "«Y aquel territorio pasó a conocerse como Al-Ándalus» Comenzaba una nueva etapa de la historia de Hispania. Y duraría siglos.",
+   "sonido": "",
+   "on_screen_highlight": "",
+   "escena": {
+    "interior": "palacio_andalusi",
+    "rotulo": "",
+    "hablan": [
+     "cronista"
+    ],
+    "a_quien": [
+     ""
+    ],
+    "habla_x": 0.38,
+    "cosas": [],
+    "figuras": [
+     {
+      "quien": "cronista",
+      "papel": "",
+      "x": 0.38,
+      "pose": "señala",
+      "gesto": "contento"
+     },
+     {
+      "quien": "soldado",
+      "papel": "Tariq",
+      "x": 0.7,
+      "pose": "de_pie",
+      "gesto": "contento",
+      "gorro": "turbante",
+      "objeto": "tunica",
+      "espejo": true
+     }
+    ]
+   }
+  }
+ ]
+}
