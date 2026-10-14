@@ -126,10 +126,17 @@ def brazos(d, hombros, h, pose, mano_obj=None, piel=(240, 236, 226), fase=None):
     Devuelve el punto medio de las manos."""
     manos = []
     lado_b = 1
-    if pose == "brindis" and mano_obj is not None:     # brinda con el brazo del lado de la copa
+    if pose in ("brindis", "para") and mano_obj is not None:     # brinda con el brazo del lado de la copa
         lado_b = 1 if mano_obj[0] >= (hombros[0][0] + hombros[1][0])/2 else -1
     for lado, (hx, hy) in zip((-1, 1), hombros):
-        if pose == "brindis":
+        if pose == "caja":
+            c = (hx + lado*h*0.06, hy + h*0.14); m = (hx + lado*h*0.09, hy + h*0.2)
+        elif pose == "para":
+            if lado == lado_b:
+                c = (hx + lado*h*0.1, hy + h*0.04); m = mano_obj
+            else:
+                c = (hx + lado*h*0.03, hy + h*0.14); m = (hx + lado*h*0.04, hy + h*0.28)
+        elif pose == "brindis":
             if lado == lado_b:
                 c = (hx + lado*h*0.09, hy + h*0.05); m = mano_obj
             else:
@@ -169,7 +176,8 @@ def cerilla(img, cx, cadera, suelo, h, st, t):
     fase = st.get("fase")
     if fase is not None:
         cadera -= abs(math.sin(fase))*h*0.014
-    largo = h*0.5*resp; r = h*0.13
+    palo = st.get("palo", 1.0)                 # lo que le queda de palo (1 = entero)
+    largo = h*0.5*resp*(0.25 + 0.75*palo); r = h*0.13
     inc = st.get("inclina", 0.0)*h          # se encorva: la cabeza baja y se adelanta
     top = cadera - largo + abs(inc)*0.35
     if not st.get("sin_piernas"):
@@ -179,8 +187,12 @@ def cerilla(img, cx, cadera, suelo, h, st, t):
               fill=(236, 228, 210), outline=T)
     d.line([(cx - a, cadera), (cx - a + inc*0.3, top + r*0.3)], fill=T, width=max(3, int(h*0.012)))
     d.line([(cx + a, cadera), (cx + a + inc*0.3, top + r*0.3)], fill=T, width=max(3, int(h*0.012)))
+    if palo < 0.98 or st.get("quemado"):     # la parte de arriba del palo, chamuscada
+        qy = top + r*0.3; qh = h*0.05
+        d.polygon([(cx - a + inc*0.3, qy), (cx + a + inc*0.3, qy), (cx + a + inc*0.29, qy + qh), (cx - a + inc*0.29, qy + qh)],
+                  fill=(70, 62, 56))
     hx, hy = cx + inc*0.4, top - r*0.35
-    cab = ROJO if not st.get("espalda") else (150, 38, 36)
+    cab = st.get("cabeza") or (ROJO if not st.get("espalda") else (150, 38, 36))
     d.ellipse([hx - r, hy - r*1.15, hx + r, hy + r*0.95], fill=cab, outline=T, width=max(3, int(h*0.012)))
     if st.get("llama", 0) > 0.02:
         llama(d, hx, hy - r*1.0, r*1.5*st["llama"], t)
@@ -264,7 +276,8 @@ def dice(img, texto, x, y, t0, t, px=40):
 def reloj_tarjeta(img, hora, x, y, sacudida=0.0, t=0.0):
     d = ImageDraw.Draw(img)
     dx = math.sin(t*70)*sacudida*8
-    d.rounded_rectangle([x - 150 + dx, y - 48, x + 150 + dx, y + 48], radius=16, fill=(248, 248, 246), outline=T, width=4)
+    w = max(150, d.textlength(hora, font=fuente(50))/2 + 34)
+    d.rounded_rectangle([x - w + dx, y - 48, x + w + dx, y + 48], radius=16, fill=(248, 248, 246), outline=T, width=4)
     d.text((x + dx, y + 2), hora, font=fuente(50), fill=T, anchor="mm")
 
 def parpadeo(t, cada=3.7, fase=0.0):
@@ -288,7 +301,7 @@ def cama(img, k, ox, oy, st, t, luz_movil=0.0):
     d.rounded_rectangle(R(230, 410, 500, 600), radius=int(50*k), fill=(236, 236, 238), outline=T, width=g)   # almohada
     h = 560*k
     pose = st.get("pose")
-    obj = P(385, 480) if pose == "movil" else None
+    obj = P(385, 480 + (1 - st.get("palo", 1.0))*170) if pose == "movil" else None
     stc = dict(st, sin_piernas=True, objeto=obj, pose=pose or "caido")
     cab, mano = cerilla(img, *P(365, 640), P(0, 900)[1], h, stc, t)
     # la manta: tapa de la cintura para abajo, con el bulto de las piernas estiradas
