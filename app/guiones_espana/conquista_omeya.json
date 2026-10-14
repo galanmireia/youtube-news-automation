@@ -27,8 +27,8 @@
    "voz": "El reino visigodo estaba dividido por luchas internas"
   },
   {
-   "texto": "711 · Derrota visigoda en Guadalete",
-   "voz": "En el 711, los visigodos son derrotados en Guadalete"
+   "texto": "Guadalete · Derrota visigoda",
+   "voz": "Ese mismo año, los visigodos son derrotados en Guadalete"
   },
   {
    "texto": "Casi toda la península pasa a ser Al-Ándalus",
@@ -271,7 +271,7 @@
    }
   },
   {
-   "narration": "En el verano de 711, el ejército de Rodrigo fue derrotado en la batalla conocida tradicionalmente como Guadalete.",
+   "narration": "Unos meses después, en verano, el ejército de Rodrigo fue derrotado en la batalla conocida tradicionalmente como Guadalete.",
    "sonido": "espada",
    "on_screen_highlight": "",
    "escena": {
