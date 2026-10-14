@@ -2167,6 +2167,24 @@ caracter de tu respuesta tiene que ser una llave de apertura.
 # Cualquiera de esas cierra el tramo del narrador; si no, una frase de
 # personaje de la escena siguiente se tomaria por narracion y el guion bueno
 # se rechazaria.
+# LO QUE LLEGA PEGADO DESDE EL MOVIL. Un guion copiado de una nota o de un
+# archivo en el movil puede traer los saltos de linea como \r\n o como el
+# separador unicode (U+2028), caracteres invisibles delante de "Narrador:" o
+# negritas de markdown (**Narrador:**). Con cualquiera de esas cosas no se
+# reconocia NI UNA linea de narrador ni de personaje, todo el texto contaba
+# como acotacion, se vaciaba la narracion y se tiraban los tres intentos
+# ("la escena 1 no tiene narracion"): paso con la conquista omeya.
+_SALTOS_RAROS = re.compile(r"\r\n?|[\u2028\u2029\u0085\u000b\u000c]")
+_INVISIBLES = re.compile(r"[\u200b-\u200d\u2060\ufeff\u00ad]")
+
+
+def normaliza_pegado(texto: str) -> str:
+    """El texto pegado, con saltos de linea normales y sin invisibles ni **."""
+    texto = _SALTOS_RAROS.sub("\n", texto or "")
+    texto = _INVISIBLES.sub("", texto)
+    return texto.replace("**", "").replace("\u00a0", " ")
+
+
 _ETIQUETA_PERSONAJE = re.compile(r'^[^«"“:\n]{1,40}:')
 _ETIQUETA_NARRADOR = re.compile(r'^narrador\s*:?\s*', re.IGNORECASE)
 _CAMBIO_DE_ESCENA = re.compile(r'^(escena\b|[⸻—–\-_*=~]+$)', re.IGNORECASE)
@@ -2527,7 +2545,9 @@ def translate_literal_script(raw_text: str, variant: str = "short", parar=None) 
     """
     if variant != "short":
         raise ValueError("un guion literal solo se dibuja en formato Short (monigotes): el largo no tiene monigotes")
-    raw_text = _comillas_de_dentro(raw_text)
+    raw_text = _comillas_de_dentro(normaliza_pegado(raw_text))
+    logger.info("translate_literal_script: %s lineas de narrador y %s de personaje reconocidas; empieza %r",
+                len(_lineas_de_narrador(raw_text)), len(_lineas_de_personaje(raw_text)), raw_text[:120])
 
     prompt = _PLANTILLA_LITERAL.format(
         channel_name=CHANNEL_NAME,

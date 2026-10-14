@@ -471,7 +471,8 @@ async def handle_literal_command(update: Update, context: ContextTypes.DEFAULT_T
     # update.message.text, no context.args: los args de Telegram parten por
     # espacios en blanco y se unen con uno solo, y eso se comeria las lineas
     # y los saltos de parrafo del guion que ella pega.
-    texto_completo = update.message.text or ""
+    from .script_generator import normaliza_pegado
+    texto_completo = normaliza_pegado(update.message.text or "")
     resto = re.sub(r"^/\w+(@\w+)?\s*", "", texto_completo, count=1)
     primera, _, guion_texto = resto.partition("\n")
     forced_topic = primera.strip()
