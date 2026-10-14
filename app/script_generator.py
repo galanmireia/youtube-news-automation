@@ -2179,10 +2179,23 @@ _INVISIBLES = re.compile(r"[\u200b-\u200d\u2060\ufeff\u00ad]")
 
 
 def normaliza_pegado(texto: str) -> str:
-    """El texto pegado, con saltos de linea normales y sin invisibles ni **."""
+    """El texto pegado, con saltos de linea normales y sin invisibles ni **.
+
+    Y CADA COSA EN SU LINEA. Copiado de una vista que formatea (markdown), las
+    lineas seguidas de una escena llegan pegadas en un solo parrafo: "ESCENA 1
+    — ... (Noche...) Narrador: «Año 711...» Narrador: «...»". Asi no hay
+    ninguna linea que EMPIECE por "Narrador:" o por un nombre, y se tiraba
+    todo como acotacion (la conquista omeya, dos veces). Se vuelve a partir
+    antes de cada ESCENA, de REPARTO, de cada "Narrador:" y de cada "Nombre:
+    «" que venga detras de un final de frase."""
     texto = _SALTOS_RAROS.sub("\n", texto or "")
     texto = _INVISIBLES.sub("", texto)
-    return texto.replace("**", "").replace("\u00a0", " ")
+    texto = texto.replace("**", "").replace("\u00a0", " ")
+    texto = re.sub(r"[ \t]+(?=(?:ESCENA|Escena)\s+\d)", "\n", texto)
+    texto = re.sub(r"[ \t]+(?=REPARTO\s*:)", "\n", texto, flags=re.IGNORECASE)
+    texto = re.sub(r"[ \t]+(?=narrador(?:a)?\s*:)", "\n", texto, flags=re.IGNORECASE)
+    texto = re.sub(r'(?<=[»”".!?…)])[ \t]+(?=[A-ZÁÉÍÓÚÑ][^«"“:\n]{0,38}:\s*[«"“])', "\n", texto)
+    return texto
 
 
 _ETIQUETA_PERSONAJE = re.compile(r'^[^«"“:\n]{1,40}:')
