@@ -1198,6 +1198,13 @@ def _camilla(d, x, pies, A, s, rnd, g, parte):
             d.line([(cx, arriba), (cx, pies - A*0.20)], fill=TINTA, width=max(3, g))
 
 
+# EL AÑO DE LA HISTORIA que se esta dibujando (lo pone script_generator al
+# tener el guion). Con el, el salon del trono de una historia medieval no
+# cuelga los colores de España: en la conquista omeya (711) salieron los
+# visigodos con estandartes rojo y gualda, mil años antes de esa bandera.
+EPOCA = [None]
+
+
 def escena(spec, w=1080, h=1920, semilla=0):
     rnd = random.Random(semilla)
     img = Image.new("RGB", (w, h), (255,255,255)); d = ImageDraw.Draw(img)
@@ -5300,7 +5307,11 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
         # la de algun pais. Ahora es la cruz de Borgoña, la que ondeaba de
         # verdad en los palacios y los ejercitos de España: rojo y gualda a un
         # lado, aspa roja al otro, y las dos son nuestras.
-        if X < w/2:
+        if EPOCA[0] and EPOCA[0] < 1500:
+            # Edad Media: estandartes lisos con un aspa dorada, de nadie en
+            # concreto - ni la de España (1785) ni la cruz de Borgoña (1500s).
+            _estandarte(d, X, h*y, T, h*tam*1.9, rnd, g, color=(120, 30, 40), aspa=ORO_ESPAÑA)
+        elif X < w/2:
             _estandarte(d, X, h*y, T, h*tam*1.9, rnd, g, color=ROJO_ESPAÑA, franja=ORO_ESPAÑA)
         else:
             _estandarte(d, X, h*y, T, h*tam*1.9, rnd, g, color=BLANCO, aspa=ROJO_ESPAÑA)

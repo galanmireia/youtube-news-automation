@@ -1930,6 +1930,9 @@ def generate_script(news_item: dict, variant: str = "long",
                     "generate_script (%s): el guion sale con una pega despues de %s "
                     "intentos y se acepta igual - %s.", variant, attempt, pega)
 
+        anacronismos = _quita_anacronismos(script)
+        if anacronismos:
+            logger.info("generate_script (%s): %s", variant, "; ".join(anacronismos))
         _log_accent_rate(script, variant)
         return script
 
@@ -2022,6 +2025,23 @@ historia ("La reina"), nunca "Remedios": el reparto es quien lo interpreta, no q
 rey o una reina, corona y "objeto": "manto".
 
 {bloque_ilustracion}
+
+EL NOMBRE DE VERDAD EN "papel". Si la narracion nombra a alguien de la historia (Tariq, don
+Rodrigo, Isabel la Catolica), la figura que lo hace lleva ESE NOMBRE en "papel" en todas sus
+escenas: "Tariq", nunca "Un soldado". Un papel generico solo para quien no tiene nombre.
+
+POSTURAS QUE CUENTEN LO QUE PASA. Cada figura hace lo que dice SU momento de la escena:
+- "brazos_arriba" es celebrar o desesperarse UN MOMENTO (como "pose_fin" tras otra postura),
+  nunca la postura de toda una escena de conversacion. Quien recibe una mala noticia: "de_pie"
+  o "mirando" con gesto "sorpresa"; quien da una orden o se queja: "señala" a quien se dirige.
+- Una batalla en tierra va en tierra ("campamento", "murallas" o fondo "campo"), con dos
+  figuras frente a frente en "peleando"; barcos y velas solo si la batalla es en el mar.
+- Si el original pide un MAPA, pon "mapa" en "cosas" grande (tam 0.25-0.30), no un papel
+  suelto en el suelo.
+- Un ejercito que desembarca o llega: figuras "andando" o "corriendo", con "barco" en cosas.
+- Nobles o consejeros que discuten: "señala" unos a otros, gesto "enfadado".
+- Nada de banderas de paises que todavia no existian en la fecha de la historia (la de España
+  es de 1785; la media luna otomana, de despues de 1300).
 
 COMO TROCEAR EN ESCENAS. El original viene troceado a su manera (con sus propias "ESCENA 1",
 "ESCENA 2"...); no hace falta copiar ese troceo exacto, hace falta respetar el ORDEN de los
@@ -2355,6 +2375,55 @@ def _narrador_solo_dice_lo_suyo(raw_text: str, script: dict) -> str | None:
                         f"toque, las lineas de Narrador tal cual, sin comillas")
     return None
 
+# BANDERAS Y DECORADOS QUE NO EXISTIAN TODAVIA. En la conquista omeya (711)
+# el modelo puso la media luna otomana junto a Tariq y banderas de España a
+# los nobles visigodos: setecientos y mil años antes de que existieran. Se
+# corrige aqui, sin pagar otro intento: la bandera pasa a ser una bandera
+# lisa y el palacio otomano, el andalusi. El año sale de los rotulos ("Estrecho
+# de Gibraltar, 711") o, si no hay, de la narracion; se toma el MAS TARDIO, para
+# no quitar nada que si existiera en algun momento de la historia.
+_AÑO_SUELTO = re.compile(r"(?<![\d.,])(\d{3,4})(?![\d.,])")
+_NACE_EN = {"bandera_otomana": 1300, "bandera_espana": 1785, "bandera_borgona": 1477,
+            "bandera_eeuu": 1777, "bandera_francia": 1790, "bandera_liga_santa": 1571}
+
+
+def _epoca_del_guion(script: dict) -> int | None:
+    escenas = [e for e in script.get("scenes", []) if isinstance(e, dict)]
+    años = []
+    for e in escenas:
+        rot = str((e.get("escena") or {}).get("rotulo") or "") if isinstance(e.get("escena"), dict) else ""
+        años += [int(x) for x in _AÑO_SUELTO.findall(rot) if 300 <= int(x) <= 2100]
+    if not años:
+        texto = " ".join(str(e.get("narration") or "") for e in escenas)
+        años = [int(x) for x in _AÑO_SUELTO.findall(texto) if 300 <= int(x) <= 2100]
+    return max(años) if años else None
+
+
+def _quita_anacronismos(script: dict) -> list[str]:
+    from . import monigotes
+    año = _epoca_del_guion(script)
+    monigotes.EPOCA[0] = año
+    if not año:
+        return []
+    cambios = []
+    for i, e in enumerate(script.get("scenes", []), 1):
+        esc = e.get("escena") if isinstance(e, dict) else None
+        if not isinstance(esc, dict):
+            continue
+        if año < 1300 and esc.get("interior") == "palacio_otomano":
+            esc["interior"] = "palacio_andalusi"
+            cambios.append(f"escena {i}: palacio otomano -> andalusi ({año})")
+        for c in esc.get("cosas") or []:
+            if isinstance(c, dict) and año < _NACE_EN.get(str(c.get("que")), 0):
+                cambios.append(f"escena {i}: {c['que']} -> bandera lisa ({año})")
+                c["que"] = "bandera"
+        for f in esc.get("figuras") or []:
+            if isinstance(f, dict) and año < _NACE_EN.get(str(f.get("lleva")), 0):
+                cambios.append(f"escena {i}: lleva {f['lleva']} -> nada ({año})")
+                f.pop("lleva", None)
+    return cambios
+
+
 def _quita_acotaciones_leidas(raw_text: str, script: dict) -> list[str]:
     """Saca de la narracion las acotaciones del original que el modelo ha
     puesto a leer ("El politico mira a camara.", "Todos se quedan callados.").
@@ -2639,7 +2708,8 @@ def translate_literal_script(raw_text: str, variant: str = "short", parar=None) 
 
         nivel = max(_SOLO_LO_ROTO, _TODO - (attempt - 1))
         ultimo = attempt >= _MAX_ATTEMPTS
-        arreglos = _respeta_el_reparto(raw_text, script) + _arregla_bocadillos(script)
+        arreglos = (_respeta_el_reparto(raw_text, script) + _arregla_bocadillos(script)
+                    + _quita_anacronismos(script))
         if arreglos:
             logger.info("translate_literal_script: %s", "; ".join(arreglos))
         quitadas = _quita_acotaciones_leidas(raw_text, script)
