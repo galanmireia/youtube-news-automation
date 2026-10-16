@@ -55,8 +55,16 @@ def oscurece(img, f, color=(10, 12, 30)):
 
 
 # ---------------------------------------------------------------- la cara
+def corazon(d, x, y, r, color=(232, 60, 90)):
+    d.ellipse([x - r, y - r*0.8, x, y + r*0.2], fill=color, outline=T, width=max(2, int(r*0.12)))
+    d.ellipse([x, y - r*0.8, x + r, y + r*0.2], fill=color, outline=T, width=max(2, int(r*0.12)))
+    d.polygon([(x - r*0.97, y - r*0.15), (x + r*0.97, y - r*0.15), (x, y + r*1.05)], fill=color)
+    d.line([(x - r*0.97, y - r*0.15), (x, y + r*1.05), (x + r*0.97, y - r*0.15)], fill=T, width=max(2, int(r*0.12)))
+    d.ellipse([x - r*0.6, y - r*0.55, x - r*0.3, y - r*0.25], fill=(255, 200, 210))
+
+
 def ojos(d, cx, cy, s, piel, mira=(0, 0), cansancio=0.0, parpadeo=0.0, ceja=0.0, feliz=0.0, susto=0.0,
-         enfado=0.0, juntos=1.0):
+         enfado=0.0, juntos=1.0, amor=0.0, guino=0.0):
     """Ojos grandes de dibujo animado. s: el tamaño de la cara.
     ceja: + triste, - sorprendida. susto: ojos enormes y pupila pequeña."""
     g = max(3, int(s*0.03))
@@ -64,6 +72,12 @@ def ojos(d, cx, cy, s, piel, mira=(0, 0), cansancio=0.0, parpadeo=0.0, ceja=0.0,
     for lado in (-1, 1):
         ex = cx + lado*sep
         rx, ry = s*0.13*(1 + 0.25*susto), s*0.16*(1 + 0.3*susto)
+        if amor > 0.5:                 # ojos de corazon, que laten
+            corazon(d, ex, cy, s*0.15*(1 + 0.12*amor), (232, 60, 90))
+            continue
+        if guino > 0.5 and lado > 0:   # el guiño del ligon
+            d.arc([ex - rx, cy - ry*0.4, ex + rx, cy + ry*1.0], 200, 340, fill=T, width=g + 2)
+            continue
         if feliz > 0.5:
             d.arc([ex - rx, cy - ry*0.4, ex + rx, cy + ry*1.2], 200, 340, fill=T, width=g + 1)
         else:
@@ -239,7 +253,7 @@ def poke(img, cx, suelo, h, st, t):
     s = bw*1.05
     ey = by0 + bh*0.27
     ojos(d, bx + st.get("dir", 0)*bw*0.1, ey, s, VERDE, st.get("mira", (0, 0)), st.get("cansancio", 0), st.get("parpadeo", 0),
-         st.get("ceja", 0), st.get("feliz", 0), st.get("susto", 0), st.get("enfado", 0))
+         st.get("ceja", 0), st.get("feliz", 0), st.get("susto", 0), st.get("enfado", 0), amor=st.get("amor", 0))
     boca(d, bx + st.get("dir", 0)*bw*0.1, ey + s*0.27, s, st.get("boca", "sonrisa"), st.get("boca_k", 1.0))
     # la maceta (delante del cuerpo)
     tw, bw2 = h*0.44, h*0.34
@@ -305,7 +319,7 @@ def bubble(img, cx, cy, h, st, t):
               fill=GLOBO_OSC, outline=T)
     s = rx*1.7
     ojos(d, cx + st.get("dir", 0)*rx*0.15, cy - ry*0.12, s, GLOBO, st.get("mira", (0, 0)), 0, st.get("parpadeo", 0),
-         st.get("ceja", 0), st.get("feliz", 0), st.get("susto", 0))
+         st.get("ceja", 0), st.get("feliz", 0), st.get("susto", 0), amor=st.get("amor", 0))
     boca(d, cx + st.get("dir", 0)*rx*0.15, cy + ry*0.28, s, st.get("boca", "sonrisa"))
     if st.get("rubor"):
         for lado in (-1, 1):
@@ -465,10 +479,33 @@ def mag(img, cx, suelo, h, st, t):
         hb = (cx + lado*w/2, top + w*0.45)
         if st.get("brazos_arriba"):
             brazo_fino(d, hb, (hb[0] + lado*h*0.1, hb[1] - h*0.1), (hb[0] + lado*h*0.12, hb[1] - h*0.24), h)
+        elif st.get("pistolas") and lado > 0:      # los dedos-pistola del ligon
+            brazo_fino(d, hb, (hb[0] + h*0.14, hb[1] - h*0.02), (hb[0] + h*0.28, hb[1] - h*0.06), h)
+            d.line([(hb[0] + h*0.28, hb[1] - h*0.06), (hb[0] + h*0.36, hb[1] - h*0.08)], fill=T, width=max(4, int(h*0.02)))
+        elif st.get("tira") is not None:           # tirando de algo: las dos manos hacia ese punto
+            m = st["tira"]
+            brazo_fino(d, hb, ((hb[0] + m[0])/2, (hb[1] + m[1])/2 + h*0.04), (m[0] + lado*h*0.03, m[1]), h)
         else:
             brazo_fino(d, hb, (hb[0] + lado*h*0.08, hb[1] + h*0.08), (hb[0] + lado*h*0.1, hb[1] + h*0.18), h)
     s = h*0.42
-    ojos(d, cx, top + w*0.2, s, IMAN, st.get("mira", (0, 0)), 0, 0, 0, 0, st.get("susto", 0), st.get("enfado", 0), juntos=0.95)
+    if st.get("tupe", True):           # el tupe engominado del ligon
+        pelo = (40, 34, 40)
+        d.ellipse([cx - w*0.34, top - h*0.12, cx + w*0.26, top + w*0.06], fill=pelo, outline=T, width=g)
+        d.ellipse([cx - w*0.04, top - h*0.19, cx + w*0.44, top - h*0.03], fill=pelo, outline=T, width=g)     # la onda de delante
+        d.arc([cx + w*0.04, top - h*0.17, cx + w*0.38, top - h*0.05], 200, 330, fill=(120, 110, 130), width=max(2, g))
+    if st.get("gafas_sol") and not st.get("amor"):
+        ey = top + w*0.2
+        for lado in (-1, 1):
+            ex = cx + lado*s*0.2*0.95
+            d.rounded_rectangle([ex - s*0.17, ey - s*0.12, ex + s*0.17, ey + s*0.12], radius=int(s*0.06), fill=(24, 24, 30), outline=T, width=g)
+            d.line([(ex - s*0.1, ey - s*0.06), (ex - s*0.02, ey - s*0.06)], fill=(120, 120, 140), width=max(2, g))
+        d.line([(cx - s*0.04, ey - s*0.02), (cx + s*0.04, ey - s*0.02)], fill=T, width=g + 1)
+        if st.get("guino"):
+            corazon(d, cx + s*0.55, ey - s*0.3, s*0.08, (255, 230, 120)) if False else None
+            d.text((cx + s*0.55, ey - s*0.35), "✦", font=fuente(s*0.35), fill=(255, 236, 140), anchor="mm")
+    else:
+        ojos(d, cx, top + w*0.2, s, IMAN, st.get("mira", (0, 0)), 0, 0, st.get("ceja", 0), st.get("feliz", 0), st.get("susto", 0),
+             st.get("enfado", 0), juntos=0.95, amor=st.get("amor", 0), guino=st.get("guino", 0))
 
 
 # ---------------------------------------------------------------- decorados
@@ -627,3 +664,147 @@ def humo_enfado(d, x, y, s, t):
         r = s*(0.25 + 0.5*k)
         cx, cy = x + math.sin(k*5 + i)*s*0.3, y - k*s*2.2
         d.ellipse([cx - r, cy - r*0.8, cx + r, cy + r*0.8], fill=(214, 214, 220), outline=(150, 150, 160), width=3)
+
+
+
+# ---------------------------------------------------------------- SAL y PIMIENTA, las cotillas del 2o
+def salero(img, cx, suelo, h, st, t, pimienta=False):
+    """Un salero con rulos y gafas: las dos hermanas cotillas. pimienta=True, la oscura."""
+    d = ImageDraw.Draw(img)
+    g = max(2, int(h*0.014))
+    cuerpo = (92, 80, 76) if pimienta else (238, 240, 246)
+    piernas(d, cx, suelo - h*0.14, suelo, h, fase=st.get("fase"))
+    bw, bh = h*0.44, h*0.58
+    y1 = suelo - h*0.12; y0 = y1 - bh
+    d.rounded_rectangle([cx - bw/2, y0, cx + bw/2, y1], radius=int(bw*0.28), fill=cuerpo, outline=T, width=g)
+    rnd = random.Random(2 if pimienta else 1)
+    for i in range(16):
+        x = cx + rnd.uniform(-bw*0.36, bw*0.36); y = rnd.uniform(y0 + bh*0.55, y1 - bh*0.06)
+        col = (40, 34, 32) if pimienta else (255, 255, 255)
+        d.ellipse([x - h*0.008, y - h*0.008, x + h*0.008, y + h*0.008], fill=col)
+    # la tapa con agujeros
+    d.chord([cx - bw*0.5, y0 - bh*0.32, cx + bw*0.5, y0 + bh*0.14], 180, 360, fill=PLATA, outline=T, width=g)
+    d.rectangle([cx - bw*0.52, y0 - bh*0.04, cx + bw*0.52, y0 + bh*0.06], fill=(176, 178, 186), outline=T, width=g)
+    for k in (-1, 0, 1):
+        d.ellipse([cx + k*bw*0.18 - h*0.012, y0 - bh*0.18 - h*0.012, cx + k*bw*0.18 + h*0.012, y0 - bh*0.18 + h*0.012], fill=T)
+    # los rulos
+    for k, col in zip((-1, 0, 1), ((246, 150, 180), (150, 200, 240), (246, 150, 180))):
+        x = cx + k*bw*0.3
+        d.rounded_rectangle([x - h*0.04, y0 - bh*0.34 - h*0.05 + abs(k)*h*0.02, x + h*0.04, y0 - bh*0.34 + h*0.03 + abs(k)*h*0.02],
+                            radius=int(h*0.02), fill=col, outline=T, width=2)
+    for lado in (-1, 1):
+        hb = (cx + lado*bw/2, y0 + bh*0.5)
+        if st.get("prismaticos"):
+            m = (cx + lado*h*0.06, y0 + bh*0.22)
+            brazo_fino(d, hb, (hb[0] + lado*h*0.04, hb[1] - h*0.02), m, h)
+        elif st.get("tapa_boca") and lado < 0:
+            brazo_fino(d, hb, (hb[0] - h*0.02, hb[1] - h*0.05), (cx - h*0.02, y0 + bh*0.48), h)
+        else:
+            brazo_fino(d, hb, (hb[0] + lado*h*0.07, hb[1] + h*0.07), (hb[0] + lado*h*0.09, hb[1] + h*0.17), h)
+    s = bw*1.1
+    ey = y0 + bh*0.26
+    if st.get("prismaticos"):
+        for lado in (-1, 1):
+            ex = cx + lado*s*0.2
+            d.rounded_rectangle([ex - s*0.14, ey - s*0.12, ex + s*0.14, ey + s*0.14], radius=int(s*0.05), fill=(40, 40, 46), outline=T, width=g)
+            d.ellipse([ex - s*0.1, ey - s*0.08, ex + s*0.1, ey + s*0.1], fill=(150, 190, 220), outline=T, width=2)
+    else:
+        ojos(d, cx, ey, s, cuerpo, st.get("mira", (0, 0)), 0, st.get("parpadeo", 0), st.get("ceja", 0.2), st.get("feliz", 0),
+             st.get("susto", 0))
+        for lado in (-1, 1):                    # las gafas de abuela, en la punta
+            ex = cx + lado*s*0.2
+            d.ellipse([ex - s*0.17, ey - s*0.14, ex + s*0.17, ey + s*0.2], outline=(180, 140, 60), width=g)
+        d.line([(cx - s*0.04, ey), (cx + s*0.04, ey)], fill=(180, 140, 60), width=g)
+    if not st.get("tapa_boca"):
+        boca(d, cx, ey + s*0.34, s, st.get("boca", "o"))
+    return {"cara": (cx, ey), "top": y0 - bh*0.34}
+
+
+# ---------------------------------------------------------------- bocadillos de dibujos (los cotilleos)
+def icono(d, que, x, y, s):
+    g = max(2, int(s*0.08))
+    if que == "cactus":
+        d.rounded_rectangle([x - s*0.28, y - s*0.5, x + s*0.28, y + s*0.25], radius=int(s*0.28), fill=VERDE, outline=T, width=g)
+        d.polygon([(x - s*0.34, y + s*0.2), (x + s*0.34, y + s*0.2), (x + s*0.26, y + s*0.55), (x - s*0.26, y + s*0.55)], fill=MACETA, outline=T)
+        for k in (-1, 1):
+            d.line([(x + k*s*0.28, y - s*0.15), (x + k*s*0.42, y - s*0.22)], fill=T, width=g)
+    elif que == "globo":
+        d.ellipse([x - s*0.36, y - s*0.5, x + s*0.36, y + s*0.36], fill=GLOBO, outline=T, width=g)
+        d.line([(x, y + s*0.36), (x + s*0.05, y + s*0.6)], fill=T, width=max(2, g - 1))
+    elif que == "corazon":
+        corazon(d, x, y - s*0.1, s*0.42)
+    elif que == "anillo":
+        d.ellipse([x - s*0.32, y - s*0.12, x + s*0.32, y + s*0.5], outline=(220, 180, 60), width=int(s*0.12))
+        d.polygon([(x - s*0.16, y - s*0.16), (x + s*0.16, y - s*0.16), (x, y - s*0.45)], fill=(180, 230, 250), outline=T)
+    elif que == "bebe":
+        icono(d, "cactus", x, y + s*0.1, s*0.7)
+        d.ellipse([x - s*0.2, y - s*0.62, x + s*0.2, y - s*0.38], fill=(250, 250, 250), outline=T, width=2)
+    elif que == "sofa":
+        d.rounded_rectangle([x - s*0.5, y - s*0.25, x + s*0.5, y + s*0.25], radius=int(s*0.1), fill=(200, 60, 70), outline=T, width=g)
+    elif que == "iman":
+        d.arc([x - s*0.36, y - s*0.5, x + s*0.36, y + s*0.2], 180, 360, fill=IMAN, width=int(s*0.2))
+        d.line([(x - s*0.26, y - s*0.15), (x - s*0.26, y + s*0.4)], fill=IMAN, width=int(s*0.2))
+        d.line([(x + s*0.26, y - s*0.15), (x + s*0.26, y + s*0.4)], fill=IMAN, width=int(s*0.2))
+    elif que == "+":
+        d.text((x, y), "+", font=fuente(s*0.9), fill=T, anchor="mm")
+    elif que == "!":
+        d.text((x, y), "!", font=fuente(s*0.9), fill=(220, 50, 50), anchor="mm")
+
+
+def bocadillo_dibujos(d, x, y, iconos, s=90, cola=(0, 1)):
+    """Un bocadillo con dibujos en vez de palabras: se entiende en cualquier idioma."""
+    n = len(iconos)
+    w = n*s*1.05 + s*0.5; hh = s*1.35
+    d.rounded_rectangle([x - w/2, y - hh/2, x + w/2, y + hh/2], radius=int(hh*0.45), fill=(252, 252, 250), outline=T, width=5)
+    cx_, cy_ = x + cola[0]*w*0.25, y + hh/2
+    d.polygon([(cx_ - s*0.25, cy_ - 4), (cx_ + s*0.15, cy_ - 4), (cx_ - s*0.05 + cola[0]*s*0.6, cy_ + s*0.55)], fill=(252, 252, 250))
+    d.line([(cx_ - s*0.25, cy_), (cx_ - s*0.05 + cola[0]*s*0.6, cy_ + s*0.55), (cx_ + s*0.15, cy_)], fill=T, width=5)
+    for i, que in enumerate(iconos):
+        icono(d, que, x - (n - 1)*s*1.05/2 + i*s*1.05, y + s*0.05, s*0.85)
+
+
+# ---------------------------------------------------------------- muebles y trastos
+def sofa(img, cx, cy, w, ang=0.0, rasgado=0.0, color=(200, 60, 70)):
+    """El sofa rojo, girado 'ang' grados. rasgado: espuma que asoma por donde pincha el cactus."""
+    hh = w*0.42
+    capa = Image.new("RGBA", (int(w*1.3), int(w*1.3)), (0, 0, 0, 0)); c = ImageDraw.Draw(capa)
+    ox, oy = capa.width/2, capa.height/2
+    osc = tuple(int(v*0.78) for v in color)
+    c.rounded_rectangle([ox - w/2, oy - hh/2, ox + w/2, oy + hh*0.1], radius=int(hh*0.25), fill=color, outline=T, width=6)   # respaldo
+    c.rounded_rectangle([ox - w*0.42, oy - hh*0.05, ox + w*0.42, oy + hh*0.35], radius=int(hh*0.15), fill=osc, outline=T, width=6)
+    for k in (-1, 1):
+        c.rounded_rectangle([ox + k*w*0.5 - w*0.08, oy - hh*0.2, ox + k*w*0.5 + w*0.08, oy + hh*0.42], radius=int(hh*0.12), fill=color, outline=T, width=6)
+    c.line([(ox, oy - hh*0.05), (ox, oy + hh*0.35)], fill=T, width=4)
+    for k in (-1, 1):
+        c.rectangle([ox + k*w*0.4 - 12, oy + hh*0.42, ox + k*w*0.4 + 12, oy + hh*0.55], fill=(80, 56, 40), outline=T, width=3)
+    rnd = random.Random(6)
+    for i in range(int(8*rasgado)):
+        x = ox + rnd.uniform(-w*0.45, w*0.45); y = oy + rnd.uniform(-hh*0.4, hh*0.3)
+        r = rnd.uniform(14, 26)
+        c.ellipse([x - r, y - r*0.8, x + r, y + r*0.8], fill=(250, 248, 230), outline=(180, 176, 160), width=2)
+    capa = capa.rotate(ang, resample=Image.BICUBIC)
+    img.paste(capa, (int(cx - ox), int(cy - oy)), capa)
+
+
+def bici(d, x, y, s=1.0, ang=0.0):
+    for k in (-1, 1):
+        d.ellipse([x + k*60*s - 45*s, y - 45*s, x + k*60*s + 45*s, y + 45*s], outline=T, width=int(8*s))
+    d.line([(x - 60*s, y), (x - 10*s, y - 60*s), (x + 40*s, y - 60*s), (x + 60*s, y), (x, y), (x - 10*s, y - 60*s)], fill=(60, 140, 200), width=int(10*s))
+    d.line([(x + 40*s, y - 60*s), (x + 50*s, y - 90*s)], fill=T, width=int(8*s))
+    d.line([(x + 35*s, y - 92*s), (x + 70*s, y - 88*s)], fill=T, width=int(8*s))
+    d.line([(x - 15*s, y - 68*s), (x - 40*s, y - 70*s)], fill=T, width=int(10*s))
+
+
+def zzz(d, x, y, t, s=50):
+    for k in range(3):
+        f = (t*0.7 + k/3) % 1.0
+        d.text((x + f*s*1.5, y - f*s*2.5), "z", font=fuente(s*(0.6 + 0.6*f)), fill=(250, 250, 250), anchor="mm",
+               stroke_width=4, stroke_fill=T)
+
+
+def sudor(d, x, y, s, t):
+    for k in range(3):
+        f = (t*1.5 + k/3) % 1.0
+        xx = x + (k - 1)*s*0.5; yy = y + f*s*1.2
+        d.polygon([(xx, yy - s*0.25), (xx + s*0.14, yy + s*0.05), (xx - s*0.14, yy + s*0.05)], fill=(150, 200, 240))
+        d.ellipse([xx - s*0.14, yy - s*0.06, xx + s*0.14, yy + s*0.2], fill=(150, 200, 240), outline=T, width=2)
