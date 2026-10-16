@@ -178,6 +178,10 @@ def efectos(TABLA, DUR):
                 pon(T0, tono(988, 0.9, 0.12, 3)); pon(T0 + 0.45, tono(784, 1.0, 0.12, 3))
             elif tipo == "popito":
                 pon(T0, ruido(0.06, 0.25, 2)*np.exp(-np.arange(int(0.06*SR))/SR*60)); pon(T0, tono(1600, 0.08, 0.06, 40))
+            elif tipo == "desliza":
+                pon(T0, barrido(900, 250, 0.45, 0.09, 2))
+            elif tipo == "ding":
+                pon(T0, tono(1760, 0.5, 0.12, 6)); pon(T0, tono(2640, 0.4, 0.05, 7))
             elif tipo == "flechazo":             # el arpa del amor a primera vista
                 for j, m in enumerate([72, 76, 79, 83, 84, 88, 91, 96]):
                     pon(T0 + j*0.07, tono(nota_f(m), 1.2, 0.05, 2.5))

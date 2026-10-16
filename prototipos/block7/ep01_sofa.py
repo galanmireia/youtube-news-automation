@@ -1,4 +1,4 @@
-"""BLOCK 7 · Ep. 1 — THE SOFA (~67 s, vertical, sin voz).
+"""BLOCK 7 · Ep. 1 — THE SOFA (~51 s, vertical, sin voz). Version centrada: Poke contra el sofa, y Bubble.
 
 Comedia de vecinos. Poke llega con un sofa que no cabe en el ascensor. Mag,
 el ligon del edificio, se ofrece a ayudar: a el se le pega todo lo metalico
@@ -507,17 +507,244 @@ def p_fin(lt, t, dur=3.5):
     return img, (W/2, H/2, 1.0)
 
 # ---------------------------------------------------------------- el montaje
+# ---------------------------------------------------------------- version centrada: Poke contra el sofa
+def bombilla(d, x, y, s=1.0):
+    d.ellipse([x - 50*s, y - 60*s, x + 50*s, y + 40*s], fill=(255, 236, 120), outline=T, width=5)
+    d.rectangle([x - 24*s, y + 36*s, x + 24*s, y + 70*s], fill=(180, 180, 190), outline=T, width=4)
+    for a in range(-150, -20, 30):
+        r = math.radians(a)
+        d.line([(x + math.cos(r)*75*s, y - 10*s + math.sin(r)*75*s), (x + math.cos(r)*110*s, y - 10*s + math.sin(r)*110*s)],
+               fill=(255, 214, 60), width=8)
+
+def etiqueta(d, mx, my, texto="2B"):
+    d.line([(mx, my), (mx + 40, my - 80)], fill=T, width=4)
+    d.rounded_rectangle([mx - 10, my - 200, mx + 170, my - 80], radius=14, fill=(252, 236, 160), outline=T, width=5)
+    d.text((mx + 80, my - 140), texto, font=fuente(70), fill=T, anchor="mm")
+
+def p_fachada2(lt, t):
+    img = Image.new("RGB", (W, H), (180, 220, 244)); d = ImageDraw.Draw(img)
+    d.rectangle([0, 160, W, SUELO], fill=(232, 196, 168), outline=T, width=6)
+    for fila in range(0, 30):
+        for col in range(10):
+            x = col*120 + (60 if fila % 2 else 0); y = 160 + fila*46
+            if y < SUELO - 40:
+                d.rectangle([x, y, x + 116, y + 42], outline=(214, 176, 150), width=2)
+    d.rounded_rectangle([W/2 - 210, 180, W/2 + 210, 280], radius=18, fill=(52, 50, 64), outline=T, width=6)
+    Mu.texto(d, W/2, 230, "BLOCK 7", 66, (255, 214, 90))
+    d.rectangle([560, 900, 960, SUELO], fill=(170, 210, 220), outline=T, width=8)
+    d.line([(760, 900), (760, SUELO)], fill=T, width=6)
+    Mu.ventana(d, 90, 420, 470, 780); Mu.ventana(d, 620, 420, 960, 760)
+    d.rectangle([0, SUELO, W, H], fill=(196, 196, 204)); d.line([(0, SUELO), (W, SUELO)], fill=T, width=6)
+    x = -260 + 520*suave(lt/2.6)
+    Mu.sofa(img, x + 330, SUELO - 120, 560)
+    st = dict(pose="abrazo" if lt < 2.6 else "saluda", fase=lt*6 if lt < 2.6 else None, dir=0.6, mira=(0.8, 0.0),
+              boca="dolor" if lt < 2.6 else "abierta", ceja=0.5 if lt < 2.6 else 0.0, inclina=0.08 if lt < 2.6 else 0.0,
+              feliz=1.0 if lt > 2.8 else 0.0)
+    info = Mu.poke(img, x, SUELO + 40, HP, st, t)
+    d = ImageDraw.Draw(img)
+    if lt < 2.6:
+        Mu.sudor(d, info["cara"][0] - 120, info["top"] + 40, 40, t)
+    else:
+        etiqueta(d, *info["manos"][1])
+    return img, (W/2, H/2, 1.0)
+
+ANG_ESCALERA = math.degrees(math.atan2(1000, 960))
+
+def p_empuja(lt, t):
+    """Solo, empujando el sofa escalera arriba. Se le resbala encima. Otra vez. Y otra."""
+    img, a, b = escalera_fondo(Mu.PAREDES["porteria"], True); d = ImageDraw.Draw(img)
+    d.line([(120, 1400), (1000, 480)], fill=(120, 84, 56), width=14)
+    pos = lambda f: (a[0] + (b[0] - a[0])*f, a[1] + (b[1] - a[1])*f)
+    # sube un poco... y se resbala
+    tramos = [(0.0, 1.6, 0.14, 0.32), (1.6, 2.1, 0.32, 0.10), (2.4, 4.2, 0.10, 0.40), (4.2, 4.7, 0.40, 0.08),
+              (5.0, 6.0, 0.08, 0.20), (6.0, 6.4, 0.20, 0.0)]
+    us = 0.14
+    resbala = False
+    for t0, t1, u0, u1 in tramos:
+        if t0 <= lt < t1:
+            k = (lt - t0)/(t1 - t0)
+            us = u0 + (u1 - u0)*(suave(k) if u1 > u0 else k*k); resbala = u1 < u0
+            break
+        if lt >= t1:
+            us = u1
+    debajo = lt > 6.3
+    sc = pos(us); sc = (sc[0] + 60, sc[1] - 200)
+    if not debajo:
+        pp = pos(max(0.0, us - 0.17))
+        if resbala:
+            pp = pos(max(0.0, us - 0.13))
+        st = dict(pose="abrazo", inclina=0.1, mira=(0.8, -0.4), boca="dolor" if not resbala else "grito", ceja=0.6,
+                  susto=1.0 if resbala else 0.0, fase=None if resbala else lt*6)
+        info = Mu.poke(img, pp[0], pp[1] + 40, HP, st, t)
+        Mu.sudor(ImageDraw.Draw(img), info["cara"][0] - 110, info["top"] + 30, 34 + 8*(lt/6), t)
+    Mu.sofa(img, sc[0], sc[1], 470, ang=ANG_ESCALERA, rasgado=0.2 + 0.5*lt/6.4)
+    d = ImageDraw.Draw(img)
+    for t0 in (1.6, 4.2, 6.0):
+        if t0 < lt < t0 + 0.5:
+            Mu.texto(d, 540, 700, "WHEEE-BONK!" if t0 < 6 else "BONK!", 80, (255, 214, 60))
+    if debajo:
+        Mu.piernas(d, 150, 1720, 1780, HP)
+        estrellas(d, 170, 1450, t)
+    return img, (W/2, H/2, 1.0)
+
+def p_idea(lt, t):
+    """Se mira los pinchos... y se le enciende la bombilla."""
+    img, a, b = escalera_fondo(Mu.PAREDES["porteria"], True); d = ImageDraw.Draw(img)
+    Mu.sofa(img, 330, 1560, 470, ang=ANG_ESCALERA, rasgado=0.7)
+    st = dict(pose="caido", mira=(0, 0), boca="dolor", ceja=0.6)
+    if lt < 1.0:
+        st.update(mira=(math.sin(t*8), math.cos(t*8)))
+    if 1.0 <= lt < 2.4:
+        st.update(pose="saluda", mira=(0.9, -0.9), boca="o", ceja=0.0)
+    if lt >= 2.4:
+        st.update(pose="arriba", feliz=1.0, boca="abierta", ceja=0.0)
+    info = Mu.poke(img, 700, 1760, 640, st, t)
+    d = ImageDraw.Draw(img)
+    if lt < 1.0:
+        estrellas(d, 700, info["top"] - 60, t)
+    if 1.2 < lt < 2.4:                    # mira de cerca sus pinchos
+        Mu.texto(d, 900, info["top"] - 20, "?", 90, (255, 214, 60))
+    if lt >= 2.4:
+        bombilla(d, 700, info["top"] - 160, 1.1)
+    return img, (640, 1350, 1.25)
+
+def p_tira(lt, t):
+    """Ahora tira desde arriba con los brazos clavados en el sofa. Sube volando. Y luego, el sofa en la cabeza."""
+    img, a, b = escalera_fondo(Mu.PAREDES["p1"], False); d = ImageDraw.Draw(img)
+    d.line([(960, 1400), (80, 480)], fill=(120, 84, 56), width=14)
+    pos = lambda f: (a[0] + (b[0] - a[0])*f, a[1] + (b[1] - a[1])*f)
+    if lt < 3.8:
+        up = 0.22 + 0.55*suave(lt/3.6)
+        pp = pos(up); us = up - 0.2
+        sc = pos(us); sc = (sc[0] - 40, sc[1] - 200)
+        Mu.sofa(img, sc[0], sc[1], 470, ang=-ANG_ESCALERA, rasgado=0.9)
+        d = ImageDraw.Draw(img)
+        rnd = random.Random(int(t*10))
+        for i in range(5):                # trocitos de espuma volando
+            ex_, ey_ = sc[0] + rnd.uniform(-200, 200), sc[1] + rnd.uniform(-150, 150)
+            d.ellipse([ex_ - 12, ey_ - 10, ex_ + 12, ey_ + 10], fill=(250, 248, 230), outline=(180, 176, 160), width=2)
+        st = dict(pose="abrazo", mira=(0.8, 0.6), feliz=1.0, boca="abierta", inclina=0.1, fase=lt*10)
+        Mu.poke(img, pp[0], pp[1] + 40, HP, st, t)
+        if lt < 2.6:
+            Mu.texto(ImageDraw.Draw(img), 540, 600, "ZOOM!", 90, (255, 214, 60))
+        return img, (W/2, H/2, 1.0)
+    # el sofa a la cabeza: ya no ve nada
+    pp = pos(0.77)
+    tamb = math.sin(t*6)*30
+    info = Mu.poke(img, pp[0] + tamb, pp[1] + 40, HP, dict(pose="arriba", fase=lt*6, boca="o"), t)
+    Mu.sofa(img, pp[0] + tamb, info["cara"][1] - 40, 470, ang=math.sin(t*6)*6, rasgado=0.9)
+    return img, (W/2, H/2, 1.0)
+
+def p_rellano2(lt, t):
+    """A ciegas: se pasa su puerta (2B)... y entra en la que esta abierta (2A)."""
+    img = Image.new("RGB", (W, H), Mu.PAREDES["p2"]); d = ImageDraw.Draw(img)
+    Mu.suelo_madera(d, SUELO, H)
+    Mu.puerta(d, 260, SUELO, "2A", abre=0.85, color=(176, 120, 150), alto=620, ancho=300)
+    for k in range(8):
+        aa = k/8*2*math.pi
+        Mu.corazon(d, 260 + math.cos(aa)*70, SUELO - 470 + math.sin(aa)*70, 18)
+    Mu.puerta(d, 820, SUELO, "2B", alto=620, ancho=300)
+    if lt < 1.8:
+        x = 1300 - 400*suave(lt/1.6)
+    elif lt < 2.4:                        # BONK contra su propia puerta, y rebota
+        x = 900 + 60*suave((lt - 1.8)/0.3)
+    else:
+        x = 960 - 700*suave((lt - 2.4)/2.6)
+    tamb = math.sin(t*6)*25
+    info = Mu.poke(img, x + tamb, SUELO + 40, HP, dict(pose="arriba", fase=lt*6, boca="o"), t)
+    Mu.sofa(img, x + tamb, info["cara"][1] - 40, 470, ang=math.sin(t*6)*6, rasgado=0.9)
+    d = ImageDraw.Draw(img)
+    if 1.8 < lt < 2.3:
+        Mu.texto(d, 820, 760, "BONK!", 90, (255, 214, 60))
+    return img, (W/2, H/2, 1.0)
+
+def p_flechazo2(lt, t):
+    """En casa de Bubble. CRASH. Flechazo. El error. Y ella se sienta en el sofa: quedate."""
+    img = Image.new("RGB", (W, H), (226, 206, 236)); d = ImageDraw.Draw(img)
+    Mu.suelo_madera(d, SUELO, H, color=(206, 170, 130))
+    Mu.ventana(d, 560, 380, 960, 760, cielo=(250, 214, 190))
+    Mu.planta(d, 980, SUELO, 1.2)
+    sx = 480; seat = SUELO - 120
+    if lt < 1.2:                          # entra con el sofa en la cabeza
+        x = 1300 - 700*suave(lt/1.1)
+        info = Mu.poke(img, x, SUELO + 40, HP, dict(pose="arriba", fase=lt*6, boca="o"), t)
+        Mu.sofa(img, x, info["cara"][1] - 40, 470, rasgado=0.9)
+    else:
+        Mu.sofa(img, sx, SUELO - 130, 520, rasgado=0.9)
+    d = ImageDraw.Draw(img)
+    # Bubble
+    if lt < 6.0:
+        by = 800 - 300*suave((lt - 1.2)/0.3)*(1 - suave((lt - 1.9)/1.0)) + 20*math.sin(t*2)
+        bx = 760
+    else:                                 # baja y se sienta en una punta del sofa
+        k = suave((lt - 6.0)/0.8); bx = 760 - 440*k; by = 800 + (seat - 250 - 800)*k
+    st_b = dict(mira=(-0.8, 0.3), susto=1.0 if 1.2 < lt < 2.2 else 0.0, boca="grito" if 1.2 < lt < 1.8 else "sonrisa", cuerda=True,
+                rubor=lt > 3.0, feliz=1.0 if 3.0 < lt < 4.6 or lt > 7.0 else 0.0, pose="caido")
+    if 6.8 < lt < 7.8:                    # da palmaditas en el sofa: siéntate
+        st_b["pose"] = "cuerda"
+    if lt > 1.2:
+        Mu.bubble(img, bx, by, 420, st_b, t)
+    d = ImageDraw.Draw(img)
+    # Poke
+    if lt >= 1.2:
+        st = dict(pose="caido", mira=(0.8, -0.2), boca="o")
+        if 2.4 <= lt < 4.4:
+            st.update(amor=1.0, boca="abierta", pose="pecho")
+        if 4.4 <= lt < 5.2:               # mira la llave: 2B... ¿y esta puerta?
+            st.update(pose="saluda", mira=(0.5, -0.8), boca="o")
+        if 5.2 <= lt < 6.8:               # vergüenza: se va
+            st.update(pose="abrazo", mira=(-0.8, 0.0), boca="dolor", ceja=0.6, susto=0.4)
+        if lt >= 6.8:
+            st.update(pose="caido", mira=(-0.8, -0.2), amor=1.0 if lt > 7.4 else 0.0, boca="abierta")
+        if lt < 7.6:
+            px = 830 if lt < 5.2 else 830 + 120*suave((lt - 5.2)/0.6)*(1 - suave((lt - 6.8)/0.4))
+            suelo_p = SUELO + 40
+        else:                             # se sienta en la otra punta
+            k = suave((lt - 7.6)/0.6); px = 830 + (650 - 830)*k; suelo_p = SUELO + 40 + (seat - 30 - SUELO - 40)*k
+        info = Mu.poke(img, px, suelo_p, HP, st, t)
+        d = ImageDraw.Draw(img)
+        if 4.4 <= lt < 5.2:
+            etiqueta(d, *info["manos"][1])
+        if 5.2 <= lt < 6.8:
+            Mu.sudor(d, info["cara"][0] - 110, info["top"] + 30, 36, t)
+    if 1.2 < lt < 1.7:
+        Mu.texto(d, 520, 900, "CRASH!", 100, (255, 214, 60))
+    if 2.4 < lt < 4.4:
+        for k in range(5):
+            f = ((lt - 2.4)*0.6 + k/5) % 1.0
+            Mu.corazon(d, 800 + (k - 2)*70 + math.sin(t*2 + k)*20, 900 - f*500, 22*(1 - f) + 8)
+    if lt > 8.2:                          # un corazoncito entre los dos
+        Mu.corazon(d, 490, seat - 520 - (lt - 8.2)*80, 30)
+    zoom = 1.04 + 0.12*suave((lt - 2.4)/1.0)*(1 - suave((lt - 4.4)/0.5))
+    return img, (640, 1050, zoom)
+
+def p_ojos(lt, t):
+    """Dos segundos: la puerta de enfrente, dos ojos en la mirilla... y el cotilleo ya en marcha."""
+    img = Image.new("RGB", (W, H), Mu.PAREDES["p2"]); d = ImageDraw.Draw(img)
+    d.rectangle([140, 380, 940, H], fill=(132, 96, 70), outline=T, width=10)
+    d.rounded_rectangle([440, 420, 640, 500], radius=10, fill=(250, 246, 236), outline=T, width=4)
+    d.text((540, 460), "2C", font=fuente(50), fill=T, anchor="mm")
+    cx, cy = 540, 900
+    d.ellipse([cx - 170, cy - 120, cx + 170, cy + 120], fill=(214, 176, 70), outline=T, width=8)
+    d.ellipse([cx - 140, cy - 95, cx + 140, cy + 95], fill=(20, 20, 24))
+    for lado in (-1, 1):
+        ex = cx + lado*55; r = 62
+        d.ellipse([ex - r, cy - r*0.8, ex + r, cy + r*0.8], fill=(250, 250, 250), outline=T, width=4)
+        d.ellipse([ex - 25 - 14, cy - 25, ex + 25 - 14, cy + 25], fill=T)
+    if lt > 0.8:
+        Mu.bocadillo_dibujos(d, 540, 640, ["cactus", "corazon", "globo"], 100, cola=(0, 1))
+    return img, (cx, cy - 100, 1.0 + 0.06*lt)
+
 GUION = [
-    (p_fachada, 5.0, [(0.0, "tema"), (0.0, "raspa3.2")]),
+    (p_fachada2, 4.0, [(0.0, "tema"), (0.0, "raspa2.6"), (2.8, "tin")]),
     (p_ascensor, 8.5, [(0.8, "bonk"), (2.4, "bonk"), (4.2, "tin"), (5.6, "sirena1.4"), (7.0, "silbido_corto"), (7.4, "bonk"), (7.5, "pito")]),
-    (p_mag, 6.0, [(0.0, "pasos2.2"), (2.8, "tin"), (4.9, "swip")]),
-    (p_tramo1, 7.0, [(0.0, "raspa6.5"), (0.6, "clink"), (0.9, "clink"), (2.6, "clang"), (3.0, "clang")]),
-    (p_tramo2, 7.0, [(0.0, "raspa6.5"), (1.4, "clang"), (3.2, "puerta"), (4.2, "clang"), (4.6, "bronca1.2")]),
-    (p_mirilla, 3.5, [(1.8, "susto")]),
-    (p_huevo, 6.0, [(0.0, "raspa5.0"), (2.6, "splat"), (4.2, "boing")]),
-    (p_rellano, 7.0, [(0.6, "tin"), (2.6, "tin"), (4.4, "raspa1.4"), (5.8, "crash")]),
-    (p_flechazo, 8.0, [(0.0, "susto"), (2.6, "flechazo"), (5.6, "flechazo"), (5.6, "clink")]),
-    (p_cotillas, 5.5, [(1.0, "susto"), (2.6, "tin"), (3.4, "achoo")]),
+    (p_empuja, 7.0, [(0.0, "raspa1.6"), (1.6, "desliza"), (2.0, "bonk"), (2.4, "raspa1.8"), (4.2, "desliza"), (4.6, "bonk"),
+                     (5.0, "raspa1.0"), (6.0, "desliza"), (6.3, "bonk"), (6.4, "pito")]),
+    (p_idea, 4.0, [(1.0, "susto"), (2.4, "ding")]),
+    (p_tira, 6.0, [(0.0, "raspa3.6"), (0.0, "pasos3.6"), (3.8, "boing"), (4.0, "pasos2.0")]),
+    (p_rellano2, 5.4, [(0.0, "pasos1.8"), (1.8, "bonk"), (2.4, "pasos2.6")]),
+    (p_flechazo2, 9.4, [(1.2, "crash"), (1.3, "susto"), (2.4, "flechazo"), (4.4, "tin"), (5.2, "susto"), (6.8, "tin"), (7.4, "flechazo")]),
+    (p_ojos, 3.0, [(0.8, "tin")]),
     (lambda lt, t: p_fin(lt, t, 3.5), 3.5, [(0.0, "fin")]),
 ]
 
@@ -529,7 +756,7 @@ def tabla():
 
 TABLA, DUR = tabla()
 _I = {fn: a for a, b, fn, s in TABLA}
-SILENCIOS = [(_I[p_flechazo] + 2.4, _I[p_flechazo] + 5.5)]
+SILENCIOS = [(_I[p_flechazo2] + 2.4, _I[p_flechazo2] + 4.4), (_I[p_idea] + 1.0, _I[p_idea] + 2.4)]
 
 def fotograma(t):
     for a, b, fn, _ in TABLA:
