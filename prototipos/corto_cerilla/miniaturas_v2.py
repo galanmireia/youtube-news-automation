@@ -87,3 +87,24 @@ if __name__ == "__main__":
     guarda(burnout_a(), "miniatura_BURNOUT_A.jpg")
     guarda(burnout_b(), "miniatura_BURNOUT_B.jpg")
     guarda(one_more(), "miniatura_ONE_MORE_2.jpg")
+
+
+# ONE MORE (la que eligio ella): se ve reflejado en la pantalla negra del movil
+def one_more_reflejo():
+    img = M.oscurece(C.recorte(M.bg("dormitorio", oscuro=0.75), 1000, 250, 2.2).filter(ImageFilter.GaussianBlur(9)), 0.45)
+    def reflejo(pant):
+        W, H = pant.size
+        capa = Image.new("RGB", pant.size, (10, 10, 12))
+        st = dict(llama=0.3, cansancio=0.6, mira=(0, 0), ceja=0.55, pose="caido", sin_piernas=True)
+        C.cerilla(capa, W/2, H*1.2, H*2, H*1.45, st, 0.7)
+        capa = capa.filter(ImageFilter.GaussianBlur(1.2))
+        pant.paste(Image.blend(pant, capa, 0.55))
+    M.movil_grande(img, 560, 470, 860, "negro", 0.0, fondo_pantalla=reflejo)
+    img = vineta(img, 0.45)
+    titulo(img, "ONE MORE", 1150, 330, 120)
+    C.reloj_tarjeta(img, "3:47 AM", 1150, 470, 0, 0)
+    return img
+
+
+if __name__ == "__main__":
+    guarda(one_more_reflejo(), "miniatura_ONE_MORE_3.jpg")

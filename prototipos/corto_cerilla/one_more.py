@@ -96,7 +96,7 @@ def chispas(d, x, y, k, s, semilla=4):
         d.ellipse([px - rr, py - rr, px + rr, py + rr], fill=C.LLAMA if rnd.random() < 0.6 else C.LLAMA2)
 
 # ---------------------------------------------------------------- el móvil en grande
-def movil_grande(img, cx, cy, alto, modo, lt, datos=None, pulgar=None, fondo_pantalla=None):
+def movil_grande(img, cx, cy, alto, modo, lt, datos=None, pulgar=None, fondo_pantalla=None, contacto="Cloud"):
     d = ImageDraw.Draw(img)
     w = alto*0.5
     x0, y0, x1, y1 = cx - w/2, cy - alto/2, cx + w/2, cy + alto/2
@@ -135,12 +135,14 @@ def movil_grande(img, cx, cy, alto, modo, lt, datos=None, pulgar=None, fondo_pan
         pant = Image.new("RGB", pant.size, (238, 238, 236)); p = ImageDraw.Draw(pant)
         p.rectangle([0, 0, W, H*0.12], fill=(214, 214, 212))
         p.ellipse([W*0.06, H*0.03, W*0.06 + H*0.065, H*0.095], fill=(190, 192, 198), outline=T, width=2)
-        p.text((W*0.06 + H*0.085, H*0.062), "Cloud", font=fuente(W*0.075), fill=(20, 20, 24), anchor="lm")
+        p.text((W*0.06 + H*0.085, H*0.062), contacto, font=fuente(W*0.075), fill=(20, 20, 24), anchor="lm")
         y = H*0.17; f = fuente(W*0.068)
         for lado, texto, t0, escribe in datos:
             if lt < t0: continue
-            if escribe:       # lo va escribiendo él: aparece de golpe al enviarlo (t0)
-                pass
+            if lado == 0:     # una linea de estado pequeña a la derecha: "Seen"
+                p.text((W*0.93, y - H*0.012), texto, font=fuente(W*0.05), fill=(130, 130, 136), anchor="rm")
+                y += H*0.04
+                continue
             tw = p.textlength(texto, font=f) + W*0.1
             bx0 = W*0.05 if lado < 0 else W*0.95 - tw
             col, tc = ((205, 205, 203), (20, 20, 24)) if lado < 0 else ((52, 52, 58), (250, 250, 250))
