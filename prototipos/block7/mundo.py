@@ -421,8 +421,15 @@ def pop(img, cx, suelo, h, st, t):
         else:
             brazo_fino(d, hb, (hb[0] + lado*h*0.08, hb[1] + h*0.1), (hb[0] + lado*h*0.1, hb[1] + h*0.2), h)
     s = h*0.5
-    ojos(d, cx, cy - h*0.06, s, PALOMITA, st.get("mira", (0, 0)), 0, 0, 0, 0, st.get("susto", 0), st.get("enfado", 0))
+    ojos(d, cx, cy - h*0.06, s, PALOMITA, st.get("mira", (0, 0)), 0, 0, st.get("ceja", 0), st.get("feliz", 0), st.get("susto", 0), st.get("enfado", 0))
     boca(d, cx, cy + h*0.1, s, st.get("boca", "grito"))
+    if st.get("pajarita"):          # la pajarita roja de las citas (con su clip metalico)
+        px, py = cx + st.get("pajarita_dx", 0.0), cy + h*0.3
+        torcida = st.get("torcida", 0.0)
+        for lado in (-1, 1):
+            d.polygon([(px, py), (px + lado*h*0.13, py - h*0.07 + lado*torcida*h*0.05), (px + lado*h*0.13, py + h*0.07 + lado*torcida*h*0.05)],
+                      fill=(210, 40, 50), outline=T)
+        d.ellipse([px - h*0.035, py - h*0.035, px + h*0.035, py + h*0.035], fill=(200, 200, 210), outline=T, width=2)
     if ex > 0:
         for i in range(10):
             a = i/10*2*math.pi + 0.3
@@ -610,3 +617,13 @@ def palomitas_pegadas(img, info, k, semilla=4):
         if rnd.random() < 0.35:
             x = rnd.uniform(x0 + 20, x1 - 20); y = rnd.uniform(y0 + (y1 - y0)*0.55, y1 - 20)
         palomita_suelta(d, x, y, rnd.uniform(14, 20))
+
+
+
+def humo_enfado(d, x, y, s, t):
+    """Humo saliendo de la cabeza, en bocanadas que suben."""
+    for i in range(3):
+        k = (t*1.6 + i/3) % 1.0
+        r = s*(0.25 + 0.5*k)
+        cx, cy = x + math.sin(k*5 + i)*s*0.3, y - k*s*2.2
+        d.ellipse([cx - r, cy - r*0.8, cx + r, cy + r*0.8], fill=(214, 214, 220), outline=(150, 150, 160), width=3)
