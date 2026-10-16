@@ -1,4 +1,4 @@
-"""BLOCK 7 · Ep. 1 — THE NEW NEIGHBOUR (~53 s, vertical, sin voz).
+"""BLOCK 7 · Ep. 1 — THE NEW NEIGHBOUR (~54 s, vertical, sin voz). Version 2: mas caos.
 
 Poke, un cactus que solo quiere abrazos, se muda al edificio. El gato portero
 le da la llave con un palo, el globo del 2o huye volando (y el ladrillo le
@@ -166,46 +166,152 @@ def porteria(lt):
     return img
 
 def p_porteria(lt, t):
+    """El timbre, el abrazo, el gato erizado y la llave lanzada con una regla."""
     img = porteria(lt)
     d = ImageDraw.Draw(img)
-    # Poke entra
-    x = -150 + 520*suave(lt/2.0)
-    anda = lt < 2.0
-    st = dict(pose="maleta", fase=lt*8 if anda else None, dir=0.6, mira=(0.7, -0.2), parpadeo=parpadeo(lt))
-    if 2.2 <= lt < 3.3:
+    x = -150 + 570*suave(lt/1.6)
+    st = dict(pose="maleta", fase=lt*8 if lt < 1.6 else None, dir=0.6, mira=(0.7, -0.1), parpadeo=parpadeo(lt))
+    if 1.6 <= lt < 2.7:                       # DING DING DING
         st.update(pose="saluda", onda=True, feliz=1.0, boca="abierta")
-    elif 3.3 <= lt < 4.6:
-        st.update(pose="abrazo", feliz=1.0, boca="abierta", inclina=0.05)
-        x += 60*suave((lt - 3.3)/0.5)
-    elif lt >= 4.6:
-        x += 60
-        st.update(pose="caido", mira=(0.7, 0.6) if lt < 6.2 else (0.3, -0.2), feliz=1.0 if lt > 6.4 else 0.0,
-                  boca="sonrisa" if lt > 6.4 else "plana")
+    elif 2.7 <= lt < 3.7:                     # al abrazo
+        st.update(pose="abrazo", feliz=1.0, boca="abierta", inclina=0.06)
+        x += 90*suave((lt - 2.7)/0.5)
+    elif lt >= 3.7:
+        x += 90 - 70*suave((lt - 3.7)/0.3)
+        st.update(pose="arriba" if lt < 4.8 else "caido", susto=1.0 if lt < 4.8 else 0.0, boca="grito" if lt < 4.8 else "plana",
+                  mira=(0.8, 0.0))
+    if lt >= 5.9:                             # la llave clavada en la cabeza
+        st.update(mira=(0.0, -1.0), susto=0.0, boca="o", ceja=0.0)
+    if lt >= 6.8:
+        st.update(boca="sonrisa", feliz=1.0)
     info = Mu.poke(img, x, SUELO + 40, HP, st, t)
     d = ImageDraw.Draw(img)
     if st["pose"] == "maleta":
         maleta(d, info["manos"][0][0] - 10, info["manos"][0][1] + 10, 1.0)
     else:
         maleta(d, x - 200, SUELO - 90, 1.0)
-    # el gato detras del mostrador, impasible
-    mira_g = (-0.8, 0.2) if lt > 1.2 else (0, 0.3)
-    cab = Mu.gato(img, 820, 1180, 420, dict(mira=mira_g, parpadeo=parpadeo(lt, 4.0, 1.2), cansancio=0.8), t)
+    eriz = suave((lt - 3.7)/0.15)*(1 - suave((lt - 4.9)/0.5))
+    cab = Mu.gato(img, 820, 1180, 420, dict(mira=(-0.8, 0.2) if lt > 1.0 else (0, 0.3), cansancio=0.8 if eriz < 0.3 else 0.0,
+                                          susto=eriz, parpadeo=parpadeo(lt, 4.0, 1.2), erizado=eriz), t)
     d = ImageDraw.Draw(img)
+    if 1.9 < lt < 3.7:
+        Mu.vena(d, cab["cara"][0] + 70, cab["cara"][1] - 120, 160, t)
     d.rectangle([600, 1180, 1080, SUELO + 40], fill=(150, 100, 70), outline=T, width=6)
     d.rectangle([600, 1180, 1080, 1210], fill=(176, 124, 90), outline=T, width=5)
-    d.ellipse([650, 1140, 710, 1186], fill=(230, 196, 90), outline=T, width=4)                  # el timbre
-    # la llave, empujada con un palo para no acercarse
-    if lt > 4.4:
-        k = suave((lt - 4.6)/1.2)
-        kx = 860 - 330*k
-        if lt < 6.2:
-            d.line([(cab["pata"][0], cab["pata"][1] - 60), (kx + 40, 1168)], fill=(120, 84, 56), width=12)
-            llave(d, kx - 40, 1168, 0.9)
-        else:
-            llave(d, info["manos"][1][0], info["manos"][1][1], 0.9)
-    if 3.5 < lt < 4.4:
-        Mu.texto(d, 820, 640, "...", 80, (250, 250, 250))
-    return img, (560, 1100, 1.12)
+    d.ellipse([650, 1140, 710, 1186], fill=(230, 196, 90), outline=T, width=4)
+    for k, tc in enumerate((1.7, 2.05, 2.4)):
+        if tc < lt < tc + 0.35:
+            Mu.texto(d, 640 - k*60, 1050 - k*70, "DING!", 64, (255, 220, 70))
+    if 3.75 < lt < 4.8:
+        Mu.texto(d, 860, 560, "HSSSS!", 90, (255, 90, 70))
+    # la regla y la llave volando
+    if 4.9 <= lt < 5.9:
+        k = (lt - 5.1)/0.8
+        d.line([(cab["pata"][0], cab["pata"][1] - 60), (cab["pata"][0] - 160, cab["pata"][1] - 160 + 120*suave((lt - 4.9)/0.2))],
+               fill=(200, 170, 110), width=16)
+        if k > 0:
+            sx, sy = 680, 1120; ex, ey = info["top"] and (x + 50, info["top"] + 10)
+            kx = sx + (ex - sx)*k; ky = sy + (ey - sy)*k - 380*math.sin(math.pi*min(1, k))
+            llave(d, kx - 40, ky, 0.9)
+    elif lt >= 5.9:
+        llave(d, x + 30, info["top"] + 6, 0.9)
+        if lt < 6.4:
+            Mu.texto(d, x + 200, info["top"] - 60, "CLINK!", 60, (250, 250, 250))
+    return img, (560, 1080, 1.12)
+
+def ascensor_fondo():
+    img = Image.new("RGB", (W, H), Mu.PAREDES["porteria"]); d = ImageDraw.Draw(img)
+    d.rectangle([0, SUELO, W, H], fill=(236, 232, 224))
+    for i in range(0, W, 120):
+        for j in range(SUELO, H, 120):
+            if (i//120 + j//120) % 2 == 0:
+                d.rectangle([i, j, i + 120, j + 120], fill=(70, 74, 86))
+    d.line([(0, SUELO), (W, SUELO)], fill=T, width=6)
+    return img
+
+CAB = (520, SUELO - 820, 1000, SUELO)        # el hueco del ascensor
+
+def p_ascensor(lt, t):
+    """La pelea de Pop y Mag en el ascensor: el iman se queda la llave y la palomita lo llena todo."""
+    img = ascensor_fondo(); d = ImageDraw.Draw(img)
+    x0, y0, x1, y1 = CAB
+    abre = suave((lt - 1.8)/0.5)*(1 - suave((lt - 6.4)/0.6))
+    # el interior
+    d.rectangle([x0, y0, x1, y1], fill=(214, 200, 176), outline=T, width=6)
+    d.rectangle([x0 + 20, y0 + 20, x1 - 20, y0 + 60], fill=(250, 240, 200))
+    lleno = suave((lt - 5.4)/1.0)
+    discuten = lt < 3.4
+    vuela = suave((lt - 4.0)/0.5)
+    sacude = (math.sin(t*40)*10) if discuten else 0
+    Mu.pop(img, x0 + 130 + sacude, y1, 360, dict(enfado=1.0 if lt < 4.6 else 0.0, susto=1.0 if lt >= 4.6 else 0.0,
+                                             brazos_arriba=discuten and (t % 0.5) > 0.25, mira=(0.9, 0) if discuten else (-0.9, 0),
+                                             explota=0.7 if 5.4 < lt < 6.4 and (t*6) % 1.0 < 0.5 else 0.0,
+                                             boca="grito"), t)
+    Mu.mag(img, x1 - 130 - sacude, y1, 360, dict(enfado=1.0 if lt < 3.4 else 0.0, susto=1.0 if 4.0 < lt < 4.8 else 0.0,
+                                             brazos_arriba=discuten and (t % 0.5) < 0.25, mira=(-0.9, 0) if discuten else (-0.9, 0),
+                                             fondo=(214, 200, 176)), t)
+    d = ImageDraw.Draw(img)
+    if vuela >= 1:          # la llave, pegada al iman
+        llave(d, x1 - 150, y1 - 230, 0.8)
+    if discuten and lt > 1.9:
+        Mu.grawlix(d, x0 + 150, y0 + 200, 95, t, "#@%!", semilla=1) if (t*3) % 1.0 < 0.5 else Mu.grawlix(d, x1 - 150, y0 + 220, 95, t, "$&!?", semilla=2)
+        Mu.rayo(d, (x0 + 170, y1 - 210), (x1 - 170, y1 - 250), t)
+    # las palomitas llenando la cabina
+    if lleno > 0:
+        rnd = random.Random(9)
+        nivel = y1 - (y1 - y0)*lleno*1.05
+        for i in range(260):
+            px = rnd.uniform(x0 + 20, x1 - 20); py = rnd.uniform(y0, y1 - 10)
+            if py > nivel:
+                Mu.palomita_suelta(d, px, py, 26)
+    # las puertas
+    w = (x1 - x0)/2*(1 - abre)
+    for lado in (-1, 1):
+        xa = x0 if lado < 0 else x1 - w
+        d.rectangle([xa, y0, xa + w, y1], fill=(196, 198, 206), outline=T, width=6)
+    if 6.4 < lt and abre < 0.2:                 # palomitas asomando por la rendija
+        for k in range(6):
+            Mu.palomita_suelta(d, (x0 + x1)/2 + (k % 2)*16 - 8, y0 + 140 + k*110, 22)
+    d.rectangle([x0 - 30, y0 - 30, x1 + 30, y1], outline=(150, 150, 160), width=24)
+    d.rectangle([x0 - 42, y0 - 42, x1 + 42, y1], outline=T, width=5)
+    # el indicador de planta
+    piso = 0 if lt < 7.0 else min(3, int((lt - 7.0)*3) + 1)
+    d.rounded_rectangle([660, y0 - 150, 860, y0 - 60], radius=12, fill=(30, 30, 36), outline=T, width=4)
+    d.text((760, y0 - 105), ("▲ " if piso else "") + str(piso), font=fuente(52), fill=(255, 120, 80), anchor="mm")
+    d.rounded_rectangle([420, SUELO - 560, 470, SUELO - 440], radius=10, fill=(200, 200, 208), outline=T, width=4)
+    d.ellipse([430, SUELO - 520, 460, SUELO - 490], fill=(255, 210, 80) if lt > 1.2 else (150, 150, 150), outline=T, width=3)
+    # Poke
+    x = -150 + 440*suave(lt/1.2)
+    st = dict(pose="maleta" if lt < 1.2 else "caido", fase=lt*8 if lt < 1.2 else None, dir=0.6, mira=(0.8, -0.1),
+              parpadeo=parpadeo(lt, 3.0))
+    if 1.2 <= lt < 1.6:
+        st.update(pose="saluda")
+    if 1.9 < lt < 3.4:
+        st.update(susto=0.7, boca="o", mira=(0.9, 0.0))
+    if 3.4 <= lt < 4.0:
+        st.update(boca="sonrisa", feliz=0.0, mira=(0.9, 0.0))
+    if 4.0 <= lt < 4.6:
+        st.update(inclina=0.06*math.sin((lt - 4.0)*20), susto=0.5, boca="o")
+    if lt >= 5.4:
+        st.update(susto=1.0 if lt < 6.6 else 0.0, boca="grito" if lt < 6.6 else "plana", mira=(0.9, 0) if lt < 7.4 else (0.0, 0.9),
+                  pose="arriba" if lt < 6.0 else "caido")
+    info = Mu.poke(img, x, SUELO + 40, HP, st, t)
+    d = ImageDraw.Draw(img)
+    maleta(d, x - 200, SUELO - 90) if lt >= 1.2 else maleta(d, info["manos"][0][0] - 10, info["manos"][0][1] + 10)
+    if vuela < 1:           # la llave se va de su cabeza al iman
+        kx = (x + 30) + ((x1 - 150) - (x + 30))*vuela; ky = (info["top"] + 6) + ((y1 - 230) - (info["top"] + 6))*vuela
+        llave(d, kx, ky, 0.9 - 0.1*vuela)
+        if 0 < vuela < 1:
+            Mu.texto(d, (x + x1)/2, info["top"] - 40, "SHWIP!", 56, (200, 220, 255))
+    Mu.palomitas_pegadas(img, info, suave((lt - 5.5)/0.8))
+    d = ImageDraw.Draw(img)
+    if 5.4 < lt < 6.4:
+        Mu.texto(d, 760, y0 - 240 - 40*math.sin(t*12), "POP! POP! POP!", 70, (255, 214, 60))
+    if 6.9 < lt < 7.5:
+        Mu.texto(d, 760, y0 - 240, "DING!", 64, (250, 250, 250))
+    # la camara se acerca a la bronca y vuelve a abrir para el desastre
+    acerca = suave((lt - 1.9)/0.6)*(1 - suave((lt - 3.9)/0.6))
+    return img, (560 + 220*acerca, 1060 + 40*acerca, 1.06 + 0.45*acerca)
 
 def pasillo(nombre, puerta_num, abre=0.0):
     img = Image.new("RGB", (W, H), Mu.PAREDES[nombre]); d = ImageDraw.Draw(img)
@@ -213,168 +319,168 @@ def pasillo(nombre, puerta_num, abre=0.0):
     d.rectangle([0, SUELO - 40, W, SUELO], fill=tuple(int(v*0.8) for v in Mu.PAREDES[nombre]), outline=T, width=4)
     Mu.puerta(d, 300, SUELO - 40, puerta_num, abre=abre)
     Mu.cuadro(d, 620, 760, 820, 920)
-    # la escalera que sube, a la derecha
-    for k in range(7):
+    for k in range(7):          # la escalera que sube, a la derecha
         x = 840 + k*30; y = SUELO - 40 - k*110
         d.rectangle([x, y - 110, W + 10, y], fill=(206, 190, 168), outline=T, width=4)
     d.line([(820, SUELO - 220), (1100, SUELO - 1000)], fill=(120, 84, 56), width=14)
     return img
 
 def p_pasillo2(lt, t):
-    abre = suave((lt - 1.6)/0.5)
+    """El globo se suelta y sale disparado, PFFRRT; el ladrillo, al pie; Poke, clavado en el techo."""
+    abre = suave((lt - 1.4)/0.5)
     img = pasillo("p2", "2", abre)
     d = ImageDraw.Draw(img)
-    # Poke llega desde la escalera
-    x = 1150 - 450*suave(lt/1.6)
-    st = dict(pose="maleta", fase=lt*8 if lt < 1.6 else None, dir=-0.6, mira=(-0.7, -0.1), parpadeo=parpadeo(lt))
-    huye = lt > 3.9
-    cae = lt > 5.0
-    if 2.9 <= lt < 3.9:
+    d.rectangle([0, 0, W, 130], fill=(222, 214, 236), outline=T, width=6)            # el techo
+    # Poke
+    techo = 4.2 <= lt < 6.9
+    x = 1150 - 450*suave(lt/1.4)
+    st = dict(pose="maleta", fase=lt*8 if lt < 1.4 else None, dir=-0.6, mira=(-0.7, -0.1), parpadeo=parpadeo(lt))
+    suelo_p = SUELO + 40
+    if 2.6 <= lt < 3.6:
         st.update(pose="abrazo", feliz=1.0, boca="abierta", inclina=-0.06)
-    elif huye and not cae:
-        st.update(pose="caido", mira=(-0.3, -1.0), susto=0.6, boca="o")
-    elif cae:
-        st.update(pose="pie", susto=0.0, boca="dolor", ceja=0.7, mira=(0, 0))
-        st["salta"] = abs(math.sin((lt - 5.0)*7))*50
-    info = Mu.poke(img, x, SUELO + 40, HP, st, t)
+    elif 3.6 <= lt < 4.2:
+        st.update(pose="caido", susto=0.8, boca="o", mira=(-0.6, -0.6))
+    elif techo:
+        k = suave((lt - 4.2)/0.35)
+        suelo_p = (SUELO + 40)*(1 - k) + (130 + HP*1.02)*k
+        st.update(pose="arriba", susto=0.0, boca="dolor", ceja=0.8, mira=(0, 0))
+        if lt > 4.6:
+            st.update(boca="o", ceja=0.4, mira=(math.sin(t*6), math.cos(t*6)))
+    elif lt >= 6.9:
+        k = suave((lt - 6.9)/0.25)
+        suelo_p = (130 + HP*1.02)*(1 - k) + (SUELO + 40)*k
+        st.update(pose="caido", boca="dolor" if lt < 7.6 else "plana", ceja=0.6, mira=(0, 0))
+    info = Mu.poke(img, x, suelo_p, HP, st, t)
     d = ImageDraw.Draw(img)
     if st["pose"] == "maleta":
         maleta(d, info["manos"][1][0] + 10, info["manos"][1][1] + 10)
     else:
         maleta(d, x + 230, SUELO - 90)
-    # Bubble sale de su piso con su ladrillo
-    if lt > 2.0:
-        if not huye:
-            bx = 300 + 80*suave((lt - 2.0)/0.8); by = 1050
-            st_b = dict(ladrillo=(bx + 20, SUELO - 40), mira=(0.7, 0.0), parpadeo=parpadeo(lt, 3.0, 0.5),
-                        susto=1.0 if lt > 3.4 else 0.0, boca="grito" if lt > 3.4 else "sonrisa", tiembla=1.0 if lt > 3.4 else 0.0,
-                        pose="arriba" if lt > 3.4 else "caido")
+    Mu.palomitas_pegadas(img, info, 1.0 if lt < 4.2 else max(0.3, 1 - (lt - 4.2)))
+    d = ImageDraw.Draw(img)
+    if techo and lt < 5.5:              # las palomitas que se caen
+        rnd = random.Random(2)
+        for i in range(10):
+            Mu.palomita_suelta(d, x + rnd.uniform(-160, 160), info["top"] + 200 + (lt - 4.2)*rnd.uniform(500, 900), 18)
+    if techo:
+        for k in range(3):
+            d.arc([x - 120 - k*30, 110 - k*10, x + 120 + k*30, 190 + k*10], 20, 160, fill=T, width=4)
+        if lt < 4.9:
+            Mu.texto(d, x, 520, "BOING!", 90, (255, 214, 60))
+    if 6.9 < lt < 7.5:
+        Mu.texto(d, x + 200, SUELO - 120, "CLONK!", 80, (255, 214, 60))
+    if lt > 7.1:
+        estrellas(d, x, info["top"] - 60, t)
+    # el globo
+    if lt > 1.9:
+        if lt < 3.6:
+            bx = 300 + 90*suave((lt - 1.9)/0.7); by = 1060
+            st_b = dict(ladrillo=(bx + 20, SUELO - 40), mira=(0.7, 0.0), susto=1.0 if lt > 3.1 else 0.0,
+                        boca="grito" if lt > 3.1 else "sonrisa", tiembla=1.0 if lt > 3.1 else 0.0, pose="arriba" if lt > 3.1 else "caido")
             Mu.bubble(img, bx, by, 380, st_b, t)
-            if lt > 3.4:
-                Mu.texto(ImageDraw.Draw(img), bx + 30, by - 300, "!", 130, (255, 80, 70))
+            if lt > 3.1:
+                Mu.texto(ImageDraw.Draw(img), bx + 30, by - 300, "!!", 140, (255, 80, 70))
         else:
-            k = (lt - 3.9)/1.0
-            bx = 380 + 420*suave(k); by = 1050 - 1500*k*k
-            lad = None
-            if lt < 5.0:          # el ladrillo colgando de la cuerda, hasta que se suelta encima de Poke
-                lad = (bx + 10, by + 380*0.36 + 260)
-            Mu.bubble(img, bx, by, 380, dict(ladrillo=lad, susto=1.0, boca="grito", pose="arriba", cuerda=lad is not None), t)
-            if lt >= 4.6:
-                kk = suave((lt - 4.6)/0.4)
-                ly = (1050 - 1500*(0.7**2) + 380*0.36 + 260)*(1 - kk) + (SUELO + 30)*kk
-                if lt > 5.0:
-                    ly = SUELO + 30
-                d = ImageDraw.Draw(img)
-                d.rectangle([x - 60, ly - 40, x + 60, ly], fill=Mu.LADRILLO, outline=T, width=5)
-                d.line([(x - 60, ly - 20), (x + 60, ly - 20)], fill=(140, 64, 46), width=3)
-    if cae:
-        estrellas(ImageDraw.Draw(img), x, info["top"] - 60, t)
-        if lt < 5.6:
-            Mu.texto(ImageDraw.Draw(img), x + 160, SUELO - 120, "BONK!", 80, (255, 210, 60))
-    return img, (640, 1050, 1.08)
-
-def p_globo_techo(lt, t):
-    img = Image.new("RGB", (W, H), Mu.PAREDES["escalera"]); d = ImageDraw.Draw(img)
-    d.rectangle([0, 0, W, 300], fill=(214, 206, 190), outline=T, width=6)          # el techo de la escalera
-    d.line([(0, 300), (W, 300)], fill=T, width=8)
-    for k in range(5):
-        d.rectangle([k*260 - 40, 1300 + k*0, k*260 + 200, 1340], fill=(196, 180, 160))
-    Mu.bubble(img, 540, 300 + 380*0.36 + 10, 760, dict(susto=1.0, boca="grito", mira=(0, 1.0), tiembla=1.0, pose="arriba", cuerda=True), t)
-    return img, (540, 700, 1.0)
-
-def p_escalera_3(lt, t):
-    """La escalera a la izquierda y, por el corte del edificio, el piso del 3o con la bronca de Pop y Mag."""
-    img = Image.new("RGB", (W, H), Mu.PAREDES["escalera"]); d = ImageDraw.Draw(img)
-    split = 470
-    d.rectangle([split, 0, W, H], fill=Mu.PAREDES["p3"])
-    Mu.suelo_madera(d, SUELO, H)
-    for k in range(9):           # los peldaños, subiendo hacia la izquierda
-        x = split - 60 - k*52; y = SUELO + 200 - k*90
-        d.rectangle([-10, y - 90, x, y], fill=(206, 190, 168), outline=T, width=4)
-    d.rectangle([split - 12, 0, split + 12, H], fill=(150, 120, 100), outline=T, width=5)
-    Mu.ventana(d, 650, 650, 960, 950)
-    # Pop y Mag
-    fondo3 = Mu.PAREDES["p3"]
-    explota = suave((lt - 3.2)/0.3) if 3.2 < lt < 4.4 else 0.0
-    Mu.mag(img, 640, SUELO, 330, dict(enfado=1.0, tenedor=True, brazos_arriba=(t % 0.8) > 0.4, mira=(0.8, 0), fondo=fondo3), t)
-    Mu.pop(img, 900, SUELO, 330, dict(enfado=1.0 if explota == 0 else 0.0, susto=explota, explota=explota, brazos_arriba=(t % 0.7) > 0.35,
-                                      mira=(-0.8, 0)), t)
-    # Poke sube cojeando
-    paso = 2.6*min(lt, 3.3)/3.3 + (0.9*(lt - 4.8)/1.2 if lt > 4.8 else 0.0)
-    x = split - 120 - 52*paso; y = SUELO + 200 - 90*paso
-    para = 3.3 <= lt < 4.8
-    st = dict(pose="maleta", fase=lt*7 if not para else None, dir=-0.5 if not para else 0.7,
-              mira=(-0.6, -0.3) if not para else (1.0, 0.0), susto=0.7 if 3.4 < lt < 4.0 else 0.0,
-              boca="o" if 3.4 < lt < 4.0 else "plana", ceja=0.3)
-    info = Mu.poke(img, x, y, 470, st, t)
-    maleta(ImageDraw.Draw(img), info["manos"][0][0] - 10, info["manos"][0][1] + 10, 0.85)
-    if 4.0 < lt < 4.8:
-        Mu.texto(ImageDraw.Draw(img), x + 120, info["top"] - 60, "?", 110, (255, 220, 70))
-    return img, (540, 1000, 1.0)
+            k = lt - 3.6
+            esc = max(0.45, 1 - k*0.18)
+            bx = 540 + 380*math.sin(k*4.1); by = 800 + 520*math.sin(k*5.3 + 1)
+            trail = [(540 + 380*math.sin((k - j*0.05)*4.1), 800 + 520*math.sin((k - j*0.05)*5.3 + 1)) for j in range(12)]
+            d = ImageDraw.Draw(img)
+            for j in range(len(trail) - 1):
+                if j % 2 == 0:
+                    d.line([trail[j], trail[j + 1]], fill=(140, 140, 150), width=6)
+            Mu.bubble(img, bx, by, 380*esc, dict(susto=1.0, boca="o", pose="arriba", cuerda=True, tiembla=1.0), t)
+            if k < 2.4:
+                Mu.texto(ImageDraw.Draw(img), bx, by - 230*esc, "PFFRRRT!", 60, (250, 250, 250))
+        if 3.6 <= lt < 4.2:          # el ladrillo cae
+            kk = suave((lt - 3.6)/0.6)
+            ly = (SUELO - 300)*(1 - kk) + (SUELO + 30)*kk
+            d = ImageDraw.Draw(img)
+            d.rectangle([x - 60, ly - 40, x + 60, ly], fill=Mu.LADRILLO, outline=T, width=5)
+        elif lt >= 4.2:
+            d = ImageDraw.Draw(img)
+            d.rectangle([x - 60, SUELO - 10, x + 60, SUELO + 30], fill=Mu.LADRILLO, outline=T, width=5)
+            if lt < 4.6:
+                Mu.texto(d, x - 160, SUELO - 140, "BONK!", 80, (255, 214, 60))
+    return img, (560, 960, 1.0)
 
 def p_atico(lt, t):
+    """Don Huevo, con casco y plastico de burbujas, y la cascada de cerrojos."""
     img = Image.new("RGB", (W, H), Mu.PAREDES["atico"]); d = ImageDraw.Draw(img)
     Mu.suelo_madera(d, SUELO, H)
     d.rectangle([0, SUELO - 40, W, SUELO], fill=(196, 190, 140), outline=T, width=4)
-    rendija = suave((lt - 2.2)/0.3)*(1 - suave((lt - 4.0)/0.12))
     px = 330
-    # el felpudo
+    abierta = suave((lt - 2.2)/0.3)*(1 - suave((lt - 3.6)/0.1))
     d.rounded_rectangle([px - 200, SUELO + 10, px + 200, SUELO + 90], radius=14, fill=(150, 110, 70), outline=T, width=5)
     Mu.texto(d, px, SUELO + 50, "GO AWAY", 44, (240, 220, 180), (90, 60, 40))
-    # la puerta: entreabierta con la cadena, y Don Huevo asomando
-    if rendija > 0:
-        d.rectangle([px - 165, SUELO - 680, px - 165 + 120*rendija, SUELO - 40], fill=(26, 22, 30))
-        if rendija > 0.6:
-            sust = suave((lt - 3.3)/0.25)
-            Mu.huevo_cara(img, px - 165 + 120*rendija - 30, SUELO - 400, 300,
-                          dict(mira=(1.0, 0.2 + 0.8*suave((lt - 2.8)/0.4)), susto=sust, boca="o" if sust > 0.5 else None, dir=0.4), t)
-            d = ImageDraw.Draw(img)
-            d.line([(px - 165 + 120*rendija, SUELO - 430), (px - 165 + 120*rendija + 40, SUELO - 400)], fill=(200, 200, 206), width=8)
-    d.rectangle([px - 165 + 120*rendija, SUELO - 680, px + 165, SUELO - 40], fill=(120, 86, 64), outline=T, width=6)
+    if abierta > 0:
+        d.rectangle([px - 165, SUELO - 680, px + 165, SUELO - 40], fill=(26, 22, 30))
+        sust = suave((lt - 2.9)/0.2)
+        Mu.huevo_cara(img, px - 10, SUELO - 330, 520, dict(mira=(1.0, 0.1 + 0.8*suave((lt - 2.6)/0.3)), susto=sust,
+                      boca="o" if sust > 0.5 else "sonrisa", dir=0.4, casco=True, burbujas=True, casco_salta=sust), t)
+        d = ImageDraw.Draw(img)
+        if 2.95 < lt < 3.6:
+            Mu.texto(d, px, SUELO - 820, "!!!", 140, (255, 80, 70))
+    d.rectangle([px - 165 + 300*abierta, SUELO - 680, px + 165, SUELO - 40], fill=(120, 86, 64), outline=T, width=6)
     d.rectangle([px - 183, SUELO - 698, px + 183, SUELO - 40], outline=T, width=6)
-    d.rounded_rectangle([px - 80, SUELO - 640, px + 80, SUELO - 590], radius=8, fill=(214, 176, 70), outline=T, width=4)
-    Mu.texto(d, px, SUELO - 615, "PRES.", 30, T, (214, 176, 70))
-    for k, tc in enumerate((4.3, 4.6, 4.9)):
-        cerrojo(d, px + 110, SUELO - 470 + k*80, lt > tc)
-    if 4.3 < lt < 5.4:
-        Mu.texto(d, px + 300, SUELO - 520 + int((lt - 4.3)/0.3)*70, "CLACK!", 54, (255, 214, 70))
-    if 4.0 < lt < 4.3:
-        Mu.texto(d, px, SUELO - 760, "SLAM!", 90, (255, 90, 70))
-    # Poke, con la bandeja de galletas
+    if abierta < 0.05:
+        d.rounded_rectangle([px - 80, SUELO - 640, px + 80, SUELO - 590], radius=8, fill=(214, 176, 70), outline=T, width=4)
+        Mu.texto(d, px, SUELO - 615, "PRES.", 30, T, (214, 176, 70))
+    if abierta < 0.05 and lt > 3.6:
+        # la cascada de cerrojos
+        n = 0 if lt < 3.9 else min(9, 3 + int((lt - 4.4)/0.14)) if lt > 4.4 else int((lt - 3.9)/0.17) + 1
+        for k in range(n):
+            cerrojo(d, px + 110, SUELO - 590 + k*60, True)
+        if lt > 5.2:                         # cadenas en X
+            for a, b in (((px - 160, SUELO - 660), (px + 160, SUELO - 80)), ((px + 160, SUELO - 660), (px - 160, SUELO - 80))):
+                for j in range(14):
+                    f = j/13
+                    cx_, cy_ = a[0] + (b[0] - a[0])*f, a[1] + (b[1] - a[1])*f
+                    d.ellipse([cx_ - 16, cy_ - 10, cx_ + 16, cy_ + 10], outline=(160, 160, 170), width=7)
+        if lt > 5.6:                         # la rueda de caja fuerte
+            ang = (lt - 5.6)*8
+            d.ellipse([px - 90, SUELO - 450, px + 90, SUELO - 270], fill=(170, 172, 180), outline=T, width=6)
+            for j in range(6):
+                a = ang + j*math.pi/3
+                d.line([(px, SUELO - 360), (px + math.cos(a)*110, SUELO - 360 + math.sin(a)*110)], fill=T, width=10)
+            d.ellipse([px - 26, SUELO - 386, px + 26, SUELO - 334], fill=(120, 120, 128), outline=T, width=4)
+        if lt > 6.0:
+            Mu.alarma(d, px, SUELO - 740, t)
+            if (t*4) % 1.0 < 0.5:
+                img = Image.blend(img, Image.new("RGB", img.size, (255, 60, 50)), 0.12)
+                d = ImageDraw.Draw(img)
+                Mu.texto(d, px + 330, SUELO - 860, "WEE-OO!", 70, (255, 90, 70))
+        if lt > 6.8:                         # el cartel que cae
+            k = suave((lt - 6.8)/0.35)
+            sy = -200 + (SUELO - 900 + 200)*k
+            sw = math.sin((lt - 7.15)*8)*8*max(0, 1 - (lt - 7.15)) if lt > 7.15 else 0
+            d.line([(px - 140, 0), (px - 140 + sw, sy)], fill=(120, 120, 130), width=5)
+            d.line([(px + 140, 0), (px + 140 + sw, sy)], fill=(120, 120, 130), width=5)
+            d.rectangle([px - 200 + sw, sy, px + 200 + sw, sy + 110], fill=(250, 246, 230), outline=T, width=6)
+            d.text((px + sw, sy + 55), "NO VISITORS", font=fuente(50), fill=(210, 40, 40), anchor="mm")
+    if 3.6 < lt < 3.95:
+        Mu.texto(d, px, SUELO - 760, "SLAM!", 100, (255, 90, 70))
+    if 3.9 < lt < 5.2:
+        Mu.texto(d, px + 330, SUELO - 560 + int((lt - 3.9)/0.15)*30 % 300, "CLACK!", 54, (255, 214, 70))
+    # Poke
     x = 1150 - 400*suave(lt/1.2)
-    st = dict(pose="bandeja", fase=lt*8 if lt < 1.2 else None, dir=-0.6, mira=(-0.8, -0.1), feliz=1.0 if 1.2 < lt < 3.6 else 0.0,
-              boca="abierta" if 2.4 < lt < 3.6 else "sonrisa", parpadeo=parpadeo(lt, 3.3))
-    if lt >= 4.0:
-        st.update(feliz=0.0, boca="plana", mira=(-0.9, 0.0), parpadeo=1.0 if 5.1 < lt < 5.25 or 5.4 < lt < 5.55 else 0.0)
-    if lt >= 7.0:
-        st.update(pose="caido", inclina=-0.1*suave((lt - 7.0)/0.5), mira=(-0.5, 1.0))
-    if 1.4 < lt < 2.1:             # llama a la puerta
-        st.update(pose="saluda")
+    st = dict(pose="caido", fase=lt*8 if lt < 1.2 else None, dir=-0.6, mira=(-0.8, -0.1), feliz=1.0 if 1.2 < lt < 3.0 else 0.0,
+              boca="abierta" if 2.3 < lt < 3.0 else "sonrisa", parpadeo=parpadeo(lt, 3.3))
+    if 1.3 < lt < 2.0:
+        st.update(pose="saluda", onda=True)
+    if 2.95 <= lt < 3.6:
+        st.update(pose="saluda", feliz=0.0, boca="sonrisa")
+    if lt >= 3.6:
+        st.update(feliz=0.0, boca="plana", mira=(-0.9, -0.2), parpadeo=1.0 if 7.6 < lt < 7.75 or 8.0 < lt < 8.15 else 0.0)
     info = Mu.poke(img, x, SUELO + 40, HP, st, t)
+    Mu.palomitas_pegadas(img, info, 0.35)
     d = ImageDraw.Draw(img)
-    if st["pose"] == "bandeja":
-        bandeja(d, (info["manos"][0][0] + info["manos"][1][0])/2, min(info["manos"][0][1], info["manos"][1][1]) - 10)
-    else:
-        bandeja(d, x + 250, SUELO - 20)
-    if 1.4 < lt < 2.1:
-        Mu.texto(d, px + 230, SUELO - 600, "KNOCK KNOCK", 48, (250, 250, 250))
-    # la nota que sale por debajo de la puerta
-    if lt > 6.0:
-        k = suave((lt - 6.0)/0.8)
-        nota(d, px + 60 + 300*k, SUELO + 20, 0.6, rot=8, img=img)
-    return img, (600, 1050, 1.06)
-
-def p_nota(lt, t):
-    img = Image.new("RGB", (W, H), Mu.PAREDES["atico"]); d = ImageDraw.Draw(img)
-    img = Mu.luz(img, 540, 900, 600, 0.25)
-    d = ImageDraw.Draw(img)
-    nota(d, 540, 900, 2.6, rot=-4, img=img)
-    for lado in (-1, 1):            # las manos verdes de cactus sujetandola
-        d.ellipse([540 + lado*360 - 60, 1050 - 60, 540 + lado*360 + 60, 1050 + 60], fill=Mu.VERDE, outline=T, width=6)
-        for k in range(3):
-            a = math.radians(200 + k*40) if lado < 0 else math.radians(-20 - k*40)
-            d.line([(540 + lado*360 + math.cos(a)*60, 1050 + math.sin(a)*60), (540 + lado*360 + math.cos(a)*85, 1050 + math.sin(a)*85)], fill=T, width=4)
-    return img, (540, 900, 1.0 + 0.02*lt)
+    if 1.3 < lt < 2.0:
+        Mu.texto(d, px + 260, SUELO - 600, "KNOCK KNOCK", 48, (250, 250, 250))
+    if lt > 8.3:                     # una palomita que se le cae de la cabeza: plink
+        k = suave((lt - 8.3)/0.5)
+        Mu.palomita_suelta(d, x + 40, info["top"] + (SUELO - info["top"])*k, 20)
+    return img, (600, 1000, 1.04)
 
 def piso_poke(lt, noche=0.0):
     img = Image.new("RGB", (W, H), Mu.PAREDES["p1"]); d = ImageDraw.Draw(img)
@@ -390,35 +496,64 @@ def piso_poke(lt, noche=0.0):
     return img
 
 def p_piso(lt, t):
-    img = piso_poke(lt)
-    d = ImageDraw.Draw(img)
-    poof = lt > 4.3
-    if not poof:
-        almohada(d, 900, SUELO - 300, 0.95) if lt < 3.6 else None
-    sentado = lt > 1.8
-    x = -120 + 640*suave(lt/1.8) if not sentado else 520 + 140*suave((lt - 1.8)/0.6)
+    """Abraza la almohada, POOF, esponjoso. El globo baja por la ventana, se sonroja... y estornuda."""
+    img = Image.new("RGB", (W, H), Mu.PAREDES["p1"]); d = ImageDraw.Draw(img)
+    Mu.suelo_madera(d, SUELO, H)
+    wx0, wy0, wx1, wy1 = 600, 460, 980, 880
+    d.rectangle([wx0, wy0, wx1, wy1], fill=(250, 190, 140), outline=T, width=6)              # ventana abierta al atardecer
+    d.ellipse([wx0 + 220, wy0 + 60, wx0 + 320, wy0 + 160], fill=(255, 226, 150))
+    # el globo, fuera
+    if lt > 6.0:
+        baja = suave((lt - 6.0)/1.0)
+        huye = suave((lt - 8.3)/0.5)
+        by = wy0 - 300 + 520*baja - 1200*huye
+        estornuda = 7.9 < lt < 8.4
+        Mu.bubble(img, wx0 + 200, by, 300, dict(mira=(-0.8, 0.4), rubor=7.0 < lt < 8.3, feliz=1.0 if 7.2 < lt < 7.8 else 0.0,
+                  boca="grito" if estornuda else ("sonrisa" if lt < 7.9 else "o"), susto=1.0 if lt > 8.3 else 0.0, cuerda=True), t)
+        d = ImageDraw.Draw(img)
+        if estornuda:
+            Mu.texto(d, wx0 + 200, by - 230, "ACHOO!", 80, (250, 250, 250))
+    # el marco de la ventana, delante del globo
+    d.rectangle([wx0, wy0, wx1, wy1], outline=T, width=10)
+    d.line([((wx0 + wx1)/2, wy0), ((wx0 + wx1)/2, wy0 + 200)], fill=T, width=6)
+    d.rectangle([wx0 - 16, wy1, wx1 + 16, wy1 + 20], fill=(240, 236, 228), outline=T, width=4)
+    for x_, y_, w_, h_ in ((80, SUELO - 200, 220, 200), (130, SUELO - 360, 160, 160)):
+        d.rectangle([x_, y_, x_ + w_, y_ + h_], fill=(206, 168, 120), outline=T, width=5)
+    d.rectangle([420, SUELO - 260, 1080, SUELO - 120], fill=(246, 246, 248), outline=T, width=6)
+    d.rectangle([420, SUELO - 120, 1080, SUELO - 70], fill=(150, 106, 76), outline=T, width=5)
+    poof = lt > 4.1
+    if lt < 3.4:
+        almohada(d, 900, SUELO - 300, 0.95)
+    sentado = lt > 1.6
+    x = -120 + 560*suave(lt/1.6) if not sentado else 440 + 100*suave((lt - 1.6)/0.5)
     suelo_p = SUELO + 40 if not sentado else SUELO - 140
-    st = dict(pose="maleta" if lt < 1.8 else "triste", fase=lt*7 if lt < 1.8 else None, dir=0.4, mira=(0.5, 0.6),
+    st = dict(pose="maleta" if lt < 1.6 else "triste", fase=lt*7 if lt < 1.6 else None, dir=0.4, mira=(0.5, 0.6),
               ceja=0.6 if sentado else 0.0, boca="triste" if sentado else "sonrisa", parpadeo=parpadeo(lt, 3.1))
-    if 3.0 <= lt < 3.6:
+    if 2.8 <= lt < 3.4:
         st.update(mira=(1.0, 0.2), ceja=0.0, boca="o")
-    if 3.6 <= lt < 4.3:
+    if 3.4 <= lt < 4.1:
         st.update(pose="pecho", feliz=1.0, boca="sonrisa")
     if poof:
-        st.update(pose="caido", plumas=suave((lt - 4.6)/0.8), susto=1.0 if lt < 5.6 else 0.0, boca="o" if lt < 5.6 else "abierta",
-                  feliz=1.0 if lt > 6.4 else 0.0, ceja=0.0, mira=(0, 0.9) if 5.6 < lt < 6.4 else (0, 0))
-        if lt > 6.4:
+        st.update(pose="caido", plumas=suave((lt - 4.4)/0.7), susto=1.0 if lt < 5.2 else 0.0, boca="o" if lt < 5.2 else "abierta",
+                  feliz=1.0 if 5.6 < lt < 6.8 else 0.0, ceja=0.0, mira=(0, 0.9) if 5.2 < lt < 5.6 else (0.8, -0.6))
+        if 5.6 < lt < 6.8:
             st["pose"] = "pecho"
+        if 7.0 < lt < 8.3:
+            st.update(pose="saluda", onda=True, feliz=0.0, boca="abierta", mira=(0.8, -0.8))
+        if lt >= 8.3:
+            st.update(pose="caido", boca="o", mira=(0.6, -1.0))
+        if lt >= 8.9:
+            st.update(boca="sonrisa", feliz=1.0)
     info = Mu.poke(img, x, suelo_p, HP, st, t)
     d = ImageDraw.Draw(img)
-    if lt < 1.8:
+    if lt < 1.6:
         maleta(d, info["manos"][0][0] - 10, info["manos"][0][1] + 10)
     else:
-        maleta(d, 380, SUELO - 90)
-    if 3.6 <= lt < 4.3:
+        maleta(d, 340, SUELO - 90)
+    if 3.4 <= lt < 4.1:
         almohada(d, info["cara"][0], info["cara"][1] + 220, 0.9)
     if poof:
-        k = (lt - 4.3)/1.8
+        k = (lt - 4.1)/1.8
         rnd = random.Random(11)
         for i in range(60):
             a = rnd.uniform(0, 2*math.pi); v = rnd.uniform(200, 900)
@@ -426,24 +561,32 @@ def p_piso(lt, t):
             py = info["cara"][1] + 220 + math.sin(a)*v*min(k, 0.4)*2.0 + 260*max(0, k - 0.3)
             if py < SUELO + 120:
                 Mu.pluma_suelta(d, px, py, rnd.uniform(16, 28), a + t)
-        if lt < 4.9:
+        if lt < 4.7:
             Mu.texto(d, info["cara"][0], info["cara"][1] - 330, "POOF!", 110, (250, 250, 250))
-    if lt > 6.6:
-        for k in range(3):                 # corazoncitos
-            yy = info["top"] - 80 - ((lt - 6.6)*120 + k*70) % 220
+    if 7.4 < lt < 8.0:               # la pluma que va hacia la nariz del globo
+        k = suave((lt - 7.4)/0.5)
+        Mu.pluma_suelta(d, info["cara"][0] + (wx0 + 200 - info["cara"][0])*k, info["cara"][1] + (wy0 + 230 - info["cara"][1])*k, 22, t*3)
+    if 5.6 < lt < 6.8:
+        for k in range(3):
+            yy = info["top"] - 80 - ((lt - 5.6)*120 + k*70) % 220
             Mu.texto(d, info["cara"][0] - 120 + k*120, yy, "♥", 60, (244, 110, 150))
-    return img, (640, 1050, 1.08 + 0.01*lt)
+    return img, (640, 1000, 1.06)
+
+def vecinos_noche(img, t):
+    vecinos_pequeños(img, t, noche=True, poke_dentro=True)
+    d = ImageDraw.Draw(img)
+    Mu.grawlix(d, 430, y_piso(3) - 170, 40, t, "#@!", semilla=3)
+    Mu.alarma(d, 600, y_piso(5) - 190, t)
 
 def p_noche(lt, t):
-    img = edificio(t, noche=True, extras=[lambda im, tt: vecinos_pequeños(im, tt, noche=True, poke_dentro=True)])
-    d = ImageDraw.Draw(img)
-    # el globo, todavia pegado al techo de la escalera
+    img = edificio(t, noche=True, extras=[vecinos_noche])
     Mu.bubble(img, 900, y_piso(5) - 160, 120, dict(susto=1.0, boca="o", tiembla=1.0, mira=(0, 1)), t)
-    # ventanas encendidas en el 3o (la bronca sigue)
-    z = 1.0 + 1.6*suave((lt - 1.5)/1.8)
-    if lt > 3.0:      # el gato mira a camara y levanta una ceja
-        pass
-    return img, (W/2 + (560 - W/2)*suave((lt - 1.5)/1.8), H/2 + (y_piso(0) - 160 - H/2)*suave((lt - 1.5)/1.8), z)
+    k = suave((lt - 1.4)/1.6)
+    if lt > 3.0:
+        d = ImageDraw.Draw(img)
+        Mu.gato(img, 560, y_piso(0) - 60, 150, dict(mira=(0, 0), cansancio=0.8, sonrie=True), t)
+        d = ImageDraw.Draw(img); d.rectangle([460, y_piso(0) - 60, 660, y_piso(0)], fill=(150, 100, 70), outline=T, width=4)
+    return img, (W/2 + (560 - W/2)*k, H/2 + (y_piso(0) - 160 - H/2)*k, 1.0 + 1.8*k)
 
 def p_fin(lt, t, dur=3.5):
     img = Image.new("RGB", (W, H), (34, 32, 44)); d = ImageDraw.Draw(img)
@@ -460,16 +603,17 @@ def p_fin(lt, t, dur=3.5):
 
 # ---------------------------------------------------------------- el montaje
 GUION = [
-    (p_edificio, 3.2, [(0.0, "tema")]),
-    (p_porteria, 7.5, [(0.3, "pasos2.0"), (2.3, "boing"), (4.6, "raspa1.4"), (6.2, "tin")]),
-    (p_pasillo2, 8.2, [(0.0, "pasos1.6"), (1.6, "puerta"), (3.4, "susto"), (3.9, "silbido"), (5.0, "bonk"), (5.1, "pito")]),
-    (p_globo_techo, 2.2, [(0.0, "tiembla")]),
-    (p_escalera_3, 6.0, [(0.0, "bronca3.2"), (3.2, "pop")]),
-    (p_atico, 9.0, [(0.0, "pasos1.2"), (1.45, "toc"), (1.7, "toc"), (1.95, "toc"), (2.2, "cruje"), (3.3, "susto"),
-                    (4.0, "portazo"), (4.3, "clack"), (4.6, "clack"), (4.9, "clack"), (6.0, "papel")]),
-    (p_nota, 2.6, []),
-    (p_piso, 8.5, [(0.0, "pasos1.8"), (2.0, "suspiro"), (4.3, "poof"), (6.6, "tema_feliz")]),
-    (p_noche, 3.6, []),
+    (p_edificio, 2.8, [(0.0, "tema")]),
+    (p_porteria, 7.6, [(0.3, "pasos1.3"), (1.7, "ding"), (2.05, "ding"), (2.4, "ding"), (3.7, "hiss"), (4.9, "raspa0.3"),
+                       (5.1, "silbido_corto"), (5.9, "clink")]),
+    (p_ascensor, 8.6, [(0.0, "pasos1.2"), (1.3, "tap"), (1.8, "puerta_asc"), (1.9, "bronca1.5"), (3.4, "silencio"), (4.0, "swip"),
+                       (4.6, "tiembla_corto"), (5.4, "pops"), (6.4, "puerta_asc"), (6.9, "ding_asc")]),
+    (p_pasillo2, 8.6, [(0.0, "pasos1.4"), (1.4, "puerta"), (3.1, "susto"), (3.6, "pedorreta2.6"), (4.2, "bonk"), (4.25, "boing"),
+                       (6.9, "clonk"), (7.0, "pito")]),
+    (p_atico, 9.2, [(0.0, "pasos1.2"), (1.45, "toc"), (1.7, "toc"), (1.95, "toc"), (2.2, "cruje"), (2.95, "susto"),
+                    (3.6, "portazo"), (3.9, "clacks1.3"), (5.2, "cadenas"), (5.6, "rueda"), (6.0, "sirena2.6"), (6.8, "clang")]),
+    (p_piso, 9.6, [(0.0, "pasos1.6"), (1.8, "suspiro"), (4.1, "poof"), (5.6, "tema_feliz"), (7.9, "achoo"), (8.3, "silbido")]),
+    (p_noche, 4.0, []),
     (lambda lt, t: p_fin(lt, t, 3.5), 3.5, [(0.0, "fin")]),
 ]
 
@@ -505,8 +649,9 @@ def musica():
     bajos = [48, 55, 53, 55, 48, 52, 55, 43]
     silencios = []
     _I = {fn: a for a, b, fn, s in TABLA}
-    t_portazo = _I[p_atico] + 4.0; t_poof = _I[p_piso] + 4.3; t_triste = _I[p_piso] + 1.8
-    silencios = [(t_portazo - 0.05, t_portazo + 2.6), (t_triste, t_poof + 2.0)]
+    t_portazo = _I[p_atico] + 3.6; t_poof = _I[p_piso] + 4.1; t_triste = _I[p_piso] + 1.6
+    t_silencio = _I[p_ascensor] + 3.4
+    silencios = [(t_silencio, t_silencio + 2.0), (t_portazo - 0.05, t_portazo + 4.4), (t_triste, t_poof + 1.4)]
     def callado(tt): return any(a <= tt < b for a, b in silencios)
     k = 0; tt = 0.0
     while tt < DUR - 2.0:
@@ -525,7 +670,7 @@ def musica():
         k += 1
     # la parte triste: unas notas lentas en menor
     for j, m in enumerate([69, 67, 64, 62, 64]):
-        s0 = int((t_triste + 0.3 + j*0.55)*SR); L = int(1.0*SR); x = np.arange(L)/SR
+        s0 = int((t_triste + 0.2 + j*0.45)*SR); L = int(1.0*SR); x = np.arange(L)/SR
         if s0 + L <= n:
             out[s0:s0 + L] += 0.07*np.exp(-x*3)*np.sin(2*np.pi*nota_f(m)*x)
     return out
@@ -592,6 +737,54 @@ def efectos():
             elif tipo == "tema_feliz":
                 for j, m in enumerate([72, 76, 79, 84]):
                     pon(T0 + j*0.14, tono(nota_f(m), 0.5, 0.08, 5))
+            elif tipo == "ding":
+                pon(T0, tono(1760, 0.5, 0.12, 6)); pon(T0, tono(2640, 0.4, 0.05, 7))
+            elif tipo == "hiss":
+                x = ruido(1.0, 0.35, 2); x *= np.exp(-np.arange(len(x))/SR*2.5); pon(T0, x)
+            elif tipo == "silbido_corto":
+                pon(T0, barrido(800, 1600, 0.6, 0.08, 2))
+            elif tipo == "clink":
+                pon(T0, tono(3200, 0.4, 0.1, 9)); pon(T0, tono(4100, 0.3, 0.06, 10))
+            elif tipo == "tap":
+                pon(T0, tono(1200, 0.05, 0.08, 60))
+            elif tipo == "puerta_asc":
+                x = ruido(0.5, 0.06, 40); pon(T0, x)
+            elif tipo == "ding_asc":
+                pon(T0, tono(1318, 0.8, 0.1, 3)); pon(T0 + 0.25, tono(1046, 0.8, 0.1, 3))
+            elif tipo == "silencio":
+                pass
+            elif tipo == "swip":
+                pon(T0, barrido(300, 2400, 0.35, 0.1, 3))
+            elif tipo == "tiembla_corto":
+                x = np.arange(int(0.8*SR))/SR; pon(T0, 0.05*np.sin(2*np.pi*120*x)*(0.5 + 0.5*np.sign(np.sin(2*np.pi*14*x))))
+            elif tipo == "pops":
+                for j in range(14):
+                    pon(T0 + j*0.07 + rnd.uniform(0, 0.03), ruido(0.08, 0.5, 2)*np.exp(-np.arange(int(0.08*SR))/SR*50))
+            elif tipo.startswith("pedorreta"):          # el globo desinflandose
+                d = float(tipo[9:]); x = np.arange(int(d*SR))/SR
+                f = 90 + 40*np.sin(2*np.pi*3*x) + 30*x
+                pon(T0, 0.18*np.sign(np.sin(2*np.pi*np.cumsum(f)/SR))*np.minimum(1, x/0.05)*np.minimum(1, (d - x)/0.3)*(0.6 + 0.4*np.sin(2*np.pi*11*x)))
+            elif tipo == "clonk":
+                pon(T0, tono(140, 0.4, 0.4, 10)); pon(T0, tono(310, 0.3, 0.15, 12))
+            elif tipo.startswith("clacks"):
+                d = float(tipo[6:]); k = 0.0; paso = 0.17
+                while k < d:
+                    pon(T0 + k, ruido(0.05, 0.4, 3)*np.exp(-np.arange(int(0.05*SR))/SR*80) + tono(900, 0.05, 0.1, 60))
+                    k += paso; paso = max(0.08, paso*0.9)
+            elif tipo == "cadenas":
+                for j in range(8):
+                    pon(T0 + j*0.05, tono(2400 + 300*(j % 3), 0.15, 0.05, 20))
+            elif tipo == "rueda":
+                for j in range(12):
+                    pon(T0 + j*0.06, ruido(0.03, 0.2, 3)*np.exp(-np.arange(int(0.03*SR))/SR*90))
+            elif tipo.startswith("sirena"):
+                d = float(tipo[6:]); k = 0.0
+                while k < d:
+                    pon(T0 + k, tono(880, 0.25, 0.06, 1)); pon(T0 + k + 0.25, tono(660, 0.25, 0.06, 1)); k += 0.5
+            elif tipo == "clang":
+                pon(T0, tono(520, 0.9, 0.15, 4)); pon(T0, tono(1350, 0.7, 0.08, 5))
+            elif tipo == "achoo":
+                pon(T0, barrido(300, 900, 0.3, 0.08, 2)); pon(T0 + 0.35, ruido(0.4, 0.5, 6)*np.exp(-np.arange(int(0.4*SR))/SR*8))
             elif tipo == "fin":
                 for j, m in enumerate([79, 76, 72]):
                     pon(T0 + 0.2 + j*0.18, tono(nota_f(m), 0.6, 0.08, 4))

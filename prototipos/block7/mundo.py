@@ -307,6 +307,10 @@ def bubble(img, cx, cy, h, st, t):
     ojos(d, cx + st.get("dir", 0)*rx*0.15, cy - ry*0.12, s, GLOBO, st.get("mira", (0, 0)), 0, st.get("parpadeo", 0),
          st.get("ceja", 0), st.get("feliz", 0), st.get("susto", 0))
     boca(d, cx + st.get("dir", 0)*rx*0.15, cy + ry*0.28, s, st.get("boca", "sonrisa"))
+    if st.get("rubor"):
+        for lado in (-1, 1):
+            ex = cx + lado*rx*0.55
+            d.ellipse([ex - rx*0.18, cy + ry*0.12, ex + rx*0.18, cy + ry*0.26], fill=(244, 130, 160))
     return {"cara": (cx, cy), "nudo": nudo}
 
 
@@ -318,9 +322,19 @@ def gato(img, cx, base, h, st, t):
     # la cola, que asoma y se mueve
     cola = [(cx + h*0.25, base), (cx + h*0.42, base - h*0.1 + math.sin(t*2.2)*h*0.04), (cx + h*0.38, base - h*0.32 + math.sin(t*2.2 + 1)*h*0.05)]
     d.line(cola, fill=T, width=int(h*0.06) + 2*g, joint="curve"); d.line(cola, fill=GATO, width=int(h*0.06), joint="curve")
+    hy = base - h*0.62; r = h*0.24
+    eriz = st.get("erizado", 0.0)
+    if eriz > 0:                      # el pelo de punta: una estrella de pinchos detras de todo
+        pts = []
+        n = 26
+        for i in range(n*2):
+            a = i/(n*2)*2*math.pi
+            rr = (h*0.42 if i % 2 == 0 else h*0.3)*(0.7 + 0.5*eriz)
+            pts.append((cx + math.cos(a)*rr*1.05, base - h*0.38 + math.sin(a)*rr*1.15))
+        d.polygon(pts, fill=GATO_OSC, outline=T)
+        d.line(pts + [pts[0]], fill=T, width=g)
     d.rounded_rectangle([cx - h*0.26, base - h*0.45, cx + h*0.26, base + h*0.1], radius=int(h*0.2), fill=GATO, outline=T, width=g)
     d.ellipse([cx - h*0.13, base - h*0.38, cx + h*0.13, base - h*0.02], fill=(214, 210, 218))
-    hy = base - h*0.62; r = h*0.24
     for lado in (-1, 1):
         d.polygon([(cx + lado*r*0.95, hy - r*0.3), (cx + lado*r*0.75, hy - r*1.25), (cx + lado*r*0.2, hy - r*0.85)], fill=GATO, outline=T)
         d.polygon([(cx + lado*r*0.82, hy - r*0.45), (cx + lado*r*0.72, hy - r*1.0), (cx + lado*r*0.38, hy - r*0.8)], fill=(232, 170, 180))
@@ -367,9 +381,22 @@ def huevo_cara(img, cx, cy, h, st, t):
                 0, 180, fill=(246, 246, 246), outline=T, width=max(2, g - 1))
     if st.get("boca"):
         boca(d, cx, by + ry*0.18, s*0.9, st["boca"])
-    # el gorro de dormir
-    d.polygon([(cx - rx*0.7, cy - ry*0.75), (cx + rx*0.75, cy - ry*0.78), (cx + rx*1.2, cy - ry*1.25)], fill=(110, 130, 196), outline=T)
-    d.ellipse([cx + rx*1.1, cy - ry*1.36, cx + rx*1.34, cy - ry*1.12], fill=BLANCO, outline=T, width=2)
+    if st.get("burbujas"):         # el plastico de burbujas, por si acaso
+        d.chord([cx - rx + g, cy - ry*0.1, cx + rx - g, cy + ry - g], 0, 180, fill=(214, 232, 240))
+        for i in range(-4, 5):
+            for j in range(0, 4):
+                bx_, by_ = cx + i*rx*0.2 + (j % 2)*rx*0.1, cy + ry*0.5 + j*ry*0.12
+                if ((bx_ - cx)/rx)**2 + ((by_ - cy)/ry)**2 < 0.85:
+                    d.ellipse([bx_ - rx*0.07, by_ - rx*0.07, bx_ + rx*0.07, by_ + rx*0.07], outline=(150, 186, 206), width=2)
+    sube = st.get("casco_salta", 0.0)
+    if st.get("casco"):            # el casco de obra amarillo
+        yy = cy - ry*0.7 - sube*ry*0.8
+        d.chord([cx - rx*0.85, yy - ry*0.55, cx + rx*0.85, yy + ry*0.35], 180, 360, fill=(250, 200, 50), outline=T, width=g)
+        d.rounded_rectangle([cx - rx*1.0, yy - ry*0.1, cx + rx*1.0, yy + ry*0.04], radius=6, fill=(230, 180, 40), outline=T, width=g)
+        d.line([(cx, yy - ry*0.5), (cx, yy - ry*0.1)], fill=(220, 170, 30), width=g + 2)
+    else:
+        d.polygon([(cx - rx*0.7, cy - ry*0.75), (cx + rx*0.75, cy - ry*0.78), (cx + rx*1.2, cy - ry*1.25)], fill=(110, 130, 196), outline=T)
+        d.ellipse([cx + rx*1.1, cy - ry*1.36, cx + rx*1.34, cy - ry*1.12], fill=BLANCO, outline=T, width=2)
     return {"cara": (cx, cy)}
 
 
@@ -515,3 +542,71 @@ def cubi(img, cx, suelo, h, st, t):
         for k in range(3):
             yy = y1 + ((t*1.5 + k/3) % 1.0)*h*0.2
             d.ellipse([cx - w*0.3 + k*w*0.3 - 6, yy - 9, cx - w*0.3 + k*w*0.3 + 6, yy + 9], fill=(150, 200, 236))
+
+
+# ---------------------------------------------------------------- recursos de comedia
+def grawlix(d, x, y, s, t, texto="#@%!", color=(230, 40, 40), semilla=0):
+    """El bocadillo de los insultos de tebeo: una explosion blanca con #@%!."""
+    rnd = random.Random(semilla + int(t*8))
+    pts = []
+    n = 14
+    for i in range(n*2):
+        a = i/(n*2)*2*math.pi
+        r = s*(1.0 if i % 2 == 0 else 0.68)*rnd.uniform(0.92, 1.08)
+        pts.append((x + math.cos(a)*r*1.25, y + math.sin(a)*r*0.85))
+    d.polygon(pts, fill=(252, 252, 250), outline=T)
+    d.line(pts + [pts[0]], fill=T, width=max(3, int(s*0.05)))
+    d.text((x, y), texto, font=fuente(s*0.62), fill=color, anchor="mm")
+
+
+def rayo(d, p0, p1, t, color=(255, 214, 40)):
+    """Rayos entre los ojos de dos que se odian."""
+    rnd = random.Random(int(t*20))
+    n = 7
+    pts = [p0]
+    for k in range(1, n):
+        f = k/n
+        pts.append((p0[0] + (p1[0] - p0[0])*f + rnd.uniform(-14, 14), p0[1] + (p1[1] - p0[1])*f + rnd.uniform(-22, 22)))
+    pts.append(p1)
+    d.line(pts, fill=T, width=12)
+    d.line(pts, fill=color, width=6)
+
+
+def vena(d, x, y, s, t):
+    """La vena del enfado: cuatro arcos rojos que laten."""
+    k = 1 + 0.15*math.sin(t*18)
+    r = s*0.18*k
+    for dx, dy, a0 in ((-1, -1, 0), (1, -1, 90), (1, 1, 180), (-1, 1, 270)):
+        cx, cy = x + dx*r*0.95, y + dy*r*0.95
+        d.arc([cx - r, cy - r, cx + r, cy + r], a0 + 90, a0 + 180, fill=(220, 40, 40), width=max(4, int(s*0.06)))
+
+
+def alarma(d, x, y, t, encendida=True):
+    on = encendida and (t*4) % 1.0 < 0.5
+    d.chord([x - 50, y - 60, x + 50, y + 40], 180, 360, fill=(240, 60, 50) if on else (150, 40, 40), outline=T, width=5)
+    d.rectangle([x - 60, y - 10, x + 60, y + 10], fill=(80, 80, 90), outline=T, width=4)
+    if on:
+        for a in (-150, -120, -90, -60, -30):
+            r = math.radians(a)
+            d.line([(x + math.cos(r)*70, y - 10 + math.sin(r)*70), (x + math.cos(r)*120, y - 10 + math.sin(r)*120)], fill=(255, 80, 60), width=8)
+
+
+def palomita_suelta(d, x, y, r):
+    for dx, dy, k in ((-0.4, 0.1, 0.62), (0.4, 0.1, 0.62), (0, -0.35, 0.66), (0, 0.3, 0.6)):
+        d.ellipse([x + dx*r - k*r, y + dy*r - k*r, x + dx*r + k*r, y + dy*r + k*r], fill=PALOMITA, outline=T, width=2)
+    d.ellipse([x - r*0.25, y + r*0.05, x + r*0.15, y + r*0.4], fill=(246, 214, 120))
+
+
+def palomitas_pegadas(img, info, k, semilla=4):
+    """Palomitas clavadas en los pinchos del cactus."""
+    if k <= 0: return
+    d = ImageDraw.Draw(img)
+    x0, y0, x1, y1 = info["cuerpo"]
+    rnd = random.Random(semilla)
+    for i in range(int(18*k)):
+        lado = rnd.choice((-1, 1))
+        x = (x0 if lado < 0 else x1) + lado*rnd.uniform(-10, 18)
+        y = rnd.uniform(y0 + (y1 - y0)*0.15, y1 - 10)
+        if rnd.random() < 0.35:
+            x = rnd.uniform(x0 + 20, x1 - 20); y = rnd.uniform(y0 + (y1 - y0)*0.55, y1 - 20)
+        palomita_suelta(d, x, y, rnd.uniform(14, 20))
