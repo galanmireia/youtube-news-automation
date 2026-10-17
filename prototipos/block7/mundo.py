@@ -64,7 +64,7 @@ def corazon(d, x, y, r, color=(232, 60, 90)):
 
 
 def ojos(d, cx, cy, s, piel, mira=(0, 0), cansancio=0.0, parpadeo=0.0, ceja=0.0, feliz=0.0, susto=0.0,
-         enfado=0.0, juntos=1.0, amor=0.0, guino=0.0):
+         enfado=0.0, juntos=1.0, amor=0.0, guino=0.0, pestanas=0.0):
     """Ojos grandes de dibujo animado. s: el tamaño de la cara.
     ceja: + triste, - sorprendida. susto: ojos enormes y pupila pequeña."""
     g = max(3, int(s*0.03))
@@ -72,6 +72,10 @@ def ojos(d, cx, cy, s, piel, mira=(0, 0), cansancio=0.0, parpadeo=0.0, ceja=0.0,
     for lado in (-1, 1):
         ex = cx + lado*sep
         rx, ry = s*0.13*(1 + 0.25*susto), s*0.16*(1 + 0.3*susto)
+        if pestanas and amor <= 0.5:   # tres pestañas hacia fuera
+            for a in ((25, 50, 75) if lado > 0 else (105, 130, 155)):
+                r = math.radians(a); bx_, by_ = ex + math.cos(r)*rx, cy - math.sin(r)*ry*(0.5 if feliz > 0.5 else 1.0)
+                d.line([(bx_, by_), (bx_ + math.cos(r)*s*0.07, by_ - math.sin(r)*s*0.07)], fill=T, width=g)
         if amor > 0.5:                 # ojos de corazon, que laten
             corazon(d, ex, cy, s*0.15*(1 + 0.12*amor), (232, 60, 90))
             continue
@@ -319,8 +323,15 @@ def bubble(img, cx, cy, h, st, t):
               fill=GLOBO_OSC, outline=T)
     s = rx*1.7
     ojos(d, cx + st.get("dir", 0)*rx*0.15, cy - ry*0.12, s, GLOBO, st.get("mira", (0, 0)), 0, st.get("parpadeo", 0),
-         st.get("ceja", 0), st.get("feliz", 0), st.get("susto", 0), amor=st.get("amor", 0))
+         st.get("ceja", 0), st.get("feliz", 0), st.get("susto", 0), amor=st.get("amor", 0), pestanas=st.get("pestanas", 1.0))
     boca(d, cx + st.get("dir", 0)*rx*0.15, cy + ry*0.28, s, st.get("boca", "sonrisa"))
+    if st.get("velo"):             # el velo de novia (la foto de la boda)
+        d.polygon([(cx - rx*0.7, cy - ry*0.75), (cx + rx*0.7, cy - ry*0.75), (cx + rx*1.25, cy + ry*0.9), (cx - rx*1.25, cy + ry*0.9)],
+                  outline=(200, 200, 210), width=max(2, g - 1))
+        for k in range(5):
+            a = k/5*2*math.pi
+            d.ellipse([cx + math.cos(a)*rx*0.18 - rx*0.12, cy - ry*0.85 + math.sin(a)*rx*0.12 - rx*0.12,
+                       cx + math.cos(a)*rx*0.18 + rx*0.12, cy - ry*0.85 + math.sin(a)*rx*0.12 + rx*0.12], fill=BLANCO, outline=T, width=2)
     if st.get("rubor"):
         for lado in (-1, 1):
             ex = cx + lado*rx*0.55
@@ -580,12 +591,47 @@ def cubi(img, cx, suelo, h, st, t):
         hb = (cx + lado*w/2, y0 + w*0.55)
         brazo_fino(d, hb, (hb[0] + lado*h*0.08, hb[1] + h*0.08), (hb[0] + lado*h*0.1, hb[1] + h*0.18), h)
     s = w*1.0
-    ojos(d, cx, y0 + w*0.42, s, (196, 230, 246), st.get("mira", (0, 0)), 0, 0, 0, st.get("feliz", 0))
+    ojos(d, cx, y0 + w*0.42, s, (196, 230, 246), st.get("mira", (0, 0)), 0, 0, st.get("ceja", 0), st.get("feliz", 0), st.get("susto", 0),
+         amor=st.get("amor", 0), pestanas=st.get("pestanas", 0))
     boca(d, cx, y0 + w*0.68, s, st.get("boca", "abierta"))
+    if st.get("lazo"):
+        lazo(d, cx + w*0.3, y0 + w*0.02, h*0.09)
     if st.get("gotas"):
         for k in range(3):
             yy = y1 + ((t*1.5 + k/3) % 1.0)*h*0.2
             d.ellipse([cx - w*0.3 + k*w*0.3 - 6, yy - 9, cx - w*0.3 + k*w*0.3 + 6, yy + 9], fill=(150, 200, 236))
+
+
+def lazo(d, x, y, r, color=(232, 60, 110)):
+    for lado in (-1, 1):
+        d.polygon([(x, y), (x + lado*r, y - r*0.6), (x + lado*r, y + r*0.6)], fill=color, outline=T)
+    d.ellipse([x - r*0.3, y - r*0.3, x + r*0.3, y + r*0.3], fill=color, outline=T, width=2)
+
+def tosti(img, cx, suelo, h, st, t):
+    """Tosti, la tostadora del 1o: mucho genio, siempre echando humo. Casada con Don Huevo."""
+    d = ImageDraw.Draw(img)
+    g = max(2, int(h*0.014))
+    piernas(d, cx, suelo - h*0.18, suelo, h)
+    w, hh = h*0.6, h*0.5
+    y1 = suelo - h*0.16; y0 = y1 - hh
+    cuerpo = (206, 208, 216)
+    d.rounded_rectangle([cx - w/2, y0, cx + w/2, y1], radius=int(w*0.2), fill=cuerpo, outline=T, width=g)
+    for k in (-1, 1):
+        d.rounded_rectangle([cx + k*w*0.18 - w*0.08, y0 - h*0.02, cx + k*w*0.18 + w*0.08, y0 + h*0.04], radius=4, fill=T)
+    d.rectangle([cx + w/2, y0 + hh*0.3, cx + w/2 + h*0.05, y0 + hh*0.45], fill=T)
+    for lado in (-1, 1):
+        hb = (cx + lado*w/2, y0 + hh*0.6)
+        if st.get("brazos_jarra"):     # los brazos en jarra
+            brazo_fino(d, hb, (hb[0] + lado*h*0.12, hb[1] - h*0.02), (hb[0] + lado*h*0.02, hb[1] + h*0.08), h)
+        else:
+            brazo_fino(d, hb, (hb[0] + lado*h*0.08, hb[1] + h*0.08), (hb[0] + lado*h*0.1, hb[1] + h*0.18), h)
+    ojos(d, cx + st.get("dir", 0)*w*0.1, y0 + hh*0.42, w*0.9, cuerpo, st.get("mira", (0.5, 0)), 0, st.get("parpadeo", 0),
+         st.get("ceja", 0), st.get("feliz", 0), st.get("susto", 0), st.get("enfado", 0), amor=st.get("amor", 0), pestanas=1)
+    boca(d, cx + st.get("dir", 0)*w*0.1, y0 + hh*0.75, w*0.9, st.get("boca", "grito" if st.get("enfado") else "sonrisa"))
+    lazo(d, cx - w*0.3, y0 - h*0.01, h*0.07)
+    if st.get("enfado"):
+        humo_enfado(d, cx, y0 - 10, h*0.12, t)
+    return {"cara": (cx, y0 + hh*0.42), "top": y0}
 
 
 # ---------------------------------------------------------------- recursos de comedia
@@ -687,8 +733,11 @@ def salero(img, cx, suelo, h, st, t, pimienta=False):
     d.rectangle([cx - bw*0.52, y0 - bh*0.04, cx + bw*0.52, y0 + bh*0.06], fill=(176, 178, 186), outline=T, width=g)
     for k in (-1, 0, 1):
         d.ellipse([cx + k*bw*0.18 - h*0.012, y0 - bh*0.18 - h*0.012, cx + k*bw*0.18 + h*0.012, y0 - bh*0.18 + h*0.012], fill=T)
+    if st.get("marido"):           # la gorra de abuelo
+        d.chord([cx - bw*0.52, y0 - bh*0.36, cx + bw*0.52, y0 + bh*0.02], 180, 360, fill=(110, 96, 80), outline=T, width=g)
+        d.chord([cx - bw*0.1, y0 - bh*0.12, cx + bw*0.8, y0 + bh*0.04], 180, 360, fill=(90, 78, 64), outline=T, width=g)
     # los rulos
-    for k, col in zip((-1, 0, 1), ((246, 150, 180), (150, 200, 240), (246, 150, 180))):
+    for k, col in zip((-1, 0, 1), ((246, 150, 180), (150, 200, 240), (246, 150, 180)) if not st.get("marido") else ()):
         x = cx + k*bw*0.3
         d.rounded_rectangle([x - h*0.04, y0 - bh*0.34 - h*0.05 + abs(k)*h*0.02, x + h*0.04, y0 - bh*0.34 + h*0.03 + abs(k)*h*0.02],
                             radius=int(h*0.02), fill=col, outline=T, width=2)
@@ -710,13 +759,16 @@ def salero(img, cx, suelo, h, st, t, pimienta=False):
             d.ellipse([ex - s*0.1, ey - s*0.08, ex + s*0.1, ey + s*0.1], fill=(150, 190, 220), outline=T, width=2)
     else:
         ojos(d, cx, ey, s, cuerpo, st.get("mira", (0, 0)), 0, st.get("parpadeo", 0), st.get("ceja", 0.2), st.get("feliz", 0),
-             st.get("susto", 0))
+             st.get("susto", 0), st.get("enfado", 0), amor=st.get("amor", 0), pestanas=0 if st.get("marido") else 1)
         for lado in (-1, 1):                    # las gafas de abuela, en la punta
             ex = cx + lado*s*0.2
             d.ellipse([ex - s*0.17, ey - s*0.14, ex + s*0.17, ey + s*0.2], outline=(180, 140, 60), width=g)
         d.line([(cx - s*0.04, ey), (cx + s*0.04, ey)], fill=(180, 140, 60), width=g)
     if not st.get("tapa_boca"):
         boca(d, cx, ey + s*0.34, s, st.get("boca", "o"))
+    if st.get("marido"):           # el bigote blanco
+        for lado in (-1, 1):
+            d.chord([cx + (lado - 1)*s*0.14, ey + s*0.17, cx + (lado + 1)*s*0.14, ey + s*0.33], 180, 360, fill=(246, 246, 246), outline=T, width=2)
     return {"cara": (cx, ey), "top": y0 - bh*0.34}
 
 

@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import mundo as Mu
 import sonido as S
 import ep01_sofa as E
+import cabecera as C
 from mundo import T, W, H, suave, fuente
 
 OUT = str(Path(__file__).resolve().parent) + "/salida/"
@@ -89,14 +90,14 @@ def petalo(d, x, y, r, ang, col=(240, 90, 120)):
     d.polygon(pts, fill=col, outline=T)
 
 def foto(img, x0, y0, x1, y1):
-    """La foto enmarcada de la pared: Bubble y Mag, felices, con un corazon."""
+    """La foto de la boda en la pared: Bubble con su velo y Mag, felices, con un corazon."""
     d = ImageDraw.Draw(img)
     g = max(4, int((x1 - x0)*0.05))
     d.rectangle([x0, y0, x1, y1], fill=(212, 170, 70), outline=T, width=max(3, g//3))
     fondo = (196, 226, 244)
     d.rectangle([x0 + g, y0 + g, x1 - g, y1 - g], fill=fondo, outline=T, width=max(2, g//4))
     w, h = x1 - x0, y1 - y0
-    Mu.bubble(img, x0 + w*0.33, y0 + h*0.42, h*0.62, dict(feliz=1.0, rubor=True, mira=(0.8, 0), cuerda=False), 0.0)
+    Mu.bubble(img, x0 + w*0.33, y0 + h*0.45, h*0.56, dict(feliz=1.0, rubor=True, mira=(0.8, 0), cuerda=False, velo=True), 0.0)
     Mu.mag(img, x0 + w*0.68, y1 - g - h*0.02, h*0.68, dict(feliz=1.0, fondo=fondo, mira=(-0.8, 0)), 0.0)
     Mu.corazon(ImageDraw.Draw(img), x0 + w*0.5, y0 + h*0.2, h*0.09)
 
@@ -427,6 +428,21 @@ def p_fin(lt, t, dur=3.0):
     return img, (W/2, H/2, 1.0)
 
 # ---------------------------------------------------------------- el montaje
+def antes(fn):
+    """El primer plano de la historia, con el rotulo de flashback encima."""
+    def plano(lt, t):
+        img, cam = fn(lt, t)
+        a = suave(lt/0.3)*suave((1.9 - lt)/0.3)
+        if a > 0:
+            img = Mu.recorte(img, *cam[:2], max(1.0, cam[2])) if cam[2] > 1.001 else img
+            capa = Image.new("RGBA", (W, H), (0, 0, 0, 0)); c = ImageDraw.Draw(capa)
+            c.rounded_rectangle([170, 150, W - 170, 290], radius=30, fill=(40, 6, 16, int(210*a)))
+            img = img.convert("RGBA"); img.alpha_composite(capa); img = img.convert("RGB")
+            ImageDraw.Draw(img).text((W/2, 220), "Earlier that day…", font=serif(66), fill=tuple(int(40 + (v - 40)*a) for v in (250, 250, 250)), anchor="mm")
+            return img, (W/2, H/2, 1.0)
+        return img, cam
+    return plano
+
 def escala(fn, dur, sfx, k):
     """El mismo plano de la version comedia, k veces mas rapido (y sus efectos, con el)."""
     def num(tipo):
@@ -435,14 +451,14 @@ def escala(fn, dur, sfx, k):
     return (lambda lt, t: fn(lt*k, t), dur/k, [(t0/k, num(tp)) for t0, tp in sfx])
 
 COMEDIA = [
-    (E.p_fachada2, 3.4, [(0.0, "raspa2.6"), (2.8, "tin")]),
     escala(E.p_ascensor, 8.5, [(0.8, "bonk"), (2.4, "bonk"), (4.2, "tin"), (5.6, "sirena1.4"), (7.0, "silbido_corto"), (7.4, "bonk"),
                                (7.5, "pito")], 1.55),
     escala(E.p_tira, 6.0, [(0.0, "raspa3.6"), (0.0, "pasos3.6"), (3.8, "boing"), (4.0, "pasos2.0")], 1.3),
     escala(E.p_rellano2, 5.4, [(0.0, "pasos1.8"), (1.8, "bonk"), (2.4, "pasos2.6")], 1.3),
 ]
-GUION = [(lambda lt, t: primer_plano(lt, t, "mag", (200, 30, 50)), 1.3, [(0.0, "dun0"), (0.0, "caen_flores")]),
-         (p_titulo, 2.6, [(0.0, "sting")])] + COMEDIA + [
+COMEDIA[0] = (antes(COMEDIA[0][0]),) + COMEDIA[0][1:]
+CABECERA = C.planos("Episode 1 · The Sofa")
+GUION = [(lambda lt, t: primer_plano(lt, t, "mag", (200, 30, 50)), 1.3, [(0.0, "dun0"), (0.0, "caen_flores")])] + CABECERA + COMEDIA + [
     (p_amor, 7.6, [(0.0, "pasos1.0"), (1.0, "crash"), (1.1, "susto"), (1.6, "romance6.0"), (1.7, "flechazo"), (5.6, "pasos0.8"),
                    (5.6, "tin")]),
     (p_manos, 4.2, [(0.0, "romance3.4"), (0.3, "latido"), (1.5, "latido"), (2.6, "latido"), (3.0, "latido"), (3.3, "cruje")]),
@@ -454,9 +470,9 @@ GUION = [(lambda lt, t: primer_plano(lt, t, "mag", (200, 30, 50)), 1.3, [(0.0, "
     (p_foto, 2.6, [(0.0, "violin8.6")]),
     (p_petalo, 2.8, []),
     (p_lagrima, 3.2, []),
-    (p_cotillas, 2.2, [(0.1, "susto"), (0.0, "tremolo2.2")]),
+    (p_cotillas, 2.0, [(0.1, "susto"), (0.0, "tremolo2.0")]),
     (p_continuara, 3.4, [(0.0, "tremolo0.4"), (0.4, "dun3")]),
-    (p_fin, 3.0, [(0.2, "romance2.8")]),
+    (lambda lt, t: p_fin(lt, t, 2.6), 2.6, [(0.2, "romance2.4")]),
 ]
 
 def tabla():
@@ -466,7 +482,7 @@ def tabla():
     return out, t
 
 TABLA, DUR = tabla()
-T_COMEDIA = (TABLA[2][0], TABLA[2 + len(COMEDIA)][0])
+T_COMEDIA = (TABLA[1 + len(CABECERA)][0], TABLA[1 + len(CABECERA) + len(COMEDIA)][0])
 SILENCIOS = [(0.0, T_COMEDIA[0]), (T_COMEDIA[1] - 0.3, DUR)]
 
 def fotograma(t):

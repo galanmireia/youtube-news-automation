@@ -105,6 +105,20 @@ def tremolo(d):
         out += cuerda(nota_f(m), d, 0.07, at=0.1, rel=0.2, arm=6)
     return out*(0.55 + 0.45*np.sign(np.sin(2*np.pi*13*x)))*(0.3 + 0.7*x/d)
 
+def cabecera(d):
+    """La sintonia de la cabecera: cuerdas y arpa, un violin apasionado encima y el ¡TAN! del logo."""
+    out = np.zeros(int(d*SR) + 3*SR)
+    out[:int(d*SR)] += romance(d)*0.9
+    melodia = [(76, 0.6), (77, 0.3), (76, 0.3), (74, 0.6), (72, 0.6), (71, 0.6), (72, 0.3), (74, 0.3), (76, 1.2)]
+    t = 0.6
+    for m, du in melodia:
+        if t >= d - 1.9: break
+        c = cuerda(nota_f(m), du + 0.2, 0.08, at=0.06, rel=0.2, voces=2, arm=10, vib=0.008)
+        s0 = int(t*SR); out[s0:s0 + len(c)] += c; t += du
+    g = golpe(0); s0 = int((d - 1.9)*SR); out[s0:s0 + len(g)] += g
+    p = platillo(2.0, 0.16, sube=False); out[s0:s0 + len(p)] += p
+    return out[:int(d*SR) + 2*SR]
+
 def efectos(TABLA, DUR):
     n = int(DUR*SR); out = np.zeros(n); rnd = np.random.default_rng(3)
     def pon(t0, x):
@@ -258,6 +272,8 @@ def efectos(TABLA, DUR):
                 pon(T0, golpe(int(tipo[3:] or 0)*2))
             elif tipo == "sting":                   # el arranque de la telenovela: platillo que crece y ¡TAN!
                 pon(T0, platillo(1.0, 0.25)); pon(T0 + 1.0, golpe(0)); pon(T0 + 1.0, platillo(2.0, 0.18, sube=False))
+            elif tipo.startswith("cabecera"):
+                pon(T0, cabecera(float(tipo[8:])))
             elif tipo.startswith("romance"):
                 pon(T0, romance(float(tipo[7:])))
             elif tipo.startswith("violin"):
