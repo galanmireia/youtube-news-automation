@@ -36,6 +36,75 @@ def musica(TABLA, DUR, silencios=(), triste=None, bpm=116):
             out[s0:s0 + L] += 0.07*np.exp(-x*3)*np.sin(2*np.pi*nota_f(m)*x)
     return out
 
+# ---------------------------------------------------------------- la orquesta de la telenovela
+def cuerda(f, d, vol, at=0.35, rel=0.6, voces=3, arm=8, vib=0.004):
+    """Una seccion de cuerda: varias voces de diente de sierra un poco desafinadas, con vibrato."""
+    x = np.arange(int(d*SR))/SR; out = np.zeros(len(x))
+    for v in range(voces):
+        det = 1 + (v - (voces - 1)/2)*0.004
+        fase = 2*np.pi*f*det*np.cumsum(1 + vib*np.sin(2*np.pi*5.5*x + v*1.7))/SR
+        for k in range(1, arm + 1):
+            out += np.sin(k*fase)/k*(0.8**k)
+    env = np.minimum(1, x/at)*np.clip((d - x)/rel, 0, 1)
+    return vol*out*env/voces
+
+def platillo(d, vol, sube=True):
+    rnd = np.random.default_rng(11); x = rnd.standard_normal(int(d*SR))
+    x = x - np.convolve(x, np.ones(6)/6, mode="same")
+    tt = np.arange(len(x))/SR
+    return vol*x*((tt/d)**2 if sube else np.exp(-tt*3))
+
+ACORDES = [((57, 60, 64), 45), ((53, 57, 60), 41), ((55, 60, 64), 48), ((55, 59, 62), 43)]    # Lam  Fa  Do  Sol
+
+def golpe(semitono=0):
+    """El ¡TAN! de la telenovela: timbal, metales y cuerda a la vez."""
+    d = 1.6; x = np.arange(int(d*SR))/SR
+    f0 = nota_f(33 + semitono)
+    out = 0.5*np.sin(2*np.pi*f0*x)*np.exp(-x*2.2) + 0.25*np.sin(2*np.pi*f0*2*x)*np.exp(-x*3)
+    out += 0.35*np.random.default_rng(5).standard_normal(len(x))*np.exp(-x*18)
+    for m in (45, 48, 52, 57):
+        c = cuerda(nota_f(m + semitono), d, 0.11, at=0.01, rel=0.5, voces=2, arm=10)
+        out += c*np.exp(-x*1.3)
+    return out
+
+def romance(d):
+    """Cuerdas y arpa en La menor: el amor a primera vista."""
+    out = np.zeros(int(d*SR) + 3*SR)
+    t = 0.0; i = 0
+    while t < d - 0.3:
+        notas, bajo = ACORDES[i % 4]; dur = min(2.0, d - t)
+        s0 = int(t*SR)
+        for m in notas:
+            c = cuerda(nota_f(m), dur + 0.4, 0.05, at=0.5, rel=0.6); out[s0:s0 + len(c)] += c
+        c = cuerda(nota_f(bajo), dur + 0.4, 0.06, at=0.3, rel=0.6, arm=5); out[s0:s0 + len(c)] += c
+        for j, m in enumerate(list(notas) + [notas[0] + 12, notas[1] + 12, notas[2] + 12, notas[0] + 24]):   # el arpa
+            if t + j*0.25 < d:
+                x = np.arange(int(1.2*SR))/SR; a0 = int((t + j*0.25)*SR)
+                arpa = 0.05*(np.sin(2*np.pi*nota_f(m + 12)*x) + 0.3*np.sin(2*np.pi*nota_f(m + 12)*2*x))*np.exp(-x*3.5)
+                out[a0:a0 + len(x)] += arpa
+        t += 2.0; i += 1
+    return out[:int(d*SR)]
+
+def violin(d):
+    """El violin triste, solo, sobre un acorde menor que no se resuelve."""
+    out = np.zeros(int(d*SR) + 3*SR)
+    melodia = [(76, 0.9), (74, 0.45), (72, 0.45), (71, 0.9), (72, 0.6), (69, 1.4), (64, 0.7), (69, 1.6)]
+    t = 0.0
+    for m, du in melodia:
+        if t >= d: break
+        c = cuerda(nota_f(m), du + 0.25, 0.09, at=0.08, rel=0.25, voces=1, arm=10, vib=0.007)
+        s0 = int(t*SR); out[s0:s0 + len(c)] += c; t += du
+    for m in (45, 57, 60, 64):
+        c = cuerda(nota_f(m), d, 0.035, at=0.8, rel=0.8); out[:len(c)] += c
+    return out[:int(d*SR)]
+
+def tremolo(d):
+    """Cuerdas graves en tremolo sobre un acorde disminuido: la tension, cada vez mas fuerte."""
+    x = np.arange(int(d*SR))/SR; out = np.zeros(len(x))
+    for m in (45, 48, 51, 54):
+        out += cuerda(nota_f(m), d, 0.07, at=0.1, rel=0.2, arm=6)
+    return out*(0.55 + 0.45*np.sign(np.sin(2*np.pi*13*x)))*(0.3 + 0.7*x/d)
+
 def efectos(TABLA, DUR):
     n = int(DUR*SR); out = np.zeros(n); rnd = np.random.default_rng(3)
     def pon(t0, x):
@@ -185,14 +254,31 @@ def efectos(TABLA, DUR):
             elif tipo == "flechazo":             # el arpa del amor a primera vista
                 for j, m in enumerate([72, 76, 79, 83, 84, 88, 91, 96]):
                     pon(T0 + j*0.07, tono(nota_f(m), 1.2, 0.05, 2.5))
+            elif tipo.startswith("dun"):            # dun0, dun1, dun2...: cada golpe un poco mas alto
+                pon(T0, golpe(int(tipo[3:] or 0)*2))
+            elif tipo == "sting":                   # el arranque de la telenovela: platillo que crece y ¡TAN!
+                pon(T0, platillo(1.0, 0.25)); pon(T0 + 1.0, golpe(0)); pon(T0 + 1.0, platillo(2.0, 0.18, sube=False))
+            elif tipo.startswith("romance"):
+                pon(T0, romance(float(tipo[7:])))
+            elif tipo.startswith("violin"):
+                pon(T0, violin(float(tipo[6:])))
+            elif tipo.startswith("tremolo"):
+                pon(T0, tremolo(float(tipo[7:])))
+            elif tipo == "latido":
+                for j in (0.0, 0.22):
+                    pon(T0 + j, tono(60, 0.25, 0.35, 14))
+            elif tipo == "caen_flores":
+                pon(T0, barrido(1200, 300, 1.2, 0.05, 1)); pon(T0 + 1.1, ruido(0.2, 0.3, 20)*np.exp(-np.arange(int(0.2*SR))/SR*20))
             elif tipo == "fin":
                 for j, m in enumerate([79, 76, 72]):
                     pon(T0 + 0.2 + j*0.18, tono(nota_f(m), 0.6, 0.08, 4))
     return out
 
-def audio(ruta, TABLA, DUR, silencios=(), triste=None):
+def audio(ruta, TABLA, DUR, silencios=(), triste=None, zona_tema=None):
+    """zona_tema=(t0, t1): donde suena el pizzicato; se normaliza solo ahi (el resto es orquesta de telenovela)."""
     mus = musica(TABLA, DUR, silencios, triste); fx = efectos(TABLA, DUR)
-    mus = mus/max(1e-6, np.sqrt(np.mean(mus**2)))*0.08
+    ref = mus[int(zona_tema[0]*SR):int(zona_tema[1]*SR)] if zona_tema else mus
+    mus = mus/max(1e-6, np.sqrt(np.mean(ref**2)))*0.08
     fx = np.tanh(fx*2.2)*0.55
     mix = np.tanh((mus + fx)*1.3)*0.92
     fo = int(1.0*SR); mix[-fo:] *= np.linspace(1, 0, fo)
