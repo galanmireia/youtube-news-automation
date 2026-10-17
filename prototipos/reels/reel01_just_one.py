@@ -15,7 +15,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 W, H, FPS = 1080, 1920, 30
-DUR = 11.0
+DUR = 15.0
 BEAT = 0.5
 OUT = str(Path(__file__).resolve().parent) + "/salida/"
 T = (30, 26, 32)
@@ -90,6 +90,8 @@ def cerdito(img, cx, cy, s, st, t):
             r = s*0.05
             d.ellipse([ex - r, ey - r*0.8, ex, ey + r*0.2], fill=(230, 50, 80)); d.ellipse([ex, ey - r*0.8, ex + r, ey + r*0.2], fill=(230, 50, 80))
             d.polygon([(ex - r*0.97, ey - r*0.15), (ex + r*0.97, ey - r*0.15), (ex, ey + r*1.05)], fill=(230, 50, 80))
+        elif ojos == "dolar":
+            d.text((ex, ey), "$", font=fuente(s*0.16), fill=(40, 150, 70), anchor="mm", stroke_width=max(3, g//2), stroke_fill=T)
         elif ojos == "grandes":
             d.ellipse([ex - s*0.06, ey - s*0.07, ex + s*0.06, ey + s*0.07], fill=(255, 255, 255), outline=T, width=g)
             d.ellipse([ex - s*0.025, ey - s*0.02, ex + s*0.025, ey + s*0.03], fill=T)
@@ -117,6 +119,9 @@ def cerdito(img, cx, cy, s, st, t):
         hx, hy = o + rx*0.62, o + s*0.12
         if coge == "cafe":
             vaso(d, hx + s*0.08, hy - s*0.1, s*0.32, t)
+        elif coge == "cartera":                    # abierta, delante de la barriga
+            hx, hy = o + s*0.12, o + s*0.3
+            cartera(d, hx, hy, s*0.36)
         elif coge == "donut":
             donut(d, hx + s*0.06, hy - s*0.02, s*0.2, st.get("mordido", 0))
         trazo(d, ovalo(hx, hy, s*0.07, s*0.055, sem + 5, tb, 20), ROSA, g)
@@ -151,6 +156,54 @@ def donut(d, x, y, r, mordido=0):
         for k in range(int(mordido*3)):                 # los bocados
             bx = x + r*0.85 - k*r*0.25; by = y - r*0.55
             d.ellipse([bx - r*0.22, by - r*0.22, bx + r*0.22, by + r*0.22], fill=(0, 0, 0, 0))
+
+def cartera(d, x, y, s):
+    """La cartera abierta, esperando."""
+    g = max(5, int(s*0.05))
+    d.rounded_rectangle([x - s*0.5, y - s*0.15, x + s*0.5, y + s*0.45], radius=int(s*0.1), fill=(120, 76, 50), outline=T, width=g)
+    d.polygon([(x - s*0.5, y - s*0.15), (x + s*0.5, y - s*0.15), (x + s*0.42, y - s*0.55), (x - s*0.42, y - s*0.55)], fill=(150, 98, 64), outline=T)
+    d.line([(x - s*0.5, y - s*0.15), (x - s*0.42, y - s*0.55), (x + s*0.42, y - s*0.55), (x + s*0.5, y - s*0.15)], fill=T, width=g)
+    d.rectangle([x - s*0.4, y - s*0.13, x + s*0.4, y - s*0.05], fill=(40, 26, 20))
+    d.ellipse([x + s*0.3, y + s*0.08, x + s*0.42, y + s*0.2], fill=(232, 196, 90), outline=T, width=3)
+
+def billete(d, x, y, s, ang):
+    """Un billete verde volando, dando vueltas (se 'voltea' y se estrecha al girar)."""
+    esc = abs(math.cos(ang*0.7))*0.7 + 0.3
+    ca, sa = math.cos(ang), math.sin(ang)
+    rot = lambda px, py: (x + (px*ca - py*sa)*s*0.5, y + (px*sa + py*ca)*s*0.5*esc)
+    pts = [(-1, -0.45), (1, -0.45), (1, 0.45), (-1, 0.45)]
+    d.polygon([rot(*q) for q in pts], fill=(120, 196, 120))
+    d.line([rot(*q) for q in pts + [pts[0]]], fill=T, width=5)
+    d.line([rot(*q) for q in [(-0.8, -0.3), (0.8, -0.3), (0.8, 0.3), (-0.8, 0.3), (-0.8, -0.3)]], fill=(60, 130, 60), width=3)
+    cx_, cy_ = rot(0, 0)
+    d.ellipse([cx_ - s*0.13, cy_ - s*0.13*esc, cx_ + s*0.13, cy_ + s*0.13*esc], fill=(200, 236, 190), outline=(60, 130, 60), width=3)
+    if esc > 0.6:
+        d.text((cx_, cy_), "$", font=fuente(s*0.17), fill=(40, 110, 40), anchor="mm")
+
+def cartera_llena(img, x, y, s, n):
+    """TU cartera, abierta y abajo: se va llenando con los billetes que llegan (n)."""
+    d = ImageDraw.Draw(img)
+    for k in range(min(n, 30)):                    # el fajo que asoma, cada vez mas alto
+        rnd = random.Random(k)
+        bx = x + rnd.uniform(-s*0.32, s*0.32); by = y - s*0.12 - k*s*0.012
+        billete(d, bx, by, s*0.38, rnd.uniform(-0.35, 0.35))
+    g = max(6, int(s*0.025))
+    d.rounded_rectangle([x - s*0.5, y - s*0.12, x + s*0.5, y + s*0.38], radius=int(s*0.08), fill=(120, 76, 50), outline=T, width=g)
+    d.line([(x - s*0.45, y - s*0.05), (x + s*0.45, y - s*0.05)], fill=(90, 56, 36), width=g)
+    for k in range(-6, 7):                         # el pespunte
+        d.line([(x + k*s*0.07, y + s*0.32), (x + k*s*0.07 + s*0.03, y + s*0.32)], fill=(200, 160, 110), width=4)
+    d.ellipse([x + s*0.36, y + s*0.08, x + s*0.46, y + s*0.18], fill=(232, 196, 90), outline=T, width=4)
+
+def billetes_volando(lt, n=24, semilla=21):
+    """Billetes que vuelan en remolino por toda la pantalla (como si soplara el viento)."""
+    rnd = random.Random(semilla); out = []
+    for k in range(n):
+        x0, y0 = rnd.uniform(0, W + 400), rnd.uniform(0, H + 400)
+        vx, vy = rnd.choice((-1, 1))*rnd.uniform(250, 600), rnd.uniform(-450, 350)
+        x = (x0 + vx*lt + 90*math.sin(lt*2.5 + k)) % (W + 400) - 200
+        y = (y0 + vy*lt + 70*math.cos(lt*3.1 + k*1.3)) % (H + 400) - 200
+        out.append((x, y, rnd.uniform(170, 250), lt*rnd.uniform(2.5, 5)*rnd.choice((-1, 1)) + k))
+    return out
 
 def moneda(d, x, y, r, giro):
     w = max(0.15, abs(math.cos(giro)))
@@ -193,6 +246,19 @@ def menea(img, t, cx=None, cy=None):
     """Se da la vuelta y menea el culo al ritmo (un meneo a cada lado por golpe)."""
     f = math.sin(2*math.pi*t/BEAT)
     cerdito(img, (cx or CX) + f*55, (cy or CY), S, dict(espalda=True, rot=f*18, aplasta=bote(t), rabo=t*14), t)
+
+def ajusta(d, palabras, px):
+    """El tamaño de letra mas grande (hasta px) con el que la linea cabe en pantalla."""
+    while px > 40 and d.textlength(" ".join(w_ for _, w_ in palabras), font=fuente(px)) > W - 120:
+        px -= 6
+    return px
+
+def Mu_sudor(d, x, y, t):
+    for k in range(3):
+        f = (t*1.5 + k/3) % 1.0
+        xx = x + k*26; yy = y + f*50
+        d.polygon([(xx, yy - 16), (xx + 9, yy + 3), (xx - 9, yy + 3)], fill=(150, 200, 240))
+        d.ellipse([xx - 9, yy - 4, xx + 9, yy + 13], fill=(150, 200, 240), outline=T, width=2)
 
 def bote(t):
     k = (t % BEAT)/BEAT
@@ -259,6 +325,44 @@ def escena(t):
             for lado in (-1, 1):
                 d.line([(CX + lado*380, CY - 200), (CX + lado*440, CY - 120)], fill=(255, 255, 255), width=10)
                 d.line([(CX + lado*400, CY + 40), (CX + lado*470, CY + 60)], fill=(255, 255, 255), width=10)
+    elif t >= 11.0:                               # 6. la cancion: los cerditos se vacian en TU cartera
+        lt = t - 11.0; img = Image.new("RGB", (W, H), (150, 226, 150)); d = ImageDraw.Draw(img)
+        if lt > 2.0:                              # "come on piggy": vuelan billetes por todas partes
+            for item in billetes_volando(lt - 2.0, n=14, semilla=5):
+                billete(d, *item)
+        s_, y_ = 480, 860; wx, wy = W/2, 1400
+        llegados = 0; chorro = []
+        for i, x in enumerate((W/2,)):
+            t0 = 1.0; t1 = 3.2                    # boca abajo con el primer "send", a sacudirse, y vacia
+            vuelta = suave((lt - t0)/0.2) - suave((lt - t1)/0.2)
+            sac = math.sin(t*40)*(22 if lt > 2.0 else 12) if t0 + 0.2 < lt < t1 else 0
+            vacio = lt > t1 + 0.1
+            st = dict(ojos="x" if vacio else ("grandes" if lt < t0 + 0.1 else "punto"), boca="triste" if vacio else "o",
+                      rot=180*vuelta + sac, aplasta=1.25 if vacio else 1.0)
+            cerdito(img, x + sac, y_ + (40 if vacio else 0), s_, st, t)
+            if lt < 1.0:
+                Mu_sudor(ImageDraw.Draw(img), x - 250, y_ - 260, t)
+            j = 0
+            while t0 + 0.2 + j*0.045 < t1:          # el chorro de billetes, de la ranura a la cartera
+                u = (lt - (t0 + 0.2 + j*0.045))/0.45
+                if 0 <= u < 1:
+                    xs, ys = x, y_ + s_*0.4
+                    chorro.append((xs + (wx - xs)*u + math.sin(u*9 + j)*(60 + 30*(j % 3)), ys + (wy - 90 - ys)*u*u, 130, u*8 + j))
+                elif u >= 1:
+                    llegados += 1
+                j += 1
+        cartera_llena(img, wx, wy, 520, llegados)
+        d = ImageDraw.Draw(img)
+        for item in chorro:
+            billete(d, *item)
+        LINEAS = [(0.0, [(0.0, "gimme"), (0.25, "that")], [(0.5, "MONEY")], (40, 140, 60)),
+                  (1.0, [(1.0, "send,"), (1.25, "send,"), (1.5, "send")], [(1.75, "it to me")], (40, 140, 60)),
+                  (2.0, [(2.0, "come on"), (2.25, "piggy,")], [(2.5, "empty"), (2.75, "out")], (226, 90, 140)),
+                  (3.0, [(3.0, "one more"), (3.25, "send")], [(3.5, "won't"), (3.75, "hurt")], (220, 40, 80))]
+        for k, (a, arriba, abajo, col) in enumerate(LINEAS):
+            if a <= lt < (LINEAS[k + 1][0] if k + 1 < len(LINEAS) else 99):
+                frase(d, arriba, lt, 300, px=ajusta(d, arriba, 120))
+                frase(d, abajo, lt, 460, px=ajusta(d, abajo, 170), color=col)
     else:                                         # 5. why am i broke??
         lt = t - 8.0; img = Image.new("RGB", (W, H), FONDOS[4]); d = ImageDraw.Draw(img)
         frase(d, [(0.0, "why"), (0.5, "am"), (0.75, "i")], lt, 380, px=140)
@@ -315,6 +419,8 @@ def audio(ruta, con_musica=True):
         pon(t0, tono(2637, 0.5, 0.09, 6)); pon(t0, tono(3951, 0.4, 0.05, 7)); pon(t0 + 0.07, tono(3136, 0.5, 0.07, 6))
     for t0 in (1.0, 3.0, 5.0, 5.25, 5.5):
         ching(t0)
+    for t0 in (12.0, 12.25, 12.5, 13.0, 13.5, 14.0, 14.5):      # caja registradora: ¡cha-ching!
+        pon(t0, ruido(0.06, 0.2, 60)); ching(t0 + 0.06)
     x = np.arange(int(0.5*SR))/SR
     pon(0.4, 0.05*rnd.standard_normal(len(x))*np.sin(np.pi*x/0.5))                             # sorbo
     for t0 in (2.2, 2.7, 3.2, 3.7):
@@ -345,6 +451,10 @@ LETRA = [  # (tiempo, duracion, palabra, tono de espeak 0-99): la voz robotica y
     (4.0, 0.25, "just", 70), (4.25, 0.25, "one", 80), (4.5, 0.25, "tiny", 88), (4.75, 0.5, "order", 96),
     (6.0, 0.25, "my", 40), (6.25, 0.6, "savings", 30),
     (8.0, 0.45, "why", 85), (8.5, 0.25, "am", 75), (8.75, 0.25, "I", 70), (9.0, 0.9, "broke", 50),
+    (11.0, 0.25, "gimme", 70), (11.25, 0.25, "that", 75), (11.5, 0.45, "money", 90),
+    (12.0, 0.25, "send", 70), (12.25, 0.25, "send", 80), (12.5, 0.25, "send", 90), (12.75, 0.3, "it to me", 85),
+    (13.0, 0.25, "come on", 75), (13.25, 0.25, "piggy", 92), (13.5, 0.25, "empty", 80), (13.75, 0.25, "out", 70),
+    (14.0, 0.25, "one more", 80), (14.25, 0.25, "send", 90), (14.5, 0.25, "won't", 70), (14.75, 0.5, "hurt", 45),
 ]
 
 def palabra_wav(texto, tono):
@@ -386,7 +496,7 @@ def main():
     Path(OUT).mkdir(exist_ok=True)
     a = sys.argv[1:]
     if a and a[0] == "fotos":
-        tiempos = [0.3, 1.2, 1.45, 3.4, 4.4, 5.4, 6.2, 6.6, 7.4, 8.1, 9.6, 10.6]
+        tiempos = [0.3, 1.45, 6.6, 10.6, 11.6, 12.1, 12.6, 12.9, 13.4, 13.9, 14.4, 14.9]
         ims = [escena(x).resize((270, 480)) for x in tiempos]
         hoja = Image.new("RGB", (270*6, 480*2))
         for i, im in enumerate(ims):
