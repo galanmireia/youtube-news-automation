@@ -15,7 +15,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 W, H, FPS = 1080, 1920, 30
-DUR = 15.0
+DUR = 19.5
 BEAT = 0.5
 OUT = str(Path(__file__).resolve().parent) + "/salida/"
 T = (30, 26, 32)
@@ -327,24 +327,24 @@ def escena(t):
                 d.line([(CX + lado*400, CY + 40), (CX + lado*470, CY + 60)], fill=(255, 255, 255), width=10)
     elif t >= 11.0:                               # 6. la cancion: los cerditos se vacian en TU cartera
         lt = t - 11.0; img = Image.new("RGB", (W, H), (150, 226, 150)); d = ImageDraw.Draw(img)
-        if lt > 2.0:                              # "come on piggy": vuelan billetes por todas partes
-            for item in billetes_volando(lt - 2.0, n=14, semilla=5):
+        if lt > 4.0:                              # "come on piggy": vuelan billetes por todas partes
+            for item in billetes_volando(lt - 4.0, n=14, semilla=5):
                 billete(d, *item)
         s_, y_ = 480, 860; wx, wy = W/2, 1400
         llegados = 0; chorro = []
         for i, x in enumerate((W/2,)):
-            t0 = 1.0; t1 = 3.2                    # boca abajo con el primer "send", a sacudirse, y vacia
-            vuelta = suave((lt - t0)/0.2) - suave((lt - t1)/0.2)
-            sac = math.sin(t*40)*(22 if lt > 2.0 else 12) if t0 + 0.2 < lt < t1 else 0
-            vacio = lt > t1 + 0.1
+            t0 = 2.0; t1 = 6.4                    # boca abajo con el primer "send", a sacudirse, y vacia
+            vuelta = suave((lt - t0)/0.3) - suave((lt - t1)/0.3)
+            sac = math.sin(t*40)*(22 if lt > 4.0 else 12) if t0 + 0.3 < lt < t1 else 0
+            vacio = lt > t1 + 0.15
             st = dict(ojos="x" if vacio else ("grandes" if lt < t0 + 0.1 else "punto"), boca="triste" if vacio else "o",
                       rot=180*vuelta + sac, aplasta=1.25 if vacio else 1.0)
             cerdito(img, x + sac, y_ + (40 if vacio else 0), s_, st, t)
-            if lt < 1.0:
+            if lt < 2.0:
                 Mu_sudor(ImageDraw.Draw(img), x - 250, y_ - 260, t)
             j = 0
-            while t0 + 0.2 + j*0.045 < t1:          # el chorro de billetes, de la ranura a la cartera
-                u = (lt - (t0 + 0.2 + j*0.045))/0.45
+            while t0 + 0.3 + j*0.06 < t1:           # el chorro de billetes, de la ranura a la cartera
+                u = (lt - (t0 + 0.3 + j*0.06))/0.5
                 if 0 <= u < 1:
                     xs, ys = x, y_ + s_*0.4
                     chorro.append((xs + (wx - xs)*u + math.sin(u*9 + j)*(60 + 30*(j % 3)), ys + (wy - 90 - ys)*u*u, 130, u*8 + j))
@@ -355,10 +355,10 @@ def escena(t):
         d = ImageDraw.Draw(img)
         for item in chorro:
             billete(d, *item)
-        LINEAS = [(0.0, [(0.0, "gimme"), (0.25, "that")], [(0.5, "MONEY")], (40, 140, 60)),
-                  (1.0, [(1.0, "send,"), (1.25, "send,"), (1.5, "send")], [(1.75, "it to me")], (40, 140, 60)),
-                  (2.0, [(2.0, "come on"), (2.25, "piggy,")], [(2.5, "empty"), (2.75, "out")], (226, 90, 140)),
-                  (3.0, [(3.0, "one more"), (3.25, "send")], [(3.5, "won't"), (3.75, "hurt")], (220, 40, 80))]
+        LINEAS = [(0.0, [(0.0, "gimme"), (0.5, "that")], [(1.0, "MONEY")], (40, 140, 60)),
+                  (2.0, [(2.0, "send,"), (2.5, "send,"), (3.0, "send")], [(3.5, "it to me")], (40, 140, 60)),
+                  (4.0, [(4.0, "come on"), (4.5, "piggy,")], [(5.0, "empty"), (5.5, "out")], (226, 90, 140)),
+                  (6.0, [(6.0, "one more"), (6.5, "send")], [(7.0, "won't"), (7.5, "hurt")], (220, 40, 80))]
         for k, (a, arriba, abajo, col) in enumerate(LINEAS):
             if a <= lt < (LINEAS[k + 1][0] if k + 1 < len(LINEAS) else 99):
                 frase(d, arriba, lt, 300, px=ajusta(d, arriba, 120))
@@ -419,7 +419,7 @@ def audio(ruta, con_musica=True):
         pon(t0, tono(2637, 0.5, 0.09, 6)); pon(t0, tono(3951, 0.4, 0.05, 7)); pon(t0 + 0.07, tono(3136, 0.5, 0.07, 6))
     for t0 in (1.0, 3.0, 5.0, 5.25, 5.5):
         ching(t0)
-    for t0 in (12.0, 12.25, 12.5, 13.0, 13.5, 14.0, 14.5):      # caja registradora: ¡cha-ching!
+    for t0 in (13.0, 13.5, 14.0, 15.0, 16.0, 17.0, 18.0):      # caja registradora: ¡cha-ching!
         pon(t0, ruido(0.06, 0.2, 60)); ching(t0 + 0.06)
     x = np.arange(int(0.5*SR))/SR
     pon(0.4, 0.05*rnd.standard_normal(len(x))*np.sin(np.pi*x/0.5))                             # sorbo
@@ -451,10 +451,10 @@ LETRA = [  # (tiempo, duracion, palabra, tono de espeak 0-99): la voz robotica y
     (4.0, 0.25, "just", 70), (4.25, 0.25, "one", 80), (4.5, 0.25, "tiny", 88), (4.75, 0.5, "order", 96),
     (6.0, 0.25, "my", 40), (6.25, 0.6, "savings", 30),
     (8.0, 0.45, "why", 85), (8.5, 0.25, "am", 75), (8.75, 0.25, "I", 70), (9.0, 0.9, "broke", 50),
-    (11.0, 0.25, "gimme", 70), (11.25, 0.25, "that", 75), (11.5, 0.45, "money", 90),
-    (12.0, 0.25, "send", 70), (12.25, 0.25, "send", 80), (12.5, 0.25, "send", 90), (12.75, 0.3, "it to me", 85),
-    (13.0, 0.25, "come on", 75), (13.25, 0.25, "piggy", 92), (13.5, 0.25, "empty", 80), (13.75, 0.25, "out", 70),
-    (14.0, 0.25, "one more", 80), (14.25, 0.25, "send", 90), (14.5, 0.25, "won't", 70), (14.75, 0.5, "hurt", 45),
+    (11.0, 0.5, "gimme", 70), (11.5, 0.5, "that", 75), (12.0, 0.9, "money", 90),
+    (13.0, 0.45, "send", 70), (13.5, 0.45, "send", 80), (14.0, 0.45, "send", 90), (14.5, 0.5, "it to me", 85),
+    (15.0, 0.5, "come on", 75), (15.5, 0.5, "piggy", 92), (16.0, 0.5, "empty", 80), (16.5, 0.45, "out", 70),
+    (17.0, 0.5, "one more", 80), (17.5, 0.45, "send", 90), (18.0, 0.45, "won't", 70), (18.5, 0.9, "hurt", 45),
 ]
 
 def palabra_wav(texto, tono):
@@ -473,7 +473,7 @@ def voz(n):
     for t0, dur, texto, tono in LETRA:
         x, sr = palabra_wav(texto, tono)
         largo = len(x)/sr
-        r = min(2.2, max(1.25, largo/dur))           # siempre un poco acelerada: el efecto ardilla
+        r = min(2.2, max(1.25 if t0 < 11 else 1.1, largo/dur))   # siempre un poco acelerada (efecto ardilla); la cancion, menos
         m = int(largo/r*SR)
         y = np.interp(np.linspace(0, len(x) - 1, m), np.arange(len(x)), x)
         if texto == "broke":                         # la ultima, temblorosa
@@ -496,7 +496,7 @@ def main():
     Path(OUT).mkdir(exist_ok=True)
     a = sys.argv[1:]
     if a and a[0] == "fotos":
-        tiempos = [0.3, 1.45, 6.6, 10.6, 11.6, 12.1, 12.6, 12.9, 13.4, 13.9, 14.4, 14.9]
+        tiempos = [11.6, 12.4, 13.2, 14.2, 14.9, 15.6, 16.4, 17.3, 18.0, 18.6, 19.0, 19.4]
         ims = [escena(x).resize((270, 480)) for x in tiempos]
         hoja = Image.new("RGB", (270*6, 480*2))
         for i, im in enumerate(ims):
