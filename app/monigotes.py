@@ -5098,6 +5098,11 @@ _DECORADOS = {
     "estrecho":     {"pared": "cielo_mar", "piso": "arena",
                      "fondo": [("estrecho", .5, 1.0, 1.0)], "muebles": [], "delante": [],
                      "cuelga": [], "velas": []},
+    # Covadonga (722): las montañas de Asturias, los Picos de Europa con
+    # nieve arriba y la cueva en la pared de roca. Sirve para cualquier monte.
+    "montana":      {"pared": "cielo", "piso": "hierba",
+                     "fondo": [("picos", .5, 1.0, 1.0)], "muebles": [], "delante": [],
+                     "cuelga": [], "velas": []},
     "mina":         {"pared": "roca", "piso": "tierra",
                      "fondo": [("puntales", .5, 1.0, 1.0)],
                      "muebles": [], "delante": [], "cuelga": [], "velas": [(.30, -.30), (.70, -.24)]},
@@ -5182,7 +5187,7 @@ DECORADOS_VALIDOS = tuple(_DECORADOS)
 _PIEZAS_CON_RELIEVE = tuple(sorted({"trono", "chimenea", "estandarte", "estandarte_otomano",
                                     "cruz_grande", "mastil", "reja", "ventana_arco", "ventana_mar",
                                     "ventana_piso", "cuadro", "reloj", "puesto", "casas", "muralla",
-                                    "tiendas", "naranjos", "cortinas", "selva", "playa", "costa", "estrecho",
+                                    "tiendas", "naranjos", "cortinas", "selva", "playa", "costa", "estrecho", "picos",
                                     "palacio_ducal", "san_pedro", "mezquitas", "arcos_otomanos", "arcos_califales",
                                     "puntales", "banderines"}))
 _MUEBLES_SIN_RELIEVE = ()
@@ -5225,6 +5230,7 @@ DECORADOS_EXPLICADOS = {
     "palacio_otomano": "EL PALACIO DEL SULTAN: azulejos azules, arcos apuntados, divan rojo con cojines y estandartes con la media luna. Selim segundo, Soliman, la corte otomana (SOLO el Imperio otomano, del siglo XIV en adelante)",
     "palacio_andalusi": "AL-ANDALUS: los arcos de herradura rojos y blancos de la Mezquita de Cordoba. Abderraman, el Califato de Cordoba, Medina Azahara, los reinos de taifas, Boabdil y la Alhambra: CUALQUIER escena de Al-Andalus por dentro (nunca el palacio otomano, que tiene banderas turcas). Sus personajes, con 'gorro':'turbante' y 'objeto':'tunica'",
     "constantinopla": "CONSTANTINOPLA desde el puerto: cupulas y minaretes al otro lado del agua y galeras. La capital otomana, el Bosforo; vale tambien para cualquier ciudad de Oriente vista desde el mar",
+    "montana":     "LAS MONTAÑAS DE ASTURIAS, LOS PICOS DE EUROPA: cumbres de caliza con nieve, prados verdes y una CUEVA en la pared de roca. Pelayo y Covadonga, los astures, los cantabros, cualquier sierra, monte o refugio en las montañas",
     "mina":        "puntales de madera, tierra, oscuridad",
     "despacho":    "el despacho de un ministro: mesa con papeles, mapa en la pared",
     "murallas":    "una ciudad sitiada vista desde fuera: muralla, torres, puerta",
@@ -5670,6 +5676,45 @@ def _peñon(d, w, base, h, rnd, g, x0=0.56, x1=1.04, alto=0.20):
     _linea(d, pts, g, rnd, temblor=1.2)
 
 
+def _picos(d, w, suelo, h, rnd, g):
+    """Los Picos de Europa: cumbres de caliza gris con nieve en lo alto, las
+    laderas verdes de los prados y, a la derecha, la pared de roca con la
+    cueva (la de Covadonga) y el agua que cae por debajo."""
+    base = suelo
+    _lomas_lejanas(d, w, base - h*0.10, h, rnd, 0.0, 1.0, alto=0.10, color=(150, 164, 184))      # sierras lejanas
+    cumbres = [(-0.05, 0.25), (0.12, 0.40), (0.30, 0.31), (0.46, 0.44), (0.62, 0.34), (0.80, 0.42), (1.05, 0.28)]
+    pts = [(w*-0.05, base)] + [(w*x, base - h*a) for x, a in cumbres] + [(w*1.05, base)]
+    d.polygon(pts, fill=(168, 164, 158))
+    for (x0, a0), (x1, a1) in zip(cumbres, cumbres[1:]):          # la cara en sombra de cada pico
+        if a1 < a0:
+            d.polygon([(w*x0, base - h*a0), (w*x1, base - h*a1), (w*(x0 + x1)/2, base)], fill=(146, 142, 138))
+    for x, a in cumbres:                                           # la nieve de las cumbres
+        if a > 0.33:
+            px, py = w*x, base - h*a
+            d.polygon([(px, py), (px - w*0.06, py + h*0.07), (px - w*0.02, py + h*0.055), (px + w*0.01, py + h*0.075),
+                       (px + w*0.06, py + h*0.065)], fill=(248, 250, 252))
+    _linea(d, pts[1:-1], g, rnd, temblor=1.2)
+    prado = [(w*-0.05, base)] + [(w*(-0.05 + 1.1*k/10), base - h*(0.10 + 0.05*math.sin(k*1.3))) for k in range(11)] + [(w*1.05, base)]
+    d.polygon(prado, fill=(104, 150, 84))
+    _linea(d, prado[1:-1], max(2, g//2), rnd, color=(82, 122, 66), temblor=1.4)
+    # la pared de roca de la derecha con la cueva
+    roca = [(w*0.66, base), (w*0.70, base - h*0.22), (w*0.80, base - h*0.30), (w*0.94, base - h*0.27),
+            (w*1.05, base - h*0.32), (w*1.05, base)]
+    d.polygon(roca, fill=(160, 150, 136))
+    _linea(d, roca[:-1], g, rnd, temblor=1.2)
+    cx, cy = w*0.86, base - h*0.17
+    d.ellipse([cx - w*0.07, cy - h*0.05, cx + w*0.07, cy + h*0.05], fill=(48, 40, 38))
+    d.rectangle([cx - w*0.07, cy, cx + w*0.07, cy + h*0.02], fill=(48, 40, 38))
+    _linea(d, [(cx - w*0.07, cy + h*0.02), (cx - w*0.07, cy), (cx - w*0.05, cy - h*0.04), (cx, cy - h*0.05),
+               (cx + w*0.05, cy - h*0.04), (cx + w*0.07, cy), (cx + w*0.07, cy + h*0.02)], max(2, g//2), rnd, temblor=1.0)
+    for k in range(3):                                             # el agua que cae bajo la cueva
+        px = cx - w*0.015 + k*w*0.015
+        d.line([(px, cy + h*0.03), (px + w*0.004, base)], fill=(200, 226, 246), width=max(3, g))
+    for k in range(5):                                             # arbustos en la falda
+        bx = w*(0.68 + 0.08*k); by = base - h*0.01
+        d.ellipse([bx - w*0.035, by - h*0.03, bx + w*0.035, by + h*0.005], fill=(86, 128, 70))
+
+
 def _estrecho(d, w, suelo, h, rnd, g):
     """El Estrecho de Gibraltar: Africa al fondo, al otro lado del agua, y el
     Peñon a la derecha. Para 711 la costa de antes no valia: casas blancas
@@ -5752,6 +5797,7 @@ def _pieza_fondo(d, w, h, suelo, que, x, y, tam, rnd, g):
     elif que == "san_pedro":      _san_pedro(d, w, suelo, h, rnd, g)
     elif que == "costa":          _costa(d, w, suelo, h, rnd, g)
     elif que == "estrecho":       _estrecho(d, w, suelo, h, rnd, g)
+    elif que == "picos":          _picos(d, w, suelo, h, rnd, g)
     elif que == "mezquitas":
         _mezquitas(d, w, suelo - h*0.06, h*0.22, rnd, g)
     elif que == "banderines":     _banderines(d, w, h, suelo, rnd, g)
