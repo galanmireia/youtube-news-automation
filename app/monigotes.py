@@ -1367,9 +1367,10 @@ def escena(spec, w=1080, h=1920, semilla=0):
     for f in spec.get("figuras", []):
         alto_f = h*f.get("alto", 0.30)
         adornos.append(_dibuja_figura(
-            img, d, f, w*f["x"], suelo + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
+            img, d, f, w*f["x"], suelo - _alzada(f, alto_f) + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
             alto_f, rnd, tinta=tinta, relleno=relleno,
             rasgos=_rasgos(f), objeto=f.get("objeto")))
+        _pinta_montura(img, d, f, w*f["x"], suelo, alto_f, rnd, g_cama)
     _camas(d, spec, h, w, lambda f: suelo, rnd, g_cama, "delante")
     _pinta_cosas(delante=True)
     _pinta_adornos(d, adornos, rnd)
@@ -2411,6 +2412,7 @@ def limpia(spec: dict) -> dict:
             "efecto": _una_de(f.get("efecto"), EFECTOS_VALIDOS, "") or None,
             "lleva": _llevable(f.get("lleva")),
             "letrero": (" ".join(str(f.get("letrero") or "").split())[:_LARGO_LETRERO] or None),
+            "montado": _una_de(f.get("montado"), MONTURAS, "") or None,
             "efecto_desde": (float(f["efecto_desde"])
                              if isinstance(f.get("efecto_desde"), (int, float)) else None),
         })
@@ -3304,6 +3306,199 @@ def _caballo(d, x, y, t, rnd, g, tinta=TINTA):
     d.polygon(silla, fill=(170, 40, 44), outline=tinta)
     d.line([silla[3], silla[2]], fill=ORO_ESPAÑA, width=max(3, g//2))
     d.line([(x - t*.06, y - t*.58), (x - t*.06, y - t*.36)], fill=(80, 56, 36), width=max(3, int(t*.025)))
+
+
+# Covadonga: "¿Un ejercito? ¡Si son treinta burros!". Sin burro no habia chiste.
+BURRO       = (150, 146, 140)
+BURRO_CLARO = (226, 220, 210)
+
+
+def _burro(d, x, y, t, rnd, g, tinta=TINTA, lado=1):
+    """Un burro de perfil, de mala uva: gris, orejas larguisimas, hocico
+    blanco y una ceja baja encima del ojo, que mira a camara. Mas bajo y mas
+    cabezon que el caballo. lado=-1, mirando a la izquierda."""
+    def P(px, py):
+        return (x + lado*px*t, y - py*t)
+    oscuro = _mezcla_color(BURRO, (0, 0, 0), 0.30)
+    gl = max(2, g//2)
+    for px, delante in ((-.34, False), (.18, False), (-.24, True), (.28, True)):
+        col = BURRO if delante else oscuro
+        a, b = P(px, .40), P(px + .02, .05)
+        d.line([a, b], fill=tinta, width=int(t*.09 + 2*gl))
+        d.line([a, b], fill=col, width=int(t*.09))
+        c0, c1 = P(px - .05, .07), P(px + .07, 0)
+        d.rounded_rectangle([min(c0[0], c1[0]), c0[1], max(c0[0], c1[0]), c1[1]],
+                            radius=int(t*.02), fill=(48, 40, 36), outline=tinta, width=gl)
+    # cola con su borla
+    _linea(d, [P(-.50, .62), P(-.62, .46), P(-.60, .30)], max(3, int(t*.03)), rnd, color=tinta)
+    bx, by = P(-.60, .27)
+    d.ellipse([bx - t*.05, by - t*.06, bx + t*.05, by + t*.06], fill=oscuro, outline=tinta)
+    # cuerpo y barriga clara
+    a, b = P(-.56, .72), P(.42, .32)
+    d.ellipse([min(a[0], b[0]), a[1], max(a[0], b[0]), b[1]], fill=BURRO, outline=tinta, width=g)
+    a, b = P(-.36, .46), P(.22, .33)
+    d.ellipse([min(a[0], b[0]), a[1], max(a[0], b[0]), b[1]], fill=BURRO_CLARO)
+    # cuello y cabeza grande
+    cuello = [P(.16, .68), P(.40, .96), P(.58, .92), P(.44, .50)]
+    d.polygon(cuello, fill=BURRO)
+    _linea(d, [cuello[0], cuello[1]], g, rnd, color=tinta)
+    _linea(d, [cuello[2], cuello[3]], g, rnd, color=tinta)
+    for k in range(6):                                   # crin corta y tiesa
+        a_ = k/5
+        cx, cy = P(.40 - .22*a_, 1.0 - .30*a_)
+        d.ellipse([cx - t*.035, cy - t*.035, cx + t*.035, cy + t*.035], fill=oscuro)
+    cab = [P(.36, 1.00), P(.62, 1.06), P(.92, .84), P(.90, .70), P(.70, .70), P(.50, .82)]
+    d.polygon(cab, fill=BURRO)
+    _linea(d, cab + [cab[0]], g, rnd, color=tinta)
+    hoc = [P(.76, .86), P(.92, .84), P(.90, .70), P(.74, .70)]
+    d.polygon(hoc, fill=BURRO_CLARO)
+    n = P(.86, .80)
+    d.ellipse([n[0] - t*.022, n[1] - t*.022, n[0] + t*.022, n[1] + t*.022], fill=tinta)
+    # boca torcida, de pocos amigos
+    _linea(d, [P(.76, .74), P(.90, .735)], max(2, gl), rnd, color=tinta)
+    # orejas: lo que hace burro a un burro
+    for dx, inc in ((0, 0), (-.08, -.10)):
+        oreja = [P(.46 + dx, 1.02), P(.40 + dx + inc, 1.42), P(.56 + dx + inc*.5, 1.04)]
+        d.polygon(oreja, fill=BURRO if dx == 0 else oscuro, outline=tinta)
+        if dx == 0:
+            d.polygon([P(.47, 1.05), P(.43 + inc, 1.32), P(.53, 1.06)], fill=(232, 184, 184))
+    # el ojo mira a camara, con la ceja baja
+    ox, oy = P(.60, .93)
+    r = t*.055
+    d.ellipse([ox - r, oy - r, ox + r, oy + r], fill=(255, 255, 255), outline=tinta, width=gl)
+    d.ellipse([ox - r*.45, oy - r*.35, ox + r*.45, oy + r*.55], fill=tinta)
+    d.polygon([(ox - r*1.3, oy - r*1.25), (ox + r*1.3, oy - r*1.25),
+               (ox + r*1.3, oy - r*0.25), (ox - r*1.3, oy - r*0.05)], fill=BURRO)
+    _linea(d, [(ox - r*1.3, oy - r*0.05), (ox + r*1.3, oy - r*0.30)], max(3, g), rnd, color=tinta)
+
+
+def _cara_burro(d, x, y, t, rnd, g, tinta=TINTA):
+    """Un burro DE FRENTE, mirando fijo a camara con los parpados a media
+    asta. (x, y) es donde apoya las patas; t, lo que mide."""
+    gl = max(2, g//2)
+    oscuro = _mezcla_color(BURRO, (0, 0, 0), 0.30)
+    # cuerpo y patas delanteras
+    d.ellipse([x - t*.30, y - t*.62, x + t*.30, y - t*.18], fill=oscuro, outline=tinta, width=gl)
+    for px in (-.13, .13):
+        d.rectangle([x + t*(px - .05), y - t*.30, x + t*(px + .05), y - t*.04], fill=BURRO,
+                    outline=tinta, width=gl)
+        d.rounded_rectangle([x + t*(px - .065), y - t*.06, x + t*(px + .065), y], radius=int(t*.02),
+                            fill=(48, 40, 36))
+    # orejas
+    for s in (-1, 1):
+        oreja = [(x + s*t*.10, y - t*.92), (x + s*t*.30, y - t*1.28), (x + s*t*.20, y - t*.88)]
+        d.polygon(oreja, fill=BURRO, outline=tinta)
+        d.polygon([(x + s*t*.13, y - t*.93), (x + s*t*.27, y - t*1.18), (x + s*t*.19, y - t*.92)],
+                  fill=(232, 184, 184))
+    # cabeza larga y hocico claro
+    d.ellipse([x - t*.20, y - t*1.00, x + t*.20, y - t*.40], fill=BURRO, outline=tinta, width=gl)
+    d.ellipse([x - t*.16, y - t*.62, x + t*.16, y - t*.38], fill=BURRO_CLARO, outline=tinta, width=gl)
+    for s in (-1, 1):
+        d.ellipse([x + s*t*.07 - t*.025, y - t*.53, x + s*t*.07 + t*.025, y - t*.48], fill=tinta)
+    d.line([(x - t*.06, y - t*.43), (x + t*.06, y - t*.44)], fill=tinta, width=gl)
+    # mechon entre las orejas
+    d.ellipse([x - t*.07, y - t*1.04, x + t*.07, y - t*.92], fill=oscuro)
+    # ojos a media asta: la mirada fija
+    for s in (-1, 1):
+        ox, oy, r = x + s*t*.10, y - t*.76, t*.055
+        d.ellipse([ox - r, oy - r, ox + r, oy + r], fill=(255, 255, 255), outline=tinta, width=gl)
+        d.ellipse([ox - r*.42, oy - r*.20, ox + r*.42, oy + r*.64], fill=tinta)
+        d.pieslice([ox - r, oy - r, ox + r, oy + r], 180, 360, fill=BURRO)
+        d.line([(ox - r*1.1, oy), (ox + r*1.1, oy)], fill=tinta, width=max(2, g))
+
+
+def _burros(d, x, y, t, rnd, g, tinta=TINTA):
+    """La manada: filas de burros de frente, los de atras mas chicos y mas
+    arriba, todos mirando a camara con la misma cara. Los "treinta asnos"."""
+    r = random.Random(int(t))
+    filas = ((5, .40, .36, 1.45), (6, .48, .20, 1.50), (6, .58, 0.0, 1.55))
+    for cuantos, tam, alza, ancho in filas:
+        for k in range(cuantos):
+            px = x + t*ancho*(-1 + 2*(k + 0.5)/cuantos) + t*0.04*r.uniform(-1, 1)
+            _cara_burro(d, px, y - t*alza, t*tam, rnd, g, tinta)
+
+
+def _ejercito(d, x, y, t, rnd, g, tinta=TINTA):
+    """Un ejercito que no cabe en el plano: filas y filas de soldados con
+    turbante, escudo redondo y lanza, banderines por encima. Los de atras,
+    mas chicos y mas arriba, hasta que solo se ven lanzas."""
+    r = random.Random(int(t) + 3)
+    tunicas = ((170, 60, 50), (60, 96, 150), (200, 170, 110), (90, 120, 80))
+    gl = max(2, g//2)
+    filas = ((10, .22, 1.02), (9, .26, .86), (8, .30, .70), (7, .36, .52), (6, .42, .30), (5, .50, 0.0))
+    for n_f, (cuantos, tam, alza) in enumerate(filas):
+        for k in range(cuantos):
+            px = x + t*0.78*(-1 + 2*(k + 0.5)/cuantos) + t*0.02*r.uniform(-1, 1)
+            py = y - t*alza
+            s = t*tam
+            # lanza
+            d.line([(px + s*.22, py - s*.10), (px + s*.22, py - s*1.35)], fill=(110, 80, 50),
+                   width=max(2, int(s*.04)))
+            d.polygon([(px + s*.22, py - s*1.48), (px + s*.18, py - s*1.33), (px + s*.26, py - s*1.33)],
+                      fill=(200, 200, 206), outline=tinta)
+            # cuerpo
+            d.polygon([(px - s*.18, py - s*.70), (px + s*.18, py - s*.70), (px + s*.24, py),
+                       (px - s*.24, py)], fill=tunicas[(k + n_f) % 4], outline=tinta)
+            # cabeza y turbante
+            d.ellipse([px - s*.14, py - s*.98, px + s*.14, py - s*.70], fill=(240, 204, 170),
+                      outline=tinta, width=gl)
+            d.ellipse([px - s*.17, py - s*1.08, px + s*.17, py - s*.86], fill=(244, 240, 228),
+                      outline=tinta, width=gl)
+            for s_ in (-1, 1):
+                d.ellipse([px + s_*s*.05 - s*.02, py - s*.84, px + s_*s*.05 + s*.02, py - s*.80],
+                          fill=tinta)
+            # escudo redondo
+            d.ellipse([px - s*.30, py - s*.58, px - s*.02, py - s*.22], fill=(150, 104, 60),
+                      outline=tinta, width=gl)
+            d.ellipse([px - s*.19, py - s*.43, px - s*.13, py - s*.37], fill=(220, 200, 120))
+    # banderines por encima de la masa
+    for k, bx in enumerate((-.62, -.18, .26, .66)):
+        mx, top = x + t*bx, y - t*1.80
+        d.line([(mx, top), (mx, y - t*1.05)], fill=(110, 80, 50), width=max(3, int(t*.015)))
+        d.polygon([(mx, top), (mx + t*.20, top + t*.06), (mx, top + t*.13)],
+                  fill=((40, 120, 70), (230, 230, 230))[k % 2], outline=tinta)
+
+
+def _espejada(dibuja):
+    """La misma cosa mirando al otro lado: se pinta en una capa y se le da la
+    vuelta alrededor de su x."""
+    def pinta(d, x, y, t, *args, **kw):
+        base = d._image
+        capa = Image.new("RGBA", base.size, (0, 0, 0, 0))
+        dibuja(ImageDraw.Draw(capa), x, y, t, *args, **kw)
+        capa = capa.transform(capa.size, Image.AFFINE, (-1, 0, 2*x, 0, 1, 0), resample=Image.BICUBIC)
+        if base.mode == "RGBA":
+            base.alpha_composite(capa)
+        else:
+            base.paste(capa, (0, 0), capa)
+    return pinta
+
+
+# EL QUE VA MONTADO. "Pelayo, encima de un burro": se sube a la figura y el
+# animal se pinta DESPUES, delante de sus piernas, que es como se ve a alguien
+# a caballo de perfil.
+MONTURAS = ("burro", "caballo")
+
+
+def _alzada(f, alto):
+    return alto*0.30 if f.get("montado") in MONTURAS else 0.0
+
+
+def _pinta_montura(img, d, f, x, pies, alto, rnd, g):
+    que = f.get("montado")
+    if que not in MONTURAS:
+        return
+    dibuja = COSAS[que]
+    if f.get("espejo"):
+        dibuja = _espejada(dibuja)
+    lado = -1 if f.get("espejo") else 1
+    t = alto*(0.80 if que == "burro" else 0.95)
+    ax = x + lado*t*0.08
+    if VOLUMEN:
+        from . import volumen
+        volumen.cosa(img, dibuja, ax, pies, t, rnd, g, TINTA)
+    else:
+        dibuja(d, ax, pies, t, rnd, g, TINTA)
 
 
 def _barco(d, x, y, t, rnd, g, tinta=TINTA):
@@ -4313,6 +4508,7 @@ COSAS = {
     "tienda": _tienda, "ambulancia": _ambulancia, "ataud": _ataud, "calendario": _calendario,
     "pelota": _pelota, "vaso": _vaso, "maletin": _maletin,
     "nube": _nube, "sol": _sol,
+    "burro": _burro, "burros": _burros, "ejercito": _ejercito,
     # El arbol ya existia pero con otra firma, y por estar aqui a None se
     # caia en silencio: el prompt lo ofrecia y limpia() lo tiraba.
     "arbol": lambda d, x, y, t, rnd, g, tinta=TINTA: arbol(d, x, y, t*1.6, rnd),
@@ -5972,8 +6168,9 @@ def montar(spec: dict, w: int, h: int, semilla: int = 0):
     for f in spec.get("figuras", []):
         alto_f = h*f.get("alto", 0.30)
         adornos.append(_dibuja_figura(
-            img, d, f, w*f["x"], pies + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
+            img, d, f, w*f["x"], pies - _alzada(f, alto_f) + alto_f*_RESPIRACION*f.get("_bocanada", 0.0),
             alto_f, rnd, rasgos=_rasgos(f), objeto=f.get("objeto")))
+        _pinta_montura(img, d, f, w*f["x"], pies, alto_f, rnd, max(4, int(w*0.006)))
 
     _camas(d, spec, h, w, lambda f: pies, rnd, max(4, int(w*0.006)), "delante")
 

@@ -2,170 +2,436 @@
   "title": "Covadonga: ¿187.000 enemigos o treinta asnos salvajes?",
   "description": "Hacia el año 722, en un valle estrecho de los Picos de Europa, Pelayo y los suyos frenaron a un ejército andalusí. Así nació el reino de Asturias. #Shorts #Historia #HistoriaDeEspaña #Covadonga #EspañaContada Suscríbete a España Contada.",
   "is_sensitive": "false",
-  "tags": ["Covadonga", "batalla de Covadonga", "Pelayo", "722", "reino de Asturias", "Reconquista", "Picos de Europa", "Al-Ándalus", "historia de España", "historia 2 ESO", "España Contada", "resumen historia"],
-  "lo_gracioso": "Una crónica cristiana habla de 187.000 enemigos y un cronista musulmán dice que en aquellas montañas solo quedaban treinta asnos salvajes.",
+  "tags": [
+    "Covadonga",
+    "batalla de Covadonga",
+    "Pelayo",
+    "722",
+    "reino de Asturias",
+    "Reconquista",
+    "Picos de Europa",
+    "Al-Ándalus",
+    "historia de España",
+    "historia 2 ESO",
+    "España Contada",
+    "resumen historia"
+  ],
+  "lo_gracioso": "Una crónica cristiana habla de 187.000 enemigos y un relato musulmán posterior llama a los de Pelayo treinta asnos salvajes; Alqama mete a su ejército en un valle donde no caben.",
   "scenes": [
     {
-      "narration": "Tras la conquista del 711, casi toda la península había quedado bajo dominio musulmán. Casi toda.",
-      "sonido": "",
-      "on_screen_highlight": "",
-      "escena": {
-        "interior": "montana",
-        "rotulo": "Montañas de Asturias",
-        "hablan": [], "a_quien": [], "cosas": [],
-        "figuras": [
-          {"papel": "", "x": 0.3, "pose": "mirando", "gesto": "neutro", "objeto": "tunica", "barba": "castaña"},
-          {"papel": "", "x": 0.55, "pose": "de_pie", "pose_fin": "señala", "gesto": "neutro", "objeto": "tunica", "espejo": true}
-        ]
-      }
-    },
-    {
-      "narration": "En las montañas de Asturias, un grupo de cristianos se negó a someterse. Los encabezaba Pelayo, un noble del que sabemos muy poco.",
-      "sonido": "",
-      "on_screen_highlight": "",
+      "narration": "¡187.000 soldados contra Pelayo!",
+      "sonido": "gentio",
+      "on_screen_highlight": "187.000 SOLDADOS",
       "escena": {
         "interior": "montana",
         "rotulo": "",
-        "hablan": [], "a_quien": [], "cosas": [],
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [
+          {
+            "que": "ejercito",
+            "x": 0.64,
+            "tam": 0.34
+          }
+        ],
         "figuras": [
-          {"quien": "mandamas", "papel": "Pelayo", "x": 0.4, "pose": "de_pie", "pose_fin": "señala", "gesto": "enfadado", "objeto": "tunica", "barba": "castaña", "lleva": "espada"},
-          {"papel": "", "x": 0.68, "pose": "de_pie", "pose_fin": "brazos_arriba", "gesto": "contento", "objeto": "tunica", "espejo": true}
+          {
+            "papel": "",
+            "alto": 0.22,
+            "objeto": "tunica",
+            "barba": "castaña",
+            "x": 0.13,
+            "pose": "mirando",
+            "gesto": "asustado",
+            "efecto": "sudor"
+          }
         ]
       }
     },
     {
-      "narration": "«¡Hay rebeldes en las montañas del norte! ¡Viven en una cueva!» «¿En una cueva? Pues mandad un ejército.»",
+      "narration": "Bueno... o treinta asnos. Depende de qué crónica leas.",
+      "sonido": "",
+      "on_screen_highlight": "30 ASNOS",
+      "escena": {
+        "interior": "montana",
+        "rotulo": "",
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [
+          {
+            "que": "burros",
+            "x": 0.6,
+            "tam": 0.28
+          }
+        ],
+        "figuras": [
+          {
+            "papel": "",
+            "alto": 0.22,
+            "objeto": "tunica",
+            "barba": "castaña",
+            "x": 0.12,
+            "pose": "de_pie",
+            "pose_fin": "brazos_arriba",
+            "gesto": "asustado"
+          }
+        ]
+      }
+    },
+    {
+      "narration": "Tras el año 711, los musulmanes habían conquistado gran parte de la península. Pero en Asturias había un señor que no estaba por la labor. «¿Rendirme? JA. Antes me hago pastor.»",
+      "sonido": "",
+      "on_screen_highlight": "",
+      "escena": {
+        "interior": "montana",
+        "rotulo": "Asturias",
+        "hablan": [
+          "Pelayo"
+        ],
+        "a_quien": [
+          ""
+        ],
+        "cosas": [],
+        "figuras": [
+          {
+            "quien": "mandamas",
+            "papel": "Pelayo",
+            "objeto": "tunica",
+            "barba": "castaña",
+            "x": 0.4,
+            "pose": "de_pie",
+            "pose_fin": "señala",
+            "gesto": "enfadado",
+            "lleva": "espada"
+          }
+        ],
+        "habla_x": 0.4
+      }
+    },
+    {
+      "narration": "«¡Jefe! ¡Hay rebeldes escondidos en las montañas!» «¿Cuántos?» «Unos cuantos.» «Perfecto. Mandad tropas.»",
       "sonido": "pasos",
       "on_screen_highlight": "",
       "escena": {
         "interior": "palacio_andalusi",
         "rotulo": "",
-        "hablan": ["persona_b", "persona"],
-        "a_quien": ["persona", "persona_b"],
-        "habla_x": 0.3,
+        "hablan": [
+          "persona_b",
+          "persona",
+          "persona_b",
+          "persona"
+        ],
+        "a_quien": [
+          "persona",
+          "persona_b",
+          "persona",
+          "persona_b"
+        ],
         "cosas": [],
         "figuras": [
-          {"quien": "persona_b", "papel": "Un mensajero", "x": 0.3, "pose": "corriendo", "pose_fin": "de_pie", "gesto": "grito", "gorro": "turbante", "objeto": "tunica", "efecto": "sudor"},
-          {"quien": "persona", "papel": "Un gobernador", "x": 0.68, "pose": "sentado", "pose_fin": "señala", "gesto": "bostezo", "gorro": "turbante", "objeto": "tunica", "barba": "negra", "espejo": true}
-        ]
+          {
+            "quien": "persona_b",
+            "papel": "Un mensajero",
+            "gorro": "turbante",
+            "objeto": "tunica",
+            "x": 0.18,
+            "pose": "de_pie",
+            "pose_fin": "brazos_arriba",
+            "gesto": "grito",
+            "efecto": "sudor"
+          },
+          {
+            "quien": "persona",
+            "papel": "Un gobernador",
+            "gorro": "turbante",
+            "objeto": "tunica",
+            "barba": "negra",
+            "espejo": false,
+            "x": 0.82,
+            "pose": "de_pie",
+            "gesto": "bostezo"
+          }
+        ],
+        "habla_x": 0.18
       }
     },
     {
-      "narration": "Según las crónicas cristianas, al frente de aquel ejército iba un general llamado Alqama.",
+      "narration": "Al frente de la expedición, según la tradición cristiana, iba un comandante llamado Alqama. Pero Pelayo conocía el terreno. «¡Avanzad! ¿Qué puede salir mal?»",
       "sonido": "pasos",
       "on_screen_highlight": "",
       "escena": {
         "interior": "campamento",
         "rotulo": "",
-        "hablan": [], "a_quien": [], "cosas": [],
+        "hablan": [
+          "Alqama"
+        ],
+        "a_quien": [
+          "Un soldado"
+        ],
+        "cosas": [],
         "figuras": [
-          {"papel": "Alqama", "x": 0.4, "pose": "andando", "pose_fin": "señala", "gesto": "enfadado", "gorro": "turbante", "objeto": "tunica", "barba": "negra", "lleva": "espada"},
-          {"papel": "", "x": 0.7, "pose": "andando", "gesto": "neutro", "gorro": "turbante", "objeto": "tunica"}
-        ]
+          {
+            "papel": "Alqama",
+            "gorro": "turbante",
+            "objeto": "tunica",
+            "barba": "negra",
+            "x": 0.4,
+            "pose": "de_pie",
+            "pose_fin": "señala",
+            "gesto": "contento",
+            "lleva": "espada"
+          },
+          {
+            "papel": "Un soldado",
+            "gorro": "turbante",
+            "objeto": "tunica",
+            "x": 0.72,
+            "pose": "andando",
+            "gesto": "neutro",
+            "espejo": true
+          }
+        ],
+        "habla_x": 0.4
       }
     },
     {
-      "narration": "Pelayo y los suyos se hicieron fuertes en Covadonga, un valle estrecho de los Picos de Europa, junto a una cueva.",
+      "narration": "Pues entrar en un valle estrecho, rodeado de montañas, contra gente que conoce cada piedra. «¡Mi general, no cabemos!» «¡Pues encogeos!»",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
         "interior": "montana",
-        "rotulo": "Covadonga · Picos de Europa",
-        "hablan": [], "a_quien": [], "cosas": [],
-        "figuras": [
-          {"quien": "mandamas", "papel": "Pelayo", "x": 0.32, "pose": "de_pie", "pose_fin": "señala", "gesto": "neutro", "objeto": "tunica", "barba": "castaña", "lleva": "espada"},
-          {"papel": "", "x": 0.55, "pose": "de_pie", "gesto": "neutro", "objeto": "tunica", "lleva": "espada"}
-        ]
-      }
-    },
-    {
-      "narration": "Allí el terreno estaba de su parte: en un valle tan cerrado, un ejército grande no servía de mucho.",
-      "sonido": "espada",
-      "on_screen_highlight": "",
-      "escena": {
-        "interior": "montana",
         "rotulo": "",
-        "hablan": [], "a_quien": [], "cosas": [],
+        "hablan": [
+          "Un soldado",
+          "Alqama"
+        ],
+        "a_quien": [
+          "Alqama",
+          "Un soldado"
+        ],
+        "cosas": [
+          {
+            "que": "ejercito",
+            "x": 0.5,
+            "tam": 0.22
+          }
+        ],
         "figuras": [
-          {"quien": "mandamas", "papel": "Pelayo", "x": 0.35, "pose": "peleando", "gesto": "grito", "objeto": "tunica", "barba": "castaña", "lleva": "espada"},
-          {"papel": "Alqama", "x": 0.65, "pose": "peleando", "gesto": "asustado", "gorro": "turbante", "objeto": "tunica", "barba": "negra", "lleva": "espada", "espejo": true}
-        ]
+          {
+            "papel": "Un soldado",
+            "gorro": "turbante",
+            "objeto": "tunica",
+            "x": 0.36,
+            "pose": "de_pie",
+            "pose_fin": "brazos_arriba",
+            "gesto": "asustado",
+            "lleva": "espada",
+            "efecto": "sudor"
+          },
+          {
+            "papel": "Alqama",
+            "gorro": "turbante",
+            "objeto": "tunica",
+            "barba": "negra",
+            "x": 0.68,
+            "pose": "de_pie",
+            "pose_fin": "señala",
+            "gesto": "enfadado",
+            "espejo": true
+          }
+        ],
+        "habla_x": 0.36
       }
     },
     {
-      "narration": "«¡Desde aquí arriba no nos alcanzan!» Y los atacantes acabaron retirándose.",
+      "narration": "Los enfrentamientos terminaron con la retirada de los atacantes. Y aquí es donde las crónicas empiezan a ponerse interesantes. «¡ESTO NO ESTABA EN VUESTRO PLAN, ¿EH?!»",
       "sonido": "gentio",
       "on_screen_highlight": "",
       "escena": {
         "interior": "montana",
         "rotulo": "",
-        "hablan": ["mandamas"],
-        "a_quien": [""],
-        "habla_x": 0.3,
+        "hablan": [
+          "Pelayo"
+        ],
+        "a_quien": [
+          "Alqama"
+        ],
         "cosas": [],
         "figuras": [
-          {"quien": "mandamas", "papel": "Pelayo", "x": 0.3, "pose": "de_pie", "pose_fin": "brazos_arriba", "gesto": "riendo", "objeto": "tunica", "barba": "castaña", "lleva": "espada"},
-          {"papel": "Alqama", "x": 0.82, "pose": "corriendo", "gesto": "asustado", "gorro": "turbante", "objeto": "tunica", "barba": "negra", "espejo": true}
-        ]
+          {
+            "quien": "mandamas",
+            "papel": "Pelayo",
+            "objeto": "tunica",
+            "barba": "castaña",
+            "x": 0.3,
+            "pose": "de_pie",
+            "pose_fin": "brazos_arriba",
+            "gesto": "riendo"
+          },
+          {
+            "papel": "Alqama",
+            "gorro": "turbante",
+            "objeto": "tunica",
+            "barba": "negra",
+            "x": 0.82,
+            "pose": "corriendo",
+            "gesto": "asustado",
+            "espejo": true
+          }
+        ],
+        "habla_x": 0.3
       }
     },
     {
-      "narration": "Lo curioso es cómo lo contó cada bando. Una crónica cristiana, escrita mucho después, habló de 187.000 enemigos. Una cifra imposible.",
+      "narration": "Una crónica cristiana escrita mucho después habló de... ¡187.000 enemigos! «Pon ciento ochenta y siete mil. Queda más épico.»",
       "sonido": "",
       "on_screen_highlight": "187.000",
       "escena": {
         "interior": "monasterio",
         "rotulo": "",
-        "hablan": [], "a_quien": [], "cosas": [],
+        "hablan": [
+          "Un cronista cristiano"
+        ],
+        "a_quien": [
+          "Un monje"
+        ],
+        "cosas": [],
         "figuras": [
-          {"papel": "Un cronista cristiano", "x": 0.45, "pose": "firmando", "pose_fin": "brazos_arriba", "gesto": "contento", "gorro": "monje", "objeto": "habito"}
-        ]
+          {
+            "papel": "Un cronista cristiano",
+            "x": 0.3,
+            "pose": "de_pie",
+            "pose_fin": "señala",
+            "gesto": "contento",
+            "gorro": "monje",
+            "objeto": "habito"
+          },
+          {
+            "papel": "Un monje",
+            "x": 0.68,
+            "pose": "firmando",
+            "gesto": "asustado",
+            "gorro": "monje",
+            "objeto": "habito",
+            "espejo": true
+          }
+        ],
+        "habla_x": 0.3
       }
     },
     {
-      "narration": "Y un cronista musulmán, siglos más tarde, le quitó toda la importancia. «Bah... en aquellas montañas solo quedaban treinta asnos salvajes.»",
+      "narration": "Y un relato musulmán posterior se burló de los seguidores de Pelayo llamándolos... ¡treinta asnos salvajes! «¿Un ejército? ¡Si son cuatro gatos y treinta burros!»",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
         "interior": "palacio_andalusi",
         "rotulo": "",
-        "hablan": ["persona"],
-        "a_quien": [""],
-        "habla_x": 0.45,
+        "hablan": [
+          "Un cronista musulmán"
+        ],
+        "a_quien": [
+          ""
+        ],
         "cosas": [],
         "figuras": [
-          {"quien": "persona", "papel": "Un cronista árabe", "x": 0.45, "pose": "firmando", "pose_fin": "de_pie", "gesto": "bostezo", "gorro": "turbante", "objeto": "tunica", "barba": "gris"}
-        ]
+          {
+            "papel": "Un cronista musulmán",
+            "x": 0.45,
+            "pose": "firmando",
+            "pose_fin": "brazos_arriba",
+            "gesto": "riendo",
+            "gorro": "turbante",
+            "objeto": "tunica",
+            "barba": "gris"
+          }
+        ],
+        "habla_x": 0.45
       }
     },
     {
-      "narration": "Pero aquellos treinta asnos salieron adelante. Pelayo es considerado el primer rey de Asturias, y su pequeño reino fue creciendo hacia el sur.",
-      "sonido": "campana",
-      "on_screen_highlight": "",
-      "escena": {
-        "interior": "montana",
-        "rotulo": "",
-        "hablan": [], "a_quien": [], "cosas": [],
-        "figuras": [
-          {"quien": "mandamas", "papel": "Pelayo", "x": 0.4, "pose": "de_pie", "pose_fin": "brazos_arriba", "gesto": "contento", "gorro": "corona", "objeto": "tunica", "barba": "castaña", "efecto": "corona"},
-          {"papel": "", "x": 0.7, "pose": "aplaudiendo", "gesto": "contento", "objeto": "tunica", "espejo": true}
-        ]
-      }
-    },
-    {
-      "narration": "«Por eso Covadonga se recuerda como el comienzo de la Reconquista» La fecha tradicional es el 722, aunque algunos historiadores la adelantan al 718.",
+      "narration": "La cifra de 187.000 es una exageración, y lo de los asnos es una burla transmitida por una fuente posterior.",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
         "interior": "montana",
         "rotulo": "",
-        "hablan": ["cronista"],
-        "a_quien": [""],
-        "habla_x": 0.4,
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [
+          {
+            "que": "burros",
+            "x": 0.5,
+            "tam": 0.3,
+            "delante": true
+          }
+        ],
+        "figuras": [
+          {
+            "quien": "mandamas",
+            "papel": "Pelayo",
+            "objeto": "tunica",
+            "barba": "castaña",
+            "x": 0.5,
+            "pose": "de_pie",
+            "gesto": "enfadado"
+          }
+        ]
+      }
+    },
+    {
+      "narration": "Pero Pelayo quedó ligado al nacimiento del reino de Asturias. «¡Pues que alguien le ponga una corona a este señor!»",
+      "sonido": "campana",
+      "on_screen_highlight": "",
+      "escena": {
+        "interior": "montana",
+        "rotulo": "",
+        "hablan": [
+          "Pelayo"
+        ],
+        "a_quien": [
+          ""
+        ],
         "cosas": [],
         "figuras": [
-          {"quien": "cronista", "papel": "", "x": 0.4, "pose": "señala", "gesto": "contento"},
-          {"quien": "mandamas", "papel": "Pelayo", "x": 0.72, "pose": "de_pie", "gesto": "contento", "gorro": "corona", "objeto": "tunica", "barba": "castaña", "espejo": true}
+          {
+            "quien": "mandamas",
+            "papel": "Pelayo",
+            "objeto": "tunica",
+            "barba": "castaña",
+            "x": 0.3,
+            "pose": "de_pie",
+            "pose_fin": "brazos_arriba",
+            "gesto": "riendo",
+            "montado": "burro"
+          }
+        ],
+        "habla_x": 0.3
+      }
+    },
+    {
+      "narration": "Covadonga quedó como símbolo del comienzo de la Reconquista. ¿Y tú de qué equipo eres: el de los 187.000... o el de los treinta asnos?",
+      "sonido": "",
+      "on_screen_highlight": "",
+      "escena": {
+        "interior": "montana",
+        "rotulo": "",
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [],
+        "figuras": [
+          {
+            "quien": "mandamas",
+            "papel": "Pelayo",
+            "objeto": "tunica",
+            "barba": "castaña",
+            "x": 0.3,
+            "pose": "de_pie",
+            "pose_fin": "señala",
+            "gesto": "contento",
+            "gorro": "corona",
+            "efecto": "corona",
+            "montado": "burro"
+          }
         ]
       }
     }
