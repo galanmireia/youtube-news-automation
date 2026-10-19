@@ -4,12 +4,6 @@
   "is_sensitive": "false",
   "tags": ["Covadonga", "batalla de Covadonga", "Pelayo", "722", "reino de Asturias", "Reconquista", "Picos de Europa", "Al-Ándalus", "historia de España", "historia 2 ESO", "España Contada", "resumen historia"],
   "lo_gracioso": "Una crónica cristiana habla de 187.000 enemigos y un cronista musulmán dice que en aquellas montañas solo quedaban treinta asnos salvajes.",
-  "repaso": [
-    {"texto": "722 · Batalla de Covadonga", "voz": "En el 722, según la fecha tradicional, la batalla de Covadonga"},
-    {"texto": "Pelayo, primer rey de Asturias", "voz": "Pelayo, considerado el primer rey de Asturias"},
-    {"texto": "Resistencia en los Picos de Europa", "voz": "Los cristianos resisten en los Picos de Europa"},
-    {"texto": "Inicio tradicional de la Reconquista", "voz": "Se considera el inicio de la Reconquista"}
-  ],
   "scenes": [
     {
       "narration": "Tras la conquista del 711, casi toda la península había quedado bajo dominio musulmán. Casi toda.",
