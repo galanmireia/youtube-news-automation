@@ -19,7 +19,7 @@
   "lo_gracioso": "Una crónica cristiana habla de 187.000 enemigos y un relato musulmán posterior llama a los de Pelayo treinta asnos salvajes; Alqama mete a su ejército en un valle donde no caben.",
   "scenes": [
     {
-      "narration": "187.000 soldados contra Pelayo.",
+      "narration": "Una crónica cristiana dice que Pelayo venció a 187.000 soldados.",
       "sonido": "gentio",
       "on_screen_highlight": "187.000 SOLDADOS",
       "escena": {
@@ -38,7 +38,7 @@
           {
             "papel": "",
             "alto": 0.22,
-            "objeto": "tunica",
+            "objeto": "sayo",
             "barba": "castaña",
             "x": 0.13,
             "pose": "mirando",
@@ -49,7 +49,7 @@
       }
     },
     {
-      "narration": "O treinta asnos. Depende de a quién preguntes.",
+      "narration": "Una musulmana dice que los de Pelayo eran treinta asnos salvajes. ¿Qué pasó de verdad?",
       "sonido": "",
       "on_screen_highlight": "30 ASNOS",
       "escena": {
@@ -68,7 +68,7 @@
           {
             "papel": "",
             "alto": 0.22,
-            "objeto": "tunica",
+            "objeto": "sayo",
             "barba": "castaña",
             "x": 0.12,
             "pose": "de_pie",
@@ -79,7 +79,7 @@
       }
     },
     {
-      "narration": "Tras el 711, los musulmanes dominan casi toda la península. Casi.",
+      "narration": "En el 711 llegan los musulmanes del norte de África, y en pocos años dominan casi toda la península.",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
@@ -107,7 +107,7 @@
       }
     },
     {
-      "narration": "En las montañas de Asturias, Pelayo se niega a obedecer. «¿Rendirme? Antes me hago pastor.»",
+      "narration": "Casi. En las montañas de Asturias, un noble cristiano llamado Pelayo se niega a someterse. «¿Rendirme? Antes me hago pastor.»",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
@@ -124,7 +124,7 @@
           {
             "quien": "mandamas",
             "papel": "Pelayo",
-            "objeto": "tunica",
+            "objeto": "sayo",
             "barba": "castaña",
             "x": 0.38,
             "pose": "de_pie",
@@ -138,7 +138,7 @@
             "pose": "de_pie",
             "pose_fin": "brazos_arriba",
             "gesto": "contento",
-            "objeto": "tunica",
+            "objeto": "sayo",
             "espejo": true
           }
         ],
@@ -146,7 +146,7 @@
       }
     },
     {
-      "narration": "«¡Hay rebeldes en una cueva de Asturias!» «Pues mandad un ejército.»",
+      "narration": "«¡Hay rebeldes en las montañas de Asturias!» «Pues mandad un ejército.»",
       "sonido": "pasos",
       "on_screen_highlight": "",
       "escena": {
@@ -228,7 +228,7 @@
       }
     },
     {
-      "narration": "Pelayo les espera en Covadonga, un valle estrechísimo.",
+      "narration": "Pelayo le espera en Covadonga, un valle tan estrecho que un ejército grande no puede ni moverse.",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
@@ -241,7 +241,7 @@
           {
             "quien": "mandamas",
             "papel": "Pelayo",
-            "objeto": "tunica",
+            "objeto": "sayo",
             "barba": "castaña",
             "x": 0.3,
             "pose": "mirando",
@@ -252,7 +252,7 @@
             "x": 0.58,
             "pose": "de_pie",
             "gesto": "neutro",
-            "objeto": "tunica",
+            "objeto": "sayo",
             "lleva": "espada"
           }
         ]
@@ -308,7 +308,7 @@
       }
     },
     {
-      "narration": "Desde lo alto, los de Pelayo contraatacan.",
+      "narration": "Desde lo alto, los de Pelayo atacan.",
       "sonido": "espada",
       "on_screen_highlight": "",
       "escena": {
@@ -321,7 +321,7 @@
           {
             "quien": "mandamas",
             "papel": "Pelayo",
-            "objeto": "tunica",
+            "objeto": "sayo",
             "barba": "castaña",
             "x": 0.35,
             "pose": "peleando",
@@ -343,7 +343,7 @@
       }
     },
     {
-      "narration": "Y el ejército acaba retirándose.",
+      "narration": "Y el ejército musulmán se retira.",
       "sonido": "gentio",
       "on_screen_highlight": "",
       "escena": {
@@ -356,7 +356,7 @@
           {
             "quien": "mandamas",
             "papel": "Pelayo",
-            "objeto": "tunica",
+            "objeto": "sayo",
             "barba": "castaña",
             "x": 0.28,
             "pose": "de_pie",
@@ -377,7 +377,7 @@
       }
     },
     {
-      "narration": "Más de un siglo después, una crónica cristiana lo cuenta así: «Pon 187.000 enemigos. Queda más épico.»",
+      "narration": "Más de un siglo después, los cronistas cristianos lo engrandecen: «Pon 187.000 enemigos. Queda más épico.»",
       "sonido": "",
       "on_screen_highlight": "187.000",
       "escena": {
@@ -414,7 +414,7 @@
       }
     },
     {
-      "narration": "Un cronista musulmán, mucho más tarde, se burla: «Bah... eran treinta asnos salvajes.»",
+      "narration": "Y los musulmanes le quitan importancia: «¿Treinta asnos salvajes? Dejadlos en paz.»",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
@@ -443,7 +443,7 @@
       }
     },
     {
-      "narration": "Para muchos historiadores, fue un choque pequeño.",
+      "narration": "Seguramente fue un choque pequeño. Pero aquel grupo sobrevivió.",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
@@ -463,7 +463,7 @@
           {
             "quien": "mandamas",
             "papel": "Pelayo",
-            "objeto": "tunica",
+            "objeto": "sayo",
             "barba": "castaña",
             "x": 0.5,
             "pose": "de_pie",
@@ -473,7 +473,7 @@
       }
     },
     {
-      "narration": "Pero Pelayo es considerado el primer rey de Asturias, y Covadonga, el inicio de la Reconquista.",
+      "narration": "Y Pelayo es considerado el primer rey de Asturias.",
       "sonido": "campana",
       "on_screen_highlight": "",
       "escena": {
@@ -486,11 +486,10 @@
           {
             "quien": "mandamas",
             "papel": "Pelayo",
-            "objeto": "tunica",
+            "objeto": "sayo",
             "barba": "castaña",
             "x": 0.4,
-            "pose": "de_pie",
-            "pose_fin": "brazos_arriba",
+            "pose": "brazos_arriba",
             "gesto": "contento",
             "gorro": "corona",
             "efecto": "corona"
@@ -500,14 +499,22 @@
             "x": 0.72,
             "pose": "aplaudiendo",
             "gesto": "contento",
-            "objeto": "tunica",
+            "objeto": "sayo",
+            "espejo": true
+          },
+          {
+            "papel": "",
+            "x": 0.72,
+            "pose": "aplaudiendo",
+            "gesto": "contento",
+            "objeto": "sayo",
             "espejo": true
           }
         ]
       }
     },
     {
-      "narration": "¿Tú de qué equipo eres? ¿De los 187.000 o de los treinta asnos?",
+      "narration": "Por eso Covadonga se recuerda como el inicio de la Reconquista: casi 800 años, hasta que cae Granada en 1492.",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
@@ -517,27 +524,19 @@
         "a_quien": [],
         "cosas": [
           {
-            "que": "ejercito",
-            "x": 0.18,
-            "tam": 0.12
-          },
-          {
-            "que": "burros",
-            "x": 0.84,
-            "tam": 0.1
+            "que": "mapa_al_andalus",
+            "x": 0.66,
+            "tam": 0.26
           }
         ],
         "figuras": [
           {
-            "quien": "mandamas",
-            "papel": "Pelayo",
-            "objeto": "tunica",
-            "barba": "castaña",
-            "x": 0.5,
+            "quien": "cronista",
+            "papel": "",
+            "x": 0.22,
             "pose": "de_pie",
             "pose_fin": "señala",
-            "gesto": "contento",
-            "gorro": "corona"
+            "gesto": "contento"
           }
         ]
       }

@@ -939,7 +939,9 @@ catedral, sale un fondo liso.
 {bloque_gorros}
                    o quitalo si no lleva
                    ("tunica" = la tunica larga de Al-Andalus y Oriente: califas, emires, visires,
-                   sabios; con "gorro":"turbante")
+                   sabios; con "gorro":"turbante". "sayo" = el sayo de lana rojo teja de los
+                   cristianos del norte en la Alta Edad Media: Pelayo, astures, cantabros. Si
+                   salen los dos bandos, cada uno con lo suyo, para que se distingan)
        "barba":    el color de su barba SI LA HISTORIA LO DICE (o si cambia: roja y luego teñida de
                    negro), uno de [roja, negra, rubia, castaña, gris, blanca]; si no, quitalo
        "objeto":   {bloque_objetos} - o quitalo si no lleva. SI LA NARRACION NOMBRA UNA PRENDA,

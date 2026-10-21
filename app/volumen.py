@@ -134,6 +134,7 @@ def cuerpo(d, P, p, cuello, cadera, alto, g, rasgos, x, suelo, s, papel=None,
     el tronco, entre el tronco y los brazos."""
     img = d._image
     ropa, pantalon = ropa_de(rasgos, papel)
+    pantalon = (rasgos or {}).get("calzas") or pantalon
     an = (rasgos or {}).get("ancho", 1.0)
     falda = (rasgos or {}).get("nombre") in _FALDA or (rasgos or {}).get("pelo") == "moño"
     if img.mode != "RGBA":   # en la capa del que se cae, la sombra giraria con el

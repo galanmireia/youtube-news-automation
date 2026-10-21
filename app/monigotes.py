@@ -919,6 +919,38 @@ def _tunica(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(240, 234, 21
     _calzado_bajo_la_ropa(d, x, abajo, alto, g, rnd, tinta)
 
 
+def _sayo(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(150, 66, 46)):
+    """LA ROPA DE LOS CRISTIANOS DEL NORTE en la Alta Edad Media, la de
+    tradicion visigoda: tunica corta de lana hasta la rodilla, cinturon de
+    cuero con su hebilla y el manto echado a los hombros, sujeto con una
+    fibula en el derecho. Debajo, calzas (las pinta el cuerpo). Pelayo salia
+    con la tunica blanca de Al-Andalus y ella no distinguia a los dos bandos:
+    "¿que es el sombrero?"."""
+    rodilla = cadera[1] + alto*0.19
+    manto = (78, 92, 66)
+    # el manto, abierto: un paño a cada lado desde los hombros
+    for s in (-1, 1):
+        pts = [(x + s*alto*0.05, cuello[1] - alto*0.01), (x + s*alto*0.13, cuello[1] + alto*0.02),
+               (x + s*alto*0.20, rodilla + alto*0.04), (x + s*alto*0.12, rodilla + alto*0.05)]
+        d.polygon(pts, fill=manto)
+        _linea(d, pts + [pts[0]], g, rnd, color=tinta, temblor=1.2)
+    pts = [(x - alto*0.075, cuello[1]), (x + alto*0.075, cuello[1]),
+           (x + alto*0.13, cadera[1]), (x + alto*0.15, rodilla), (x - alto*0.15, rodilla),
+           (x - alto*0.13, cadera[1])]
+    d.polygon(pts, fill=color)
+    _linea(d, pts + [pts[0]], g, rnd, color=tinta, temblor=1.4)
+    d.line([(x - alto*0.145, rodilla - alto*0.02), (x + alto*0.145, rodilla - alto*0.02)],
+           fill=(92, 40, 30), width=max(4, int(g*1.5)))
+    # cinturon de cuero con hebilla
+    y = cadera[1] - alto*0.03
+    d.line([(x - alto*0.13, y), (x + alto*0.13, y)], fill=(70, 46, 30), width=max(4, int(g*1.8)))
+    d.rectangle([x - alto*0.025, y - alto*0.018, x + alto*0.025, y + alto*0.018],
+                outline=(214, 180, 90), width=max(2, g//2))
+    # la fibula que sujeta el manto
+    fx, fy, r = x + alto*0.075, cuello[1] + alto*0.015, alto*0.022
+    d.ellipse([fx - r, fy - r, fx + r, fy + r], fill=(214, 180, 90), outline=tinta, width=max(2, g//2))
+
+
 def _vestido(d, x, cuello, cadera, alto, g, rnd, tinta=TINTA, color=(150, 50, 70)):
     """Vestido largo de mujer, con la falda abierta hasta los pies. Remedios
     era la unica mujer del reparto: con esto cualquier figura es una mujer
@@ -967,6 +999,7 @@ OBJETOS = {
     "banda_espana": _banda_espana,
     "habito": _habito,
     "tunica": _tunica,
+    "sayo": _sayo,
     "vestido": _vestido,
     "luto": _luto,
     "mano_vendada": _mano_vendada,
@@ -992,7 +1025,9 @@ def _nota(d, x, y, tam, g, rnd, doble=False):
                temblor=0.6)
 
 
-_MANGAS = {"tunica": (228, 220, 202), "habito": (122, 92, 62)}
+_MANGAS = {"tunica": (228, 220, 202), "habito": (122, 92, 62), "sayo": (140, 60, 42)}
+# La ropa que no llega a los pies, con el color de las calzas de debajo.
+_ROPA_CORTA = {"sayo": (96, 76, 56)}
 
 
 def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, espejo=False,
@@ -1042,8 +1077,11 @@ def figura(d, x, suelo, alto, rnd, pose="de_pie", gesto="neutro", gorro=None, es
         # Y sin los zapatos de debajo: asomaban como dos ruedas; los pies los
         # pone la ropa larga (_calzado_bajo_la_ropa).
         manga = _MANGAS.get(objeto)
-        volumen.cuerpo(d, P, p, cuello, cadera, alto, g,
-                       dict(rasgos, manga=manga, sin_pies=True) if manga else rasgos,
+        if objeto in _ROPA_CORTA:      # hasta la rodilla: se ven las calzas y los pies
+            vestido = dict(rasgos or {}, manga=manga, calzas=_ROPA_CORTA[objeto])
+        else:
+            vestido = dict(rasgos or {}, manga=manga, sin_pies=True) if manga else rasgos
+        volumen.cuerpo(d, P, p, cuello, cadera, alto, g, vestido,
                        x, suelo, s, encima=encima)
         d = ImageDraw.Draw(d._image)
     else:
