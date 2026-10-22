@@ -1,6 +1,6 @@
 {
-  "title": "Covadonga: ¿187.000 enemigos o treinta asnos salvajes?",
-  "description": "Hacia el año 722, en un valle estrecho de los Picos de Europa, Pelayo y los suyos frenaron a un ejército andalusí. Así nació el reino de Asturias. #Shorts #Historia #HistoriaDeEspaña #Covadonga #EspañaContada Suscríbete a España Contada.",
+  "title": "Batalla de Covadonga (722) resumen: ¿187.000 enemigos o 30 asnos?",
+  "description": "Resumen de la batalla de Covadonga para 2º de Bachillerato y la PAU de Historia de España. Hacia el año 722, en un valle estrecho de los Picos de Europa, Pelayo y los suyos frenaron a un ejército andalusí. Así nació el reino de Asturias. #Shorts #Historia #HistoriaDeEspaña #Covadonga #EspañaContada Suscríbete a España Contada.",
   "is_sensitive": "false",
   "tags": [
     "Covadonga",
@@ -12,14 +12,18 @@
     "Picos de Europa",
     "Al-Ándalus",
     "historia de España",
-    "historia 2 ESO",
     "España Contada",
-    "resumen historia"
+    "resumen historia",
+    "2º Bachillerato",
+    "PAU",
+    "selectividad",
+    "Historia de España PAU",
+    "resumen batalla de Covadonga"
   ],
   "lo_gracioso": "Una crónica cristiana habla de 187.000 enemigos y un relato musulmán posterior llama a los de Pelayo treinta asnos salvajes; Alqama mete a su ejército en un valle donde no caben.",
   "scenes": [
     {
-      "narration": "187.000 soldados contra Pelayo.",
+      "narration": "187.000 soldados contra Pelayo en Covadonga.",
       "sonido": "gentio",
       "on_screen_highlight": "187.000 SOLDADOS",
       "escena": {
@@ -79,7 +83,7 @@
       }
     },
     {
-      "narration": "En el 711 llegan los musulmanes del norte de África, y en pocos años dominan casi toda la península.",
+      "narration": "Tras el 711, los musulmanes dominan casi toda la península.",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
@@ -107,7 +111,7 @@
       }
     },
     {
-      "narration": "Casi. En las montañas de Asturias, un noble cristiano llamado Pelayo se niega a someterse. «¿Rendirme? Antes me hago pastor.»",
+      "narration": "Casi. En Asturias, el noble cristiano Pelayo se rebela. «¿Rendirme? Antes me hago pastor.»",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
@@ -146,50 +150,7 @@
       }
     },
     {
-      "narration": "«¡Hay rebeldes en las montañas de Asturias!» «Pues mandad un ejército.»",
-      "sonido": "pasos",
-      "on_screen_highlight": "",
-      "escena": {
-        "interior": "palacio_andalusi",
-        "rotulo": "",
-        "hablan": [
-          "persona_b",
-          "persona"
-        ],
-        "a_quien": [
-          "persona",
-          "persona_b"
-        ],
-        "cosas": [],
-        "figuras": [
-          {
-            "quien": "persona_b",
-            "papel": "Un mensajero",
-            "gorro": "turbante",
-            "objeto": "tunica",
-            "x": 0.18,
-            "pose": "de_pie",
-            "pose_fin": "brazos_arriba",
-            "gesto": "grito",
-            "efecto": "sudor"
-          },
-          {
-            "quien": "persona",
-            "papel": "El gobernador",
-            "gorro": "turbante",
-            "objeto": "tunica",
-            "barba": "negra",
-            "x": 0.82,
-            "pose": "de_pie",
-            "gesto": "bostezo",
-            "espejo": true
-          }
-        ],
-        "habla_x": 0.18
-      }
-    },
-    {
-      "narration": "Al mando, según las crónicas cristianas, va Alqama. «¡Adelante! ¿Qué puede salir mal?»",
+      "narration": "Contra él mandan un ejército, con Alqama al mando según las crónicas cristianas. «¿Qué puede salir mal?»",
       "sonido": "pasos",
       "on_screen_highlight": "",
       "escena": {
@@ -228,7 +189,7 @@
       }
     },
     {
-      "narration": "Pelayo le espera en Covadonga, un valle tan estrecho que un ejército grande no puede ni moverse.",
+      "narration": "Pelayo le espera en Covadonga, un valle estrechísimo entre montañas.",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
@@ -377,7 +338,7 @@
       }
     },
     {
-      "narration": "Más de un siglo después, los cronistas cristianos lo engrandecen: «Pon 187.000 enemigos. Queda más épico.»",
+      "narration": "Más de un siglo después, un cronista cristiano: «Pon 187.000 enemigos. Queda más épico.»",
       "sonido": "",
       "on_screen_highlight": "187.000",
       "escena": {
@@ -414,7 +375,7 @@
       }
     },
     {
-      "narration": "Y los musulmanes le quitan importancia: «¿Treinta asnos salvajes? Dejadlos en paz.»",
+      "narration": "Y uno musulmán: «¿Treinta asnos salvajes? Dejadlos en paz.»",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
@@ -514,7 +475,7 @@
       }
     },
     {
-      "narration": "Por eso Covadonga se recuerda como el inicio de la Reconquista: casi 800 años, hasta que cae Granada en 1492.",
+      "narration": "Por eso Covadonga se recuerda como el inicio de la Reconquista, que dura hasta 1492.",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
