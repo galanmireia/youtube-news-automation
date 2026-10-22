@@ -19,7 +19,7 @@
   "lo_gracioso": "Una crónica cristiana habla de 187.000 enemigos y un relato musulmán posterior llama a los de Pelayo treinta asnos salvajes; Alqama mete a su ejército en un valle donde no caben.",
   "scenes": [
     {
-      "narration": "Una crónica cristiana dice que Pelayo venció a 187.000 soldados.",
+      "narration": "187.000 soldados contra Pelayo.",
       "sonido": "gentio",
       "on_screen_highlight": "187.000 SOLDADOS",
       "escena": {
@@ -49,7 +49,7 @@
       }
     },
     {
-      "narration": "Una musulmana dice que los de Pelayo eran treinta asnos salvajes. ¿Qué pasó de verdad?",
+      "narration": "O treinta asnos. Depende de si preguntas a un cronista cristiano o a uno musulmán.",
       "sonido": "",
       "on_screen_highlight": "30 ASNOS",
       "escena": {
