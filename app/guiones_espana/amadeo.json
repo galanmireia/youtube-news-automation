@@ -1,0 +1,343 @@
+{
+  "title": "Amadeo de Saboya (1871-1873) resumen: el rey que DIMITIÓ | Historia de España 2º Bachillerato",
+  "description": "En 1868 la Gloriosa echa a Isabel II y España se queda sin rey. Prim busca uno por Europa y las Cortes eligen a Amadeo de Saboya. Dos años después, harto, renuncia, y el 11 de febrero de 1873 se proclama la Primera República. Sexenio Democrático explicado en un minuto. #Shorts #HistoriaDeEspaña #2Bachillerato #PAU #Selectividad #AmadeoDeSaboya #EspañaContada",
+  "is_sensitive": "false",
+  "tags": [
+    "Amadeo de Saboya",
+    "Amadeo I",
+    "Sexenio Democrático",
+    "Gloriosa 1868",
+    "Constitución de 1869",
+    "Prim",
+    "Primera República",
+    "1873",
+    "Isabel II",
+    "historia de España",
+    "2º Bachillerato",
+    "PAU",
+    "selectividad",
+    "Historia de España PAU",
+    "resumen Sexenio Democrático",
+    "España Contada"
+  ],
+  "lo_gracioso": "España monta un casting de reyes por Europa, una candidatura sirve de excusa para una guerra entre Francia y Prusia, y el elegido acaba renunciando harto.",
+  "scenes": [
+    {
+      "narration": "1868: la revolución Gloriosa echa a Isabel II, que se marcha a París.",
+      "sonido": "gentio",
+      "on_screen_highlight": "1868",
+      "escena": {
+        "interior": "salon_trono",
+        "rotulo": "Madrid, 1868",
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [],
+        "figuras": [
+          {
+            "papel": "Isabel II",
+            "x": 0.3,
+            "pose": "andando",
+            "gesto": "enfadado",
+            "objeto": "vestido",
+            "gorro": "corona"
+          }
+        ]
+      }
+    },
+    {
+      "narration": "La Constitución de 1869 establece una monarquía, pero no hay rey. Prim lo busca por Europa. «Se busca rey. Demócrata, a ser posible.»",
+      "sonido": "",
+      "on_screen_highlight": "",
+      "escena": {
+        "interior": "despacho",
+        "rotulo": "",
+        "hablan": [
+          "Prim"
+        ],
+        "a_quien": [
+          ""
+        ],
+        "cosas": [],
+        "figuras": [
+          {
+            "quien": "mandamas",
+            "papel": "Prim",
+            "barba": "negra",
+            "x": 0.45,
+            "pose": "mirando",
+            "gesto": "neutro",
+            "lleva": "catalejo",
+            "gorro": "comandante"
+          }
+        ],
+        "habla_x": 0.45
+      }
+    },
+    {
+      "narration": "Una de las candidaturas acaba sirviendo de excusa para una guerra entre Francia y Prusia.",
+      "sonido": "espada",
+      "on_screen_highlight": "",
+      "escena": {
+        "interior": "despacho",
+        "rotulo": "",
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [
+          {
+            "que": "bandera_francia",
+            "x": 0.75,
+            "tam": 0.16
+          }
+        ],
+        "figuras": [
+          {
+            "quien": "mandamas",
+            "papel": "Prim",
+            "barba": "negra",
+            "x": 0.35,
+            "pose": "de_pie",
+            "pose_fin": "brazos_arriba",
+            "gesto": "asustado",
+            "efecto": "sudor",
+            "gorro": "comandante"
+          }
+        ]
+      }
+    },
+    {
+      "narration": "Al final, las Cortes eligen a Amadeo de Saboya, hijo del rey de Italia.",
+      "sonido": "campana",
+      "on_screen_highlight": "AMADEO I",
+      "escena": {
+        "interior": "salon_trono",
+        "rotulo": "",
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [],
+        "figuras": [
+          {
+            "quien": "persona",
+            "papel": "Amadeo",
+            "barba": "castaña",
+            "objeto": "banda_espana",
+            "x": 0.45,
+            "pose": "de_pie",
+            "pose_fin": "brazos_arriba",
+            "gesto": "contento"
+          }
+        ]
+      }
+    },
+    {
+      "narration": "Pero el 30 de diciembre de 1870, cuando Amadeo llega a España, muere Prim, su gran apoyo, tras un atentado.",
+      "sonido": "",
+      "on_screen_highlight": "",
+      "escena": {
+        "interior": "puerto",
+        "rotulo": "Cartagena, 1870",
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [],
+        "figuras": [
+          {
+            "quien": "persona",
+            "papel": "Amadeo",
+            "barba": "castaña",
+            "objeto": "banda_espana",
+            "x": 0.45,
+            "pose": "de_pie",
+            "gesto": "triste",
+            "efecto": "lagrimas"
+          }
+        ]
+      }
+    },
+    {
+      "narration": "La nobleza le hace el vacío: las damas salen con mantilla y peineta, a favor de los Borbones.",
+      "sonido": "",
+      "on_screen_highlight": "",
+      "escena": {
+        "interior": "calle",
+        "rotulo": "",
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [],
+        "figuras": [
+          {
+            "quien": "persona",
+            "papel": "Amadeo",
+            "barba": "castaña",
+            "objeto": "banda_espana",
+            "x": 0.25,
+            "pose": "de_pie",
+            "gesto": "sorpresa",
+            "efecto": "confuso"
+          },
+          {
+            "papel": "Una dama",
+            "x": 0.6,
+            "pose": "de_pie",
+            "gesto": "enfadado",
+            "objeto": "vestido",
+            "gorro": "peineta",
+            "espejo": true
+          },
+          {
+            "papel": "",
+            "x": 0.82,
+            "pose": "de_pie",
+            "gesto": "asco",
+            "objeto": "luto",
+            "gorro": "peineta",
+            "espejo": true
+          }
+        ]
+      }
+    },
+    {
+      "narration": "Carlistas en armas, guerra en Cuba, republicanos en contra y gobiernos que caen uno tras otro.",
+      "sonido": "",
+      "on_screen_highlight": "",
+      "escena": {
+        "interior": "salon_trono",
+        "rotulo": "",
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [],
+        "figuras": [
+          {
+            "quien": "persona",
+            "papel": "Amadeo",
+            "barba": "castaña",
+            "objeto": "banda_espana",
+            "x": 0.35,
+            "pose": "de_pie",
+            "gesto": "asustado",
+            "gorro": "corona",
+            "efecto": "mareo"
+          },
+          {
+            "papel": "Un carlista",
+            "x": 0.72,
+            "pose": "de_pie",
+            "pose_fin": "señala",
+            "gesto": "enfadado",
+            "gorro": "boina",
+            "lleva": "espada",
+            "espejo": true
+          }
+        ]
+      }
+    },
+    {
+      "narration": "En febrero de 1873, se harta y renuncia.",
+      "sonido": "",
+      "on_screen_highlight": "1873",
+      "escena": {
+        "interior": "despacho",
+        "rotulo": "",
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [],
+        "figuras": [
+          {
+            "quien": "persona",
+            "papel": "Amadeo",
+            "barba": "castaña",
+            "objeto": "banda_espana",
+            "x": 0.45,
+            "pose": "firmando",
+            "gesto": "enfadado",
+            "gorro": "corona"
+          }
+        ]
+      }
+    },
+    {
+      "narration": "Y se despide así: «Los que agravan los males de la nación... son españoles.»",
+      "sonido": "",
+      "on_screen_highlight": "",
+      "escena": {
+        "interior": "salon_trono",
+        "rotulo": "",
+        "hablan": [
+          "Amadeo"
+        ],
+        "a_quien": [
+          ""
+        ],
+        "cosas": [],
+        "figuras": [
+          {
+            "quien": "persona",
+            "papel": "Amadeo",
+            "barba": "castaña",
+            "objeto": "banda_espana",
+            "x": 0.4,
+            "pose": "de_pie",
+            "pose_fin": "señala",
+            "gesto": "enfadado"
+          }
+        ],
+        "habla_x": 0.4
+      }
+    },
+    {
+      "narration": "Ese mismo día, 11 de febrero de 1873, se proclama la Primera República.",
+      "sonido": "gentio",
+      "on_screen_highlight": "I REPÚBLICA",
+      "escena": {
+        "interior": "calle",
+        "rotulo": "",
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [
+          {
+            "que": "multitud",
+            "x": 0.5,
+            "tam": 0.12
+          },
+          {
+            "que": "bandera_espana",
+            "x": 0.82,
+            "tam": 0.16
+          }
+        ],
+        "figuras": [
+          {
+            "papel": "Un diputado",
+            "x": 0.4,
+            "pose": "de_pie",
+            "pose_fin": "brazos_arriba",
+            "gesto": "contento",
+            "gorro": "chistera"
+          }
+        ]
+      }
+    },
+    {
+      "narration": "Amadeo vuelve a Italia. Fue rey dos años y se marchó por voluntad propia.",
+      "sonido": "",
+      "on_screen_highlight": "",
+      "escena": {
+        "interior": "puerto",
+        "rotulo": "",
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [],
+        "figuras": [
+          {
+            "quien": "persona",
+            "papel": "Amadeo",
+            "barba": "castaña",
+            "objeto": "banda_espana",
+            "x": 0.5,
+            "pose": "andando",
+            "gesto": "contento",
+            "espejo": true
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -39,12 +39,11 @@ despliega solo al hacer push a esa rama.
 - Un Short debe durar ~1 minuto: ~2,2 palabras por segundo de narración (237 palabras dieron 1:48).
 - Bocadillos: máximo 10 palabras por frase y 8 frases por escena; lo del narrador va sin «».
 
-## Estado (22-oct-2026)
+## Estado (4-nov-2026)
 
-- **Covadonga**: guion de 15 escenas, claro y con ropa de época, subido (commit
-  «Covadonga mas claro y con ropa de epoca: sayo de los astures»). La dueña lanzó
-  `/hecho covadonga` y le salió la versión VIEJA: comprobar en Railway que ese commit está
-  desplegado (SUCCESS); si no, redesplegar. Después, revisar el vídeo que genere.
-- Pendiente de decidir: ajustar el bot al público de 2º Bachillerato (prompt, etiquetas,
-  ficha «Para la PAU»), y una saga del siglo XIX (siguiente propuesto: Amadeo de Saboya).
+- **Covadonga**: terminado (14 escenas, ~67 s, título y etiquetas para la PAU).
+- **Amadeo de Saboya** (`/hecho amadeo`): 11 escenas, ~168 palabras, siglo XIX con ropa de
+  1870 (uniforme y banda, peinetas). Hecho el 4-nov; pendiente de revisar el vídeo generado.
+- Siguiente línea propuesta: saga del siglo XIX para 2º Bachillerato (Primera República,
+  Restauración, Constitución de 1876...). Ficha «Para la PAU» al final: pendiente de decidir.
 - Otros proyectos en `prototipos/`: reels de gatos (`michi/`), zoom de fractal (`fractal/`).
