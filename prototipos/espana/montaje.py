@@ -56,15 +56,46 @@ def para_la_voz(texto: str) -> str:
     return t
 
 
+_VOCES = {}
+
+
+def fonemas(texto: str, voz_piper) -> list[list[str]]:
+    """Los fonemas de cada frase, arreglados para el castellano. espeak marca
+    un ACENTO SECUNDARIO (ˌ) en la primera silaba de muchas palabras, y la
+    voz, que viene de una inglesa, lo pronuncia: decia Á-madeo, Í-sabel,
+    ÉM-pezó, como con una tilde de mas. En castellano no existe: fuera. Y
+    los diptongos a la inglesa (eɪ, eʊ) y la e abierta, a la española."""
+    out = []
+    for frase in voz_piper.phonemize(texto):
+        palabras = []
+        for w_ in "".join(frase).split(" "):
+            # "sesenta y ocho" llega pegado (sesˌɛntaiʲˈotʃo): ahi el secundario
+            # SI es acento de verdad, el de "sesenta"
+            if re.search(r"ˌ[^ˈ]*ai[ʲ]?[^ˈ]*ˈ", w_):
+                w_ = w_.replace("ˌ", "ˈ", 1)
+            w_ = w_.replace("ˌ", "") if "ˈ" in w_ else w_.replace("ˌ", "ˈ")
+            palabras.append(w_)
+        s = " ".join(palabras)
+        s = s.replace("eɪ", "ei").replace("eʊ", "eu").replace("ɛ", "e")
+        out.append(list(s))
+    return out
+
+
 def voz(texto: str, dir_voz: Path, escala: float) -> np.ndarray:
+    from piper import PiperVoice, SynthesisConfig
     modelo = next(dir_voz.glob("*.onnx"))
-    with tempfile.NamedTemporaryFile(suffix=".wav") as f:
-        subprocess.run([sys.executable, "-m", "piper", "-m", str(modelo), "-c", str(modelo) + ".json",
-                        "--length-scale", str(escala), "--sentence-silence", "0.15", "-f", f.name],
-                       input=texto.encode(), check=True, capture_output=True)
-        with wave.open(f.name) as w:
-            a = np.frombuffer(w.readframes(w.getnframes()), np.int16).astype(np.float32)/32768
-            assert w.getframerate() == SR
+    if modelo not in _VOCES:
+        _VOCES[modelo] = PiperVoice.load(str(modelo))
+    v = _VOCES[modelo]
+    cfg = SynthesisConfig(length_scale=escala, noise_scale=0.5, noise_w_scale=0.6)
+    trozos = []
+    for f in fonemas(texto, v):
+        a = v.phoneme_ids_to_audio(v.phonemes_to_ids(f), cfg)
+        a = np.asarray(a, np.float32).reshape(-1)
+        if a.dtype != np.float32 or np.abs(a).max() > 1.5:
+            a = a/32768.0
+        trozos += [a, np.zeros(int(0.15*SR), np.float32)]
+    a = np.concatenate(trozos)
     # fuera el silencio de los bordes, que es lo que hacia el ritmo lento
     vivo = np.where(np.abs(a) > 0.01)[0]
     if len(vivo):
