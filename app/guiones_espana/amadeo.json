@@ -1,5 +1,5 @@
 {
-  "title": "Amadeo de Saboya (1871-1873) resumen: el rey que DIMITIÓ | Historia de España 2º Bachillerato",
+  "title": "Amadeo de Saboya (1871-1873): el rey que dimitió | Historia de España 2º Bachillerato",
   "description": "En 1868 la Gloriosa echa a Isabel II y España se queda sin rey. Prim busca uno por Europa y las Cortes eligen a Amadeo de Saboya. Dos años después, harto, renuncia, y el 11 de febrero de 1873 se proclama la Primera República. Sexenio Democrático explicado en un minuto. #Shorts #HistoriaDeEspaña #2Bachillerato #PAU #Selectividad #AmadeoDeSaboya #EspañaContada",
   "is_sensitive": "false",
   "tags": [
@@ -23,7 +23,57 @@
   "lo_gracioso": "España monta un casting de reyes por Europa, una candidatura sirve de excusa para una guerra entre Francia y Prusia, y el elegido acaba renunciando harto.",
   "scenes": [
     {
-      "narration": "1868: la revolución Gloriosa echa a Isabel II, que se marcha a París.",
+      "narration": "España buscó rey por media Europa...",
+      "sonido": "",
+      "on_screen_highlight": "",
+      "escena": {
+        "interior": "despacho",
+        "rotulo": "",
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [],
+        "figuras": [
+          {
+            "quien": "mandamas",
+            "papel": "Prim",
+            "barba": "negra",
+            "gorro": "comandante",
+            "x": 0.45,
+            "pose": "mirando",
+            "gesto": "neutro",
+            "lleva": "catalejo"
+          }
+        ]
+      }
+    },
+    {
+      "narration": "...y el elegido acabó dimitiendo.",
+      "sonido": "",
+      "on_screen_highlight": "EL REY QUE DIMITIÓ",
+      "escena": {
+        "interior": "salon_trono",
+        "rotulo": "",
+        "hablan": [],
+        "a_quien": [],
+        "cosas": [],
+        "figuras": [
+          {
+            "quien": "persona",
+            "papel": "Amadeo",
+            "barba": "castaña",
+            "objeto": "banda_espana",
+            "x": 0.35,
+            "pose": "de_pie",
+            "pose_fin": "brazos_arriba",
+            "gesto": "asustado",
+            "gorro": "corona",
+            "efecto": "sudor"
+          }
+        ]
+      }
+    },
+    {
+      "narration": "Todo empezó en 1868: la Revolución Gloriosa expulsó a Isabel II, que se marchó a París.",
       "sonido": "gentio",
       "on_screen_highlight": "1868",
       "escena": {
@@ -45,36 +95,32 @@
       }
     },
     {
-      "narration": "La Constitución de 1869 establece una monarquía, pero no hay rey. Prim lo busca por Europa. «Se busca rey. Demócrata, a ser posible.»",
+      "narration": "La Constitución de 1869 estableció una monarquía democrática, pero faltaba lo más importante: ¡el monarca!",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
         "interior": "despacho",
         "rotulo": "",
-        "hablan": [
-          "Prim"
-        ],
-        "a_quien": [
-          ""
-        ],
+        "hablan": [],
+        "a_quien": [],
         "cosas": [],
         "figuras": [
           {
             "quien": "mandamas",
             "papel": "Prim",
             "barba": "negra",
-            "x": 0.45,
-            "pose": "mirando",
-            "gesto": "neutro",
-            "lleva": "catalejo",
-            "gorro": "comandante"
+            "gorro": "comandante",
+            "x": 0.4,
+            "pose": "de_pie",
+            "pose_fin": "señala",
+            "gesto": "sorpresa",
+            "lleva": "libro"
           }
-        ],
-        "habla_x": 0.45
+        ]
       }
     },
     {
-      "narration": "Una de las candidaturas acaba sirviendo de excusa para una guerra entre Francia y Prusia.",
+      "narration": "Hasta hubo un candidato alemán cuya candidatura contribuyó a desencadenar la guerra entre Francia y Prusia.",
       "sonido": "espada",
       "on_screen_highlight": "",
       "escena": {
@@ -84,9 +130,14 @@
         "a_quien": [],
         "cosas": [
           {
+            "que": "mapa",
+            "x": 0.7,
+            "tam": 0.18
+          },
+          {
             "que": "bandera_francia",
-            "x": 0.75,
-            "tam": 0.16
+            "x": 0.88,
+            "tam": 0.14
           }
         ],
         "figuras": [
@@ -94,18 +145,18 @@
             "quien": "mandamas",
             "papel": "Prim",
             "barba": "negra",
-            "x": 0.35,
+            "gorro": "comandante",
+            "x": 0.32,
             "pose": "de_pie",
             "pose_fin": "brazos_arriba",
             "gesto": "asustado",
-            "efecto": "sudor",
-            "gorro": "comandante"
+            "efecto": "sudor"
           }
         ]
       }
     },
     {
-      "narration": "Al final, las Cortes eligen a Amadeo de Saboya, hijo del rey de Italia.",
+      "narration": "Finalmente, las Cortes eligieron a Amadeo de Saboya, hijo de Víctor Manuel II, rey de Italia.",
       "sonido": "campana",
       "on_screen_highlight": "AMADEO I",
       "escena": {
@@ -123,13 +174,15 @@
             "x": 0.45,
             "pose": "de_pie",
             "pose_fin": "brazos_arriba",
-            "gesto": "contento"
+            "gesto": "contento",
+            "gorro": "corona",
+            "efecto": "corona"
           }
         ]
       }
     },
     {
-      "narration": "Pero el 30 de diciembre de 1870, cuando Amadeo llega a España, muere Prim, su gran apoyo, tras un atentado.",
+      "narration": "El 30 de diciembre de 1870, Amadeo llegó a Cartagena. Ese mismo día murió Prim, su principal apoyo, tras un atentado.",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
@@ -146,14 +199,13 @@
             "objeto": "banda_espana",
             "x": 0.45,
             "pose": "de_pie",
-            "gesto": "triste",
-            "efecto": "lagrimas"
+            "gesto": "triste"
           }
         ]
       }
     },
     {
-      "narration": "La nobleza le hace el vacío: las damas salen con mantilla y peineta, a favor de los Borbones.",
+      "narration": "Y sin Prim, aquello fue cuesta abajo: la aristocracia borbónica le hizo el vacío.",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
@@ -171,31 +223,30 @@
             "x": 0.25,
             "pose": "de_pie",
             "gesto": "sorpresa",
+            "gorro": "corona",
             "efecto": "confuso"
           },
           {
             "papel": "Una dama",
             "x": 0.6,
             "pose": "de_pie",
-            "gesto": "enfadado",
+            "gesto": "asco",
             "objeto": "vestido",
-            "gorro": "peineta",
-            "espejo": true
+            "gorro": "peineta"
           },
           {
             "papel": "",
             "x": 0.82,
             "pose": "de_pie",
-            "gesto": "asco",
+            "gesto": "enfadado",
             "objeto": "luto",
-            "gorro": "peineta",
-            "espejo": true
+            "gorro": "peineta"
           }
         ]
       }
     },
     {
-      "narration": "Carlistas en armas, guerra en Cuba, republicanos en contra y gobiernos que caen uno tras otro.",
+      "narration": "Carlistas en armas, guerra en Cuba, republicanos contra la monarquía y gobiernos inestables. ¡Menudo estreno!",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
@@ -206,31 +257,39 @@
         "cosas": [],
         "figuras": [
           {
+            "papel": "Un carlista",
+            "x": 0.18,
+            "pose": "de_pie",
+            "pose_fin": "señala",
+            "gesto": "enfadado",
+            "gorro": "boina",
+            "lleva": "espada"
+          },
+          {
             "quien": "persona",
             "papel": "Amadeo",
             "barba": "castaña",
             "objeto": "banda_espana",
-            "x": 0.35,
+            "x": 0.5,
             "pose": "de_pie",
             "gesto": "asustado",
             "gorro": "corona",
             "efecto": "mareo"
           },
           {
-            "papel": "Un carlista",
-            "x": 0.72,
+            "papel": "Un diputado",
+            "x": 0.82,
             "pose": "de_pie",
             "pose_fin": "señala",
-            "gesto": "enfadado",
-            "gorro": "boina",
-            "lleva": "espada",
+            "gesto": "grito",
+            "gorro": "chistera",
             "espejo": true
           }
         ]
       }
     },
     {
-      "narration": "En febrero de 1873, se harta y renuncia.",
+      "narration": "En febrero de 1873, después de apenas dos años, Amadeo renunció al trono.",
       "sonido": "",
       "on_screen_highlight": "1873",
       "escena": {
@@ -247,25 +306,20 @@
             "objeto": "banda_espana",
             "x": 0.45,
             "pose": "firmando",
-            "gesto": "enfadado",
-            "gorro": "corona"
+            "gesto": "enfadado"
           }
         ]
       }
     },
     {
-      "narration": "Y se despide así: «Los que agravan los males de la nación... son españoles.»",
+      "narration": "En su renuncia, denunció que los problemas del país los agravaban los propios españoles.",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {
         "interior": "salon_trono",
         "rotulo": "",
-        "hablan": [
-          "Amadeo"
-        ],
-        "a_quien": [
-          ""
-        ],
+        "hablan": [],
+        "a_quien": [],
         "cosas": [],
         "figuras": [
           {
@@ -273,17 +327,31 @@
             "papel": "Amadeo",
             "barba": "castaña",
             "objeto": "banda_espana",
-            "x": 0.4,
+            "x": 0.25,
             "pose": "de_pie",
             "pose_fin": "señala",
             "gesto": "enfadado"
+          },
+          {
+            "papel": "Un diputado",
+            "x": 0.62,
+            "pose": "peleando",
+            "gesto": "grito",
+            "gorro": "chistera",
+            "espejo": true
+          },
+          {
+            "papel": "",
+            "x": 0.85,
+            "pose": "peleando",
+            "gesto": "enfadado",
+            "gorro": "chistera"
           }
-        ],
-        "habla_x": 0.4
+        ]
       }
     },
     {
-      "narration": "Ese mismo día, 11 de febrero de 1873, se proclama la Primera República.",
+      "narration": "El 11 de febrero de 1873 se proclamó la Primera República.",
       "sonido": "gentio",
       "on_screen_highlight": "I REPÚBLICA",
       "escena": {
@@ -294,12 +362,12 @@
         "cosas": [
           {
             "que": "multitud",
-            "x": 0.5,
+            "x": 0.6,
             "tam": 0.12
           },
           {
             "que": "bandera_espana",
-            "x": 0.82,
+            "x": 0.88,
             "tam": 0.16
           }
         ],
@@ -316,7 +384,7 @@
       }
     },
     {
-      "narration": "Amadeo vuelve a Italia. Fue rey dos años y se marchó por voluntad propia.",
+      "narration": "Y Amadeo volvió a Italia.",
       "sonido": "",
       "on_screen_highlight": "",
       "escena": {

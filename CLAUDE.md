@@ -42,7 +42,7 @@ despliega solo al hacer push a esa rama.
 ## Estado (4-nov-2026)
 
 - **Covadonga**: terminado (14 escenas, ~67 s, título y etiquetas para la PAU).
-- **Amadeo de Saboya** (`/hecho amadeo`): 11 escenas, ~168 palabras, siglo XIX con ropa de
+- **Amadeo de Saboya** (`/hecho amadeo`): 13 escenas (versión mejorada con ChatGPT, datos corregidos), ~167 palabras, siglo XIX con ropa de
   1870 (uniforme y banda, peinetas). Hecho el 4-nov; pendiente de revisar el vídeo generado.
 - Siguiente línea propuesta: saga del siglo XIX para 2º Bachillerato (Primera República,
   Restauración, Constitución de 1876...). Ficha «Para la PAU» al final: pendiente de decidir.
