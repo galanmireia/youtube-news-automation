@@ -468,6 +468,8 @@ def main():
     ap.add_argument("salida")
     ap.add_argument("--escenas", default="")
     ap.add_argument("--fotos", default="")
+    ap.add_argument("--audio", default="", help="la narracion con su voz (el mp3 de /narra)")
+    ap.add_argument("--duraciones", default="", help="el json de /narra con lo que dura cada escena")
     args = ap.parse_args()
     cuales = [int(i) for i in args.escenas.split(",")] if args.escenas else list(range(len(ESCENAS)))
 
@@ -510,15 +512,36 @@ def main():
         return
 
     dir_voz = Path(__file__).resolve().parents[1] / "espana" / "voz" / "vits-piper-es_ES-davefx-medium"
-    voces = [MJ.voz(MJ.para_la_voz(ESCENAS[i]["n"]), dir_voz, 0.9) for i in cuales]
-    durs = [len(a)/MJ.SR + 0.35 for a in voces]
-    total = sum(durs) + 1.0
-    starts = np.cumsum([0] + durs[:-1])
+    if args.audio:
+        # SU VOZ: la narracion entera de /narra, y lo que dura cada escena
+        # medido por ElevenLabs letra a letra; el video se ajusta a ella.
+        import json
+        info = json.loads(Path(args.duraciones).read_text())
+        assert len(info["duraciones"]) == len(ESCENAS), "la narracion no tiene las mismas escenas que el guion"
+        crudo = subprocess.run(["ffmpeg", "-v", "error", "-i", args.audio, "-f", "f32le", "-ac", "1", "-ar",
+                                str(MJ.SR), "-"], capture_output=True, check=True).stdout
+        narracion = np.frombuffer(crudo, np.float32).copy()
+        narracion /= max(1e-6, np.abs(narracion).max())/0.92
+        durs_todas = list(info["duraciones"])
+        durs = [durs_todas[i] for i in cuales]
+        hablados = list(durs)
+        total = sum(durs) + 1.0
+        starts = np.cumsum([0] + durs[:-1])
+        pista_voz = np.zeros(int(total*MJ.SR) + MJ.SR, np.float32)
+        inicios = np.cumsum([0] + durs_todas[:-1])
+        for s, i in zip(starts, cuales):
+            a = narracion[int(inicios[i]*MJ.SR):int((inicios[i] + durs_todas[i])*MJ.SR)]
+            MJ.suma(pista_voz, a, s)
+    else:
+        voces = [MJ.voz(MJ.para_la_voz(ESCENAS[i]["n"]), dir_voz, 0.9) for i in cuales]
+        durs = [len(a)/MJ.SR + 0.35 for a in voces]
+        hablados = [len(a)/MJ.SR for a in voces]
+        total = sum(durs) + 1.0
+        starts = np.cumsum([0] + durs[:-1])
+        pista_voz = np.zeros(int(total*MJ.SR) + MJ.SR, np.float32)
+        for s, a in zip(starts, voces):
+            MJ.suma(pista_voz, a, s + 0.05)
     print(f"duracion: {total/60:.1f} min", flush=True)
-
-    pista_voz = np.zeros(int(total*MJ.SR) + MJ.SR, np.float32)
-    for s, a in zip(starts, voces):
-        MJ.suma(pista_voz, a, s + 0.05)
     musi = MJ.musica(total + 1, bpm=92)[:len(pista_voz)]
     env = np.convolve(np.abs(pista_voz), np.ones(int(0.25*MJ.SR))/int(0.25*MJ.SR), mode="same")
     vol = 0.12 - 0.08*np.clip(env*12, 0, 1)
@@ -542,7 +565,7 @@ def main():
     for n, i in enumerate(cuales):
         e = ESCENAS[i]
         dur = durs[n]
-        hablado = len(voces[n])/MJ.SR
+        hablado = hablados[n]
         filas = MJ.tiempos_de_palabras(MJ.trozos(e["n"]), hablado)
         claves = e["sim"] if isinstance(e.get("sim"), tuple) else ([e["sim"]] if e.get("sim") else [])
         frenado = False

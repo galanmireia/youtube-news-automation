@@ -1229,6 +1229,71 @@ _ALIAS_MODELO = {
 }
 
 
+NARRACIONES = Path(__file__).resolve().parent / "narraciones"
+
+
+async def handle_narra_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/narra nombre [si] - la narracion de un video de "Lo he simulado" con
+    su voz clonada. El video no lo monta el bot (la simulacion se dibuja en
+    otro sitio): aqui solo se pone la voz, y se devuelven el mp3 y lo que dura
+    cada escena, que es lo que hace falta para sincronizarla.
+
+    Sin "si" no gasta nada: dice cuantos creditos costaria. La voz de pago
+    nunca se dispara por equivocarse al teclear el nombre."""
+    if str(update.effective_chat.id) != str(TELEGRAM_CHAT_ID):
+        return
+    args = [a.lower() for a in context.args]
+    if not args:
+        lista = sorted(p.stem for p in NARRACIONES.glob("*.json"))
+        await update.message.reply_text(
+            "Narraciones preparadas:\n\n" + "\n".join(f"/narra {n}" for n in lista) if lista
+            else "No hay ninguna narracion preparada.")
+        return
+    nombre = Path(args[0]).stem
+    ruta = NARRACIONES / f"{nombre}.json"
+    if not ruta.is_file():
+        await update.message.reply_text(f"No hay ninguna narracion que se llame {nombre}. Manda /narra para ver la lista.")
+        return
+    datos = json.loads(ruta.read_text(encoding="utf-8"))
+    textos = [t.strip() for t in datos["escenas"] if t.strip()]
+    voice_id, modelo, _ = voice_clone.ajustes_elegidos()
+    if not voice_id:
+        await update.message.reply_text("Todavia no hay voz clonada. Manda /clon primero.")
+        return
+    coste = int(voice_clone.creditos_estimados(" ".join(textos), modelo))
+    if len(args) < 2 or args[1] not in ("si", "sí", "ok", "vale"):
+        await update.message.reply_text(
+            f"{datos.get('titulo', nombre)}\n{len(textos)} escenas, "
+            f"{sum(len(t) for t in textos)} caracteres con `{modelo}`: unos {coste} creditos.\n\n"
+            f"Para generarla manda: /narra {nombre} si",
+            parse_mode="Markdown")
+        return
+    await update.message.reply_text(f"Generando la narracion de {nombre} con tu voz (unos {coste} creditos). Tarda unos minutos...")
+    carpeta = Path(DATA_DIR) / f"narra_{nombre}_{int(time.time())}"
+    loop = asyncio.get_running_loop()
+
+    async def trabajo():
+        try:
+            audio, duraciones = await loop.run_in_executor(
+                None, voice_clone.sintetizar_escenas, [{"narration": t} for t in textos], carpeta)
+        except Exception as exc:
+            logger.exception("Error generando la narracion %s", nombre)
+            await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"No he podido generar la narracion: {exc}")
+            return
+        info = carpeta / f"{nombre}_duraciones.json"
+        info.write_text(json.dumps({"nombre": nombre, "duraciones": duraciones, "textos": textos},
+                                   ensure_ascii=False, indent=1), encoding="utf-8")
+        with open(audio, "rb") as f:
+            await context.bot.send_audio(chat_id=TELEGRAM_CHAT_ID, audio=f, title=f"{nombre} - narracion",
+                                         filename=f"{nombre}_narracion.mp3")
+        with open(info, "rb") as f:
+            await context.bot.send_document(
+                chat_id=TELEGRAM_CHAT_ID, document=f, filename=info.name,
+                caption=f"{len(textos)} escenas, {sum(duraciones):.0f} s. Reenvia los dos archivos a Claude para montar el video.")
+
+    context.application.create_task(trabajo())
+
+
 async def handle_tone_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/tono [v2|v3|turbo] - same voice, same model, four different settings.
 
@@ -2574,6 +2639,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("clon", handle_clone_command))
     application.add_handler(CommandHandler("cuenta", handle_account_command))
     application.add_handler(CommandHandler("tono", handle_tone_command))
+    application.add_handler(CommandHandler("narra", handle_narra_command))
     application.add_handler(CommandHandler("usar", handle_use_command))
     application.add_handler(CommandHandler("dosier", handle_dossier_command))
     application.add_handler(CommandHandler("fuentes", handle_sources_command))

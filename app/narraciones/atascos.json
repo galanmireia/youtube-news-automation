@@ -1,0 +1,33 @@
+{
+  "titulo": "Lo he simulado #1: ¿Por qué hay atascos sin ningún accidente?",
+  "escenas": [
+    "Estás en la autopista. De repente, todo el mundo frena. Diez minutos a paso de tortuga... y cuando por fin sales del atasco, no hay nada. Ni un accidente, ni obras, ni un camión averiado. Nada.",
+    "¿Entonces de dónde ha salido? Para averiguarlo, he construido una carretera dentro de un ordenador. Y en este vídeo vamos a descubrir de dónde salen estos atascos, cuántos coches hacen falta para que aparezcan, por qué meter más coches hace que pasen menos... y cómo un solo conductor puede arreglarlo.",
+    "Es un circuito redondo de doscientos treinta metros. Sin entradas, sin salidas y sin semáforos. Aquí no hay ninguna excusa para un atasco.",
+    "Cada coche lo lleva un conductor virtual con tres reglas muy sencillas.",
+    "Una: si tiene sitio delante, acelera. Dos: si se acerca al de delante, frena. Y tres: de vez en cuando, frena un poquito sin motivo. Se despista, mira el móvil, se asusta. Lo normal.",
+    "Empezamos con ocho coches. Y todo va perfecto. Aunque alguno frena de vez en cuando, hay tanto hueco que no pasa nada.",
+    "Ahora, veintidós. Repartidos a la misma distancia y todos a la misma velocidad: unos treinta kilómetros por hora.",
+    "Al principio, todo bien. Pero mira lo que pasa cuando uno de ellos frena un poco. El de detrás frena un poco más. El siguiente, más todavía. Y al cabo de un rato...",
+    "...hay coches completamente parados. Nadie ha chocado. Nadie se ha salido. Ha aparecido un atasco de la nada.",
+    "Y esto no pasa solo en el ordenador. En 2008, unos investigadores japoneses lo hicieron con coches de verdad: veintidós conductores en un circuito de doscientos treinta metros, con la orden de ir a velocidad constante. Al poco rato, apareció un atasco.",
+    "Si dibujamos dónde está cada coche segundo a segundo, se ve algo rarísimo: las zonas rojas, donde los coches están parados, se mueven... hacia atrás.",
+    "Los coches van hacia delante, pero el atasco va hacia atrás. Por eso, en la autopista, te comes un parón que empezó minutos antes, más adelante, porque alguien frenó sin motivo... y que ya ni siquiera está allí.",
+    "Pero, ¿cuántos coches hacen falta para que esto pase? Vamos a probarlo. Empiezo con diez, y voy metiendo dos más cada vez. Con diez, con doce, con catorce... nada. Con dieciséis, con dieciocho, con veinte... todo sigue fluyendo. Y de repente, con veintidós coches, se rompe. Justo el número del experimento japonés.",
+    "En una gráfica se ve clarísimo. Hasta veinte coches, cero parados. A partir de ahí, cada coche que añadimos deja, más o menos, a uno más parado. Los físicos llaman a ese punto la densidad crítica.",
+    "Y ahora, lo más raro de todo. Voy a contar cuántos coches pasan por esta línea cada minuto. A la izquierda, veinte coches. A la derecha, veinticuatro.",
+    "Con veinte, pasan más de cincuenta por minuto. Con veinticuatro... unos cuarenta. Hay más coches en la carretera, y pasan menos.",
+    "Esta es la gráfica más importante del tráfico. Cuantos más coches, más pasan... hasta un punto. Pasado ese punto, el atasco hace que la carretera trague menos coches, justo cuando más coches quieren pasar. Por eso un atasco, una vez que empieza, cuesta tanto que se deshaga.",
+    "¿Y por qué pasa todo esto? Porque tardamos en reaccionar. Y cuando reaccionamos, frenamos más de la cuenta. Ese poquito de más se va sumando de coche en coche, como en el juego del teléfono.",
+    "Y aquí entra cómo conducimos. Mira estos dos circuitos, los dos con veinte coches, que antes iban perfectamente. A la izquierda, conductores normales. A la derecha, agresivos: reaccionan más tarde y, cuando frenan, frenan fuerte.",
+    "Con los mismos veinte coches, los agresivos ya han formado un atasco, y pasan unos diez coches menos por minuto. Conducir agresivo no te hace llegar antes: hace que lleguemos todos más tarde.",
+    "Prueba: si pongo conductores perfectos, que reaccionan al instante y nunca se despistan... no hay atasco. Nunca. Pero los humanos no somos así.",
+    "La buena noticia es que no hace falta que todos conduzcamos perfecto. Mira lo que pasa si solo uno de los veintidós coches, este azul, conduce de otra forma: no se pega al de delante, deja hueco y, si ve un parón, levanta el pie pronto y suave en vez de frenar en seco.",
+    "El atasco desaparece. Nadie se para. Y todos van, de media, igual de rápido que antes. Un solo coche de veintidós ha arreglado el problema de todos.",
+    "Y también se ha probado de verdad: en 2016, en Arizona, en un circuito con unos veinte coches, uno de ellos conducido por ordenador consiguió reducir mucho los frenazos de todos.",
+    "¿Y esos paneles de la autopista que bajan el límite de velocidad cuando hay mucho tráfico? Vamos a probarlo. A la izquierda, sin límite. A la derecha, con un límite más bajo para todos.",
+    "Funciona... a medias. Casi nadie se para, y se conduce mucho más tranquilo. Pero en este circuito tampoco se llega antes: la velocidad media también baja. Lo que se gana es que desaparecen los frenazos, y menos frenazos son menos ocasiones de darse un golpe.",
+    "Así que la próxima vez que estés en un atasco sin motivo, recuerda: no eres solo una víctima. Eres parte de él. Y la solución está en tu pie derecho: deja hueco, y no frenes de golpe.",
+    "¿Qué quieres que simule en el próximo vídeo? Déjamelo en los comentarios. Esto ha sido Lo he simulado."
+  ]
+}
