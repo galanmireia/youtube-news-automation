@@ -289,8 +289,8 @@ def barras(img, tipo, t, dur):
         d.rounded_rectangle([x, base - max(4, alto), x + ancho, base], radius=12, fill=col)
         if q > 0.5:
             texto(d, (x + ancho/2, base - alto - 40), f"{v}", 52, col)
-        texto(d, (x + ancho/2, base + 45), et, 34 if n > 3 else 44, (210, 220, 245), fuente=FUENTE_B)
-    texto(d, (W/2, 1010), "personas de 1.000", 30, (150, 160, 200), fuente=FUENTE_B)
+        texto(d, (x + ancho/2, base + 38), et, 32 if n > 3 else 42, (210, 220, 245), fuente=FUENTE_B)
+    texto(d, (W/2, 985), "personas de 1.000", 28, (150, 160, 200), fuente=FUENTE_B)
     return img
 
 

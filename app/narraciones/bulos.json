@@ -1,0 +1,31 @@
+{
+  "titulo": "Lo he simulado #2: ¿Por qué un bulo llega más lejos que la verdad?",
+  "escenas": [
+    "Un mensaje. Una sola persona le da a reenviar. En unas horas lo ha recibido media ciudad. Y es mentira.",
+    "¿Por qué los bulos llegan tan lejos, y la verdad casi nunca les alcanza? Para averiguarlo, he construido una red de mil personas dentro del ordenador... y he soltado un bulo.",
+    "Cada punto es una persona. Cada línea, alguien con quien habla: su familia, sus amigos, el grupo del trabajo. La mayoría solo habla con gente cercana... pero de vez en cuando alguien tiene un contacto lejano, como ese primo que vive en otra ciudad.",
+    "Y unos pocos tienen muchísimos contactos: los vamos a llamar influencers.",
+    "La regla es muy sencilla. Cuando a alguien le llega un mensaje, tiene una oportunidad de reenviarlo a cada uno de sus contactos. A veces lo hace... y a veces no.",
+    "Empecemos con una noticia verdadera. Interesante, pero normal. La lanza una persona cualquiera...",
+    "...y se apaga enseguida. La reciben unas pocas personas, y ya está.",
+    "Ahora, un bulo. En 2018, unos investigadores del MIT analizaron unas ciento veintiséis mil historias que se habían compartido en Twitter, verdaderas y falsas. Las falsas tenían un setenta por ciento más de probabilidades de ser compartidas. Sorprenden más, indignan más... y nos encanta ser los primeros en contarlo.",
+    "Así que le doy a nuestro bulo exactamente eso: un setenta por ciento más de probabilidades de ser reenviado. Lo lanza la misma persona...",
+    "...y mira. Sigue y sigue y sigue. Al final lo reciben cientos de personas.",
+    "Y no es casualidad. Lo he repetido lanzando el mensaje desde sesenta personas distintas: de media, la verdad llega a unas cuarenta personas. El bulo, a unas cuatrocientas setenta. Con solo un setenta por ciento más de reenvíos, llega a más de diez veces más gente.",
+    "¿Cómo puede una diferencia tan pequeña dar un resultado tan enorme? Porque hay un punto crítico. Si cada persona, de media, se lo pasa a menos de una persona nueva, el mensaje se apaga. Si se lo pasa a más de una, explota. La verdad se quedaba justo por debajo. El bulo, justo por encima.",
+    "Y no solo llegan más lejos: también llegan antes. El estudio del MIT encontró que a la verdad le costaba unas seis veces más tiempo llegar a mil quinientas personas.",
+    "¿Y si el bulo lo lanza un influencer, alguien con casi cien contactos? A la izquierda, lo lanza una persona normal. A la derecha, el influencer.",
+    "Llega más rápido y a más gente. De media, a casi setecientas personas de mil. Por eso un bulo compartido por la cuenta equivocada parece imparable.",
+    "Entonces, ¿se puede parar? Probemos con un desmentido. Lo lanza un influencer y, para ser justos, le doy la misma fuerza que al bulo. Quien lo ve, deja de reenviar el bulo.",
+    "Si el desmentido sale a la vez que el bulo, este apenas llega a cuarenta personas. Con dos horas de retraso, a más de cien. Con seis horas, a más de trescientas. Y con diez, casi da igual: llega a cuatrocientas.",
+    "Un desmentido sirve... pero solo si llega pronto. Y casi nunca llega pronto.",
+    "¿Y lo que hizo WhatsApp? En 2019 limitó los reenvíos: un mensaje solo se puede reenviar a cinco chats a la vez. Y en 2020 fue más allá: los mensajes muy reenviados, a uno solo. Vamos a probarlo. A la izquierda, sin límite. A la derecha, como mucho a cinco contactos.",
+    "En mi red, ese límite deja al bulo por debajo del punto crítico: pasa de cuatrocientas setenta personas a una docena. En la vida real el efecto es menor, porque un chat puede ser un grupo de doscientas personas. Aun así, WhatsApp contó que los mensajes muy reenviados bajaron un setenta por ciento.",
+    "Y hay otra idea, que viene de la medicina: vacunarse. Hay investigadores que han creado juegos que te enseñan los trucos de los bulos, y quien juega luego cae bastante menos. Vamos a vacunar a una parte de la red: los puntos blancos ya conocen el truco, y no reenvían el bulo.",
+    "Con un diez por ciento de vacunados, el bulo llega a doscientas setenta y cinco personas. Con un treinta por ciento, a setenta. Y con un cuarenta, a menos de treinta. No hace falta vacunar a todo el mundo: basta con que lo esté una parte para proteger también a los demás.",
+    "Pero lo más eficaz de todo depende de ti. Vamos a hacer que cada persona dude un poco antes de reenviar. Que se pare diez segundos y piense: ¿esto será verdad?",
+    "Si reenviamos solo un veinte por ciento menos, el bulo pasa de llegar a cuatrocientas setenta personas a ciento cuarenta. Con un treinta por ciento menos, a menos de cien. El bulo se queda por debajo del punto crítico... y se apaga solo.",
+    "Así que la próxima vez que te llegue algo que te indigne o te sorprenda muchísimo, recuerda: es justo el tipo de mensaje que más se reenvía. Espera diez segundos. A lo mejor eres tú quien lo apaga.",
+    "¿Qué simulo en el próximo vídeo? Déjamelo en los comentarios. Esto ha sido Lo he simulado."
+  ]
+}
