@@ -47,3 +47,9 @@ despliega solo al hacer push a esa rama.
 - Siguiente línea propuesta: saga del siglo XIX para 2º Bachillerato (Primera República,
   Restauración, Constitución de 1876...). Ficha «Para la PAU» al final: pendiente de decidir.
 - Otros proyectos en `prototipos/`: reels de gatos (`michi/`), zoom de fractal (`fractal/`).
+- **Canal nuevo «Lo he simulado»** (`prototipos/simulado/`): preguntas de la vida real respondidas con
+  simulaciones programadas, videos largos horizontales. Video 1: atascos fantasma (`atascos.py`,
+  simulacion en `trafico.py`), narrado con su voz clonada via `/narra atascos si` en el bot de
+  España Contada (textos en `app/narraciones/`). Montaje: `atascos.py salida.mp4 --audio X.mp3
+  --duraciones X.json`. Marca y miniaturas en `prototipos/simulado/marca/` (le gusto la miniatura C,
+  sin el letrero «TÚ»). Shorts del canal: de momento NO.
