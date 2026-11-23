@@ -101,6 +101,24 @@ def _recorta_pie(texto: str, reserva: int = 0) -> str:
     return texto[:corte].rstrip() + "\n\n[...]"
 
 
+def _trozos_de_mensaje(texto: str, maximo: int = 4000) -> list[str]:
+    """Un mensaje de texto largo, en trozos que caben en Telegram (4.096).
+
+    /nichos usaba _recorta_pie, que es para PIES DE FOTO (1.000): el mapa de
+    16 nichos se cortaba en el octavo y los otros ocho no llegaban nunca.
+    Se corta por saltos de linea para no partir una negrita por la mitad."""
+    trozos, actual = [], ""
+    for linea in texto.split("\n"):
+        if actual and len(actual) + 1 + len(linea) > maximo:
+            trozos.append(actual)
+            actual = linea
+        else:
+            actual = f"{actual}\n{linea}" if actual else linea
+    if actual:
+        trozos.append(actual)
+    return [t[:maximo] for t in trozos]
+
+
 async def send_for_approval(bot, video_id: int) -> None:
     record = storage.get_video(video_id)
     keyboard = InlineKeyboardMarkup(
@@ -2029,9 +2047,10 @@ async def handle_nichos_command(update: Update, context: ContextTypes.DEFAULT_TY
             lineas.append(f"       el mejor: {_limpio(mejor['nombre'])[:30]} "
                           f"({mejor['meses']:.0f} meses, {mejor['subs']:,} subs)".replace(",", "."))
         lineas += ["", f"_Cuota gastada: {gastado} de 10.000._"]
-        await context.bot.send_message(
-            chat_id=TELEGRAM_CHAT_ID, text=_recorta_pie("\n".join(lineas)),
-            parse_mode="Markdown", disable_web_page_preview=True)
+        for trozo in _trozos_de_mensaje("\n".join(lineas)):
+            await context.bot.send_message(
+                chat_id=TELEGRAM_CHAT_ID, text=trozo,
+                parse_mode="Markdown", disable_web_page_preview=True)
         return
     semillas = [t.strip() for t in semillas][:4]
     await update.message.reply_text(
@@ -2068,8 +2087,9 @@ async def handle_nichos_command(update: Update, context: ContextTypes.DEFAULT_TY
             "",
         ]
     lineas += [f"_Cuota gastada: {gastado} de 10.000._"]
-    await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=_recorta_pie("\n".join(lineas)),
-                                   parse_mode="Markdown", disable_web_page_preview=True)
+    for trozo in _trozos_de_mensaje("\n".join(lineas)):
+        await context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=trozo,
+                                       parse_mode="Markdown", disable_web_page_preview=True)
 
 
 async def handle_oficial_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
