@@ -2079,11 +2079,14 @@ async def handle_nichos_command(update: Update, context: ContextTypes.DEFAULT_TY
     lineas = ["*Canales que podriamos replicar*", ""]
     for c in canales[:8]:
         lineas += [
-            f"*{c['nombre'][:38]}*",
+            f"*{_limpio(c['nombre'])[:38]}*",
             f"  {c['meses']:.0f} meses · {c['subs']:,} subs · {c['videos']} videos".replace(",", "."),
             f"  {c['por_video']:,} vistas por video · {c['ritmo']}/mes".replace(",", "."),
             f"  +{c['subs_mes']:,} subs al mes".replace(",", "."),
-            f"  youtube.com/channel/{c['id']}",
+            # entre comillas de codigo: los ids llevan guiones bajos, y en
+            # Markdown un "_" suelto abre una cursiva y Telegram rechaza el
+            # mensaje entero (paso el 23-nov con 13 canales encontrados).
+            f"  `youtube.com/channel/{c['id']}`",
             "",
         ]
     lineas += [f"_Cuota gastada: {gastado} de 10.000._"]

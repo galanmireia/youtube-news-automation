@@ -1,0 +1,12 @@
+{
+  "titulo": "Lo he simulado: ¿Dos en tu clase cumplen el mismo día?",
+  "escenas": [
+    "En tu clase sois veintitrés. ¿Qué probabilidad hay de que dos cumpláis años el mismo día?",
+    "Casi todo el mundo dice: poquísima. El año tiene trescientos sesenta y cinco días.",
+    "Lo he simulado. He creado diez mil clases de veintitrés personas, con cumpleaños al azar.",
+    "Y en la mitad de las clases, dos cumplían el mismo día. La mitad.",
+    "Con treinta personas, siete de cada diez clases. Con cuarenta y una, nueve de cada diez.",
+    "El truco: no buscas a alguien que cumpla el mismo día que tú. Vale cualquier pareja. Y con veintitrés personas hay doscientas cincuenta y tres parejas.",
+    "Mañana, pregunta en clase."
+  ]
+}
