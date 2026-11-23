@@ -63,7 +63,11 @@ def titular(img, lineas, y, tam=104, alfa=255, k=1.0):
     f = F(tam*(0.9 + 0.1*sale(k)))
     alto = tam*1.12
     for n, partes in enumerate(lineas):
+        f = F(tam*(0.9 + 0.1*sale(k)))
         ancho = sum(d.textlength(s, font=f) for s, _ in partes)
+        if ancho > W - 90:                      # que nunca se salga por los lados
+            f = F(tam*(0.9 + 0.1*sale(k))*(W - 90)/ancho)
+            ancho = sum(d.textlength(s, font=f) for s, _ in partes)
         x = W/2 - ancho/2
         yy = y + n*alto
         for s, col in partes:

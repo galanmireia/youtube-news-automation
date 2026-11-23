@@ -1399,7 +1399,8 @@ def render_segmento(args):
         img = BASE.copy()
         img = VISTAS[i](img, C)
         capitulo(img, i, t)
-        subtitulo(img, filas, t)
+        if not SIN_SUBS:
+            subtitulo(img, filas, t)
         if i not in SIGUE and n > 0 and t < 0.25:
             velo = Image.new("RGBA", (W, H), OSCURO + (int(200*(1 - t/0.25)),))
             img.paste(velo, (0, 0), velo)
@@ -1455,7 +1456,10 @@ def main():
     ap.add_argument("--fotos", default="")
     ap.add_argument("--tiempos", default="0.3,0.6,0.9")
     ap.add_argument("--procesos", type=int, default=4)
+    ap.add_argument("--sin-subtitulos", action="store_true", help="para recortar trozos (el Short de los bulos)")
     args = ap.parse_args()
+    global SIN_SUBS
+    SIN_SUBS = args.sin_subtitulos
 
     RED, CASC, ORIGEN, INF = prepara()
     BASE = fondo()
@@ -1546,6 +1550,7 @@ def main():
 
 
 RED = CASC = ORIGEN = INF = GRANDE = IZQ = DER = BASE = PRIMO = SEGS = None
+SIN_SUBS = False
 
 if __name__ == "__main__":
     main()

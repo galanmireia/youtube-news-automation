@@ -116,6 +116,40 @@ def subtitulo(img, grupos, t, y=1470):
         x += w
 
 
+def cierre(img, C, tl, tipo, lineas):
+    """El cartel final: o te manda al video completo, o te cita mañana."""
+    from estilo import AZUL, ROJO, VERDE, agente, ease, titular, tx  # noqa: F401
+    velo = Image.new("RGBA", (W, H), OSCURO + (int(252*ease(tl/0.35)),))
+    img.paste(velo, (0, 0), velo)
+    k = tl/0.35
+    if C.cruza(C.ini[-1] + 0.05):
+        C.son("whoosh", 0.7)
+    if tipo == "video":
+        titular(img, [[(l, AMARILLO if i == 0 else BLANCO)] for i, l in enumerate(lineas)], 330, 104, k=k)
+        agente(img, 540, 1060, 120, "guiño", C.t, "señala")
+        d = ImageDraw.Draw(img, "RGBA")
+        pulso = 1 + 0.06*np.sin(tl*7)
+        f = F(64*pulso)
+        s = "VÍDEO COMPLETO"
+        w = d.textlength(s, font=f)
+        y = 1240
+        d.rounded_rectangle([W/2 - w/2 - 40, y - 52, W/2 + w/2 + 40, y + 52], radius=52, fill=AMARILLO + (255,))
+        d.text((W/2, y), s, font=f, fill=OSCURO + (255,), anchor="mm")
+        for j in range(3):          # flechas hacia abajo, donde YouTube pone el enlace al video
+            yy = y + 76 + j*40 + (tl*50 % 40)
+            a = int(255*max(0.0, 1 - j*0.3))
+            d.polygon([(W/2 - 34, yy), (W/2 + 34, yy), (W/2, yy + 30)], fill=AMARILLO + (a,))
+    elif tipo == "manana":
+        titular(img, [[("MAÑANA", AMARILLO)]], 300, 130, k=k)
+        titular(img, [[(l, BLANCO)] for l in lineas], 480, 92, k=(tl - 0.2)/0.35)
+        agente(img, 540, 1150, 130, "guiño", C.t, "arriba")
+    else:
+        titular(img, [[("¿Qué simulo", BLANCO)], [("después?", AMARILLO)]], 330, 120, k=k)
+        agente(img, 540, 1050, 130, "pensando", C.t, "cadera")
+        titular(img, [[("Déjamelo en", BLANCO)], [("los comentarios", BLANCO)]], 1250, 72, k=(tl - 0.4)/0.35)
+    return img
+
+
 def mezcla(total, narr, eventos, alegre=True):
     pista = np.zeros(int((total + 0.5)*SN.SR), np.float32)
     voz = np.zeros_like(pista)
@@ -146,6 +180,11 @@ def main():
     ap.add_argument("--cola", type=float, default=0.6)
     ap.add_argument("--portada", default="", help="guarda un fotograma sin subtitulos (la portada del Short)")
     ap.add_argument("--en", type=float, default=1.6, help="segundo del fotograma de la portada")
+    ap.add_argument("--cierres", default="", help="mp3 de /narra cierres")
+    ap.add_argument("--cierres-json", default="", help="duraciones de /narra cierres")
+    ap.add_argument("--cierre", type=int, default=-1, help="que frase de los cierres va al final")
+    ap.add_argument("--cierre-tipo", default="manana", choices=("video", "manana", "comentarios"))
+    ap.add_argument("--cierre-texto", default="", help="lineas del cartel final, separadas por |")
     args = ap.parse_args()
     mod = importlib.import_module(args.short)
 
@@ -155,6 +194,24 @@ def main():
     narr = np.frombuffer(crudo, np.float32).copy()
     narr /= max(1e-6, np.abs(narr).max())/0.9
     durs = list(info["duraciones"])
+    textos = list(info["textos"])
+    n_orig = len(durs)
+    if args.cierre >= 0:
+        # la frase final que abre la puerta (al video largo o al Short de mañana)
+        ci = json.loads(Path(args.cierres_json).read_text())
+        crudo_c = subprocess.run(["ffmpeg", "-v", "error", "-i", args.cierres, "-f", "f32le", "-ac", "1", "-ar",
+                                  str(SN.SR), "-"], capture_output=True, check=True).stdout
+        cn = np.frombuffer(crudo_c, np.float32).copy()
+        cn /= max(1e-6, np.abs(cn).max())/0.9
+        a0 = sum(ci["duraciones"][:args.cierre])
+        dc = ci["duraciones"][args.cierre]
+        clip = cn[int(a0*SN.SR):int((a0 + dc)*SN.SR)]
+        hueco = 0.25
+        narr = np.concatenate([narr[:int(sum(durs)*SN.SR)], np.zeros(int(hueco*SN.SR), np.float32), clip])
+        durs[-1] += hueco
+        durs.append(dc)
+        textos.append(ci["textos"][args.cierre])
+    info["textos"] = textos
     inicios = list(np.cumsum([0] + durs[:-1]))
     palabras = []
     for k, (s, dv) in enumerate(zip(inicios, durs)):
@@ -169,7 +226,16 @@ def main():
     def frame(t):
         C.t = t
         img = fondo()
-        img = mod.dibuja(img, C) or img
+        if args.cierre >= 0 and t >= inicios[n_orig]:
+            # debajo, la ultima imagen del Short, apagada; encima, el cartel
+            C.t = inicios[n_orig] - 0.05
+            n_ev = len(C.eventos)
+            img = mod.dibuja(img, C) or img
+            del C.eventos[n_ev:]           # la imagen congelada no suena
+            C.t = t
+            img = cierre(img, C, t - inicios[n_orig], args.cierre_tipo, args.cierre_texto.split("|"))
+        else:
+            img = mod.dibuja(img, C) or img
         subtitulo(img, grupos, t)
         marca(img)
         return img
