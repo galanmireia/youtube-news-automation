@@ -1282,9 +1282,10 @@ async def handle_narra_command(update: Update, context: ContextTypes.DEFAULT_TYP
     if len(args) < 2 or args[1] not in ("si", "sí", "ok", "vale"):
         await update.message.reply_text(
             f"{datos.get('titulo', nombre)}\n{len(textos)} escenas, "
-            f"{sum(len(t) for t in textos)} caracteres con `{modelo}`: unos {coste} creditos.\n\n"
-            f"Para generarla manda: /narra {nombre} si",
-            parse_mode="Markdown")
+            f"{sum(len(t) for t in textos)} caracteres con {modelo}: unos {coste} creditos.\n\n"
+            f"Para generarla manda: /narra {nombre} si")
+        # sin Markdown: un nombre con guion bajo (short_cumple) abria una
+        # cursiva sin cerrar y Telegram no mandaba el mensaje (23-nov)
         return
     await update.message.reply_text(f"Generando la narracion de {nombre} con tu voz (unos {coste} creditos). Tarda unos minutos...")
     carpeta = Path(DATA_DIR) / f"narra_{nombre}_{int(time.time())}"
