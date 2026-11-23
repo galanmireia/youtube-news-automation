@@ -168,3 +168,83 @@ def marca(img, alfa=255):
     x0 = W/2 - (w1 + w2)/2
     d.text((x0, 1800), "LO HE ", font=f, fill=BLANCO + (int(alfa*0.8),), anchor="lm")
     d.text((x0 + w1, 1800), "SIMULADO", font=f, fill=AMARILLO + (int(alfa*0.8),), anchor="lm")
+
+
+def agente(img, x, y, r, cara="normal", t=0.0, brazos="abajo", alfa=255, sombra=True):
+    """El personaje elegido (C, «Agente»): robotito blanco con antena y una
+    pantalla por cara. Se dibuja al doble en un trozo aparte y se reduce, para
+    que los bordes salgan limpios a cualquier tamaño.
+    cara: normal, contento, susto, pensando, guiño, triste
+    brazos: abajo, arriba, señala (a la derecha), cadera"""
+    S = 2
+    R = r*S
+    tam = int(R*4.4)
+    capa = Image.new("RGBA", (tam, tam), (0, 0, 0, 0))
+    d = ImageDraw.Draw(capa)
+    cx, cy = tam/2, tam/2 - R*0.15
+    bote = math.sin(t*3.0)*R*0.03
+    cy += bote
+    lw = max(2, int(R*0.075))
+    ink = OSCURO + (255,)
+    # sombra en el suelo
+    if sombra:
+        d.ellipse([cx - R*0.9, cy + R*1.5, cx + R*0.9, cy + R*1.72], fill=(0, 0, 0, 90))
+    # piernas
+    for sx in (-1, 1):
+        d.line([(cx + sx*R*0.4, cy + R*0.8), (cx + sx*R*0.42, cy + R*1.4)], fill=ink, width=lw)
+        d.ellipse([cx + sx*R*0.42 - R*0.24, cy + R*1.32, cx + sx*R*0.42 + R*0.24, cy + R*1.54], fill=ink)
+    # brazos
+    pos = {"abajo": ((-1.38, 0.62), (1.38, 0.62)), "arriba": ((-1.35, -0.75), (1.35, -0.75)),
+           "señala": ((-1.35, 0.6), (1.6, -0.2)), "cadera": ((-1.15, 0.55), (1.15, 0.55))}[brazos]
+    for sx, (hx, hy) in zip((-1, 1), pos):
+        ox, oy = cx + sx*R*0.95, cy + R*0.15
+        mx, my = cx + hx*R, cy + hy*R + (math.sin(t*6)*R*0.06 if brazos == "arriba" else 0)
+        if brazos == "cadera":
+            d.line([(ox, oy), (cx + sx*R*1.35, cy + R*0.15), (mx, my)], fill=ink, width=lw, joint="curve")
+        else:
+            d.line([(ox, oy), (mx, my)], fill=ink, width=lw)
+        d.ellipse([mx - R*0.15, my - R*0.15, mx + R*0.15, my + R*0.15], fill=ink)
+    # antena (se balancea)
+    ax = cx + R*0.15 + math.sin(t*4)*R*0.08
+    d.line([(cx, cy - R*0.97), (ax, cy - R*1.5)], fill=ink, width=lw)
+    luz = (255, 80, 96) if cara != "contento" else (60, 226, 160)
+    d.ellipse([ax - R*0.18, cy - R*1.5 - R*0.18, ax + R*0.18, cy - R*1.5 + R*0.18], fill=luz + (255,), outline=ink, width=lw)
+    # cuerpo
+    d.ellipse([cx - R, cy - R, cx + R, cy + R], fill=(238, 242, 252, 255), outline=ink, width=lw)
+    d.ellipse([cx - R*0.75, cy - R*0.85, cx - R*0.25, cy - R*0.6], fill=(255, 255, 255, 255))
+    # pantalla
+    d.rounded_rectangle([cx - R*0.72, cy - R*0.55, cx + R*0.72, cy + R*0.47], radius=R*0.3, fill=(18, 26, 58, 255))
+    ojo = (110, 205, 255, 255)
+    parp = (t % 3.4) < 0.12
+    for sx in (-1, 1):
+        ex, ey = cx + sx*R*0.3, cy - R*0.16
+        if cara == "contento" or (cara == "guiño" and sx == 1):
+            d.arc([ex - R*0.15, ey - R*0.1, ex + R*0.15, ey + R*0.2], 200, 340, fill=ojo, width=max(2, int(R*0.07)))
+        elif parp:
+            d.line([(ex - R*0.13, ey), (ex + R*0.13, ey)], fill=ojo, width=max(2, int(R*0.07)))
+        elif cara == "susto":
+            d.ellipse([ex - R*0.15, ey - R*0.19, ex + R*0.15, ey + R*0.19], outline=ojo, width=max(2, int(R*0.06)))
+            d.ellipse([ex - R*0.06, ey - R*0.06, ex + R*0.06, ey + R*0.06], fill=ojo)
+        elif cara == "pensando":
+            h = 0.16 if sx == -1 else 0.07
+            d.rounded_rectangle([ex - R*0.12, ey - R*h, ex + R*0.12, ey + R*h], radius=R*0.06, fill=ojo)
+        elif cara == "triste":
+            d.rounded_rectangle([ex - R*0.12, ey - R*0.1, ex + R*0.12, ey + R*0.16], radius=R*0.06, fill=ojo)
+            d.line([(ex - R*0.16, ey - R*0.2 - sx*R*0.05), (ex + R*0.16, ey - R*0.2 + sx*R*0.05)], fill=ojo, width=max(2, int(R*0.05)))
+        else:
+            d.rounded_rectangle([ex - R*0.12, ey - R*0.17, ex + R*0.12, ey + R*0.15], radius=R*0.07, fill=ojo)
+    my = cy + R*0.2
+    if cara in ("normal", "guiño"):
+        d.arc([cx - R*0.22, my - R*0.14, cx + R*0.22, my + R*0.14], 20, 160, fill=ojo, width=max(2, int(R*0.07)))
+    elif cara == "contento":
+        d.chord([cx - R*0.26, my - R*0.16, cx + R*0.26, my + R*0.2], 0, 180, fill=ojo)
+    elif cara == "susto":
+        d.ellipse([cx - R*0.1, my - R*0.06, cx + R*0.1, my + R*0.18], outline=ojo, width=max(2, int(R*0.06)))
+    elif cara == "pensando":
+        d.line([(cx - R*0.15, my + R*0.05), (cx + R*0.18, my - R*0.02)], fill=ojo, width=max(2, int(R*0.07)))
+    elif cara == "triste":
+        d.arc([cx - R*0.2, my + R*0.02, cx + R*0.2, my + R*0.3], 200, 340, fill=ojo, width=max(2, int(R*0.07)))
+    capa = capa.resize((tam//S, tam//S), Image.LANCZOS)
+    if alfa < 255:
+        capa.putalpha(capa.getchannel("A").point(lambda v: v*alfa//255))
+    img.paste(capa, (int(x - tam/S/2), int(y - tam/S/2 + r*0.15)), capa)
