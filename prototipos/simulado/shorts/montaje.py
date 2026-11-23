@@ -144,6 +144,8 @@ def main():
     ap.add_argument("--duraciones", required=True)
     ap.add_argument("--fotos", default="")
     ap.add_argument("--cola", type=float, default=0.6)
+    ap.add_argument("--portada", default="", help="guarda un fotograma sin subtitulos (la portada del Short)")
+    ap.add_argument("--en", type=float, default=1.6, help="segundo del fotograma de la portada")
     args = ap.parse_args()
     mod = importlib.import_module(args.short)
 
@@ -171,6 +173,14 @@ def main():
         subtitulo(img, grupos, t)
         marca(img)
         return img
+
+    if args.portada:
+        C.t = args.en
+        mod.agente = lambda *a, **k: None      # en la portada el Agente va solo en grande (portadas.py)
+        img = mod.dibuja(fondo(), C) or fondo()
+        marca(img)
+        img.save(args.portada)
+        return
 
     if args.fotos:
         ts = [inicios[k] + durs[k]*f for k in range(len(durs)) for f in (0.15, 0.75)]
